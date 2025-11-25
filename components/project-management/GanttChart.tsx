@@ -63,9 +63,9 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
   const [viewMode, setViewMode] = useState<ViewMode>('phases');
 
   // Merge provided phase names with defaults
-  const getPhaseName = (phaseNumber: number): string => {
+  const getPhaseName = useCallback((phaseNumber: number): string => {
     return phaseNames[phaseNumber] || DEFAULT_PHASE_NAMES[phaseNumber] || `Phase ${phaseNumber}`;
-  };
+  }, [phaseNames]);
 
   // Group tasks by phase
   const tasksByPhase = useMemo(() => {

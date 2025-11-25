@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Box, IconButton, Button } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -59,10 +59,10 @@ export default function ReportSlideshowViewer({
 
   const totalSlides = slides.length;
 
-  const showSlide = (index: number) => {
+  const showSlide = useCallback((index: number) => {
     if (index < 0 || index >= totalSlides) return;
     setCurrentSlide(index);
-  };
+  }, [totalSlides]);
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -75,7 +75,7 @@ export default function ReportSlideshowViewer({
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [currentSlide]);
+  }, [currentSlide, showSlide]);
 
   const renderSlide = () => {
     const slide = slides[currentSlide];

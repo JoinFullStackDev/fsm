@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Drawer,
@@ -54,20 +54,7 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
   const [menuAnchor, setMenuAnchor] = useState<{ element: HTMLElement; notificationId: string } | null>(null);
   const subscriptionRef = useRef<any>(null);
 
-  useEffect(() => {
-    if (open) {
-      loadNotifications();
-      setupRealtimeSubscription();
-    }
-
-    return () => {
-      if (subscriptionRef.current) {
-        subscriptionRef.current.unsubscribe();
-      }
-    };
-  }, [open]);
-
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch('/api/notifications?limit=100');
@@ -83,9 +70,9 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const setupRealtimeSubscription = async () => {
+  const setupRealtimeSubscription = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
@@ -135,7 +122,20 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
     } catch (error) {
       console.error('[NotificationDrawer] Error setting up subscription:', error);
     }
-  };
+  }, [supabase]);
+
+  useEffect(() => {
+    if (open) {
+      loadNotifications();
+      setupRealtimeSubscription();
+    }
+
+    return () => {
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+      }
+    };
+  }, [open, loadNotifications, setupRealtimeSubscription]);
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {

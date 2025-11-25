@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -96,15 +96,7 @@ export default function TaskComments({
     return Array.from(userMap.values());
   }, [projectMembers, allTasks, comments]);
 
-  useEffect(() => {
-    if (taskId) {
-      loadComments();
-    } else {
-      setComments([]);
-    }
-  }, [taskId]);
-
-  const loadComments = async () => {
+  const loadComments = useCallback(async () => {
     if (!taskId) return;
     setLoading(true);
     try {
@@ -118,7 +110,15 @@ export default function TaskComments({
     } finally {
       setLoading(false);
     }
-  };
+  }, [taskId]);
+
+  useEffect(() => {
+    if (taskId) {
+      loadComments();
+    } else {
+      setComments([]);
+    }
+  }, [taskId, loadComments]);
 
   const handleMentionSelect = (userId: string, userName: string) => {
     console.log('[TaskComments] Mention selected:', { userId, userName });

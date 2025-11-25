@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -49,7 +49,7 @@ export default function ReportsList({ projectId, refreshTrigger }: ReportsListPr
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  const loadReports = async () => {
+  const loadReports = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -67,13 +67,13 @@ export default function ReportsList({ projectId, refreshTrigger }: ReportsListPr
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId]);
 
   useEffect(() => {
     if (projectId) {
       loadReports();
     }
-  }, [projectId, refreshTrigger]);
+  }, [projectId, refreshTrigger, loadReports]);
 
   const handleViewReport = (report: Report) => {
     setSelectedReport(report);

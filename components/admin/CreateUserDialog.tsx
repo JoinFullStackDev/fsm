@@ -87,7 +87,16 @@ export default function CreateUserDialog({
     name: nameInputRef,
     email: emailInputRef,
   };
-  useFocusOnError(errorFields, fieldRefs, shouldFocusOnError);
+  // Only focus on errors if shouldFocusOnError is true AND there are actual errors
+  // AND user is not currently typing
+  const hasErrors = Object.values(errorFields).some(err => !!err);
+  const activeElement = typeof document !== 'undefined' ? document.activeElement : null;
+  const isTyping = activeElement && (
+    activeElement.tagName === 'INPUT' ||
+    activeElement.tagName === 'TEXTAREA' ||
+    activeElement.getAttribute('contenteditable') === 'true'
+  );
+  useFocusOnError(errorFields, fieldRefs, shouldFocusOnError && hasErrors && !isTyping);
 
   // Debug: Log when createdUser changes
   useEffect(() => {

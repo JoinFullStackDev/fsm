@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -194,11 +194,7 @@ export default function PhaseManager({ templateId, onPhasesChange }: PhaseManage
     })
   );
 
-  useEffect(() => {
-    loadPhases();
-  }, [templateId]);
-
-  const loadPhases = async () => {
+  const loadPhases = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch(`/api/templates/${templateId}/phases`);
@@ -212,7 +208,11 @@ export default function PhaseManager({ templateId, onPhasesChange }: PhaseManage
     } finally {
       setLoading(false);
     }
-  };
+  }, [templateId, showError]);
+
+  useEffect(() => {
+    loadPhases();
+  }, [loadPhases]);
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);

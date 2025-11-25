@@ -200,6 +200,16 @@ describe('/api/projects/[id]/phases', () => {
         }),
       };
 
+      // Mock project_members query (user is owner, so this can return null)
+      const mockMemberQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Not found' },
+        }),
+      };
+
       const mockExistingPhasesQuery = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -220,8 +230,9 @@ describe('/api/projects/[id]/phases', () => {
       };
 
       mockSupabaseClient.from
-        .mockReturnValueOnce(mockProjectQuery)
         .mockReturnValueOnce(mockUserQuery)
+        .mockReturnValueOnce(mockProjectQuery)
+        .mockReturnValueOnce(mockMemberQuery)
         .mockReturnValueOnce(mockExistingPhasesQuery)
         .mockReturnValueOnce(mockInsertQuery);
 
@@ -272,6 +283,16 @@ describe('/api/projects/[id]/phases', () => {
         }),
       };
 
+      // Mock project_members query (user is owner, so this can return null)
+      const mockMemberQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Not found' },
+        }),
+      };
+
       const mockUpdateQuery = {
         update: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -283,8 +304,9 @@ describe('/api/projects/[id]/phases', () => {
       };
 
       mockSupabaseClient.from
-        .mockReturnValueOnce(mockProjectQuery)
         .mockReturnValueOnce(mockUserQuery)
+        .mockReturnValueOnce(mockProjectQuery)
+        .mockReturnValueOnce(mockMemberQuery)
         .mockReturnValueOnce(mockUpdateQuery);
 
       const request = new NextRequest('http://localhost:3000/api/projects/project-1/phases', {

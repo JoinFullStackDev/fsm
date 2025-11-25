@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -27,11 +27,7 @@ export default function ProfileGitHubTab() {
   const [profile, setProfile] = useState<User | null>(null);
   const [githubConnected, setGithubConnected] = useState(false);
 
-  useEffect(() => {
-    loadProfile();
-  }, []);
-
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     setLoading(true);
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -54,7 +50,11 @@ export default function ProfileGitHubTab() {
     setProfile(user);
     setGithubConnected(!!user.github_username || !!user.github_access_token);
     setLoading(false);
-  };
+  }, [supabase]);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
 
   const handleConnectGitHub = () => {
     // TODO: Implement GitHub OAuth flow

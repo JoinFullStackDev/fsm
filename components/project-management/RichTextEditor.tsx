@@ -302,6 +302,7 @@ export default function RichTextEditor({
     };
     
     // Listen for focus/click events on the editor
+    // Capture the element at the start to use in cleanup
     const editorElement = containerRef.current?.querySelector('.ql-editor');
     if (editorElement) {
       editorElement.addEventListener('focus', handleEditorInteraction, { once: true });
@@ -309,7 +310,7 @@ export default function RichTextEditor({
     }
     
     return () => {
-      const editorElement = containerRef.current?.querySelector('.ql-editor');
+      // Use the captured element from the effect start
       if (editorElement) {
         editorElement.removeEventListener('focus', handleEditorInteraction);
         editorElement.removeEventListener('click', handleEditorInteraction);

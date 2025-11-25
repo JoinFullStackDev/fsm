@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Chip,
@@ -24,11 +24,7 @@ export default function TemplateSyncIndicator({ templateId, onRefresh }: Templat
   const [refreshing, setRefreshing] = useState(false);
   const supabase = createSupabaseClient();
 
-  useEffect(() => {
-    loadTemplateInfo();
-  }, [templateId]);
-
-  const loadTemplateInfo = async () => {
+  const loadTemplateInfo = useCallback(async () => {
     const { data } = await supabase
       .from('project_templates')
       .select('updated_at, name')
@@ -38,7 +34,11 @@ export default function TemplateSyncIndicator({ templateId, onRefresh }: Templat
     if (data) {
       setTemplateUpdatedAt(data.updated_at);
     }
-  };
+  }, [supabase, templateId]);
+
+  useEffect(() => {
+    loadTemplateInfo();
+  }, [loadTemplateInfo]);
 
   const handleRefresh = async () => {
     console.log('[TemplateSyncIndicator] Refresh clicked for template:', templateId);

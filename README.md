@@ -6,6 +6,8 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue)](https://www.typescriptlang.org/)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-green)](https://supabase.com)
 
+**✅ Build Status: Passing** | **✅ Unit Tests: 180 passing (20 test suites)**
+
 A production-grade web application that encodes the 6 phases of the FullStack Method™ into a guided, structured system. This platform generates structured JSON, Markdown, text files, ERDs, API contracts, user stories, and blueprint bundles that can be consumed by AI coding tools like Cursor, Lovable, Replit, Base44, and others.
 
 ## 🎯 Platform Overview

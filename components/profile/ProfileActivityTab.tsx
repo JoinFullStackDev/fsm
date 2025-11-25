@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -30,11 +30,7 @@ export default function ProfileActivityTab() {
   const [error, setError] = useState<string | null>(null);
   const [activities, setActivities] = useState<ActivityLog[]>([]);
 
-  useEffect(() => {
-    loadActivity();
-  }, []);
-
-  const loadActivity = async () => {
+  const loadActivity = useCallback(async () => {
     setLoading(true);
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
@@ -68,7 +64,11 @@ export default function ProfileActivityTab() {
 
     setActivities((activityData as ActivityLog[]) || []);
     setLoading(false);
-  };
+  }, [supabase]);
+
+  useEffect(() => {
+    loadActivity();
+  }, [loadActivity]);
 
   const getActivityIcon = (actionType: string) => {
     if (actionType.includes('project')) return <CreateIcon />;

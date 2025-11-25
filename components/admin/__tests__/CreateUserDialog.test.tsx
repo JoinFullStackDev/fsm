@@ -172,7 +172,7 @@ describe('CreateUserDialog', () => {
     await user.type(emailInput, 'invalid-email');
 
     await waitFor(() => {
-      expect(screen.getByText(/valid email/i)).toBeInTheDocument();
+      expect(screen.getByText(/valid email address/i)).toBeInTheDocument();
     });
   });
 
@@ -272,12 +272,15 @@ describe('CreateUserDialog', () => {
     await user.clear(nameInput);
     await user.clear(emailInput);
     
+    // Type into name field and wait for it to be set
     await user.type(nameInput, 'Test User');
-    await user.type(emailInput, 'test@example.com');
-    
-    // Wait for values to be set
     await waitFor(() => {
       expect(nameInput).toHaveValue('Test User');
+    });
+    
+    // Type into email field and wait for it to be set
+    await user.type(emailInput, 'test@example.com');
+    await waitFor(() => {
       expect(emailInput).toHaveValue('test@example.com');
     });
     
