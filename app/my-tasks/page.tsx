@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Box,
@@ -38,11 +38,7 @@ export default function MyTasksPage() {
     return { start: today, end: twoWeeksFromNow };
   }, []);
 
-  useEffect(() => {
-    loadTasks();
-  }, []);
-
-  const loadTasks = async () => {
+  const loadTasks = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -134,7 +130,11 @@ export default function MyTasksPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase, dateRange]);
+
+  useEffect(() => {
+    loadTasks();
+  }, [loadTasks]);
 
   const getStatusColor = (status: string) => {
     switch (status) {

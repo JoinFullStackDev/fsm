@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   IconButton,
@@ -35,18 +35,7 @@ export default function NotificationBell({ onOpenDrawer }: NotificationBellProps
   const [loading, setLoading] = useState(true);
   const subscriptionRef = useRef<any>(null);
 
-  useEffect(() => {
-    loadNotifications();
-    setupRealtimeSubscription();
-
-    return () => {
-      if (subscriptionRef.current) {
-        subscriptionRef.current.unsubscribe();
-      }
-    };
-  }, []);
-
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -84,9 +73,9 @@ export default function NotificationBell({ onOpenDrawer }: NotificationBellProps
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase]);
 
-  const setupRealtimeSubscription = async () => {
+  const setupRealtimeSubscription = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
@@ -136,7 +125,18 @@ export default function NotificationBell({ onOpenDrawer }: NotificationBellProps
     } catch (error) {
       logger.error('[NotificationBell] Error setting up subscription:', error);
     }
-  };
+  }, [supabase]);
+
+  useEffect(() => {
+    loadNotifications();
+    setupRealtimeSubscription();
+
+    return () => {
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+      }
+    };
+  }, [loadNotifications, setupRealtimeSubscription]);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Container,
@@ -68,25 +68,7 @@ export default function TemplatesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [publicFilter, setPublicFilter] = useState<string>('all');
 
-  useEffect(() => {
-    logger.debug('[TemplatesPage] Role check:', { role, roleLoading });
-    
-    if (roleLoading) {
-      logger.debug('[TemplatesPage] Still loading role, waiting...');
-      return; // Wait for role to load
-    }
-
-    if (role !== 'admin') {
-      logger.debug('[TemplatesPage] User is not admin, redirecting. Role:', role);
-      router.push('/dashboard');
-      return;
-    }
-
-    logger.debug('[TemplatesPage] User is admin, loading templates');
-    loadTemplates();
-  }, [role, roleLoading, router]);
-
-  const loadTemplates = async () => {
+  const loadTemplates = useCallback(async () => {
     setLoading(true);
     
     // Load templates with usage counts
@@ -124,7 +106,25 @@ export default function TemplatesPage() {
     logger.debug('[TemplatesPage] Loaded templates with usage:', templatesWithUsage.map(t => ({ id: t.id, name: t.name, usage_count: (t as any).usage_count })));
     setTemplates(templatesWithUsage);
     setLoading(false);
-  };
+  }, [supabase, showError]);
+
+  useEffect(() => {
+    logger.debug('[TemplatesPage] Role check:', { role, roleLoading });
+    
+    if (roleLoading) {
+      logger.debug('[TemplatesPage] Still loading role, waiting...');
+      return; // Wait for role to load
+    }
+
+    if (role !== 'admin') {
+      logger.debug('[TemplatesPage] User is not admin, redirecting. Role:', role);
+      router.push('/dashboard');
+      return;
+    }
+
+    logger.debug('[TemplatesPage] User is admin, loading templates');
+    loadTemplates();
+  }, [role, roleLoading, router, loadTemplates]);
 
   const handleOpenDialog = (template?: ProjectTemplate) => {
     if (template) {

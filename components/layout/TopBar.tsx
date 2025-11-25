@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   AppBar,
@@ -38,11 +38,7 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
   const [loading, setLoading] = useState(true);
   const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
 
-  useEffect(() => {
-    loadUser();
-  }, []);
-
-  const loadUser = async () => {
+  const loadUser = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -64,7 +60,11 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase]);
+
+  useEffect(() => {
+    loadUser();
+  }, [loadUser]);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);

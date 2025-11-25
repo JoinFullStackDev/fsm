@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   Container,
@@ -49,21 +49,7 @@ export default function EditTemplatePage() {
   const [templateIsPublic, setTemplateIsPublic] = useState(false);
   const [savingMetadata, setSavingMetadata] = useState(false);
 
-  useEffect(() => {
-    // Wait for role to load before checking
-    if (roleLoading) {
-      return;
-    }
-
-    if (role !== 'admin') {
-      router.push('/dashboard');
-      return;
-    }
-
-    loadTemplate();
-  }, [templateId, role, roleLoading, router]);
-
-  const loadTemplate = async () => {
+  const loadTemplate = useCallback(async () => {
     setLoading(true);
     
     // Load template metadata
@@ -109,7 +95,21 @@ export default function EditTemplatePage() {
     setTemplatePhases(loadedPhases);
 
     setLoading(false);
-  };
+  }, [templateId, supabase]);
+
+  useEffect(() => {
+    // Wait for role to load before checking
+    if (roleLoading) {
+      return;
+    }
+
+    if (role !== 'admin') {
+      router.push('/dashboard');
+      return;
+    }
+
+    loadTemplate();
+  }, [templateId, role, roleLoading, router, loadTemplate]);
 
   const handlePhasesChange = () => {
     // Reload phases when they change

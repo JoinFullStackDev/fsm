@@ -161,7 +161,7 @@ export default function ProjectPage() {
     if (projectId) {
       loadProject();
     }
-  }, [projectId, router, supabase]);
+  }, [projectId, router, supabase, showSuccess]);
 
   const handleExportBlueprint = async () => {
     // Check if all phases are completed

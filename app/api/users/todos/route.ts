@@ -4,6 +4,10 @@ import { unauthorized, notFound, internalError } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 import type { ProjectTask, Project } from '@/types/project';
 
+// Mark this route as dynamic since it uses cookies for authentication
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 interface TodoItem {
   id: string;
   type: 'task' | 'phase';

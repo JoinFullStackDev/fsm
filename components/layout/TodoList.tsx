@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   IconButton,
@@ -209,12 +209,35 @@ export default function TodoList() {
 
   const open = Boolean(anchorEl);
 
+  const loadTodos = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/users/todos');
+      if (!response.ok) {
+        throw new Error('Failed to load todos');
+      }
+      const data = await response.json();
+      setTodos(data.todos || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load todos');
+      // Error is already handled via setError state
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleTodoClick = useCallback((todo: TodoItem) => {
+    handleClose();
+    router.push(todo.url);
+  }, [router]);
+
   useEffect(() => {
     if (open) {
       loadTodos();
       setSelectedIndex(0);
     }
-  }, [open]);
+  }, [open, loadTodos]);
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -240,7 +263,7 @@ export default function TodoList() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [open, todos, selectedIndex]);
+  }, [open, todos, selectedIndex, handleTodoClick]);
 
   // Scroll selected item into view
   useEffect(() => {
@@ -253,30 +276,13 @@ export default function TodoList() {
   }, [selectedIndex]);
 
   useEffect(() => {
+    const timeout = timeoutRef.current;
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
+      if (timeout) {
+        clearTimeout(timeout);
       }
     };
   }, []);
-
-  const loadTodos = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch('/api/users/todos');
-      if (!response.ok) {
-        throw new Error('Failed to load todos');
-      }
-      const data = await response.json();
-      setTodos(data.todos || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load todos');
-      // Error is already handled via setError state
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -284,11 +290,6 @@ export default function TodoList() {
 
   const handleClose = () => {
     setAnchorEl(null);
-  };
-
-  const handleTodoClick = (todo: TodoItem) => {
-    handleClose();
-    router.push(todo.url);
   };
 
   const getDueDateLabel = (dueDate: string | null | undefined): string | null => {

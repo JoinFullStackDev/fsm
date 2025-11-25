@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useDebounce } from '@/lib/hooks/useDebounce';
 import {
   Box,
@@ -64,11 +64,7 @@ export default function AdminUsersTab() {
   // Debounce search term to avoid filtering on every keystroke
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  useEffect(() => {
-    loadUsers();
-  }, []);
-
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -90,7 +86,11 @@ export default function AdminUsersTab() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showError]);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
 
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
     const { error: updateError } = await supabase

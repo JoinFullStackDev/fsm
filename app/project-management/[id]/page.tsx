@@ -77,8 +77,7 @@ export default function ProjectTaskManagementPage() {
     }
   }, [projectId, supabase]);
 
-  useEffect(() => {
-    const loadData = async () => {
+  const loadData = useCallback(async () => {
       setLoading(true);
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
@@ -162,12 +161,13 @@ export default function ProjectTaskManagementPage() {
       }
 
       setLoading(false);
-    };
+    }, [projectId, supabase, loadTasks]);
 
+  useEffect(() => {
     if (projectId) {
       loadData();
     }
-  }, [projectId, supabase]);
+  }, [projectId, loadData]);
 
   // Poll for tasks if project is initiated but no tasks are loaded yet
   // This handles the case where tasks are being created asynchronously

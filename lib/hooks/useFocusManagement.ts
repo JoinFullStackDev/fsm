@@ -33,12 +33,34 @@ export function useReturnFocus(open: boolean) {
 
 /**
  * Focus on the first error field in a form
+ * @param errorFields - Object mapping field names to error messages
+ * @param fieldRefs - Object mapping field names to refs
+ * @param shouldFocus - Optional flag to control when to focus (default: true). Set to false to prevent focusing while user is typing.
  */
 export function useFocusOnError(
   errorFields: Record<string, string | undefined>,
-  fieldRefs: Record<string, RefObject<HTMLElement>>
+  fieldRefs: Record<string, RefObject<HTMLElement>>,
+  shouldFocus: boolean = true
 ) {
   useEffect(() => {
+    // Don't focus if flag is false or if user is currently typing in an input field
+    if (!shouldFocus) {
+      return;
+    }
+
+    // Check if user is currently typing in an input field
+    const activeElement = document.activeElement;
+    const isTyping = activeElement && (
+      activeElement.tagName === 'INPUT' ||
+      activeElement.tagName === 'TEXTAREA' ||
+      activeElement.getAttribute('contenteditable') === 'true'
+    );
+
+    // Don't interrupt user if they're typing
+    if (isTyping) {
+      return;
+    }
+
     // Find the first field with an error
     const firstErrorField = Object.keys(errorFields).find(
       (key) => errorFields[key] && fieldRefs[key]?.current
@@ -47,15 +69,25 @@ export function useFocusOnError(
     if (firstErrorField && fieldRefs[firstErrorField]?.current) {
       // Focus on the first error field
       setTimeout(() => {
-        fieldRefs[firstErrorField]?.current?.focus();
-        // Scroll into view if needed
-        fieldRefs[firstErrorField]?.current?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center',
-        });
+        // Double-check that user isn't typing before focusing
+        const currentActiveElement = document.activeElement;
+        const stillTyping = currentActiveElement && (
+          currentActiveElement.tagName === 'INPUT' ||
+          currentActiveElement.tagName === 'TEXTAREA' ||
+          currentActiveElement.getAttribute('contenteditable') === 'true'
+        );
+
+        if (!stillTyping && fieldRefs[firstErrorField]?.current) {
+          fieldRefs[firstErrorField]?.current?.focus();
+          // Scroll into view if needed
+          fieldRefs[firstErrorField]?.current?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+          });
+        }
       }, 100);
     }
-  }, [errorFields, fieldRefs]);
+  }, [errorFields, fieldRefs, shouldFocus]);
 }
 
 /**

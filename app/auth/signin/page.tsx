@@ -27,30 +27,68 @@ export default function SignInPage() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent form from submitting/reloading
     setError(null);
     setLoading(true);
 
-    console.log('Attempting sign-in for:', email);
+    console.log('[SignIn] Attempting sign-in for:', email);
 
     try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      // Try sign-in with retry logic for newly created users
+      // Sometimes there's a delay before password is fully committed
+      let signInData = null;
+      let signInError = null;
+      let attempts = 0;
+      const maxAttempts = 2;
+
+      while (!signInData && !signInError && attempts < maxAttempts) {
+        const result = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        signInData = result.data;
+        signInError = result.error;
+
+        // If we get invalid credentials and it's not the last attempt, wait and retry
+        if (signInError && attempts < maxAttempts - 1) {
+          const isInvalidCredentials = signInError.message.includes('Invalid login credentials') || 
+                                      signInError.message.includes('invalid_credentials') ||
+                                      signInError.message.includes('Invalid login');
+          
+          if (isInvalidCredentials) {
+            console.log(`[SignIn] Invalid credentials on attempt ${attempts + 1}, waiting before retry...`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            signInError = null; // Reset to retry
+          }
+        }
+        attempts++;
+      }
 
       if (signInError) {
-        console.error('Sign-in error:', signInError);
+        console.error('[SignIn] Sign-in error after', attempts, 'attempts:', signInError);
+        console.error('[SignIn] Error details:', {
+          message: signInError.message,
+          status: signInError.status,
+          name: signInError.name,
+        });
+        
         // Check if it's an email confirmation error
         if (signInError.message.includes('Email not confirmed') || signInError.message.includes('email_not_confirmed')) {
           setError('Please confirm your email before signing in. Check your inbox for the confirmation link.');
+        } else if (signInError.message.includes('Invalid login credentials') || signInError.message.includes('invalid_credentials')) {
+          // More specific error for invalid credentials
+          setError('Invalid email or password. If you were just created, please wait a moment and try again, or ask your admin to regenerate your password.');
         } else {
-          setError(signInError.message);
+          setError(signInError.message || 'Sign-in failed. Please try again.');
         }
         setLoading(false);
         return;
       }
 
-      if (data.user) {
+      const data = signInData;
+
+      if (data && data.user) {
         console.log('Auth successful, user ID:', data.user.id);
         console.log('Email confirmed:', data.user.email_confirmed_at);
 

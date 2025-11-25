@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Container,
@@ -46,11 +46,7 @@ export default function NewProjectPage() {
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    loadTemplates();
-  }, []);
-
-  const loadTemplates = async () => {
+  const loadTemplates = useCallback(async () => {
     setLoadingTemplates(true);
     const { data, error: fetchError } = await supabase
       .from('project_templates')
@@ -62,7 +58,11 @@ export default function NewProjectPage() {
       setTemplates(data);
     }
     setLoadingTemplates(false);
-  };
+  }, [supabase]);
+
+  useEffect(() => {
+    loadTemplates();
+  }, [loadTemplates]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

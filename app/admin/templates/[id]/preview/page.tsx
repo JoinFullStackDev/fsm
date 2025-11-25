@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   Container,
@@ -49,19 +49,7 @@ export default function TemplatePreviewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (roleLoading) {
-      return;
-    }
-
-    if (role !== 'admin') {
-      router.push('/dashboard');
-      return;
-    }
-    loadTemplate();
-  }, [templateId, role, roleLoading, router]);
-
-  const loadTemplate = async () => {
+  const loadTemplate = useCallback(async () => {
     setLoading(true);
     
     const { data: templateData, error: templateError } = await supabase
@@ -172,7 +160,19 @@ export default function TemplatePreviewPage() {
     setFieldGroups(groupsByPhase);
     setPreviewData(initialDataByPhase);
     setLoading(false);
-  };
+  }, [templateId, supabase]);
+
+  useEffect(() => {
+    if (roleLoading) {
+      return;
+    }
+
+    if (role !== 'admin') {
+      router.push('/dashboard');
+      return;
+    }
+    loadTemplate();
+  }, [templateId, role, roleLoading, router, loadTemplate]);
 
   if (roleLoading || loading) {
     return (

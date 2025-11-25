@@ -122,6 +122,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Wait a moment to ensure password is fully committed
+    // This helps prevent timing issues where password isn't immediately available
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     if (authError || !authUser.user) {
       logger.error('[Admin Users] Error creating auth user:', authError);
       return internalError('Failed to create auth user', { error: authError?.message });

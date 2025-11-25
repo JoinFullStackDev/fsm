@@ -69,6 +69,10 @@ export async function GET(
       );
     }
 
+    // Wait a moment to ensure password is fully committed
+    // This helps prevent timing issues where password isn't immediately available
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     // Update invite timestamp
     await supabase
       .from('users')

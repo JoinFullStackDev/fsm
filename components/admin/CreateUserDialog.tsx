@@ -54,6 +54,7 @@ export default function CreateUserDialog({
   } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [passwordCopied, setPasswordCopied] = useState(false);
+  const [shouldFocusOnError, setShouldFocusOnError] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const emailInputRef = useRef<HTMLInputElement>(null);
   const roleSelectRef = useRef<HTMLDivElement>(null);
@@ -67,6 +68,8 @@ export default function CreateUserDialog({
       setTimeout(() => {
         nameInputRef.current?.focus();
       }, 100);
+      // Reset focus on error flag when dialog opens
+      setShouldFocusOnError(false);
     }
   }, [open, createdUser]);
 
@@ -74,7 +77,7 @@ export default function CreateUserDialog({
   const nameValidation = validateUserName(name);
   const emailValidation = validateEmail(email);
   
-  // Focus on first error field when error occurs
+  // Focus on first error field when error occurs (only after submission attempt)
   const errorFields = {
     name: !nameValidation.valid ? nameValidation.error : undefined,
     email: !emailValidation.valid ? emailValidation.error : undefined,
@@ -84,7 +87,7 @@ export default function CreateUserDialog({
     name: nameInputRef,
     email: emailInputRef,
   };
-  useFocusOnError(errorFields, fieldRefs);
+  useFocusOnError(errorFields, fieldRefs, shouldFocusOnError);
 
   // Debug: Log when createdUser changes
   useEffect(() => {
@@ -128,6 +131,8 @@ export default function CreateUserDialog({
     if (!nameValidation.valid || !emailValidation.valid) {
       setError(nameValidation.error || emailValidation.error || 'Please fix the errors above');
       setLoading(false);
+      // Enable focus on error after submission attempt
+      setShouldFocusOnError(true);
       return;
     }
     
@@ -322,6 +327,8 @@ export default function CreateUserDialog({
                 if (errorFields.name) {
                   setError(null);
                 }
+                // Disable auto-focus while user is typing
+                setShouldFocusOnError(false);
               }}
               required
               margin="normal"
@@ -349,6 +356,8 @@ export default function CreateUserDialog({
                 if (errorFields.email) {
                   setError(null);
                 }
+                // Disable auto-focus while user is typing
+                setShouldFocusOnError(false);
               }}
               required
               margin="normal"

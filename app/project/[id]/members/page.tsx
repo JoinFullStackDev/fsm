@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   Container,
@@ -78,7 +78,7 @@ export default function ProjectMembersPage() {
   const [selectedRole, setSelectedRole] = useState<UserRole>('pm');
   const [projectName, setProjectName] = useState<string>('');
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -135,13 +135,13 @@ export default function ProjectMembersPage() {
     }
 
     setLoading(false);
-  };
+  }, [projectId, router, supabase]);
 
   useEffect(() => {
     if (projectId) {
       loadData();
     }
-  }, [projectId, router, supabase]);
+  }, [projectId, loadData]);
 
   const handleAddMember = async () => {
     if (!selectedUserId) return;

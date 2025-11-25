@@ -48,9 +48,9 @@ export default function DashboardPage() {
   const [currentUserRole, setCurrentUserRole] = useState<'admin' | 'pm' | 'designer' | 'engineer' | null>(null);
 
   useEffect(() => {
-    // Check if user has seen the welcome tour
-    const hasSeenTour = localStorage.getItem('hasSeenWelcomeTour');
-    if (!hasSeenTour) {
+    // Check if user has seen the welcome tour (show first 3 times)
+    const tourViewCount = parseInt(localStorage.getItem('welcomeTourViewCount') || '0', 10);
+    if (tourViewCount < 3) {
       // Show tour after a short delay to let the page load
       setTimeout(() => {
         setShowWelcomeTour(true);
@@ -636,7 +636,9 @@ export default function DashboardPage() {
         open={showWelcomeTour}
         onClose={() => setShowWelcomeTour(false)}
         onComplete={() => {
-          localStorage.setItem('hasSeenWelcomeTour', 'true');
+          // Increment tour view count (show first 3 times)
+          const currentCount = parseInt(localStorage.getItem('welcomeTourViewCount') || '0', 10);
+          localStorage.setItem('welcomeTourViewCount', String(currentCount + 1));
           setShowWelcomeTour(false);
         }}
       />

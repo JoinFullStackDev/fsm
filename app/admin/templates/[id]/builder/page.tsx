@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   DndContext,
@@ -87,20 +87,7 @@ export default function TemplateBuilderPage() {
     })
   );
 
-  useEffect(() => {
-    if (roleLoading) {
-      return; // Wait for role to load
-    }
-
-    if (role !== 'admin') {
-      router.push('/dashboard');
-      return;
-    }
-    loadTemplate();
-  }, [templateId, role, roleLoading, router]);
-
-
-  const loadTemplate = async () => {
+  const loadTemplate = useCallback(async () => {
     setLoading(true);
     
     // Load template metadata
@@ -183,7 +170,19 @@ export default function TemplateBuilderPage() {
 
     setFields(fieldsByPhase);
     setLoading(false);
-  };
+  }, [templateId, supabase, activePhase]);
+
+  useEffect(() => {
+    if (roleLoading) {
+      return; // Wait for role to load
+    }
+
+    if (role !== 'admin') {
+      router.push('/dashboard');
+      return;
+    }
+    loadTemplate();
+  }, [templateId, role, roleLoading, router, loadTemplate]);
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);

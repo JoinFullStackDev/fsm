@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   Container,
@@ -101,7 +101,7 @@ export default function PhasePage() {
   const [fieldConfigs, setFieldConfigs] = useState<Array<{ field_key: string }>>([]);
 
   // Helper function to check if a value is meaningful (has content)
-  const checkValue = (value: any): boolean => {
+  const checkValue = useCallback((value: any): boolean => {
     if (value === null || value === undefined) return false;
     if (typeof value === 'string') return value.trim().length > 0;
     if (typeof value === 'boolean') return true;
@@ -126,10 +126,10 @@ export default function PhasePage() {
       return keys.some(key => checkValue(value[key]));
     }
     return true;
-  };
+  }, []);
 
   // Calculate phase progress based on field values
-  const calculateFieldBasedProgress = (): number => {
+  const calculateFieldBasedProgress = useCallback((): number => {
     if (!phaseData) return 0;
 
     // If we have field configs (template-based form), calculate based on those fields
@@ -146,9 +146,9 @@ export default function PhasePage() {
 
     // Fallback to old calculation for non-template forms
     return calculatePhaseProgress(actualPhaseNumber, phaseData);
-  };
+  }, [phaseData, fieldConfigs, actualPhaseNumber, checkValue]);
 
-  const phaseProgress = useMemo(() => calculateFieldBasedProgress(), [phaseData, fieldConfigs, actualPhaseNumber]);
+  const phaseProgress = useMemo(() => calculateFieldBasedProgress(), [calculateFieldBasedProgress]);
   const completedFieldsCount = useMemo(() => {
     if (fieldConfigs.length > 0 && phaseData) {
       return fieldConfigs.filter(config => {
@@ -158,7 +158,7 @@ export default function PhasePage() {
       }).length;
     }
     return 0;
-  }, [phaseData, fieldConfigs]);
+  }, [phaseData, fieldConfigs, checkValue]);
 
   useEffect(() => {
     // Phase number validation removed - now supports any positive integer
