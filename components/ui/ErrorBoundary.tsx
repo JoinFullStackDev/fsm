@@ -100,11 +100,11 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <>
           <Navbar />
-          <Box sx={{ backgroundColor: '#0A0E27', minHeight: '100vh', pb: 4 }}>
+          <Box sx={{ backgroundColor: '#000', minHeight: '100vh', pb: 4 }}>
             <Container maxWidth="lg" sx={{ pt: 4, pb: 4 }}>
               <Card
                 sx={{
-                  backgroundColor: '#121633',
+                  backgroundColor: '#000',
                   border: '1px solid rgba(255, 23, 68, 0.3)',
                   borderRadius: 3,
                   maxWidth: 600,

@@ -187,7 +187,7 @@ export default function ComponentPalette({ onComponentSelect }: ComponentPalette
       sx={{
         p: 2,
         height: '100%',
-        backgroundColor: '#121633',
+        backgroundColor: '#000',
         border: '1px solid',
         borderColor: 'primary.main',
         borderRadius: 2,

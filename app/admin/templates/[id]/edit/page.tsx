@@ -354,7 +354,7 @@ export default function EditTemplatePage() {
 
   return (
     <>
-      <Box sx={{ backgroundColor: '#0A0E27', minHeight: '100vh', pb: 4 }}>
+      <Box sx={{ backgroundColor: '#000', minHeight: '100vh', pb: 4 }}>
         <Container maxWidth="xl" sx={{ pt: 4, pb: 4 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
             <IconButton
@@ -375,7 +375,7 @@ export default function EditTemplatePage() {
               sx={{
                 flex: 1,
                 fontWeight: 700,
-                background: 'linear-gradient(135deg, #00E5FF 0%, #E91E63 100%)',
+                background: '#00E5FF',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
               }}
@@ -386,8 +386,8 @@ export default function EditTemplatePage() {
 
           <Card
             sx={{
-              backgroundColor: '#121633',
-              border: '1px solid rgba(0, 229, 255, 0.2)',
+              backgroundColor: '#000',
+              border: '2px solid rgba(0, 229, 255, 0.2)',
               borderRadius: 3,
             }}
           >

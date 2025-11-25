@@ -305,14 +305,14 @@ export default function TemplatesPage() {
 
   return (
     <>
-      <Box sx={{ backgroundColor: '#0A0E27', minHeight: '100vh', pb: 4 }}>
+      <Box sx={{ backgroundColor: '#000', minHeight: '100vh', pb: 4 }}>
         <Container maxWidth="lg" sx={{ pt: 4, pb: 4 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
             <Typography
               variant="h4"
               sx={{
                 fontWeight: 700,
-                background: 'linear-gradient(135deg, #00E5FF 0%, #E91E63 100%)',
+                background: '#00E5FF',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
               }}
@@ -367,8 +367,8 @@ export default function TemplatesPage() {
               sx={{
                 p: 2,
                 mb: 3,
-                backgroundColor: '#121633',
-                border: '1px solid rgba(0, 229, 255, 0.2)',
+                backgroundColor: '#000',
+                border: '2px solid rgba(0, 229, 255, 0.2)',
                 borderRadius: 2,
               }}
             >
@@ -650,8 +650,8 @@ export default function TemplatesPage() {
             fullWidth
             PaperProps={{
               sx: {
-                backgroundColor: '#121633',
-                border: '1px solid rgba(0, 229, 255, 0.2)',
+                backgroundColor: '#000',
+                border: '2px solid rgba(0, 229, 255, 0.2)',
               },
             }}
           >

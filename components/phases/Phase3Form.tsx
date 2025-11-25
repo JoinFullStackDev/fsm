@@ -154,7 +154,7 @@ export default function Phase3Form({ data, onChange }: Phase3FormProps) {
                 <Grid item xs={12} md={6} lg={4} key={index}>
                   <Card
                     sx={{
-                      backgroundColor: '#121633',
+                      backgroundColor: '#000',
                       border: '1px solid rgba(0, 229, 255, 0.3)',
                       borderRadius: 2,
                     }}
@@ -288,7 +288,7 @@ export default function Phase3Form({ data, onChange }: Phase3FormProps) {
                 <Grid item xs={12} md={6} key={index}>
                   <Card
                     sx={{
-                      backgroundColor: '#121633',
+                      backgroundColor: '#000',
                       border: '1px solid rgba(233, 30, 99, 0.3)',
                       borderRadius: 2,
                     }}
@@ -420,7 +420,7 @@ export default function Phase3Form({ data, onChange }: Phase3FormProps) {
                 <Grid item xs={12} md={6} key={index}>
                   <Card
                     sx={{
-                      backgroundColor: '#121633',
+                      backgroundColor: '#000',
                       border: '1px solid rgba(0, 255, 136, 0.3)',
                       borderRadius: 2,
                     }}

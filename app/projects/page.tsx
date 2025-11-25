@@ -220,7 +220,7 @@ export default function ProjectsPage() {
           component="h1"
           sx={{
             fontWeight: 700,
-            background: 'linear-gradient(135deg, #00E5FF 0%, #E91E63 100%)',
+            background: '#00E5FF',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
           }}
@@ -265,8 +265,8 @@ export default function ProjectsPage() {
           sx={{
             p: 2,
             mb: 3,
-            backgroundColor: '#121633',
-            border: '1px solid rgba(0, 229, 255, 0.2)',
+            backgroundColor: '#000',
+            border: '2px solid rgba(0, 229, 255, 0.2)',
             borderRadius: 2,
           }}
         >
@@ -492,7 +492,7 @@ export default function ProjectsPage() {
         onClose={handleDeleteCancel}
         PaperProps={{
           sx: {
-            backgroundColor: '#121633',
+            backgroundColor: '#000',
             border: '1px solid rgba(255, 23, 68, 0.3)',
           },
         }}

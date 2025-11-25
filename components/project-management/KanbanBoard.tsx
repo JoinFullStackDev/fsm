@@ -137,8 +137,8 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
                       onClick={() => onTaskClick(task)}
                       sx={{
                         p: 2,
-                        backgroundColor: '#121633',
-                        border: '1px solid rgba(0, 229, 255, 0.2)',
+                        backgroundColor: '#000',
+                        border: '2px solid rgba(0, 229, 255, 0.2)',
                         borderRadius: 2,
                         cursor: 'pointer',
                         transition: 'all 0.2s',
@@ -270,7 +270,7 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
                                 height: 24,
                                 fontSize: '0.7rem',
                                 backgroundColor: '#00E5FF',
-                                color: '#121633',
+                                color: '#000',
                               }}
                             >
                               {(

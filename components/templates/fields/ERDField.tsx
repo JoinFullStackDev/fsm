@@ -315,7 +315,7 @@ export default function ERDField({ field, value, onChange, error, phaseData }: E
             onClose={() => setExportMenuAnchor(null)}
             PaperProps={{
               sx: {
-                backgroundColor: '#121633',
+                backgroundColor: '#000',
                 border: '1px solid',
                 borderColor: 'primary.main',
               },
@@ -386,7 +386,7 @@ export default function ERDField({ field, value, onChange, error, phaseData }: E
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
-                backgroundColor: '#0a0e27',
+                backgroundColor: '#000',
                 borderRadius: 1,
                 p: 2,
                 '& svg': {
@@ -405,7 +405,7 @@ export default function ERDField({ field, value, onChange, error, phaseData }: E
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
-                backgroundColor: '#0a0e27',
+                backgroundColor: '#000',
                 borderRadius: 1,
                 p: 2,
               }}

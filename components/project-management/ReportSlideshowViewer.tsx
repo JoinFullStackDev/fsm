@@ -89,7 +89,7 @@ export default function ReportSlideshowViewer({
               sx={{
                 fontSize: '4rem',
                 fontWeight: 700,
-                background: 'linear-gradient(135deg, #00E5FF 0%, #E91E63 100%)',
+                background: '#00E5FF',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 mb: 2,
@@ -402,55 +402,55 @@ export default function ReportSlideshowViewer({
               component={Paper}
               sx={{
                 backgroundColor: 'rgba(0, 229, 255, 0.05)',
-                border: '1px solid rgba(0, 229, 255, 0.2)',
+                border: '2px solid rgba(0, 229, 255, 0.2)',
                 borderRadius: 2,
                 maxHeight: 600,
                 overflow: 'auto',
               }}
             >
               <Table stickyHeader>
-                <TableHead sx={{ backgroundColor: '#121633' }}>
+                <TableHead sx={{ backgroundColor: '#000' }}>
                   <TableRow>
                     <TableCell
                       sx={{
-                        backgroundColor: '#121633',
+                        backgroundColor: '#000',
                         color: '#00E5FF',
                         fontWeight: 600,
                         fontSize: '1.1rem',
-                        borderBottom: '2px solid rgba(0, 229, 255, 0.3)',
+                        borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
                       }}
                     >
                       Task
                     </TableCell>
                     <TableCell
                       sx={{
-                        backgroundColor: '#121633',
+                        backgroundColor: '#000',
                         color: '#00E5FF',
                         fontWeight: 600,
                         fontSize: '1.1rem',
-                        borderBottom: '2px solid rgba(0, 229, 255, 0.3)',
+                        borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
                       }}
                     >
                       Priority
                     </TableCell>
                     <TableCell
                       sx={{
-                        backgroundColor: '#121633',
+                        backgroundColor: '#000',
                         color: '#00E5FF',
                         fontWeight: 600,
                         fontSize: '1.1rem',
-                        borderBottom: '2px solid rgba(0, 229, 255, 0.3)',
+                        borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
                       }}
                     >
                       Status
                     </TableCell>
                     <TableCell
                       sx={{
-                        backgroundColor: '#121633',
+                        backgroundColor: '#000',
                         color: '#00E5FF',
                         fontWeight: 600,
                         fontSize: '1.1rem',
-                        borderBottom: '2px solid rgba(0, 229, 255, 0.3)',
+                        borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
                       }}
                     >
                       Due Date
@@ -555,7 +555,7 @@ export default function ReportSlideshowViewer({
     <Box
       sx={{
         minHeight: '100vh',
-        backgroundColor: '#121633',
+        backgroundColor: '#000',
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',

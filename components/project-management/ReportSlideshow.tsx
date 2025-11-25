@@ -51,7 +51,7 @@ export default function ReportSlideshow({
           maxWidth: '100vw',
           maxHeight: '100vh',
           margin: 0,
-          backgroundColor: '#121633',
+          backgroundColor: '#000',
         },
       }}
     >
@@ -110,7 +110,7 @@ export default function ReportSlideshow({
             width: '100%',
             height: '100%',
             border: 'none',
-            backgroundColor: '#121633',
+            backgroundColor: '#000',
           }}
           title="Report Slideshow"
           sandbox="allow-scripts allow-same-origin"

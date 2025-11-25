@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Container,
   Box,
@@ -21,6 +21,7 @@ import { getDefaultPhaseData } from '@/lib/phaseSchemas';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { validateProjectName } from '@/lib/utils/validation';
 import type { ProjectStatus, PrimaryTool, ProjectTemplate } from '@/types/project';
+import type { Company } from '@/types/ops';
 
 const PHASE_NAMES = [
   'Concept Framing',
@@ -33,6 +34,7 @@ const PHASE_NAMES = [
 
 export default function NewProjectPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createSupabaseClient();
   const { showSuccess, showError } = useNotification();
   const [name, setName] = useState('');
@@ -41,6 +43,9 @@ export default function NewProjectPage() {
   const [primaryTool, setPrimaryTool] = useState<PrimaryTool>('cursor');
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [templates, setTemplates] = useState<ProjectTemplate[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
+  const [loadingCompanies, setLoadingCompanies] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,9 +65,20 @@ export default function NewProjectPage() {
     setLoadingTemplates(false);
   }, [supabase]);
 
-  useEffect(() => {
-    loadTemplates();
-  }, [loadTemplates]);
+  const loadCompanies = useCallback(async () => {
+    try {
+      setLoadingCompanies(true);
+      const response = await fetch('/api/ops/companies');
+      if (response.ok) {
+        const data = await response.json();
+        setCompanies(data);
+      }
+    } catch (err) {
+      // Ignore errors, just show form without company selection
+    } finally {
+      setLoadingCompanies(false);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,6 +123,8 @@ export default function NewProjectPage() {
         status,
         primary_tool: primaryTool,
         template_id: selectedTemplate || null, // Set template_id if template was selected
+        company_id: selectedCompanyId || null, // Set company_id if company was selected
+        source: 'Manual', // Default for manually created projects
       })
       .select()
       .single();
@@ -254,6 +272,22 @@ export default function NewProjectPage() {
                   <MenuItem value="lovable">Lovable</MenuItem>
                   <MenuItem value="base44">Base44</MenuItem>
                   <MenuItem value="other">Other</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControl fullWidth margin="normal">
+                <InputLabel>Company (Optional)</InputLabel>
+                <Select
+                  value={selectedCompanyId}
+                  label="Company (Optional)"
+                  onChange={(e) => setSelectedCompanyId(e.target.value)}
+                  disabled={loading || loadingCompanies}
+                >
+                  <MenuItem value="">None</MenuItem>
+                  {companies.map((company) => (
+                    <MenuItem key={company.id} value={company.id}>
+                      {company.name}
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
               <FormControl fullWidth margin="normal">

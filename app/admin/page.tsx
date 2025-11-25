@@ -105,7 +105,7 @@ export default function AdminPage() {
           gutterBottom
           sx={{
             fontWeight: 700,
-            background: 'linear-gradient(135deg, #00E5FF 0%, #E91E63 100%)',
+            background: '#00E5FF',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             mb: 3,

@@ -386,7 +386,7 @@ export default function ProjectTaskManagementPage() {
           sx={{
             fontWeight: 700,
             fontSize: (theme) => `calc(${theme.typography.h3.fontSize} * 0.67)`,
-            background: 'linear-gradient(135deg, #00E5FF 0%, #E91E63 100%)',
+            background: '#00E5FF',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
           }}

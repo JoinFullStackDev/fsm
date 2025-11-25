@@ -176,9 +176,9 @@ export default function ERDEditorModal({
               if (!color || color === 'none' || color === 'transparent' || color === 'currentColor') {
                 return true;
               }
-              // Check if it's a dark color (like #0a0e27 background)
-              if (color.toLowerCase().includes('#0a0e27') || 
-                  color.toLowerCase().includes('#121633') ||
+              // Check if it's a dark color (like #000 background)
+              if (color.toLowerCase().includes('#000') || 
+                  color.toLowerCase().includes('#000') ||
                   color.toLowerCase().includes('rgb(10, 14, 39)') ||
                   color.toLowerCase().includes('rgb(18, 22, 51)')) {
                 return true;
@@ -551,13 +551,13 @@ export default function ERDEditorModal({
           maxHeight: '100vh',
           m: 0,
           borderRadius: 0,
-          backgroundColor: '#121633 !important',
+          backgroundColor: '#000 !important',
           border: 'none',
         },
       }}
       sx={{
         '& .MuiDialog-container': {
-          backgroundColor: '#121633',
+          backgroundColor: '#000',
         },
       }}
     >
@@ -566,9 +566,9 @@ export default function ERDEditorModal({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          borderBottom: '1px solid rgba(0, 229, 255, 0.2)',
+          borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
           pb: 2,
-          backgroundColor: '#121633',
+          backgroundColor: '#000',
         }}
       >
         <Typography variant="h6" sx={{ color: 'text.primary' }}>
@@ -611,7 +611,7 @@ export default function ERDEditorModal({
             onClose={() => setExportMenuAnchor(null)}
             PaperProps={{
               sx: {
-                backgroundColor: '#121633',
+                backgroundColor: '#000',
                 border: '1px solid',
                 borderColor: 'primary.main',
               },
@@ -673,7 +673,7 @@ export default function ERDEditorModal({
           <Box
             sx={{
               width: jsonEditorCollapsed ? 0 : '50%',
-              borderRight: jsonEditorCollapsed ? 'none' : '1px solid rgba(0, 229, 255, 0.2)',
+              borderRight: jsonEditorCollapsed ? 'none' : '2px solid rgba(0, 229, 255, 0.2)',
               display: 'flex',
               flexDirection: 'column',
               transition: 'width 0.3s ease',
@@ -683,7 +683,7 @@ export default function ERDEditorModal({
             <Box
               sx={{
                 p: 1,
-                borderBottom: '1px solid rgba(0, 229, 255, 0.2)',
+                borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
                 backgroundColor: 'rgba(0, 229, 255, 0.05)',
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -757,7 +757,7 @@ export default function ERDEditorModal({
             <Box
               sx={{
                 p: 1,
-                borderBottom: '1px solid rgba(0, 229, 255, 0.2)',
+                borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
                 backgroundColor: 'rgba(0, 229, 255, 0.05)',
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -820,7 +820,7 @@ export default function ERDEditorModal({
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
-                  backgroundColor: '#0a0e27',
+                  backgroundColor: '#000',
                   overflow: 'hidden',
                   position: 'relative',
                   cursor: isDragging ? 'grabbing' : 'grab',
@@ -898,7 +898,7 @@ export default function ERDEditorModal({
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
-                  backgroundColor: '#0a0e27',
+                  backgroundColor: '#000',
                   overflow: 'auto',
                 }}
               >

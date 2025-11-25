@@ -134,7 +134,7 @@ export default function LandingPage() {
     <Box
       sx={{
         minHeight: '100vh',
-        background: 'linear-gradient(180deg, #0A0E27 0%, #121633 50%, #0A0E27 100%)',
+        background: 'linear-gradient(180deg, #000 0%, #000 50%, #000 100%)',
         position: 'relative',
         overflow: 'hidden',
       }}
@@ -163,7 +163,7 @@ export default function LandingPage() {
           left: 0,
           right: 0,
           zIndex: 1000,
-          backgroundColor: alpha('#0A0E27', 0.9),
+          backgroundColor: alpha('#000', 0.9),
           backdropFilter: 'blur(10px)',
           borderBottom: `1px solid ${alpha('#00E5FF', 0.2)}`,
           py: 2,
@@ -175,7 +175,7 @@ export default function LandingPage() {
               variant="h5"
               sx={{
                 fontWeight: 700,
-                background: 'linear-gradient(135deg, #00E5FF 0%, #E91E63 100%)',
+                background: '#00E5FF',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
               }}
@@ -523,7 +523,7 @@ export default function LandingPage() {
                 key={index}
                 label={tool}
                 sx={{
-                  backgroundColor: '#121633',
+                  backgroundColor: '#000',
                   border: `1px solid ${alpha('#00E5FF', 0.3)}`,
                   color: '#00E5FF',
                   fontSize: '1rem',
@@ -592,7 +592,7 @@ export default function LandingPage() {
               <Grid item xs={12} md={6} key={index}>
                 <Card
                   sx={{
-                    backgroundColor: '#121633',
+                    backgroundColor: '#000',
                     border: `1px solid ${alpha('#00E5FF', 0.2)}`,
                     borderRadius: 3,
                     p: 4,
@@ -725,7 +725,7 @@ export default function LandingPage() {
               <Grid item xs={12} md={4} key={index}>
                 <Card
                   sx={{
-                    backgroundColor: '#121633',
+                    backgroundColor: '#000',
                     border: `1px solid ${alpha('#00E5FF', 0.2)}`,
                     borderRadius: 3,
                     p: 4,
@@ -816,7 +816,7 @@ export default function LandingPage() {
           >
             <Paper
               sx={{
-                backgroundColor: '#121633',
+                backgroundColor: '#000',
                 border: `2px solid ${alpha('#00E5FF', 0.3)}`,
                 borderRadius: 3,
                 p: 3,
@@ -835,7 +835,7 @@ export default function LandingPage() {
                   <Grid item xs={6} md={3} key={i}>
                     <Card
                       sx={{
-                        backgroundColor: alpha('#0A0E27', 0.8),
+                        backgroundColor: alpha('#000', 0.8),
                         border: `1px solid ${alpha('#00E5FF', 0.2)}`,
                       }}
                     >
@@ -865,7 +865,7 @@ export default function LandingPage() {
                 ))}
               </Grid>
               <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
-                <Box sx={{ flex: 1, height: 200, backgroundColor: alpha('#0A0E27', 0.8), borderRadius: 2, p: 2 }}>
+                <Box sx={{ flex: 1, height: 200, backgroundColor: alpha('#000', 0.8), borderRadius: 2, p: 2 }}>
                   <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 1 }}>
                     Task Timeline
                   </Typography>
@@ -885,7 +885,7 @@ export default function LandingPage() {
                     ))}
                   </Box>
                 </Box>
-                <Box sx={{ flex: 1, height: 200, backgroundColor: alpha('#0A0E27', 0.8), borderRadius: 2, p: 2 }}>
+                <Box sx={{ flex: 1, height: 200, backgroundColor: alpha('#000', 0.8), borderRadius: 2, p: 2 }}>
                   <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 1 }}>
                     Team Activity
                   </Typography>
@@ -934,7 +934,7 @@ export default function LandingPage() {
               <Grid item xs={12} md={4} key={index}>
                 <Card
                   sx={{
-                    backgroundColor: '#121633',
+                    backgroundColor: '#000',
                     border: `1px solid ${alpha('#00E5FF', 0.2)}`,
                     borderRadius: 3,
                     p: 3,
@@ -1029,7 +1029,7 @@ export default function LandingPage() {
               <Grid item xs={12} md={4} key={index}>
                 <Card
                   sx={{
-                    backgroundColor: '#121633',
+                    backgroundColor: '#000',
                     border: `1px solid ${alpha('#00E5FF', 0.2)}`,
                     borderRadius: 3,
                     p: 3,
@@ -1045,7 +1045,7 @@ export default function LandingPage() {
                   <Box
                     sx={{
                       height: 150,
-                      backgroundColor: alpha('#0A0E27', 0.8),
+                      backgroundColor: alpha('#000', 0.8),
                       borderRadius: 2,
                       mb: 2,
                       display: 'flex',
@@ -1116,7 +1116,7 @@ export default function LandingPage() {
           </Typography>
           <Paper
             sx={{
-              backgroundColor: '#121633',
+              backgroundColor: '#000',
               border: `2px solid ${alpha('#00E5FF', 0.3)}`,
               borderRadius: 4,
               p: 6,
@@ -1146,7 +1146,7 @@ export default function LandingPage() {
                     required
                     sx={{
                       '& .MuiOutlinedInput-root': {
-                        backgroundColor: '#0A0E27',
+                        backgroundColor: '#000',
                         color: '#E0E0E0',
                         '& fieldset': {
                           borderColor: alpha('#00E5FF', 0.3),
@@ -1175,7 +1175,7 @@ export default function LandingPage() {
                     onChange={(e) => setName(e.target.value)}
                     sx={{
                       '& .MuiOutlinedInput-root': {
-                        backgroundColor: '#0A0E27',
+                        backgroundColor: '#000',
                         color: '#E0E0E0',
                         '& fieldset': {
                           borderColor: alpha('#00E5FF', 0.3),
@@ -1201,7 +1201,7 @@ export default function LandingPage() {
                     fullWidth
                     sx={{
                       '& .MuiOutlinedInput-root': {
-                        backgroundColor: '#0A0E27',
+                        backgroundColor: '#000',
                         color: '#E0E0E0',
                         '& fieldset': {
                           borderColor: alpha('#00E5FF', 0.3),
@@ -1294,7 +1294,7 @@ export default function LandingPage() {
               <Grid item xs={12} md={4} key={index}>
                 <Card
                   sx={{
-                    backgroundColor: '#121633',
+                    backgroundColor: '#000',
                     border: `1px solid ${alpha('#00E5FF', 0.2)}`,
                     borderRadius: 3,
                     p: 3,
@@ -1328,7 +1328,7 @@ export default function LandingPage() {
         sx={{
           py: 8,
           borderTop: `1px solid ${alpha('#00E5FF', 0.2)}`,
-          backgroundColor: '#0A0E27',
+          backgroundColor: '#000',
           position: 'relative',
           zIndex: 1,
         }}
@@ -1341,7 +1341,7 @@ export default function LandingPage() {
                 sx={{
                   mb: 2,
                   fontWeight: 700,
-                  background: 'linear-gradient(135deg, #00E5FF 0%, #E91E63 100%)',
+                  background: '#00E5FF',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                 }}

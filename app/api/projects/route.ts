@@ -24,12 +24,27 @@ export async function GET(request: NextRequest) {
       return notFound('User');
     }
 
-    // Get projects where user is owner or member
-    const { data: projects, error: projectsError } = await supabase
+    // Get query parameters
+    const { searchParams } = new URL(request.url);
+    const companyId = searchParams.get('company_id');
+
+    // Build query with company join
+    let query = supabase
       .from('projects')
-      .select('*')
-      .or(`owner_id.eq.${userData.id},id.in.(select project_id from project_members where user_id.eq.${userData.id})`)
-      .order('updated_at', { ascending: false });
+      .select(`
+        *,
+        company:companies(id, name)
+      `)
+      .or(`owner_id.eq.${userData.id},id.in.(select project_id from project_members where user_id.eq.${userData.id})`);
+
+    // Filter by company_id if provided
+    if (companyId) {
+      query = query.eq('company_id', companyId);
+    }
+
+    query = query.order('updated_at', { ascending: false });
+
+    const { data: projects, error: projectsError } = await query;
 
     if (projectsError) {
       logger.error('Error loading projects:', projectsError);
@@ -53,7 +68,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, description, status, primary_tool } = body;
+    const { name, description, status, primary_tool, company_id } = body;
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return badRequest('Project name is required');
@@ -70,6 +85,23 @@ export async function POST(request: NextRequest) {
       return notFound('User');
     }
 
+    // Verify company exists if company_id is provided
+    if (company_id) {
+      const { data: company, error: companyError } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('id', company_id)
+        .single();
+
+      if (companyError || !company) {
+        if (companyError?.code === 'PGRST116') {
+          return badRequest('Company not found');
+        }
+        logger.error('Error checking company:', companyError);
+        return internalError('Failed to check company', { error: companyError?.message });
+      }
+    }
+
     // Create project
     const { data: project, error: projectError } = await supabase
       .from('projects')
@@ -79,6 +111,8 @@ export async function POST(request: NextRequest) {
         description,
         status: status || 'idea',
         primary_tool: primary_tool || null,
+        company_id: company_id || null,
+        source: 'Manual', // Default for manually created projects
       })
       .select()
       .single();

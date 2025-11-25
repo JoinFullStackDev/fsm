@@ -28,6 +28,9 @@ import {
   ChevronRight as ChevronRightIcon,
   Assignment as AssignmentIcon,
   Schedule as ScheduleIcon,
+  Business as BusinessIcon,
+  Contacts as ContactsIcon,
+  TrendingUp as TrendingUpIcon,
 } from '@mui/icons-material';
 import { useRole } from '@/lib/hooks/useRole';
 import { createSupabaseClient } from '@/lib/supabaseClient';
@@ -281,6 +284,15 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
     if (path === '/my-tasks') {
       return pathname === '/my-tasks';
     }
+    if (path === '/ops/companies') {
+      return pathname?.startsWith('/ops/companies');
+    }
+    if (path === '/ops/opportunities') {
+      return pathname === '/ops/opportunities';
+    }
+    if (path === '/ops/contacts') {
+      return pathname === '/ops/contacts';
+    }
     return pathname === path;
   };
 
@@ -314,8 +326,8 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
         '& .MuiDrawer-paper': {
         width: open ? DRAWER_WIDTH : DRAWER_WIDTH_COLLAPSED,
         boxSizing: 'border-box',
-        backgroundColor: '#121633',
-        borderRight: '1px solid rgba(0, 229, 255, 0.2)',
+        backgroundColor: '#000',
+        borderRight: '2px solid rgba(0, 229, 255, 0.2)',
         transition: 'width 0.3s ease',
         overflowX: 'hidden',
         pt: '64px', // Account for TopBar height
@@ -333,7 +345,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
           justifyContent: open ? 'space-between' : 'center',
           padding: '16px',
           minHeight: 64,
-          borderBottom: '1px solid rgba(0, 229, 255, 0.2)',
+          borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
         }}
       >
         <Box
@@ -352,7 +364,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                 variant="h6"
                 sx={{
                   fontWeight: 700,
-                  background: 'linear-gradient(135deg, #00E5FF 0%, #E91E63 100%)',
+                  background: '#00E5FF',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                 }}
@@ -436,7 +448,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
             display: 'flex',
             justifyContent: 'center',
             padding: '8px',
-            borderBottom: '1px solid rgba(0, 229, 255, 0.2)',
+            borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
           }}
         >
           <IconButton
@@ -660,6 +672,124 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
             </ListItemButton>
           </ListItem>
         )}
+
+        {/* Ops Tool Section */}
+        <Divider sx={{ my: 1, borderColor: 'rgba(0, 229, 255, 0.2)' }} />
+        {open && (
+          <Box sx={{ px: 2, py: 1 }}>
+            <Typography
+              variant="caption"
+              sx={{
+                color: 'text.secondary',
+                textTransform: 'uppercase',
+                letterSpacing: 1,
+                fontSize: '0.7rem',
+                fontWeight: 600,
+              }}
+            >
+              Ops Tool
+            </Typography>
+          </Box>
+        )}
+
+        {/* Companies */}
+        <ListItem disablePadding>
+          <ListItemButton
+            onClick={() => handleNavigate('/ops/companies')}
+            selected={isActive('/ops/companies')}
+            sx={{
+              minHeight: 48,
+              '&.Mui-selected': {
+                backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                borderLeft: '3px solid',
+                borderLeftColor: 'primary.main',
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 229, 255, 0.15)',
+                },
+              },
+              '&:hover': {
+                backgroundColor: 'rgba(0, 229, 255, 0.05)',
+              },
+            }}
+          >
+            <ListItemIcon
+              sx={{
+                minWidth: 40,
+                justifyContent: 'center',
+                color: isActive('/ops/companies') ? 'primary.main' : 'text.secondary',
+              }}
+            >
+              <BusinessIcon />
+            </ListItemIcon>
+            {open && <ListItemText primary="Companies" />}
+          </ListItemButton>
+        </ListItem>
+
+        {/* Opportunities */}
+        <ListItem disablePadding>
+          <ListItemButton
+            onClick={() => handleNavigate('/ops/opportunities')}
+            selected={isActive('/ops/opportunities')}
+            sx={{
+              minHeight: 48,
+              '&.Mui-selected': {
+                backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                borderLeft: '3px solid',
+                borderLeftColor: 'primary.main',
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 229, 255, 0.15)',
+                },
+              },
+              '&:hover': {
+                backgroundColor: 'rgba(0, 229, 255, 0.05)',
+              },
+            }}
+          >
+            <ListItemIcon
+              sx={{
+                minWidth: 40,
+                justifyContent: 'center',
+                color: isActive('/ops/opportunities') ? 'primary.main' : 'text.secondary',
+              }}
+            >
+              <TrendingUpIcon />
+            </ListItemIcon>
+            {open && <ListItemText primary="Opportunities" />}
+          </ListItemButton>
+        </ListItem>
+
+        {/* Contacts */}
+        <ListItem disablePadding>
+          <ListItemButton
+            onClick={() => handleNavigate('/ops/contacts')}
+            selected={isActive('/ops/contacts')}
+            sx={{
+              minHeight: 48,
+              '&.Mui-selected': {
+                backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                borderLeft: '3px solid',
+                borderLeftColor: 'primary.main',
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 229, 255, 0.15)',
+                },
+              },
+              '&:hover': {
+                backgroundColor: 'rgba(0, 229, 255, 0.05)',
+              },
+            }}
+          >
+            <ListItemIcon
+              sx={{
+                minWidth: 40,
+                justifyContent: 'center',
+                color: isActive('/ops/contacts') ? 'primary.main' : 'text.secondary',
+              }}
+            >
+              <ContactsIcon />
+            </ListItemIcon>
+            {open && <ListItemText primary="Contacts" />}
+          </ListItemButton>
+        </ListItem>
       </List>
 
       {/* Projects Popover - Shows on hover regardless of sidebar state */}
@@ -704,7 +834,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
       >
         <Paper
           sx={{
-            backgroundColor: '#121633',
+            backgroundColor: '#000',
             border: '1px solid rgba(0, 229, 255, 0.3)',
             minWidth: 200,
             maxHeight: 400,
@@ -799,7 +929,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
       >
         <Paper
           sx={{
-            backgroundColor: '#121633',
+            backgroundColor: '#000',
             border: '1px solid rgba(0, 229, 255, 0.3)',
             minWidth: 200,
             maxHeight: 400,
@@ -898,7 +1028,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
       >
         <Paper
           sx={{
-            backgroundColor: '#121633',
+            backgroundColor: '#000',
             border: '1px solid rgba(0, 229, 255, 0.3)',
             minWidth: 200,
             maxHeight: 400,

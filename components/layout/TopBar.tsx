@@ -103,8 +103,8 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
     <AppBar
       position="fixed"
       sx={{
-        backgroundColor: '#121633',
-        borderBottom: '1px solid rgba(0, 229, 255, 0.2)',
+        backgroundColor: '#000',
+        borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
         boxShadow: '0 2px 10px rgba(0, 0, 0, 0.3)',
         zIndex: (theme) => theme.zIndex.drawer + 1,
       }}
@@ -161,7 +161,7 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
             sx: {
               mt: 1,
               minWidth: 200,
-              backgroundColor: '#121633',
+              backgroundColor: '#000',
               border: '1px solid',
               borderColor: 'primary.main',
             },

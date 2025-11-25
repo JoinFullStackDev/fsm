@@ -374,7 +374,7 @@ export default function ProjectPage() {
   if (loading) {
     return (
       <>
-        <Box sx={{ backgroundColor: '#0A0E27', minHeight: '100vh', pb: 4 }}>
+        <Box sx={{ backgroundColor: '#000', minHeight: '100vh', pb: 4 }}>
           <Container maxWidth="lg" sx={{ pt: 4, pb: 4 }}>
             <Skeleton variant="text" width="40%" height={48} sx={{ mb: 3 }} />
             <Skeleton variant="text" width="60%" height={24} sx={{ mb: 4 }} />
@@ -399,7 +399,7 @@ export default function ProjectPage() {
 
   return (
     <ErrorBoundary>
-      <Box sx={{ backgroundColor: '#0A0E27', minHeight: '100vh', pb: 4 }}>
+      <Box sx={{ backgroundColor: '#000', minHeight: '100vh', pb: 4 }}>
         <Container maxWidth="lg" sx={{ pt: 4, pb: 4 }}>
           <Breadcrumbs items={[{ label: project.name }]} />
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
@@ -409,7 +409,7 @@ export default function ProjectPage() {
                 component="h1"
                 sx={{
                   fontWeight: 700,
-                  background: 'linear-gradient(135deg, #00E5FF 0%, #E91E63 100%)',
+                  background: '#00E5FF',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   mb: 1,
@@ -454,8 +454,8 @@ export default function ProjectPage() {
             return (
               <Card
                 sx={{
-                  backgroundColor: '#121633',
-                  border: '1px solid rgba(0, 229, 255, 0.2)',
+                  backgroundColor: '#000',
+                  border: '2px solid rgba(0, 229, 255, 0.2)',
                   borderRadius: 3,
                   mb: 3,
                 }}
@@ -511,8 +511,8 @@ export default function ProjectPage() {
             <Grid item xs={12} md={8}>
               <Card
                 sx={{
-                  backgroundColor: '#121633',
-                  border: '1px solid rgba(0, 229, 255, 0.2)',
+                  backgroundColor: '#000',
+                  border: '2px solid rgba(0, 229, 255, 0.2)',
                   borderRadius: 3,
                 }}
               >
@@ -649,8 +649,8 @@ export default function ProjectPage() {
             <Grid item xs={12} md={4}>
               <Card
                 sx={{
-                  backgroundColor: '#121633',
-                  border: '1px solid rgba(0, 229, 255, 0.2)',
+                  backgroundColor: '#000',
+                  border: '2px solid rgba(0, 229, 255, 0.2)',
                   borderRadius: 3,
                 }}
               >
@@ -842,7 +842,7 @@ export default function ProjectPage() {
             maxWidth="sm"
             PaperProps={{
               sx: {
-                backgroundColor: '#121633',
+                backgroundColor: '#000',
                 border: '1px solid rgba(255, 152, 0, 0.3)',
               },
             }}
@@ -900,8 +900,8 @@ export default function ProjectPage() {
             fullWidth
             PaperProps={{
               sx: {
-                backgroundColor: '#121633',
-                border: '1px solid rgba(0, 229, 255, 0.2)',
+                backgroundColor: '#000',
+                border: '2px solid rgba(0, 229, 255, 0.2)',
               },
             }}
           >
@@ -921,13 +921,13 @@ export default function ProjectPage() {
                   bgcolor: '#1A1F3A',
                   borderRadius: 1,
                   color: '#E0E0E0',
-                  border: '1px solid rgba(0, 229, 255, 0.2)',
+                  border: '2px solid rgba(0, 229, 255, 0.2)',
                 }}
               >
                 {cursorPrompt}
               </Box>
             </DialogContent>
-            <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(0, 229, 255, 0.2)' }}>
+            <DialogActions sx={{ p: 2, borderTop: '2px solid rgba(0, 229, 255, 0.2)' }}>
               <Button
                 onClick={handleCopyCursorPrompt}
                 startIcon={copied ? <CheckIcon /> : <ContentCopyIcon />}
@@ -975,7 +975,7 @@ export default function ProjectPage() {
             onClose={handleDeleteCancel}
             PaperProps={{
               sx: {
-                backgroundColor: '#121633',
+                backgroundColor: '#000',
                 border: '1px solid rgba(255, 23, 68, 0.3)',
               },
             }}

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Box } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 
@@ -13,6 +14,7 @@ interface MainLayoutProps {
 }
 
 export default function MainLayout({ children }: MainLayoutProps) {
+  const theme = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const handleSidebarToggle = () => {
@@ -20,7 +22,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   };
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0a0e27' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: theme.palette.background.default }}>
       <TopBar onSidebarToggle={handleSidebarToggle} sidebarOpen={sidebarOpen} />
       <Sidebar open={sidebarOpen} onToggle={handleSidebarToggle} />
       <Box
@@ -32,6 +34,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
           width: { sm: `calc(100% - ${sidebarOpen ? DRAWER_WIDTH : DRAWER_WIDTH_COLLAPSED}px)` },
           transition: 'width 0.3s ease',
           overflow: 'auto',
+          backgroundColor: theme.palette.background.default,
         }}
       >
         {children}

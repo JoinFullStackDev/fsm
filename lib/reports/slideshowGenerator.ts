@@ -149,7 +149,7 @@ export function generateSlideshowHTML(config: SlideshowConfig): string {
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-      background: #121633;
+      background: #000;
       color: #E0E0E0;
       overflow: hidden;
       height: 100vh;
@@ -184,7 +184,7 @@ export function generateSlideshowHTML(config: SlideshowConfig): string {
     .slide-title {
       font-size: 4rem;
       font-weight: 700;
-      background: linear-gradient(135deg, #00E5FF 0%, #E91E63 100%);
+      background: #00E5FF;
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       margin-bottom: 1rem;

@@ -101,7 +101,7 @@ export default function FieldConfigPanel({ field, onUpdate, onClose }: FieldConf
     <Paper
       sx={{
         p: 3,
-        backgroundColor: '#121633',
+        backgroundColor: '#000',
         border: '1px solid',
         borderColor: 'primary.main',
         borderRadius: 2,

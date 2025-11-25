@@ -32,7 +32,7 @@ export function generatePDFReport(config: PDFReportConfig): Blob {
   const primaryColor = [0, 229, 255]; // #00E5FF
   const secondaryColor = [233, 30, 99]; // #E91E63
   const textColor = [224, 224, 224]; // #E0E0E0
-  const darkBg = [18, 22, 51]; // #121633
+  const darkBg = [18, 22, 51]; // #000
 
   // Helper function to add new page if needed
   const checkNewPage = (requiredSpace: number) => {

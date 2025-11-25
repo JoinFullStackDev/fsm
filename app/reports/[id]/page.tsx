@@ -83,7 +83,7 @@ export default function ReportPage() {
           justifyContent: 'center',
           alignItems: 'center',
           minHeight: '100vh',
-          backgroundColor: '#121633',
+          backgroundColor: '#000',
         }}
       >
         <CircularProgress sx={{ color: '#00E5FF' }} />
@@ -99,7 +99,7 @@ export default function ReportPage() {
           justifyContent: 'center',
           alignItems: 'center',
           minHeight: '100vh',
-          backgroundColor: '#121633',
+          backgroundColor: '#000',
           p: 4,
         }}
       >
@@ -114,7 +114,7 @@ export default function ReportPage() {
     <Box
       sx={{
         minHeight: '100vh',
-        backgroundColor: '#121633',
+        backgroundColor: '#000',
         position: 'relative',
       }}
     >

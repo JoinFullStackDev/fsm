@@ -364,7 +364,7 @@ export default function TodoList() {
                 fontSize: '0.7rem',
                 fontWeight: 600,
                 color: '#fff',
-                border: '2px solid #121633',
+                border: '2px solid #000',
               }}
             >
               {todoCount > 9 ? '9+' : todoCount}
@@ -390,7 +390,7 @@ export default function TodoList() {
             mt: 1,
             width: 400,
             maxHeight: 600,
-            backgroundColor: '#121633',
+            backgroundColor: '#000',
             border: '1px solid',
             borderColor: 'primary.main',
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',

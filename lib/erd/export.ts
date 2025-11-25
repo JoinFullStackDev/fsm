@@ -72,8 +72,8 @@ export async function exportToSVG(mermaidElementId: string): Promise<string> {
         return true;
       }
       const colorLower = color.toLowerCase();
-      if (colorLower.includes('#0a0e27') || 
-          colorLower.includes('#121633') ||
+      if (colorLower.includes('#000') || 
+          colorLower.includes('#000') ||
           colorLower.includes('rgb(10, 14, 39)') ||
           colorLower.includes('rgb(18, 22, 51)') ||
           colorLower.includes('rgba(10, 14, 39')) {
@@ -196,10 +196,10 @@ export async function exportToSVG(mermaidElementId: string): Promise<string> {
       if (!color || color === 'none' || color === 'transparent' || color === 'currentColor') {
         return true;
       }
-      // Check if it's a dark color (like #0a0e27 background)
+      // Check if it's a dark color (like #000 background)
       const colorLower = color.toLowerCase();
-      if (colorLower.includes('#0a0e27') || 
-          colorLower.includes('#121633') ||
+      if (colorLower.includes('#000') || 
+          colorLower.includes('#000') ||
           colorLower.includes('rgb(10, 14, 39)') ||
           colorLower.includes('rgb(18, 22, 51)') ||
           colorLower.includes('rgba(10, 14, 39')) {
@@ -536,8 +536,8 @@ export async function exportToPNG(mermaidElementId: string): Promise<Blob> {
             return true;
           }
           const colorLower = color.toLowerCase();
-          if (colorLower.includes('#0a0e27') || 
-              colorLower.includes('#121633') ||
+          if (colorLower.includes('#000') || 
+              colorLower.includes('#000') ||
               colorLower.includes('rgb(10, 14, 39)') ||
               colorLower.includes('rgb(18, 22, 51)')) {
             return true;
@@ -572,7 +572,7 @@ export async function exportToPNG(mermaidElementId: string): Promise<Blob> {
     
     // Use html2canvas to capture the container with higher scale for better text rendering
     const canvas = await html2canvas(container, {
-      backgroundColor: '#0a0e27',
+      backgroundColor: '#000',
       scale: 3, // Increased from 2 to 3 for better text rendering
       logging: false,
       useCORS: true,
@@ -602,7 +602,7 @@ export async function exportToPNG(mermaidElementId: string): Promise<Blob> {
               fill = computedStyle.fill || computedStyle.color || '#ffffff';
               
               // Check if dark
-              const isDarkColor = fill.includes('#0a0e27') || fill.includes('#121633') || 
+              const isDarkColor = fill.includes('#000') || fill.includes('#000') || 
                                   fill === 'none' || fill === 'transparent' || fill === 'currentColor';
               if (isDarkColor) {
                 fill = '#ffffff';

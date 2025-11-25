@@ -33,7 +33,7 @@ export default function AdminThemeTab() {
   const [theme, setTheme] = useState<ThemeColors>({
     primary: { main: '#00E5FF', light: '#5DFFFF', dark: '#00B2CC' },
     secondary: { main: '#E91E63', light: '#FF6090', dark: '#B0003A' },
-    background: { default: '#0A0E27', paper: '#121633' },
+    background: { default: '#000', paper: '#000' },
   });
 
   useEffect(() => {
@@ -112,7 +112,7 @@ export default function AdminThemeTab() {
     setTheme({
       primary: { main: '#00E5FF', light: '#5DFFFF', dark: '#00B2CC' },
       secondary: { main: '#E91E63', light: '#FF6090', dark: '#B0003A' },
-      background: { default: '#0A0E27', paper: '#121633' },
+      background: { default: '#000', paper: '#000' },
     });
   };
 

@@ -186,7 +186,7 @@ export default function FieldCanvas({
       sx={{
         p: 3,
         minHeight: 400,
-        backgroundColor: '#121633',
+        backgroundColor: '#000',
         border: '2px dashed',
         borderColor: isOver ? 'primary.main' : 'rgba(0, 229, 255, 0.3)',
         borderRadius: 2,
