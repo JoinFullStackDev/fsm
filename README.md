@@ -8,11 +8,11 @@
 
 **✅ Build Status: Passing** | **✅ Unit Tests: 180 passing (20 test suites)**
 
-A production-grade web application that encodes the 6 phases of the FullStack Method™ into a guided, structured system. This platform generates structured JSON, Markdown, text files, ERDs, API contracts, user stories, and blueprint bundles that can be consumed by AI coding tools like Cursor, Lovable, Replit, Base44, and others.
+Internal project management platform that encodes the 6 phases of the FullStack Method™ into a guided, structured system. Generates structured JSON, Markdown, text files, ERDs, API contracts, user stories, and blueprint bundles for consumption by AI coding tools.
 
-## 🎯 Platform Overview
+## 🎯 Overview
 
-The FullStack Method™ App is an AI-accelerated project management platform designed to transform how teams build software. It provides a structured approach to product development through six distinct phases, ensuring clarity, documentation, and engineering-ready deliverables before code is written.
+Internal AI-accelerated project management platform for structured product development. Provides a guided workflow through six distinct phases to ensure clarity, documentation, and engineering-ready deliverables before code is written.
 
 ### Key Capabilities
 
@@ -107,30 +107,29 @@ npm run lint         # Run ESLint
 
 ### Environment Variables
 
-Create a `.env.local` file in the root directory:
+Required environment variables (see team documentation for actual values):
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-GOOGLE_GENAI_API_KEY=your_google_genai_api_key  # Optional, for AI features
+NEXT_PUBLIC_SUPABASE_URL=<internal_supabase_url>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<internal_supabase_key>
+GOOGLE_GENAI_API_KEY=<internal_genai_key>  # Optional, for AI features
 ```
 
 ### Deployment
 
-The application is optimized for deployment on Vercel:
+Deployment is handled internally via Vercel:
+- Automatic deployment on push to `main` branch
+- Environment variables configured in Vercel dashboard
+- Contact DevOps team for deployment access
 
-1. Connect your GitHub repository to Vercel
-2. Configure environment variables in Vercel dashboard
-3. Deploy automatically on push to main branch
-
-## 📋 Prerequisites
+## 📋 Development Requirements
 
 - **Node.js**: 18 or higher
 - **npm**: 9 or higher
-- **Supabase Account**: For database and authentication
-- **Google Cloud Account**: (Optional) For AI features
+- **Internal Supabase Access**: Database and authentication credentials
+- **Google Cloud Access**: (Optional) For AI features - contact team lead
 
-## 🛠️ Setup Instructions
+## 🛠️ Development Setup
 
 1. **Clone the repository**
    ```bash
@@ -143,26 +142,24 @@ The application is optimized for deployment on Vercel:
    npm install
    ```
 
-3. **Set up Supabase**
-   - Create a new Supabase project at [supabase.com](https://supabase.com)
-   - Copy your project URL and anon key
-   - Create a `.env.local` file in the root directory:
+3. **Configure environment variables**
+   - Copy `.env.example` to `.env.local` (if exists) or create `.env.local`
+   - Add required environment variables (see team documentation for values):
      ```
-     NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-     NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+     NEXT_PUBLIC_SUPABASE_URL=<internal_supabase_url>
+     NEXT_PUBLIC_SUPABASE_ANON_KEY=<internal_supabase_key>
+     GOOGLE_GENAI_API_KEY=<internal_genai_key>  # Optional, for AI features
      ```
 
-4. **Set up the database schema**
-   - Run the SQL migrations in the `migrations/` directory
-   - Start with `add_project_templates.sql` and follow the migration order
-   - Enable Row Level Security (RLS) policies as needed
+4. **Database setup**
+   - Database migrations are managed internally
+   - Contact the team lead for database access and migration instructions
+   - Migration files are located in `migrations/` directory
 
-5. **Run the development server**
+5. **Start development server**
    ```bash
    npm run dev
    ```
-
-6. **Open your browser**
    Navigate to [http://localhost:3000](http://localhost:3000)
 
 ## 📁 Project Structure
@@ -301,15 +298,10 @@ npm run test:e2e         # Run Playwright tests
 - Coverage threshold: 70% minimum
 - Current coverage: Core functionality well-tested with focus on critical paths
 
-## 📚 Documentation
+## 📚 Internal Documentation
 
-- [PRD.md](./PRD.md) - Product Requirements Document
-- [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) - Feature implementation status
 - [migrations/](./migrations/) - Database migration scripts
-
-## 🤝 Contributing
-
-This is a proprietary project. For contributions, please contact the maintainers.
+- Contact team lead for additional internal documentation and architecture decisions
 
 ## 📄 License
 
@@ -317,9 +309,8 @@ Copyright © JoinFullStack, LLC. All rights reserved.
 
 This software is proprietary and confidential. Unauthorized copying, modification, distribution, or use of this software, via any medium, is strictly prohibited.
 
-## 🔗 Links
+## 🔗 Reference Links
 
-- [FullStack Method™](https://joinfullstack.com)
 - [Supabase Documentation](https://supabase.com/docs)
 - [Next.js Documentation](https://nextjs.org/docs)
 - [Material-UI Documentation](https://mui.com)
