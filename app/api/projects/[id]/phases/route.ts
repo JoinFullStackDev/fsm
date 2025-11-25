@@ -75,7 +75,7 @@ export async function GET(
   }
 }
 
-// POST - Create a new phase (admin or project owner only)
+// POST - Create a new phase (admin, project owner, or project member)
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -88,17 +88,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify user is project owner or admin
-    const { data: project, error: projectError } = await supabase
-      .from('projects')
-      .select('owner_id')
-      .eq('id', params.id)
-      .single();
-
-    if (projectError || !project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
-    }
-
+    // Get current user
     const { data: currentUser, error: userError } = await supabase
       .from('users')
       .select('id, role')
@@ -109,11 +99,32 @@ export async function POST(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // Verify user is project owner, member, or admin
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('owner_id')
+      .eq('id', params.id)
+      .single();
+
+    if (projectError || !project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    }
+
     const isOwner = project.owner_id === currentUser.id;
     const isAdmin = currentUser.role === 'admin';
 
-    if (!isOwner && !isAdmin) {
-      return NextResponse.json({ error: 'Forbidden - Project owner or admin access required' }, { status: 403 });
+    // Check if user is a project member
+    const { data: projectMember } = await supabase
+      .from('project_members')
+      .select('id')
+      .eq('project_id', params.id)
+      .eq('user_id', currentUser.id)
+      .single();
+
+    const isProjectMember = isOwner || !!projectMember || isAdmin;
+
+    if (!isProjectMember) {
+      return NextResponse.json({ error: 'Forbidden - Project owner, member, or admin access required' }, { status: 403 });
     }
 
     const body = await request.json();
@@ -187,17 +198,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify user is project owner or admin
-    const { data: project, error: projectError } = await supabase
-      .from('projects')
-      .select('owner_id')
-      .eq('id', params.id)
-      .single();
-
-    if (projectError || !project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
-    }
-
+    // Get current user
     const { data: currentUser, error: userError } = await supabase
       .from('users')
       .select('id, role')
@@ -208,11 +209,32 @@ export async function PATCH(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // Verify user is project owner, member, or admin
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('owner_id')
+      .eq('id', params.id)
+      .single();
+
+    if (projectError || !project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    }
+
     const isOwner = project.owner_id === currentUser.id;
     const isAdmin = currentUser.role === 'admin';
 
-    if (!isOwner && !isAdmin) {
-      return NextResponse.json({ error: 'Forbidden - Project owner or admin access required' }, { status: 403 });
+    // Check if user is a project member
+    const { data: projectMember } = await supabase
+      .from('project_members')
+      .select('id')
+      .eq('project_id', params.id)
+      .eq('user_id', currentUser.id)
+      .single();
+
+    const isProjectMember = isOwner || !!projectMember || isAdmin;
+
+    if (!isProjectMember) {
+      return NextResponse.json({ error: 'Forbidden - Project owner, member, or admin access required' }, { status: 403 });
     }
 
     const body = await request.json();
