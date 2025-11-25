@@ -29,9 +29,10 @@ import type { UserRole } from '@/types/project';
 export function useRole() {
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createSupabaseClient();
 
   useEffect(() => {
+    const supabase = createSupabaseClient();
+    
     const loadRole = async () => {
       setLoading(true);
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -97,7 +98,7 @@ export function useRole() {
     };
 
     loadRole();
-  }, [supabase]);
+  }, []); // Empty dependency array - only run once on mount
 
   return { role, loading };
 }

@@ -171,7 +171,13 @@ export default function TemplateBasedPhaseForm({
 
   const renderField = useCallback((field: TemplateFieldConfig) => {
     // Check conditional logic
-    if (!evaluateConditionalLogic(field, data)) {
+    const shouldShow = evaluateConditionalLogic(field, data);
+    if (!shouldShow) {
+      logger.debug('[TemplateBasedPhaseForm] Field hidden by conditional logic:', {
+        fieldKey: field.field_key,
+        fieldLabel: field.field_config?.label,
+        conditionalLogic: field.conditional_logic
+      });
       return null; // Field is hidden by conditional logic
     }
 
@@ -407,13 +413,29 @@ export default function TemplateBasedPhaseForm({
     const ungroupedFields = fieldsByGroup['ungrouped'] || [];
     const groupedFields = Object.entries(fieldsByGroup).filter(([key]) => key !== 'ungrouped');
 
+    logger.debug('[TemplateBasedPhaseForm] Rendering fields:', {
+      totalConfigs: fieldConfigs.length,
+      ungroupedCount: ungroupedFields.length,
+      groupedCount: groupedFields.length,
+      allFieldKeys: fieldConfigs.map(f => f.field_key),
+      ungroupedKeys: ungroupedFields.map(f => f.field_key),
+      groupedKeys: groupedFields.flatMap(([_, fields]) => fields.map(f => f.field_key)),
+      groupsByKey: Object.keys(fieldsByGroup)
+    });
+
     return (
       <>
         {/* Render ungrouped fields */}
         {ungroupedFields.length > 0 && (
           <Grid container spacing={0} sx={{ mb: 1, alignItems: 'stretch' }}>
             {ungroupedFields
-              .map((field) => renderField(field))
+              .map((field) => {
+                const rendered = renderField(field);
+                if (rendered === null) {
+                  logger.debug('[TemplateBasedPhaseForm] Ungrouped field not rendered:', field.field_key);
+                }
+                return rendered;
+              })
               .filter((rendered) => rendered !== null)}
           </Grid>
         )}
@@ -431,10 +453,20 @@ export default function TemplateBasedPhaseForm({
           }
 
           const visibleFields = fields
-            .map((field) => renderField(field))
+            .map((field) => {
+              const rendered = renderField(field);
+              if (rendered === null) {
+                logger.debug('[TemplateBasedPhaseForm] Grouped field not rendered:', {
+                  fieldKey: field.field_key,
+                  groupId: groupId
+                });
+              }
+              return rendered;
+            })
             .filter((rendered) => rendered !== null);
           
           if (visibleFields.length === 0) {
+            logger.debug('[TemplateBasedPhaseForm] No visible fields in group:', groupId);
             return null; // No visible fields in this group
           }
 

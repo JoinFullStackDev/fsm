@@ -12,6 +12,15 @@ if (typeof Element.prototype.scrollIntoView === 'undefined') {
   Element.prototype.scrollIntoView = jest.fn();
 }
 
+// Mock navigator.clipboard for clipboard API tests
+Object.defineProperty(navigator, 'clipboard', {
+  value: {
+    writeText: jest.fn().mockResolvedValue(undefined),
+  },
+  writable: true,
+  configurable: true,
+});
+
 // Simple polyfills for Next.js Request/Response APIs in tests
 if (typeof global.Request === 'undefined') {
   global.Request = class Request {

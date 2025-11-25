@@ -9,6 +9,7 @@ import {
 } from '@mui/icons-material';
 import type { ReportContent } from '@/lib/reports/aiReportGenerator';
 import type { WeeklyReportData, MonthlyReportData, ForecastReportData } from '@/lib/reports/dataAggregator';
+import type { ProjectTask, ProjectTaskExtended } from '@/types/project';
 import ReportGanttChart from './ReportGanttChart';
 import { format, parseISO } from 'date-fns';
 import {

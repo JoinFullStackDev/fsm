@@ -169,11 +169,8 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
       const tasksInProgress = tasks.filter((task) => {
         if (task.status !== 'in_progress') return false;
         const created = task.created_at ? parseISO(task.created_at) : null;
-        const completed = task.status === 'done' && task.updated_at ? parseISO(task.updated_at) : null;
-        return (
-          (!created || !isAfter(day, created)) &&
-          (!completed || !isBefore(day, completed))
-        );
+        // Tasks in progress don't have a completed date
+        return !created || !isAfter(day, created);
       }).length;
       point.tasksInProgress = tasksInProgress;
 
@@ -181,11 +178,8 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
       const tasksTodo = tasks.filter((task) => {
         if (task.status !== 'todo') return false;
         const created = task.created_at ? parseISO(task.created_at) : null;
-        const completed = task.status === 'done' && task.updated_at ? parseISO(task.updated_at) : null;
-        return (
-          (!created || !isAfter(day, created)) &&
-          (!completed || !isBefore(day, completed))
-        );
+        // Tasks todo don't have a completed date
+        return !created || !isAfter(day, created);
       }).length;
       point.tasksTodo = tasksTodo;
 

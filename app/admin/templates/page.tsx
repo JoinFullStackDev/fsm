@@ -50,7 +50,7 @@ export default function TemplatesPage() {
   const supabase = createSupabaseClient();
   const { role, loading: roleLoading } = useRole();
   const { showSuccess, showError } = useNotification();
-  const [templates, setTemplates] = useState<ProjectTemplate[]>([]);
+  const [templates, setTemplates] = useState<(ProjectTemplate & { usage_count?: number })[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
@@ -88,17 +88,41 @@ export default function TemplatesPage() {
 
   const loadTemplates = async () => {
     setLoading(true);
-    const { data, error: fetchError } = await supabase
+    
+    // Load templates with usage counts
+    const { data: templatesData, error: templatesError } = await supabase
       .from('project_templates')
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (fetchError) {
-      setError(fetchError.message);
+    if (templatesError) {
+      setError(templatesError.message);
       showError('Failed to load templates');
-    } else {
-      setTemplates(data || []);
+      setLoading(false);
+      return;
     }
+
+    // Get usage counts for each template
+    const templatesWithUsage = await Promise.all(
+      (templatesData || []).map(async (template) => {
+        const { count, error: countError } = await supabase
+          .from('projects')
+          .select('*', { count: 'exact', head: true })
+          .eq('template_id', template.id);
+
+        if (countError) {
+          logger.error('Error counting template usage:', countError);
+          return { ...template, usage_count: 0 };
+        }
+
+        const usageCount = count || 0;
+        logger.debug('[TemplatesPage] Template usage count:', { templateId: template.id, templateName: template.name, usageCount });
+        return { ...template, usage_count: usageCount };
+      })
+    );
+
+    logger.debug('[TemplatesPage] Loaded templates with usage:', templatesWithUsage.map(t => ({ id: t.id, name: t.name, usage_count: (t as any).usage_count })));
+    setTemplates(templatesWithUsage);
     setLoading(false);
   };
 
@@ -493,6 +517,30 @@ export default function TemplatesPage() {
                       }}
                     />
                   ),
+                },
+                {
+                  key: 'usage_count',
+                  label: 'Usage',
+                  sortable: true,
+                  render: (value, template) => {
+                    // Get usage_count from the template object
+                    // value comes from row[column.key], template is the full row object
+                    const count = (template as any)?.usage_count ?? value ?? 0;
+                    logger.debug('[TemplatesPage] Rendering usage count:', { templateId: (template as any)?.id, templateName: (template as any)?.name, value, count });
+                    return (
+                      <Chip
+                        label={String(count)}
+                        size="small"
+                        sx={{
+                          backgroundColor: count > 0 ? 'rgba(0, 255, 136, 0.15)' : 'rgba(176, 176, 176, 0.15)',
+                          color: count > 0 ? '#00FF88' : '#B0B0B0',
+                          border: `1px solid ${count > 0 ? 'rgba(0, 255, 136, 0.3)' : 'rgba(176, 176, 176, 0.3)'}`,
+                          fontWeight: 600,
+                          minWidth: '50px',
+                        }}
+                      />
+                    );
+                  },
                 },
                 {
                   key: 'created_at',

@@ -186,17 +186,41 @@ describe('/api/projects/[id]', () => {
         },
       });
 
-      const mockUpdateQuery = {
-        update: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: null,
-          error: { message: 'Database error' },
-        }),
-      };
-
-      mockSupabaseClient.from.mockReturnValue(mockUpdateQuery);
+      let callCount = 0;
+      mockSupabaseClient.from.mockImplementation((table: string) => {
+        if (table === 'projects') {
+          callCount++;
+          // First call: check if project exists (should succeed)
+          if (callCount === 1) {
+            return {
+              select: jest.fn().mockReturnThis(),
+              eq: jest.fn().mockReturnThis(),
+              single: jest.fn().mockResolvedValue({
+                data: { id: 'project-1', template_id: null },
+                error: null,
+              }),
+            };
+          }
+          // Second call: update project (should fail)
+          if (callCount === 2) {
+            return {
+              update: jest.fn().mockReturnThis(),
+              eq: jest.fn().mockReturnThis(),
+              select: jest.fn().mockReturnThis(),
+              single: jest.fn().mockResolvedValue({
+                data: null,
+                error: { message: 'Database error' },
+              }),
+            };
+          }
+        }
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          update: jest.fn().mockReturnThis(),
+          single: jest.fn(),
+        };
+      });
 
       const request = new NextRequest('http://localhost:3000/api/projects/project-1', {
         method: 'PUT',

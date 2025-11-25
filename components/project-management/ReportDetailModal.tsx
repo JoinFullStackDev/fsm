@@ -313,7 +313,7 @@ export default function ReportDetailModal({
               />
             ) : (
               <Alert severity="info">
-                Click "View PDF" to generate and display the PDF report.
+                Click &quot;View PDF&quot; to generate and display the PDF report.
               </Alert>
             )}
           </Box>

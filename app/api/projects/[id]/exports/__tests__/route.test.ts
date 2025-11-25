@@ -4,15 +4,26 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createMockSupabaseClient } from '@/lib/test-utils';
 
 jest.mock('@/lib/supabaseServer');
-jest.mock('next/server', () => ({
-  NextRequest: jest.fn(),
-  NextResponse: {
-    json: jest.fn((data, init) => ({
-      json: async () => data,
-      status: init?.status || 200,
-    })),
-  },
-}));
+jest.mock('next/server', () => {
+  const mockNextRequest = class NextRequest {
+    constructor(public url: string, public init?: any) {}
+    async json() {
+      return this.init?.body ? JSON.parse(this.init.body) : {};
+    }
+  };
+
+  const mockNextResponse = {
+    json: (data: any, init?: any) => {
+      const Response = global.Response;
+      return Response.json(data, init);
+    },
+  };
+
+  return {
+    NextRequest: mockNextRequest,
+    NextResponse: mockNextResponse,
+  };
+});
 
 const mockCreateServerSupabaseClient = createServerSupabaseClient as jest.MockedFunction<
   typeof createServerSupabaseClient
@@ -162,6 +173,49 @@ describe('GET /api/projects/[id]/exports', () => {
 
     let exportsCallCount = 0;
     let usersCallCount = 0;
+    
+    // Create a shared builder instance that can be chained
+    const createExportsBuilder = () => {
+      const builder: any = {
+        select: jest.fn(),
+        eq: jest.fn(),
+        order: jest.fn(),
+        range: jest.fn(),
+        gte: jest.fn(),
+        lt: jest.fn(),
+      };
+      
+      // All methods return the builder for chaining
+      builder.select.mockReturnValue(builder);
+      builder.eq.mockReturnValue(builder);
+      builder.order.mockReturnValue(builder);
+      builder.range.mockReturnValue(builder);
+      builder.gte.mockReturnValue(builder);
+      builder.lt.mockReturnValue(builder);
+      
+      // Return successful result - make builder thenable
+      const resolvingPromise = Promise.resolve({
+        data: mockExports,
+        error: null,
+        count: 2,
+      });
+      
+      // Make builder awaitable by implementing thenable interface
+      builder.then = (onResolve?: any, onReject?: any) => {
+        return resolvingPromise.then(onResolve, onReject);
+      };
+      builder.catch = (onReject?: any) => {
+        return resolvingPromise.catch(onReject);
+      };
+      if (resolvingPromise.finally) {
+        builder.finally = (onFinally?: any) => {
+          return resolvingPromise.finally(onFinally);
+        };
+      }
+      
+      return builder;
+    };
+    
     mockSupabase.from.mockImplementation((table: string) => {
       if (table === 'users') {
         usersCallCount++;
@@ -176,7 +230,7 @@ describe('GET /api/projects/[id]/exports', () => {
             }),
           } as any;
         } else {
-          // Second call: get users by ids (for user data in exports)
+          // Later calls: get users by ids (for user data in exports)
           const usersQuery: any = {
             select: jest.fn().mockReturnThis(),
             in: jest.fn(),
@@ -199,41 +253,18 @@ describe('GET /api/projects/[id]/exports', () => {
           }),
         } as any;
       }
+      if (table === 'project_members') {
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          single: jest.fn().mockResolvedValue({
+            data: null,
+            error: { code: 'PGRST116' }, // Not found error
+          }),
+        } as any;
+      }
       if (table === 'exports') {
-        exportsCallCount++;
-        const isFirstCall = exportsCallCount === 1;
-        
-        const result = isFirstCall
-          ? Promise.reject(new Error('Join failed'))
-          : Promise.resolve({
-              data: mockExports,
-              error: null,
-              count: 2,
-            });
-        
-        const builder: any = {
-          select: jest.fn(),
-          eq: jest.fn(),
-          order: jest.fn(),
-          range: jest.fn(),
-          gte: jest.fn(),
-          lt: jest.fn(),
-        };
-        
-        // All methods return the builder for chaining
-        builder.select.mockReturnValue(builder);
-        builder.eq.mockReturnValue(builder);
-        builder.order.mockReturnValue(builder);
-        builder.range.mockReturnValue(builder);
-        builder.gte.mockReturnValue(builder);
-        builder.lt.mockReturnValue(builder);
-        
-        // Make builder thenable by binding promise methods
-        builder.then = result.then.bind(result);
-        builder.catch = result.catch.bind(result);
-        builder.finally = result.finally?.bind(result);
-        
-        return builder;
+        return createExportsBuilder();
       }
       return {} as any;
     });
@@ -245,7 +276,8 @@ describe('GET /api/projects/[id]/exports', () => {
     const data = await response.json();
 
     if (response.status !== 200) {
-      console.error('Error response:', data);
+      console.error('Error response:', JSON.stringify(data, null, 2));
+      console.error('Exports call count:', exportsCallCount);
     }
 
     expect(response.status).toBe(200);
@@ -265,6 +297,50 @@ describe('GET /api/projects/[id]/exports', () => {
     const mockEq = jest.fn();
     let exportsCallCount = 0;
     let usersCallCount = 0;
+    
+    // Create a shared builder instance that can be chained
+    const createExportsBuilder = () => {
+      const builder: any = {
+        select: jest.fn(),
+        eq: jest.fn((...args) => {
+          mockEq(...args); // Track the call
+          return builder; // Return builder for chaining
+        }),
+        order: jest.fn(),
+        range: jest.fn(),
+        gte: jest.fn(),
+        lt: jest.fn(),
+      };
+      
+      // All methods return the builder for chaining
+      builder.select.mockReturnValue(builder);
+      builder.order.mockReturnValue(builder);
+      builder.range.mockReturnValue(builder);
+      builder.gte.mockReturnValue(builder);
+      builder.lt.mockReturnValue(builder);
+      
+      // Return successful result (no need to simulate join failure for filter test)
+      const resolvingPromise = Promise.resolve({
+        data: [],
+        error: null,
+        count: 0,
+      });
+      
+      // Make builder awaitable by implementing thenable interface
+      builder.then = (onResolve?: any, onReject?: any) => {
+        return resolvingPromise.then(onResolve, onReject);
+      };
+      builder.catch = (onReject?: any) => {
+        return resolvingPromise.catch(onReject);
+      };
+      if (resolvingPromise.finally) {
+        builder.finally = (onFinally?: any) => {
+          return resolvingPromise.finally(onFinally);
+        };
+      }
+      
+      return builder;
+    };
     
     mockSupabase.from.mockImplementation((table: string) => {
       if (table === 'users') {
@@ -298,43 +374,18 @@ describe('GET /api/projects/[id]/exports', () => {
           }),
         } as any;
       }
-      if (table === 'exports') {
-        exportsCallCount++;
-        const isFirstCall = exportsCallCount === 1;
-        
-        const result = isFirstCall
-          ? Promise.reject(new Error('Join failed'))
-          : Promise.resolve({
-              data: [],
-              error: null,
-              count: 0,
-            });
-        
-        const builder: any = {
-          select: jest.fn(),
-          eq: jest.fn((...args) => {
-            mockEq(...args); // Track the call
-            return builder; // Return builder for chaining
+      if (table === 'project_members') {
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          single: jest.fn().mockResolvedValue({
+            data: null,
+            error: { code: 'PGRST116' }, // Not found error
           }),
-          order: jest.fn(),
-          range: jest.fn(),
-          gte: jest.fn(),
-          lt: jest.fn(),
-        };
-        
-        // All methods return the builder for chaining
-        builder.select.mockReturnValue(builder);
-        builder.order.mockReturnValue(builder);
-        builder.range.mockReturnValue(builder);
-        builder.gte.mockReturnValue(builder);
-        builder.lt.mockReturnValue(builder);
-        
-        // Make builder thenable by binding promise methods
-        builder.then = result.then.bind(result);
-        builder.catch = result.catch.bind(result);
-        builder.finally = result.finally?.bind(result);
-        
-        return builder;
+        } as any;
+      }
+      if (table === 'exports') {
+        return createExportsBuilder();
       }
       return {} as any;
     });

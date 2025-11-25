@@ -169,6 +169,7 @@ export default function PhasePage() {
     }
 
     const loadPhase = async () => {
+      const supabase = createSupabaseClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         router.push('/auth/signin');
@@ -259,8 +260,8 @@ export default function PhasePage() {
       }
 
       // Use the actual phase_number from the database (in case URL doesn't match)
-      const actualPhaseNumber = currentPhaseData.phase_number;
-      logger.debug('[PhasePage] URL phase_number:', phaseNumber, 'DB phase_number:', actualPhaseNumber);
+      const actualPhaseNumberFromDB = currentPhaseData.phase_number;
+      logger.debug('[PhasePage] URL phase_number:', phaseNumber, 'DB phase_number:', actualPhaseNumberFromDB);
 
       // Load all phase statuses to check dependencies (ordered by display_order)
       const { data: allPhases, error: phasesError } = await supabase
@@ -289,7 +290,7 @@ export default function PhasePage() {
         })));
 
         // Check if this phase can be completed
-        const dependencyCheck = canCompletePhase(actualPhaseNumber, statuses);
+        const dependencyCheck = canCompletePhase(actualPhaseNumberFromDB, statuses);
         setCanComplete(dependencyCheck.canComplete);
         
         // Create phase names map from loaded phases
@@ -298,16 +299,14 @@ export default function PhasePage() {
           return acc;
         }, {} as Record<number, string>);
         
-        setDependencyMessage(getPhaseDependencyMessage(actualPhaseNumber, dependencyCheck.missingPhases, phaseNamesMap));
+        setDependencyMessage(getPhaseDependencyMessage(actualPhaseNumberFromDB, dependencyCheck.missingPhases, phaseNamesMap));
       }
 
       // Use the phase data we already loaded
       const data = currentPhaseData;
-      const actualPhaseNumberFromDB = data.phase_number;
-      setActualPhaseNumber(actualPhaseNumberFromDB);
 
       // Set current phase name from database, with fallback
-      const phaseName = data.phase_name || `Phase ${actualPhaseNumber}`;
+      const phaseName = data.phase_name || `Phase ${actualPhaseNumberFromDB}`;
       setCurrentPhaseName(phaseName);
 
       // Initialize phase data - ensure it's an object, not null
@@ -325,6 +324,7 @@ export default function PhasePage() {
       });
 
       // NOW check for template field configs using the actual phase_number from database
+      // ALWAYS use the project's template_id if it exists - don't try to detect
       if (projectData && projectData.template_id) {
         // Check if this template has field configs for this actual phase_number
         const { data: fieldConfigs, error: configsError } = await supabase
@@ -333,9 +333,10 @@ export default function PhasePage() {
           .eq('template_id', projectData.template_id)
           .eq('phase_number', actualPhaseNumberFromDB);
 
-        logger.debug('[PhasePage] Template field configs check (after phase load):', {
-          templateId: projectData.template_id,
+        logger.debug('[PhasePage] Template field configs check (project has template_id):', {
+          projectTemplateId: projectData.template_id,
           actualPhaseNumber: actualPhaseNumberFromDB,
+          phaseName: phaseName,
           found: fieldConfigs?.length || 0,
           fieldKeys: fieldConfigs?.map(f => f.field_key),
           error: configsError?.message
@@ -344,7 +345,13 @@ export default function PhasePage() {
         if (fieldConfigs && fieldConfigs.length > 0) {
           templateToUse = projectData.template_id;
           setFieldConfigs(fieldConfigs);
-          logger.debug('[PhasePage] Using project template:', templateToUse);
+          logger.debug('[PhasePage] Using project template_id:', templateToUse, 'for phase', actualPhaseNumberFromDB);
+        } else {
+          logger.warn('[PhasePage] Project has template_id but no field configs found for phase', {
+            templateId: projectData.template_id,
+            phaseNumber: actualPhaseNumberFromDB,
+            phaseName: phaseName
+          });
         }
       } else if (projectData && !projectData.template_id) {
         // Project has no template_id - try to find the correct template by matching template_phases
@@ -462,13 +469,13 @@ export default function PhasePage() {
             if (bestMatch) {
               const { data: phaseConfigs } = await supabase
                 .from('template_field_configs')
-                .select('id')
+                .select('field_key')
                 .eq('template_id', bestMatch.templateId)
-                .eq('phase_number', actualPhaseNumberFromDB)
-                .limit(1);
+                .eq('phase_number', actualPhaseNumberFromDB);
               
               if (phaseConfigs && phaseConfigs.length > 0) {
                 templateToUse = bestMatch.templateId;
+                setFieldConfigs(phaseConfigs);
                 logger.debug('[PhasePage] Detected template from phases:', templateToUse, 'with score', bestMatch.score, 'and', bestMatch.matchCount, 'matching phases');
               }
             }
@@ -587,7 +594,8 @@ export default function PhasePage() {
     if (projectId && phaseNumber) {
       loadPhase();
     }
-  }, [projectId, phaseNumber, router, supabase, role]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, phaseNumber]); // Only re-run when projectId or phaseNumber changes
 
   const handleToggleComplete = async (newCompleted: boolean) => {
     if (!canEdit) {

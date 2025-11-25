@@ -27,7 +27,7 @@ export default function MyTasksPage() {
   const router = useRouter();
   const supabase = createSupabaseClient();
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,9 +79,9 @@ export default function MyTasksPage() {
         .eq('user_id', userData.id);
 
       const allProjectIds = new Set<string>();
-      const projectMap = new Map<string, Project>();
+      const projectMap = new Map<string, { id: string; name: string }>();
 
-      (ownedProjects || []).forEach((p) => {
+      (ownedProjects || []).forEach((p: { id: string; name: string }) => {
         allProjectIds.add(p.id);
         projectMap.set(p.id, p);
       });
@@ -218,7 +218,7 @@ export default function MyTasksPage() {
         {tasks.length === 0 ? (
           <Box sx={{ py: 8, textAlign: 'center' }}>
             <Typography variant="body1" sx={{ color: '#B0B0B0' }}>
-              No tasks due in the next 2 weeks. You're all caught up!
+              No tasks due in the next 2 weeks. You&apos;re all caught up!
             </Typography>
           </Box>
         ) : (
