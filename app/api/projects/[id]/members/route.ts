@@ -50,9 +50,10 @@ export async function POST(
 
     const isOwner = project.owner_id === userData.id;
     const isAdmin = userData.role === 'admin';
+    const isPM = userData.role === 'pm';
 
-    if (!isOwner && !isAdmin) {
-      return forbidden('Only project owners or admins can add members');
+    if (!isOwner && !isAdmin && !isPM) {
+      return forbidden('Only project owners, admins, or PMs can add members');
     }
 
     // Check if member already exists

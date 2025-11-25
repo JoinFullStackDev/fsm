@@ -34,8 +34,9 @@ export async function POST(
       .eq('auth_id', user.id)
       .single();
 
-    if (roleData?.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    // Allow admins and PMs to duplicate templates
+    if (roleData?.role !== 'admin' && roleData?.role !== 'pm') {
+      return NextResponse.json({ error: 'Forbidden - Admin or PM access required' }, { status: 403 });
     }
 
     // Load original template

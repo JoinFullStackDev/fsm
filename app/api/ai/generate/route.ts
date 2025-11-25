@@ -1,61 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { generateAIResponse, generateStructuredAIResponse } from '@/lib/ai/geminiClient';
-import type { AdminSetting } from '@/types/project';
+import { getGeminiConfig } from '@/lib/utils/geminiConfig';
 import { unauthorized, badRequest, internalError, forbidden } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
-
-/**
- * Retrieves Gemini API configuration from the admin_settings table
- * 
- * Fetches API key, enabled status, and project name settings.
- * Handles API key cleaning (removes quotes if stored as JSON string).
- * 
- * @param supabase - Supabase client instance
- * @returns Configuration object with enabled, apiKey, and projectName, or null on error
- */
-async function getGeminiConfig(supabase: any) {
-  const { API_CONFIG_KEYS } = await import('@/lib/constants');
-  
-  const { data, error } = await supabase
-    .from('admin_settings')
-    .select('*')
-    .in('key', [API_CONFIG_KEYS.GEMINI_KEY, API_CONFIG_KEYS.GEMINI_KEY_ALT, API_CONFIG_KEYS.GEMINI_ENABLED, API_CONFIG_KEYS.GEMINI_PROJECT_NAME]);
-
-  if (error) {
-    logger.error('Error fetching Gemini config:', error);
-    return null;
-  }
-
-  const settings = data as AdminSetting[];
-  const keySetting = settings.find(s => s.key === API_CONFIG_KEYS.GEMINI_KEY || s.key === API_CONFIG_KEYS.GEMINI_KEY_ALT);
-  const enabledSetting = settings.find(s => s.key === API_CONFIG_KEYS.GEMINI_ENABLED);
-  const projectNameSetting = settings.find(s => s.key === API_CONFIG_KEYS.GEMINI_PROJECT_NAME);
-
-  const enabled = enabledSetting?.value !== undefined ? Boolean(enabledSetting.value) : true;
-  // Clean API key - remove quotes if stored as JSON string
-  let apiKey = keySetting?.value ? String(keySetting.value) : null;
-  if (apiKey) {
-    const originalLength = apiKey.length;
-    apiKey = apiKey.trim().replace(/^["']|["']$/g, '');
-    
-    // Log API key retrieval for debugging (masked)
-    logger.debug('[Gemini Config] API key retrieved from database');
-    logger.debug('[Gemini Config] Original length:', originalLength);
-    logger.debug('[Gemini Config] Cleaned length:', apiKey.length);
-    logger.debug('[Gemini Config] Starts with AIza:', apiKey.startsWith('AIza'));
-    logger.debug('[Gemini Config] First 4 chars:', apiKey.substring(0, 4));
-    logger.debug('[Gemini Config] Last 4 chars:', apiKey.substring(apiKey.length - 4));
-    
-    // Warn if key format looks wrong
-    if (!apiKey.startsWith('AIza')) {
-      logger.warn('[Gemini Config] ⚠️  API key does not start with "AIza" - unusual format');
-    }
-  }
-  const projectName = projectNameSetting?.value ? String(projectNameSetting.value) : undefined;
-
-  return { enabled, apiKey, projectName };
-}
 
 /**
  * POST /api/ai/generate

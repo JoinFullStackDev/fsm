@@ -44,23 +44,9 @@ export async function POST(
       phaseMap[phase.phase_number] = phase.data;
     });
 
-    // Get Gemini API key for AI-enhanced blueprint generation
-    let apiKey: string | undefined;
-    try {
-      const { data: geminiConfig } = await supabase
-        .from('admin_settings')
-        .select('value')
-        .eq('key', 'gemini_api_key')
-        .single();
-      
-      if (geminiConfig?.value) {
-        apiKey = typeof geminiConfig.value === 'string' 
-          ? geminiConfig.value 
-          : (geminiConfig.value as any)?.apiKey || geminiConfig.value;
-      }
-    } catch (error) {
-      console.warn('Could not retrieve Gemini API key, blueprint will be generated without AI enhancement:', error);
-    }
+    // Get Gemini API key (prioritizes environment variable - super admin's credentials)
+    const { getGeminiApiKey } = await import('@/lib/utils/geminiConfig');
+    const apiKey = await getGeminiApiKey(supabase) || undefined;
 
     // Generate blueprint bundle with AI enhancement
     const bundle = await generateBlueprintBundle(project as Project, {

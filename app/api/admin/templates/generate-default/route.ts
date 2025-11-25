@@ -21,8 +21,9 @@ export async function POST(request: NextRequest) {
       .eq('auth_id', user.id)
       .single();
 
-    if (userError || !userData || userData.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    // Allow admins and PMs to generate default templates
+    if (userError || !userData || (userData.role !== 'admin' && userData.role !== 'pm')) {
+      return NextResponse.json({ error: 'Forbidden - Admin or PM access required' }, { status: 403 });
     }
 
     // Check if default template already exists
