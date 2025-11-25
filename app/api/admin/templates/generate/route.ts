@@ -50,8 +50,13 @@ export async function POST(request: NextRequest) {
       .eq('auth_id', session.user.id)
       .single();
 
-    if (userError || !userData || userData.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (userError || !userData) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Allow admins and PMs to generate templates
+    if (userData.role !== 'admin' && userData.role !== 'pm') {
+      return NextResponse.json({ error: 'Forbidden - Admin or PM access required' }, { status: 403 });
     }
 
     const body = await request.json();
@@ -64,32 +69,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get Gemini API key from database (try both possible key names)
-    let apiKey: string | undefined;
-    try {
-      const { data: geminiConfig } = await supabase
-        .from('admin_settings')
-        .select('value')
-        .in('key', ['api_gemini_key', 'gemini_api_key'])
-        .maybeSingle();
-
-      if (geminiConfig?.value) {
-        // Clean API key - remove quotes if stored as JSON string
-        let keyValue = typeof geminiConfig.value === 'string' 
-          ? geminiConfig.value 
-          : (geminiConfig.value as any)?.apiKey || String(geminiConfig.value);
-        
-        // Remove surrounding quotes if present
-        keyValue = keyValue.trim().replace(/^["']|["']$/g, '');
-        apiKey = keyValue;
-      }
-    } catch (error) {
-      console.warn('Could not retrieve Gemini API key from database:', error);
-    }
+    // Get Gemini API key (prioritizes environment variable - super admin's credentials)
+    const { getGeminiApiKey } = await import('@/lib/utils/geminiConfig');
+    const apiKey = await getGeminiApiKey(supabase);
 
     if (!apiKey) {
       return NextResponse.json(
-        { error: 'Gemini API key not configured. Please configure it in Admin Settings.' },
+        { error: 'Gemini API key not configured. Please configure GOOGLE_GENAI_API_KEY environment variable or Admin Settings.' },
         { status: 400 }
       );
     }

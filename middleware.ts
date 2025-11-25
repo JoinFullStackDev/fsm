@@ -136,8 +136,9 @@ export async function middleware(request: NextRequest) {
         
         console.log('[Middleware] Email lookup result:', { emailUserData, emailError: emailError?.message });
         
-        if (emailUserData && emailUserData.role === 'admin') {
-          console.log('[Middleware] Found admin user by email, allowing access');
+        // Allow admins and PMs
+        if (emailUserData && (emailUserData.role === 'admin' || emailUserData.role === 'pm')) {
+          console.log('[Middleware] Found admin/PM user by email, allowing access');
           return response; // Allow access
         }
       }
@@ -152,12 +153,14 @@ export async function middleware(request: NextRequest) {
       return response;
     }
 
-    if (userData.role !== 'admin') {
-      console.log('[Middleware] User is not admin (role:', userData.role, '), redirecting to dashboard');
+    // Allow admins and PMs to access admin routes
+    // Individual pages and API routes handle their own access control
+    if (userData.role !== 'admin' && userData.role !== 'pm') {
+      console.log('[Middleware] User is not admin or PM (role:', userData.role, '), redirecting to dashboard');
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
 
-    console.log('[Middleware] Admin access granted, role:', userData.role);
+    console.log('[Middleware] Admin/PM access granted, role:', userData.role);
     return response; // Explicitly allow access
   }
 

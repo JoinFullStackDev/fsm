@@ -866,12 +866,13 @@ export default function TemplateBuilderPage() {
     );
   }
 
-  if (role !== 'admin') {
+  // Allow admins and PMs to access template builder
+  if (role !== 'admin' && role !== 'pm') {
     return (
       <>
         <Container>
           <Alert severity="error" sx={{ mt: 4 }}>
-            Access denied. Admin role required.
+            Access denied. Admin or PM role required.
           </Alert>
         </Container>
       </>

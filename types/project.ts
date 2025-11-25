@@ -21,6 +21,7 @@ export interface User {
   github_access_token?: string | null; // Encrypted
   preferences?: UserPreferences | null;
   is_active?: boolean;
+  is_super_admin?: boolean; // Super admin users cannot be deleted
   last_active_at?: string | null;
   invited_by_admin?: boolean;
   invite_created_at?: string | null;

@@ -156,7 +156,8 @@ Please help me craft this description based on my project needs, making sure to 
     );
   }
 
-  if (role !== 'admin') {
+  // Allow admins and PMs to generate templates
+  if (role !== 'admin' && role !== 'pm') {
     router.push('/dashboard');
     return null;
   }

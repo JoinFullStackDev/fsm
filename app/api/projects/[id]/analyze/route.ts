@@ -79,32 +79,12 @@ export async function POST(
       return internalError('Failed to load existing tasks', { error: tasksError.message });
     }
 
-    // Get Gemini API key from database
-    let apiKey: string | undefined;
-    try {
-      // Try both possible key names and table names
-      const { data: geminiConfig } = await supabase
-        .from('admin_settings')
-        .select('value')
-        .in('key', [API_CONFIG_KEYS.GEMINI_KEY, API_CONFIG_KEYS.GEMINI_KEY_ALT])
-        .maybeSingle();
-
-      if (geminiConfig?.value) {
-        if (typeof geminiConfig.value === 'string') {
-          apiKey = geminiConfig.value;
-        } else if (typeof geminiConfig.value === 'object' && geminiConfig.value !== null) {
-          const valueObj = geminiConfig.value as Record<string, unknown>;
-          apiKey = (valueObj.apiKey as string) || String(geminiConfig.value);
-        } else {
-          apiKey = String(geminiConfig.value);
-        }
-      }
-    } catch (error) {
-      logger.warn('Could not retrieve Gemini API key from database:', error);
-    }
+    // Get Gemini API key (prioritizes environment variable - super admin's credentials)
+    const { getGeminiApiKey } = await import('@/lib/utils/geminiConfig');
+    const apiKey = await getGeminiApiKey(supabase);
 
     if (!apiKey) {
-      return badRequest('Gemini API key not configured. Please configure it in Admin Settings.');
+      return badRequest('Gemini API key not configured. Please configure GOOGLE_GENAI_API_KEY environment variable or Admin Settings.');
     }
 
     // Run AI analysis
