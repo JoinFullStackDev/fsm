@@ -1092,7 +1092,7 @@ function TableField({ field, value, onChange, error, phaseData }: TableFieldProp
         fullWidth
         PaperProps={{
           sx: {
-            backgroundColor: '#121633',
+            backgroundColor: '#000',
             border: '1px solid',
             borderColor: 'primary.main',
           },
@@ -1193,7 +1193,7 @@ function TableField({ field, value, onChange, error, phaseData }: TableFieldProp
         hideBackdrop={false}
         BackdropProps={{
           sx: {
-            backgroundColor: '#121633',
+            backgroundColor: '#000',
           },
           onClick: (e) => {
             // Prevent backdrop clicks from doing anything
@@ -1208,20 +1208,20 @@ function TableField({ field, value, onChange, error, phaseData }: TableFieldProp
             maxHeight: '100vh',
             m: 0,
             borderRadius: 0,
-            backgroundColor: '#121633 !important',
+            backgroundColor: '#000 !important',
             border: 'none',
             '& .MuiDialog-container': {
-              backgroundColor: '#121633',
+              backgroundColor: '#000',
             },
           },
         }}
         sx={{
           '& .MuiDialog-container': {
-            backgroundColor: '#121633',
+            backgroundColor: '#000',
           },
         }}
       >
-        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#121633' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#000' }}>
           {/* Fullscreen Header */}
           <Box
             sx={{
@@ -1231,7 +1231,7 @@ function TableField({ field, value, onChange, error, phaseData }: TableFieldProp
               p: 2,
               borderBottom: '1px solid',
               borderColor: 'divider',
-              backgroundColor: '#121633',
+              backgroundColor: '#000',
             }}
           >
             <Typography variant="h6" sx={{ color: 'primary.main' }}>
@@ -1252,7 +1252,7 @@ function TableField({ field, value, onChange, error, phaseData }: TableFieldProp
               flex: 1, 
               overflow: 'auto', 
               p: 2, 
-              backgroundColor: '#121633',
+              backgroundColor: '#000',
             }}
           >
             {renderTable(true)}

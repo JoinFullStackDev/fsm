@@ -89,7 +89,7 @@ export default function ReportGenerationModal({
       fullWidth
       PaperProps={{
         sx: {
-          backgroundColor: '#121633',
+          backgroundColor: '#000',
           border: '1px solid rgba(0, 229, 255, 0.3)',
         },
       }}
@@ -98,7 +98,7 @@ export default function ReportGenerationModal({
         sx={{
           color: '#00E5FF',
           fontWeight: 600,
-          borderBottom: '1px solid rgba(0, 229, 255, 0.2)',
+          borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
           pb: 2,
         }}
       >
@@ -242,7 +242,7 @@ export default function ReportGenerationModal({
       <DialogActions
         sx={{
           p: 2,
-          borderTop: '1px solid rgba(0, 229, 255, 0.2)',
+          borderTop: '2px solid rgba(0, 229, 255, 0.2)',
         }}
       >
         <Button
@@ -263,7 +263,7 @@ export default function ReportGenerationModal({
           variant="contained"
           sx={{
             backgroundColor: '#00E5FF',
-            color: '#121633',
+            color: '#000',
             fontWeight: 600,
             '&:hover': {
               backgroundColor: '#00B8D4',

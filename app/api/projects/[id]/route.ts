@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
-import { unauthorized, notFound, internalError, forbidden } from '@/lib/utils/apiErrors';
+import { unauthorized, notFound, internalError, forbidden, badRequest } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 
 /**
@@ -31,7 +31,10 @@ export async function GET(
 
     const { data: project, error: projectError } = await supabase
       .from('projects')
-      .select('*')
+      .select(`
+        *,
+        company:companies(id, name)
+      `)
       .eq('id', params.id)
       .single();
 
@@ -75,7 +78,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, description, status, primary_tool, template_id } = body;
+    const { name, description, status, primary_tool, template_id, company_id } = body;
 
     // Get current project to check if template_id is changing
     const { data: currentProject, error: currentProjectError } = await supabase
@@ -103,6 +106,27 @@ export async function PUT(
     // Only update template_id if it's provided
     if (template_id !== undefined) {
       updateData.template_id = template_id || null;
+    }
+
+    // Only update company_id if it's provided
+    if (company_id !== undefined) {
+      // Verify company exists if company_id is provided
+      if (company_id) {
+        const { data: company, error: companyError } = await supabase
+          .from('companies')
+          .select('id')
+          .eq('id', company_id)
+          .single();
+
+        if (companyError || !company) {
+          if (companyError?.code === 'PGRST116') {
+            return badRequest('Company not found');
+          }
+          logger.error('Error checking company:', companyError);
+          return internalError('Failed to check company', { error: companyError?.message });
+        }
+      }
+      updateData.company_id = company_id || null;
     }
 
     const { data: project, error: projectError } = await supabase

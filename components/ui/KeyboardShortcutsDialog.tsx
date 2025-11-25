@@ -67,8 +67,8 @@ export default function KeyboardShortcutsDialog({
       fullWidth
       PaperProps={{
         sx: {
-          backgroundColor: '#121633',
-          border: '2px solid rgba(0, 229, 255, 0.3)',
+          backgroundColor: '#000',
+          border: '2px solid rgba(0, 229, 255, 0.2)',
           borderRadius: 3,
         },
       }}
@@ -79,7 +79,7 @@ export default function KeyboardShortcutsDialog({
           alignItems: 'center',
           gap: 1,
           backgroundColor: 'rgba(0, 229, 255, 0.1)',
-          borderBottom: '1px solid rgba(0, 229, 255, 0.2)',
+          borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
           color: '#00E5FF',
           fontWeight: 600,
         }}
@@ -146,7 +146,7 @@ export default function KeyboardShortcutsDialog({
           </Box>
         ))}
       </DialogContent>
-      <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(0, 229, 255, 0.2)' }}>
+      <DialogActions sx={{ p: 2, borderTop: '2px solid rgba(0, 229, 255, 0.2)' }}>
         <Button
           onClick={onClose}
           startIcon={<CloseIcon />}

@@ -33,8 +33,8 @@ export default function Navbar() {
     <AppBar
       position="static"
       sx={{
-        backgroundColor: '#121633',
-        borderBottom: '1px solid rgba(0, 229, 255, 0.2)',
+        backgroundColor: '#000',
+        borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
         boxShadow: '0 2px 10px rgba(0, 0, 0, 0.3)',
       }}
     >
@@ -45,7 +45,7 @@ export default function Navbar() {
           sx={{
             flexGrow: 1,
             fontWeight: 700,
-            background: 'linear-gradient(135deg, #00E5FF 0%, #E91E63 100%)',
+            background: '#00E5FF',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
           }}

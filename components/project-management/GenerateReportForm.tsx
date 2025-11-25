@@ -74,7 +74,7 @@ export default function GenerateReportForm({
   return (
     <Paper
       sx={{
-        backgroundColor: '#121633',
+        backgroundColor: '#000',
         border: '1px solid rgba(0, 229, 255, 0.3)',
         borderRadius: 2,
         p: 4,
@@ -230,7 +230,7 @@ export default function GenerateReportForm({
         fullWidth
         sx={{
           backgroundColor: '#00E5FF',
-          color: '#121633',
+          color: '#000',
           fontWeight: 600,
           py: 1.5,
           '&:hover': {

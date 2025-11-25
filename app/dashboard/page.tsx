@@ -13,6 +13,7 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Add as AddIcon,
   FolderOpen as FolderIcon,
@@ -22,6 +23,9 @@ import {
   People as PeopleIcon,
   Schedule as ScheduleIcon,
   Assessment as AssessmentIcon,
+  Business as BusinessIcon,
+  Contacts as ContactsIcon,
+  Work as WorkIcon,
 } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import WelcomeTour from '@/components/ui/WelcomeTour';
@@ -35,6 +39,7 @@ import type { ProjectTask } from '@/types/project';
 import type { User } from '@/types/project';
 
 export default function DashboardPage() {
+  const theme = useTheme();
   const router = useRouter();
   const supabase = createSupabaseClient();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -68,29 +73,24 @@ export default function DashboardPage() {
       // Wait a bit for session to be fully established (especially after redirect)
       await new Promise(resolve => setTimeout(resolve, 200));
 
-      // Try multiple times to get session (in case of timing issues)
-      let session = null;
-      let attempts = 0;
-      while (!session && attempts < 5) {
-        const { data, error: sessionError } = await supabase.auth.getSession();
-        session = data.session;
-        
-        logger.debug(`Dashboard session check (attempt ${attempts + 1}):`, { 
-          hasSession: !!session, 
-          userId: session?.user?.id,
-          sessionError: sessionError?.message 
-        });
-
-        if (!session && attempts < 4) {
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
-        attempts++;
-      }
+      // Single session check to avoid rate limiting
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      const session = sessionData?.session;
+      
+      logger.debug('Dashboard session check:', { 
+        hasSession: !!session, 
+        userId: session?.user?.id,
+        sessionError: sessionError?.message 
+      });
 
       if (!session) {
-        logger.error('No session in dashboard after multiple attempts, redirecting to sign-in');
-        // Don't redirect immediately - let user see the error
-        setError('Session not found. Please try signing in again.');
+        logger.error('No session in dashboard, redirecting to sign-in');
+        // Check for rate limiting error
+        if (sessionError?.message?.includes('rate limit') || sessionError?.status === 429) {
+          setError('Too many requests. Please wait a moment and refresh the page.');
+        } else {
+          setError('Session not found. Please try signing in again.');
+        }
         setLoading(false);
         return;
       }
@@ -235,14 +235,14 @@ export default function DashboardPage() {
 
   return (
     <>
-      <Box>
+      <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', p: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
           <Typography
             variant="h4"
             component="h1"
             sx={{
               fontWeight: 700,
-              background: 'linear-gradient(135deg, #00E5FF 0%, #E91E63 100%)',
+              background: '#00E5FF',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
             }}
@@ -287,8 +287,8 @@ export default function DashboardPage() {
           <Grid item xs={12} sm={6} md={3}>
             <Card
               sx={{
-                backgroundColor: '#121633',
-                border: '1px solid rgba(0, 229, 255, 0.2)',
+                backgroundColor: '#000',
+                border: '2px solid rgba(0, 229, 255, 0.2)',
                 borderRadius: 2,
                 height: '100%',
                 display: 'flex',
@@ -313,8 +313,8 @@ export default function DashboardPage() {
           <Grid item xs={12} sm={6} md={3}>
             <Card
               sx={{
-                backgroundColor: '#121633',
-                border: '1px solid rgba(0, 229, 255, 0.2)',
+                backgroundColor: '#000',
+                border: '2px solid rgba(0, 229, 255, 0.2)',
                 borderRadius: 2,
                 height: '100%',
                 display: 'flex',
@@ -339,8 +339,8 @@ export default function DashboardPage() {
           <Grid item xs={12} sm={6} md={3}>
             <Card
               sx={{
-                backgroundColor: '#121633',
-                border: '1px solid rgba(0, 229, 255, 0.2)',
+                backgroundColor: '#000',
+                border: '2px solid rgba(0, 229, 255, 0.2)',
                 borderRadius: 2,
                 height: '100%',
                 display: 'flex',
@@ -365,8 +365,8 @@ export default function DashboardPage() {
           <Grid item xs={12} sm={6} md={3}>
             <Card
               sx={{
-                backgroundColor: '#121633',
-                border: '1px solid rgba(0, 229, 255, 0.2)',
+                backgroundColor: '#000',
+                border: '2px solid rgba(0, 229, 255, 0.2)',
                 borderRadius: 2,
                 height: '100%',
                 display: 'flex',
@@ -391,8 +391,8 @@ export default function DashboardPage() {
           <Grid item xs={12} sm={6} md={3}>
             <Card
               sx={{
-                backgroundColor: '#121633',
-                border: '1px solid rgba(0, 229, 255, 0.2)',
+                backgroundColor: '#000',
+                border: '2px solid rgba(0, 229, 255, 0.2)',
                 borderRadius: 2,
                 height: '100%',
                 display: 'flex',
@@ -417,8 +417,8 @@ export default function DashboardPage() {
           <Grid item xs={12} sm={6} md={3}>
             <Card
               sx={{
-                backgroundColor: '#121633',
-                border: '1px solid rgba(0, 229, 255, 0.2)',
+                backgroundColor: '#000',
+                border: '2px solid rgba(0, 229, 255, 0.2)',
                 borderRadius: 2,
                 height: '100%',
                 display: 'flex',
@@ -443,8 +443,8 @@ export default function DashboardPage() {
           <Grid item xs={12} sm={6} md={3}>
             <Card
               sx={{
-                backgroundColor: '#121633',
-                border: '1px solid rgba(0, 229, 255, 0.2)',
+                backgroundColor: '#000',
+                border: '2px solid rgba(0, 229, 255, 0.2)',
                 borderRadius: 2,
                 height: '100%',
                 display: 'flex',
@@ -469,8 +469,8 @@ export default function DashboardPage() {
           <Grid item xs={12} sm={6} md={3}>
             <Card
               sx={{
-                backgroundColor: '#121633',
-                border: '1px solid rgba(0, 229, 255, 0.2)',
+                backgroundColor: '#000',
+                border: '2px solid rgba(0, 229, 255, 0.2)',
                 borderRadius: 2,
                 height: '100%',
                 display: 'flex',
@@ -498,6 +498,115 @@ export default function DashboardPage() {
             </Card>
           </Grid>
         </Grid>
+
+        {/* Ops Tool Quick Links */}
+        <Box sx={{ mb: 4 }}>
+          <Typography
+            variant="h6"
+            sx={{
+              color: '#00E5FF',
+              fontWeight: 600,
+              mb: 2,
+            }}
+          >
+            Ops Tool
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={4}>
+              <Card
+                sx={{
+                  backgroundColor: '#000',
+                  border: '2px solid rgba(0, 229, 255, 0.2)',
+                  borderRadius: 2,
+                  cursor: 'pointer',
+                  transition: 'all 0.3s',
+                  '&:hover': {
+                    borderColor: '#00E5FF',
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 4px 20px rgba(0, 229, 255, 0.3)',
+                  },
+                }}
+                onClick={() => router.push('/ops/companies')}
+              >
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <BusinessIcon sx={{ fontSize: 32, color: '#00E5FF' }} />
+                    <Box>
+                      <Typography variant="h6" sx={{ color: '#E0E0E0', fontWeight: 600 }}>
+                        Companies
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: '#B0B0B0' }}>
+                        Manage companies and clients
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <Card
+                sx={{
+                  backgroundColor: '#000',
+                  border: '2px solid rgba(0, 229, 255, 0.2)',
+                  borderRadius: 2,
+                  cursor: 'pointer',
+                  transition: 'all 0.3s',
+                  '&:hover': {
+                    borderColor: '#00E5FF',
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 4px 20px rgba(0, 229, 255, 0.3)',
+                  },
+                }}
+                onClick={() => router.push('/ops/opportunities')}
+              >
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <WorkIcon sx={{ fontSize: 32, color: '#00E5FF' }} />
+                    <Box>
+                      <Typography variant="h6" sx={{ color: '#E0E0E0', fontWeight: 600 }}>
+                        Opportunities
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: '#B0B0B0' }}>
+                        Track sales opportunities
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <Card
+                sx={{
+                  backgroundColor: '#000',
+                  border: '2px solid rgba(0, 229, 255, 0.2)',
+                  borderRadius: 2,
+                  cursor: 'pointer',
+                  transition: 'all 0.3s',
+                  '&:hover': {
+                    borderColor: '#00E5FF',
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 4px 20px rgba(0, 229, 255, 0.3)',
+                  },
+                }}
+                onClick={() => router.push('/ops/contacts')}
+              >
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <ContactsIcon sx={{ fontSize: 32, color: '#00E5FF' }} />
+                    <Box>
+                      <Typography variant="h6" sx={{ color: '#E0E0E0', fontWeight: 600 }}>
+                        Contacts
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: '#B0B0B0' }}>
+                        Manage company contacts
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        </Box>
 
         {/* Projects Multi-Line Chart */}
         {projects.length > 0 && tasks.length > 0 && (

@@ -258,7 +258,7 @@ Please help me craft this description based on my project needs, making sure to 
 
   if (step === 'preview' && generatedTemplate) {
     return (
-      <Box sx={{ backgroundColor: '#0A0E27', minHeight: '100vh', pb: 4 }}>
+      <Box sx={{ backgroundColor: '#000', minHeight: '100vh', pb: 4 }}>
         <Container maxWidth="lg" sx={{ pt: 4, pb: 4 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
             <Button
@@ -280,7 +280,7 @@ Please help me craft this description based on my project needs, making sure to 
               sx={{
                 flex: 1,
                 fontWeight: 700,
-                background: 'linear-gradient(135deg, #00E5FF 0%, #E91E63 100%)',
+                background: '#00E5FF',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
               }}
@@ -297,8 +297,8 @@ Please help me craft this description based on my project needs, making sure to 
 
           <Card
             sx={{
-              backgroundColor: '#121633',
-              border: '1px solid rgba(0, 229, 255, 0.2)',
+              backgroundColor: '#000',
+              border: '2px solid rgba(0, 229, 255, 0.2)',
               borderRadius: 3,
               mb: 3,
             }}
@@ -347,7 +347,7 @@ Please help me craft this description based on my project needs, making sure to 
                         sx={{
                           p: 3,
                           backgroundColor: 'rgba(0, 229, 255, 0.05)',
-                          border: '1px solid rgba(0, 229, 255, 0.2)',
+                          border: '2px solid rgba(0, 229, 255, 0.2)',
                           borderRadius: 2,
                         }}
                       >
@@ -436,7 +436,7 @@ Please help me craft this description based on my project needs, making sure to 
                   })}
               </Box>
 
-              <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', pt: 2, borderTop: '1px solid rgba(0, 229, 255, 0.2)' }}>
+              <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', pt: 2, borderTop: '2px solid rgba(0, 229, 255, 0.2)' }}>
                 <Button
                   variant="outlined"
                   startIcon={<RefreshIcon />}
@@ -480,7 +480,7 @@ Please help me craft this description based on my project needs, making sure to 
   }
 
   return (
-    <Box sx={{ backgroundColor: '#0A0E27', minHeight: '100vh', pb: 4 }}>
+    <Box sx={{ backgroundColor: '#000', minHeight: '100vh', pb: 4 }}>
       <Container maxWidth="md" sx={{ pt: 4, pb: 4 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4 }}>
           <Button
@@ -502,7 +502,7 @@ Please help me craft this description based on my project needs, making sure to 
             sx={{
               flex: 1,
               fontWeight: 700,
-              background: 'linear-gradient(135deg, #00E5FF 0%, #E91E63 100%)',
+              background: '#00E5FF',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
             }}
@@ -513,8 +513,8 @@ Please help me craft this description based on my project needs, making sure to 
 
         <Card
           sx={{
-            backgroundColor: '#121633',
-            border: '1px solid rgba(0, 229, 255, 0.2)',
+            backgroundColor: '#000',
+            border: '2px solid rgba(0, 229, 255, 0.2)',
             borderRadius: 3,
           }}
         >

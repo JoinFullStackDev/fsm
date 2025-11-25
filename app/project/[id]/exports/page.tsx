@@ -238,7 +238,7 @@ export default function ExportHistoryPage() {
 
   if (loading && !project) {
     return (
-      <Box sx={{ backgroundColor: '#0A0E27', minHeight: '100vh', pb: 4 }}>
+      <Box sx={{ backgroundColor: '#000', minHeight: '100vh', pb: 4 }}>
         <Container maxWidth="lg" sx={{ pt: 4 }}>
           <LoadingSkeleton />
         </Container>
@@ -248,7 +248,7 @@ export default function ExportHistoryPage() {
 
   if (error && !project) {
     return (
-      <Box sx={{ backgroundColor: '#0A0E27', minHeight: '100vh', pb: 4 }}>
+      <Box sx={{ backgroundColor: '#000', minHeight: '100vh', pb: 4 }}>
         <Container maxWidth="lg" sx={{ pt: 4 }}>
           <Alert severity="error">{error}</Alert>
           <Button
@@ -265,7 +265,7 @@ export default function ExportHistoryPage() {
 
   return (
     <ErrorBoundary>
-      <Box sx={{ backgroundColor: '#0A0E27', minHeight: '100vh', pb: 4 }}>
+      <Box sx={{ backgroundColor: '#000', minHeight: '100vh', pb: 4 }}>
         <Container maxWidth="lg" sx={{ pt: 4 }}>
           <Breadcrumbs
             items={[
@@ -309,7 +309,7 @@ export default function ExportHistoryPage() {
             <Card
               sx={{
                 backgroundColor: '#1A1F3A',
-                border: '1px solid rgba(0, 229, 255, 0.2)',
+                border: '2px solid rgba(0, 229, 255, 0.2)',
                 borderRadius: 2,
                 mb: 3,
               }}
@@ -356,7 +356,7 @@ export default function ExportHistoryPage() {
           <Card
             sx={{
               backgroundColor: '#1A1F3A',
-              border: '1px solid rgba(0, 229, 255, 0.2)',
+              border: '2px solid rgba(0, 229, 255, 0.2)',
               borderRadius: 2,
               mb: 3,
             }}
@@ -482,7 +482,7 @@ export default function ExportHistoryPage() {
               <Card
                 sx={{
                   backgroundColor: '#1A1F3A',
-                  border: '1px solid rgba(0, 229, 255, 0.2)',
+                  border: '2px solid rgba(0, 229, 255, 0.2)',
                   borderRadius: 2,
                   mb: 2,
                 }}

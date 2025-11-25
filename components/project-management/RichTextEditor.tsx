@@ -407,7 +407,7 @@ export default function RichTextEditor({
           backgroundColor: 'rgba(18, 22, 51, 0.8)',
           borderTopLeftRadius: 4,
           borderTopRightRadius: 4,
-          borderBottom: '1px solid rgba(0, 229, 255, 0.2)',
+          borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
           '& .ql-stroke': {
             stroke: '#B0B0B0',
           },
@@ -667,7 +667,7 @@ export default function RichTextEditor({
             zIndex: 99999,
             maxHeight: 200,
             overflow: 'auto',
-            backgroundColor: '#121633',
+            backgroundColor: '#000',
             border: '1px solid rgba(0, 229, 255, 0.3)',
             borderRadius: 1,
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',

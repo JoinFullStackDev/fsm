@@ -190,8 +190,8 @@ export default function TaskDetailSheet({
       PaperProps={{
         sx: {
           width: { xs: '100%', sm: '75%', md: '60%' },
-          backgroundColor: '#121633',
-          borderLeft: '1px solid rgba(0, 229, 255, 0.2)',
+          backgroundColor: '#000',
+          borderLeft: '2px solid rgba(0, 229, 255, 0.2)',
         },
       }}
     >
@@ -203,7 +203,7 @@ export default function TaskDetailSheet({
             justifyContent: 'space-between',
             alignItems: 'center',
             p: 2,
-            borderBottom: '1px solid rgba(0, 229, 255, 0.2)',
+            borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
           }}
         >
           <Typography
@@ -423,7 +423,7 @@ export default function TaskDetailSheet({
                           sx={{
                             backgroundColor: 'rgba(0, 229, 255, 0.1)',
                             color: '#00E5FF',
-                            border: '1px solid rgba(0, 229, 255, 0.2)',
+                            border: '2px solid rgba(0, 229, 255, 0.2)',
                             cursor: 'default',
                             '&:hover': {
                               backgroundColor: 'rgba(0, 229, 255, 0.15)',
@@ -815,7 +815,7 @@ export default function TaskDetailSheet({
             justifyContent: 'flex-end',
             gap: 2,
             p: 2,
-            borderTop: '1px solid rgba(0, 229, 255, 0.2)',
+            borderTop: '2px solid rgba(0, 229, 255, 0.2)',
           }}
         >
           <Button onClick={onClose} sx={{ color: '#B0B0B0' }}>

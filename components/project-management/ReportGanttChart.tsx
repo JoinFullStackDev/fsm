@@ -221,7 +221,7 @@ export default function ReportGanttChart({ data, reportType }: ReportGanttChartP
                 sx={{
                   width: `${dayWidth}px`,
                   minWidth: `${dayWidth}px`,
-                  borderRight: '1px solid rgba(0, 229, 255, 0.2)',
+                  borderRight: '2px solid rgba(0, 229, 255, 0.2)',
                   textAlign: 'center',
                   py: 0.5,
                   backgroundColor: isToday

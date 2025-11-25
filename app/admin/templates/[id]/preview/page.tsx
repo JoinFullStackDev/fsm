@@ -204,7 +204,7 @@ export default function TemplatePreviewPage() {
 
   return (
     <>
-      <Box sx={{ backgroundColor: '#0A0E27', minHeight: '100vh', pb: 4 }}>
+      <Box sx={{ backgroundColor: '#000', minHeight: '100vh', pb: 4 }}>
         <Container maxWidth="lg" sx={{ pt: 4 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
             <IconButton
@@ -222,7 +222,7 @@ export default function TemplatePreviewPage() {
               sx={{
                 flex: 1,
                 fontWeight: 700,
-                background: 'linear-gradient(135deg, #00E5FF 0%, #E91E63 100%)',
+                background: '#00E5FF',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
               }}
@@ -234,7 +234,7 @@ export default function TemplatePreviewPage() {
           <Paper
             sx={{
               mb: 3,
-              backgroundColor: '#121633',
+              backgroundColor: '#000',
               border: '1px solid',
               borderColor: 'primary.main',
             }}
@@ -265,7 +265,7 @@ export default function TemplatePreviewPage() {
           <Paper
             sx={{
               p: 4,
-              backgroundColor: '#121633',
+              backgroundColor: '#000',
               border: '1px solid',
               borderColor: 'primary.main',
             }}

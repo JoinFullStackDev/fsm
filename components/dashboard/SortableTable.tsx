@@ -54,10 +54,10 @@ function SortableHeader<T>({
     return (
       <TableCell
         sx={{
-          backgroundColor: '#0A0E27',
+          backgroundColor: '#000',
           color: '#00E5FF',
           fontWeight: 600,
-          borderBottom: '2px solid rgba(0, 229, 255, 0.3)',
+          borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
           width: column.width,
           textAlign: column.align || 'left',
         }}
@@ -70,12 +70,12 @@ function SortableHeader<T>({
   return (
     <TableCell
       sx={{
-        backgroundColor: '#0A0E27',
+        backgroundColor: '#000',
         color: '#00E5FF',
         fontWeight: 600,
         cursor: 'pointer',
         userSelect: 'none',
-        borderBottom: '2px solid rgba(0, 229, 255, 0.3)',
+        borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
         width: column.width,
         textAlign: column.align || 'left',
         '&:hover': {
@@ -178,13 +178,13 @@ export default function SortableTable<T extends Record<string, any>>({
     <TableContainer
       component={Paper}
       sx={{
-        backgroundColor: '#121633',
-        border: '1px solid rgba(0, 229, 255, 0.2)',
+        backgroundColor: '#000',
+        border: '2px solid rgba(0, 229, 255, 0.2)',
         borderRadius: 2,
       }}
     >
       <Table>
-        <TableHead sx={{ backgroundColor: '#0A0E27' }}>
+        <TableHead sx={{ backgroundColor: '#000' }}>
           <TableRow>
             {columns.map((column) => (
               <SortableHeader

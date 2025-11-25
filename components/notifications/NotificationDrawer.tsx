@@ -302,8 +302,8 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
       PaperProps={{
         sx: {
           width: { xs: '100%', sm: '75%', md: '50%' },
-          backgroundColor: '#121633',
-          borderLeft: '1px solid rgba(0, 229, 255, 0.2)',
+          backgroundColor: '#000',
+          borderLeft: '2px solid rgba(0, 229, 255, 0.2)',
         },
       }}
     >
@@ -315,7 +315,7 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
             justifyContent: 'space-between',
             alignItems: 'center',
             p: 2,
-            borderBottom: '1px solid rgba(0, 229, 255, 0.2)',
+            borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -398,7 +398,7 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
                           : 'rgba(0, 229, 255, 0.05)',
                         border: notification.read
                           ? '1px solid rgba(0, 229, 255, 0.1)'
-                          : '1px solid rgba(0, 229, 255, 0.2)',
+                          : '2px solid rgba(0, 229, 255, 0.2)',
                         cursor: 'pointer',
                         position: 'relative',
                         '&:hover': {
@@ -491,8 +491,8 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
         onClick={(e) => e.stopPropagation()}
         PaperProps={{
           sx: {
-            backgroundColor: '#121633',
-            border: '1px solid rgba(0, 229, 255, 0.2)',
+            backgroundColor: '#000',
+            border: '2px solid rgba(0, 229, 255, 0.2)',
           },
         }}
       >

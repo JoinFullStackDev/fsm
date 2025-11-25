@@ -34,51 +34,30 @@ export default function SignInPage() {
     console.log('[SignIn] Attempting sign-in for:', email);
 
     try {
-      // Try sign-in with retry logic for newly created users
-      // Sometimes there's a delay before password is fully committed
-      let signInData = null;
-      let signInError = null;
-      let attempts = 0;
-      const maxAttempts = 2;
+      // Single sign-in attempt to avoid rate limiting
+      const result = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      while (!signInData && !signInError && attempts < maxAttempts) {
-        const result = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        signInData = result.data;
-        signInError = result.error;
-
-        // If we get invalid credentials and it's not the last attempt, wait and retry
-        if (signInError && attempts < maxAttempts - 1) {
-          const isInvalidCredentials = signInError.message.includes('Invalid login credentials') || 
-                                      signInError.message.includes('invalid_credentials') ||
-                                      signInError.message.includes('Invalid login');
-          
-          if (isInvalidCredentials) {
-            console.log(`[SignIn] Invalid credentials on attempt ${attempts + 1}, waiting before retry...`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            signInError = null; // Reset to retry
-          }
-        }
-        attempts++;
-      }
+      const signInData = result.data;
+      const signInError = result.error;
 
       if (signInError) {
-        console.error('[SignIn] Sign-in error after', attempts, 'attempts:', signInError);
+        console.error('[SignIn] Sign-in error:', signInError);
         console.error('[SignIn] Error details:', {
           message: signInError.message,
           status: signInError.status,
           name: signInError.name,
         });
         
-        // Check if it's an email confirmation error
-        if (signInError.message.includes('Email not confirmed') || signInError.message.includes('email_not_confirmed')) {
+        // Check for rate limiting
+        if (signInError.message.includes('rate limit') || signInError.message.includes('too many requests') || signInError.status === 429) {
+          setError('Too many login attempts. Please wait a few minutes before trying again.');
+        } else if (signInError.message.includes('Email not confirmed') || signInError.message.includes('email_not_confirmed')) {
           setError('Please confirm your email before signing in. Check your inbox for the confirmation link.');
         } else if (signInError.message.includes('Invalid login credentials') || signInError.message.includes('invalid_credentials')) {
-          // More specific error for invalid credentials
-          setError('Invalid email or password. If you were just created, please wait a moment and try again, or ask your admin to regenerate your password.');
+          setError('Invalid email or password.');
         } else {
           setError(signInError.message || 'Sign-in failed. Please try again.');
         }
@@ -93,29 +72,17 @@ export default function SignInPage() {
         console.log('Email confirmed:', data.user.email_confirmed_at);
 
         // Verify user record exists in users table
-        // Try multiple times in case of RLS timing issues
-        let userData = null;
-        let userError = null;
-        let attempts = 0;
+        // Single attempt to avoid rate limiting
+        const userResult = await supabase
+          .from('users')
+          .select('id, role, invited_by_admin, last_active_at')
+          .eq('auth_id', data.user.id)
+          .single();
         
-        while (!userData && attempts < 3) {
-          const result = await supabase
-            .from('users')
-            .select('id, role, invited_by_admin, last_active_at')
-            .eq('auth_id', data.user.id)
-            .single();
-          
-          userData = result.data;
-          userError = result.error;
-          
-          if (userError && attempts < 2) {
-            console.log(`User record lookup attempt ${attempts + 1} failed, retrying...`, userError);
-            await new Promise(resolve => setTimeout(resolve, 500));
-          }
-          attempts++;
-        }
+        let userData = userResult.data;
+        let userError = userResult.error;
 
-        console.log('User record lookup:', { userData, userError, attempts });
+        console.log('User record lookup:', { userData, userError });
 
         if (userError || !userData) {
           console.warn('User record not found after multiple attempts, attempting to create...');
@@ -130,24 +97,12 @@ export default function SignInPage() {
 
           if (createError) {
             console.error('Failed to create user record:', createError);
-            // If creation fails, try one more lookup in case it was created
-            const retryResult = await supabase
-              .from('users')
-              .select('id, role, invited_by_admin, last_active_at')
-              .eq('auth_id', data.user.id)
-              .single();
-            
-            if (retryResult.data) {
-              userData = retryResult.data;
-              console.log('User record found on retry after create attempt');
-            } else {
-              setError(`Account exists but user record is missing. Error: ${createError.message}. Please contact support.`);
-              setLoading(false);
-              return;
-            }
+            setError(`Account exists but user record is missing. Error: ${createError.message}. Please contact support.`);
+            setLoading(false);
+            return;
           } else {
             console.log('User record created successfully, fetching it...');
-            // Fetch the newly created record
+            // Fetch the newly created record (single attempt)
             const fetchResult = await supabase
               .from('users')
               .select('id, role, invited_by_admin, last_active_at')
@@ -156,6 +111,11 @@ export default function SignInPage() {
             
             if (fetchResult.data) {
               userData = fetchResult.data;
+            } else {
+              console.error('Failed to fetch created user record:', fetchResult.error);
+              setError('User record created but could not be retrieved. Please try signing in again.');
+              setLoading(false);
+              return;
             }
           }
         }
@@ -174,9 +134,9 @@ export default function SignInPage() {
           console.log('User last_active_at updated');
         }
 
-      // Verify session is established
+      // Verify session is established (single check)
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      console.log('Session check:', { session: !!session, sessionError, sessionData: session });
+      console.log('Session check:', { session: !!session, sessionError });
 
       // Store debug info in localStorage so it persists across redirects
       localStorage.setItem('signin_debug', JSON.stringify({
@@ -190,19 +150,7 @@ export default function SignInPage() {
 
       if (!session) {
         console.error('No session after sign-in!');
-        setError('Session not established. Please try again. Check console for details.');
-        setLoading(false);
-        return;
-      }
-
-      // Wait a bit longer to ensure cookies are set
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      // Double-check session before redirect
-      const { data: { session: sessionCheck } } = await supabase.auth.getSession();
-      if (!sessionCheck) {
-        console.error('Session lost after wait!');
-        setError('Session not persisting. This might be a cookie issue.');
+        setError('Session not established. Please try again.');
         setLoading(false);
         return;
       }
@@ -251,7 +199,7 @@ export default function SignInPage() {
               align="center"
               sx={{
                 fontWeight: 700,
-                background: 'linear-gradient(135deg, #00E5FF 0%, #E91E63 100%)',
+                background: '#00E5FF',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 mb: 1,

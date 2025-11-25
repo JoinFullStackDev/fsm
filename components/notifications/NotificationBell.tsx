@@ -228,14 +228,14 @@ export default function NotificationBell({ onOpenDrawer }: NotificationBellProps
             minWidth: 320,
             maxWidth: 400,
             maxHeight: 500,
-            backgroundColor: '#121633',
+            backgroundColor: '#000',
             border: '1px solid',
             borderColor: 'primary.main',
             overflow: 'auto',
           },
         }}
       >
-        <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid rgba(0, 229, 255, 0.2)' }}>
+        <Box sx={{ px: 2, py: 1.5, borderBottom: '2px solid rgba(0, 229, 255, 0.2)' }}>
           <Typography variant="h6" sx={{ color: '#00E5FF', fontWeight: 600 }}>
             Notifications
           </Typography>

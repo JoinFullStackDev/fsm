@@ -222,8 +222,8 @@ export default function CreateUserDialog({
       fullWidth
       PaperProps={{
         sx: {
-          backgroundColor: '#121633',
-          border: '1px solid rgba(0, 229, 255, 0.2)',
+          backgroundColor: '#000',
+          border: '2px solid rgba(0, 229, 255, 0.2)',
         },
       }}
     >
@@ -233,7 +233,7 @@ export default function CreateUserDialog({
           justifyContent: 'space-between',
           alignItems: 'center',
           color: '#00E5FF',
-          borderBottom: '1px solid rgba(0, 229, 255, 0.2)',
+          borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
         }}
       >
         <Typography variant="h6" sx={{ fontWeight: 600 }}>
@@ -405,7 +405,7 @@ export default function CreateUserDialog({
         )}
       </DialogContent>
 
-      <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(0, 229, 255, 0.2)' }}>
+      <DialogActions sx={{ p: 2, borderTop: '2px solid rgba(0, 229, 255, 0.2)' }}>
         {createdUser ? (
           <Button
             onClick={handleClose}

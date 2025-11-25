@@ -1002,7 +1002,7 @@ Generate the complete ${documentType} document now:`;
 
   return (
     <ErrorBoundary>
-      <Box sx={{ backgroundColor: '#0A0E27', minHeight: '100vh', pb: 12 }}>
+      <Box sx={{ backgroundColor: '#000', minHeight: '100vh', pb: 12 }}>
         <Container maxWidth="xl" sx={{ pt: 4, pb: 4 }}>
           <Breadcrumbs
             items={[
@@ -1278,8 +1278,8 @@ Generate the complete ${documentType} document now:`;
           {/* Phase Form */}
           <Card
             sx={{
-              backgroundColor: '#121633',
-              border: '1px solid rgba(0, 229, 255, 0.2)',
+              backgroundColor: '#000',
+              border: '2px solid rgba(0, 229, 255, 0.2)',
               borderRadius: 3,
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
             }}

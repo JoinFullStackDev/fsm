@@ -20,7 +20,7 @@ create index if not exists idx_admin_settings_key on admin_settings(key);
 insert into admin_settings (key, value, category, description) values
   ('theme_primary', '{"main": "#00E5FF", "light": "#5DFFFF", "dark": "#00B2CC"}', 'theme', 'Primary theme color'),
   ('theme_secondary', '{"main": "#E91E63", "light": "#FF6090", "dark": "#B0003A"}', 'theme', 'Secondary theme color'),
-  ('theme_background', '{"default": "#0A0E27", "paper": "#121633"}', 'theme', 'Background colors'),
+  ('theme_background', '{"default": "#000", "paper": "#000"}', 'theme', 'Background colors'),
   ('api_gemini_enabled', 'true', 'api', 'Enable/disable Gemini AI features'),
   ('api_gemini_key', '""', 'api', 'Gemini API key (encrypted)'),
   ('api_gemini_project_name', '""', 'api', 'Gemini project name/identifier'),

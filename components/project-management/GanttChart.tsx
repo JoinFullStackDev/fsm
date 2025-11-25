@@ -324,7 +324,7 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
 
   return (
     <Box sx={{ width: '100%', height: '100%', overflow: 'auto' }}>
-      <Paper sx={{ p: 2, backgroundColor: '#121633', minHeight: 600 }}>
+      <Paper sx={{ p: 2, backgroundColor: '#000', minHeight: 600 }}>
         {/* Header */}
         <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
@@ -373,15 +373,15 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
         <Box
           sx={{
             display: 'flex',
-            borderBottom: '2px solid rgba(0, 229, 255, 0.3)',
+            borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
             mb: 2,
             position: 'sticky',
             top: 0,
-            backgroundColor: '#121633',
+            backgroundColor: '#000',
             zIndex: 10,
           }}
         >
-          <Box sx={{ width: 250, p: 1, borderRight: '1px solid rgba(0, 229, 255, 0.2)' }}>
+          <Box sx={{ width: 250, p: 1, borderRight: '2px solid rgba(0, 229, 255, 0.2)' }}>
             <Typography variant="caption" sx={{ color: '#B0B0B0', fontWeight: 600 }}>
               {viewMode === 'phases' ? 'Phase' : 'Task'}
             </Typography>
@@ -471,7 +471,7 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
                     sx={{
                       width: 250,
                       p: 1,
-                      borderRight: '1px solid rgba(0, 229, 255, 0.2)',
+                      borderRight: '2px solid rgba(0, 229, 255, 0.2)',
                       display: 'flex',
                       alignItems: 'center',
                       gap: 1,
@@ -637,7 +637,7 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
                   sx={{
                     width: 250,
                     p: 1,
-                    borderRight: '1px solid rgba(0, 229, 255, 0.2)',
+                    borderRight: '2px solid rgba(0, 229, 255, 0.2)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 1,
@@ -788,7 +788,7 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
 
           {/* Tasks without dates (only show in tasks view) */}
           {viewMode === 'tasks' && tasksWithoutDates.length > 0 && (
-            <Box sx={{ mt: 3, pt: 3, borderTop: '1px solid rgba(0, 229, 255, 0.2)' }}>
+            <Box sx={{ mt: 3, pt: 3, borderTop: '2px solid rgba(0, 229, 255, 0.2)' }}>
               <Typography variant="subtitle2" sx={{ color: '#B0B0B0', mb: 2 }}>
                 Tasks without dates ({tasksWithoutDates.length})
               </Typography>

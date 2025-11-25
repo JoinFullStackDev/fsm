@@ -964,7 +964,7 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
                       width={tooltipWidth}
                       height={tooltipHeight}
                       rx={4}
-                      fill="#121633"
+                      fill="#000"
                       stroke="#00E5FF"
                       strokeWidth={1}
                       opacity={0.98}
@@ -1049,8 +1049,8 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
     <>
       <Paper
         sx={{
-          backgroundColor: '#121633',
-          border: '1px solid rgba(0, 229, 255, 0.2)',
+          backgroundColor: '#000',
+          border: '2px solid rgba(0, 229, 255, 0.2)',
           borderRadius: 2,
           p: 3,
         }}
@@ -1071,13 +1071,13 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
             maxHeight: '100vh',
             m: 0,
             borderRadius: 0,
-            backgroundColor: '#121633 !important',
+            backgroundColor: '#000 !important',
             border: 'none',
           },
         }}
         sx={{
           '& .MuiDialog-container': {
-            backgroundColor: '#121633',
+            backgroundColor: '#000',
           },
         }}
       >
@@ -1086,9 +1086,9 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            borderBottom: '1px solid rgba(0, 229, 255, 0.2)',
+            borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
             pb: 2,
-            backgroundColor: '#121633',
+            backgroundColor: '#000',
           }}
         >
           <Typography variant="h6" sx={{ color: '#00E5FF', fontWeight: 600 }}>

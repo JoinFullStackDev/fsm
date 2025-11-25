@@ -75,6 +75,9 @@ export interface Project {
   primary_tool: PrimaryTool | null;
   initiated_at: string | null;
   initiated_by: string | null;
+  company_id?: string | null; // Ops Tool: Company this project belongs to
+  source?: 'Manual' | 'Converted'; // Ops Tool: How project was created
+  opportunity_id?: string | null; // Ops Tool: Opportunity this project was converted from
   created_at: string;
   updated_at: string;
 }

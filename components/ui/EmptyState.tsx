@@ -58,8 +58,8 @@ export default function EmptyState({
   return (
     <Card
       sx={{
-        backgroundColor: '#121633',
-        border: '1px solid rgba(0, 229, 255, 0.2)',
+        backgroundColor: '#000',
+        border: '2px solid rgba(0, 229, 255, 0.2)',
         borderRadius: 3,
         textAlign: 'center',
       }}
@@ -83,7 +83,7 @@ export default function EmptyState({
           gutterBottom
           sx={{
             fontWeight: 700,
-            background: 'linear-gradient(135deg, #00E5FF 0%, #E91E63 100%)',
+            background: '#00E5FF',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             mb: 2,

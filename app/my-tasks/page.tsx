@@ -188,8 +188,8 @@ export default function MyTasksPage() {
     <Container maxWidth="xl" sx={{ py: 4 }}>
       <Paper
         sx={{
-          backgroundColor: '#121633',
-          border: '1px solid rgba(0, 229, 255, 0.2)',
+          backgroundColor: '#000',
+          border: '2px solid rgba(0, 229, 255, 0.2)',
           borderRadius: 2,
           p: 3,
         }}
@@ -224,21 +224,21 @@ export default function MyTasksPage() {
         ) : (
           <TableContainer>
             <Table>
-              <TableHead sx={{ backgroundColor: '#0A0E27' }}>
+              <TableHead sx={{ backgroundColor: '#000' }}>
                 <TableRow>
-                  <TableCell sx={{ backgroundColor: '#0A0E27', color: '#00E5FF', fontWeight: 600, borderBottom: '2px solid rgba(0, 229, 255, 0.3)' }}>
+                  <TableCell sx={{ backgroundColor: '#000', color: '#00E5FF', fontWeight: 600, borderBottom: '2px solid rgba(0, 229, 255, 0.2)' }}>
                     Task
                   </TableCell>
-                  <TableCell sx={{ backgroundColor: '#0A0E27', color: '#00E5FF', fontWeight: 600, borderBottom: '2px solid rgba(0, 229, 255, 0.3)' }}>
+                  <TableCell sx={{ backgroundColor: '#000', color: '#00E5FF', fontWeight: 600, borderBottom: '2px solid rgba(0, 229, 255, 0.2)' }}>
                     Project
                   </TableCell>
-                  <TableCell sx={{ backgroundColor: '#0A0E27', color: '#00E5FF', fontWeight: 600, borderBottom: '2px solid rgba(0, 229, 255, 0.3)', textAlign: 'center' }}>
+                  <TableCell sx={{ backgroundColor: '#000', color: '#00E5FF', fontWeight: 600, borderBottom: '2px solid rgba(0, 229, 255, 0.2)', textAlign: 'center' }}>
                     Status
                   </TableCell>
-                  <TableCell sx={{ backgroundColor: '#0A0E27', color: '#00E5FF', fontWeight: 600, borderBottom: '2px solid rgba(0, 229, 255, 0.3)', textAlign: 'center' }}>
+                  <TableCell sx={{ backgroundColor: '#000', color: '#00E5FF', fontWeight: 600, borderBottom: '2px solid rgba(0, 229, 255, 0.2)', textAlign: 'center' }}>
                     Priority
                   </TableCell>
-                  <TableCell sx={{ backgroundColor: '#0A0E27', color: '#00E5FF', fontWeight: 600, borderBottom: '2px solid rgba(0, 229, 255, 0.3)' }}>
+                  <TableCell sx={{ backgroundColor: '#000', color: '#00E5FF', fontWeight: 600, borderBottom: '2px solid rgba(0, 229, 255, 0.2)' }}>
                     Due Date
                   </TableCell>
                 </TableRow>

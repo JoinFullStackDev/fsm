@@ -72,7 +72,7 @@ const MockDashboard = () => {
   return (
     <Box
       sx={{
-        backgroundColor: '#0A0E27',
+        backgroundColor: '#000',
         borderRadius: 2,
         p: 2,
         border: '1px solid rgba(0, 229, 255, 0.3)',
@@ -187,7 +187,7 @@ const MockTemplateBuilder = () => {
   return (
     <Box
       sx={{
-        backgroundColor: '#0A0E27',
+        backgroundColor: '#000',
         borderRadius: 2,
         p: 2,
         border: '1px solid rgba(0, 255, 136, 0.3)',
@@ -250,7 +250,7 @@ const MockProjectForm = () => {
   return (
     <Box
       sx={{
-        backgroundColor: '#0A0E27',
+        backgroundColor: '#000',
         borderRadius: 2,
         p: 2,
         border: '1px solid rgba(233, 30, 99, 0.3)',
@@ -336,7 +336,7 @@ const MockProjectDashboard = () => {
   return (
     <Box
       sx={{
-        backgroundColor: '#0A0E27',
+        backgroundColor: '#000',
         borderRadius: 2,
         p: 2,
         border: '1px solid rgba(33, 150, 243, 0.3)',
@@ -394,7 +394,7 @@ const MockExportDialog = () => {
   return (
     <Box
       sx={{
-        backgroundColor: '#0A0E27',
+        backgroundColor: '#000',
         borderRadius: 2,
         p: 2,
         border: '1px solid rgba(255, 107, 53, 0.3)',
@@ -487,7 +487,7 @@ const MockKeyboard = () => {
   return (
     <Box
       sx={{
-        backgroundColor: '#0A0E27',
+        backgroundColor: '#000',
         borderRadius: 2,
         p: 2,
         border: '1px solid rgba(156, 39, 176, 0.3)',
@@ -792,8 +792,8 @@ export default function WelcomeTour({ open, onClose, onComplete }: WelcomeTourPr
       fullWidth
       PaperProps={{
         sx: {
-          backgroundColor: '#121633',
-          border: '2px solid rgba(0, 229, 255, 0.3)',
+          backgroundColor: '#000',
+          border: '2px solid rgba(0, 229, 255, 0.2)',
           borderRadius: 3,
         },
       }}
@@ -804,7 +804,7 @@ export default function WelcomeTour({ open, onClose, onComplete }: WelcomeTourPr
           alignItems: 'center',
           justifyContent: 'space-between',
           backgroundColor: 'rgba(0, 229, 255, 0.1)',
-          borderBottom: '1px solid rgba(0, 229, 255, 0.2)',
+          borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
           color: '#00E5FF',
           fontWeight: 600,
         }}
@@ -875,7 +875,7 @@ export default function WelcomeTour({ open, onClose, onComplete }: WelcomeTourPr
                   sx={{
                     p: 2,
                     backgroundColor: 'rgba(0, 0, 0, 0.2)',
-                    border: '1px solid rgba(0, 229, 255, 0.2)',
+                    border: '2px solid rgba(0, 229, 255, 0.2)',
                     borderRadius: 2,
                   }}
                 >
@@ -891,7 +891,7 @@ export default function WelcomeTour({ open, onClose, onComplete }: WelcomeTourPr
           ))}
         </Stepper>
       </DialogContent>
-      <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(0, 229, 255, 0.2)' }}>
+      <DialogActions sx={{ p: 2, borderTop: '2px solid rgba(0, 229, 255, 0.2)' }}>
         <Button
           onClick={handleSkip}
           sx={{

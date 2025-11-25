@@ -71,8 +71,8 @@ export default function ProjectsTimelineChart({ projects, tasks }: ProjectsTimel
   return (
     <Paper
       sx={{
-        backgroundColor: '#121633',
-        border: '1px solid rgba(0, 229, 255, 0.2)',
+        backgroundColor: '#000',
+        border: '2px solid rgba(0, 229, 255, 0.2)',
         borderRadius: 2,
         p: 3,
       }}
@@ -170,7 +170,7 @@ export default function ProjectsTimelineChart({ projects, tasks }: ProjectsTimel
                       left: `${leftPosition}%`,
                       transform: 'translateX(-50%)',
                       width: `${dayWidth * 7}px`,
-                      borderRight: '1px solid rgba(0, 229, 255, 0.2)',
+                      borderRight: '2px solid rgba(0, 229, 255, 0.2)',
                       textAlign: 'center',
                       py: 0.5,
                     }}

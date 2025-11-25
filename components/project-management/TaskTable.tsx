@@ -181,7 +181,7 @@ export default function TaskTable({
     return (
       <TableCell
         sx={{
-          backgroundColor: '#0A0E27',
+          backgroundColor: '#000',
           color: '#00E5FF',
           fontWeight: 600,
           cursor: 'pointer',
@@ -488,8 +488,8 @@ export default function TaskTable({
         onClose={handleActionMenuClose}
         PaperProps={{
           sx: {
-            backgroundColor: '#121633',
-            border: '1px solid rgba(0, 229, 255, 0.2)',
+            backgroundColor: '#000',
+            border: '2px solid rgba(0, 229, 255, 0.2)',
           },
         }}
       >
@@ -529,21 +529,21 @@ export default function TaskTable({
       <TableContainer
         component={Paper}
         sx={{
-          backgroundColor: '#121633',
-          border: '1px solid rgba(0, 229, 255, 0.2)',
+          backgroundColor: '#000',
+          border: '2px solid rgba(0, 229, 255, 0.2)',
           borderRadius: 2,
           maxHeight: 'calc(100vh - 300px)',
           overflow: 'auto',
         }}
       >
         <Table stickyHeader size="small">
-          <TableHead sx={{ backgroundColor: '#0A0E27' }}>
+          <TableHead sx={{ backgroundColor: '#000' }}>
             <TableRow>
               {visibleColumns.status && (
                 <SortableHeader field="status" label="Status" />
               )}
               {visibleColumns.title && (
-                <TableCell sx={{ backgroundColor: '#0A0E27', color: '#00E5FF', fontWeight: 600, minWidth: 300 }}>
+                <TableCell sx={{ backgroundColor: '#000', color: '#00E5FF', fontWeight: 600, minWidth: 300 }}>
                   Title
                 </TableCell>
               )}
@@ -562,7 +562,7 @@ export default function TaskTable({
               {visibleColumns.dueDate && (
                 <SortableHeader field="due_date" label="Due Date" />
               )}
-              <TableCell sx={{ backgroundColor: '#0A0E27', color: '#00E5FF', fontWeight: 600, width: 50 }}>
+              <TableCell sx={{ backgroundColor: '#000', color: '#00E5FF', fontWeight: 600, width: 50 }}>
                 Actions
               </TableCell>
             </TableRow>
