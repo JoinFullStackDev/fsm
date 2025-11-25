@@ -1,0 +1,389 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { unauthorized, notFound, internalError, forbidden } from '@/lib/utils/apiErrors';
+import logger from '@/lib/utils/logger';
+
+/**
+ * GET /api/projects/[id]
+ * 
+ * Fetches a single project by ID along with its active phases.
+ * Requires authentication.
+ * 
+ * @param request - Next.js request object
+ * @param params - Route parameters containing project ID
+ * @returns Project data with phases array, or error response
+ * 
+ * @example
+ * GET /api/projects/123e4567-e89b-12d3-a456-426614174000
+ * Response: { id, name, description, status, phases: [...] }
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session) {
+      return unauthorized('You must be logged in to view this project');
+    }
+
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', params.id)
+      .single();
+
+    if (projectError || !project) {
+      return notFound('Project not found');
+    }
+
+    // Get phases (ordered by display_order)
+    const { data: phases, error: phasesError } = await supabase
+      .from('project_phases')
+      .select('phase_number, phase_name, display_order, completed, updated_at')
+      .eq('project_id', params.id)
+      .eq('is_active', true)
+      .order('display_order', { ascending: true });
+
+    if (phasesError) {
+      logger.error('Error loading phases:', phasesError);
+      return internalError('Failed to load project phases', { error: phasesError.message });
+    }
+
+    return NextResponse.json({
+      ...project,
+      phases: phases || [],
+    });
+  } catch (error) {
+    logger.error('Error in GET /api/projects/[id]:', error);
+    return internalError('Failed to load project', { error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session) {
+      return unauthorized('You must be logged in to update this project');
+    }
+
+    const body = await request.json();
+    const { name, description, status, primary_tool, template_id } = body;
+
+    // Get current project to check if template_id is changing
+    const { data: currentProject, error: currentProjectError } = await supabase
+      .from('projects')
+      .select('template_id')
+      .eq('id', params.id)
+      .single();
+
+    if (currentProjectError || !currentProject) {
+      return notFound('Project not found');
+    }
+
+    const oldTemplateId = currentProject.template_id;
+    const newTemplateId = template_id !== undefined ? (template_id || null) : oldTemplateId;
+    const templateChanged = oldTemplateId !== newTemplateId;
+
+    const updateData: any = {
+      name,
+      description,
+      status,
+      primary_tool,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Only update template_id if it's provided
+    if (template_id !== undefined) {
+      updateData.template_id = template_id || null;
+    }
+
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .update(updateData)
+      .eq('id', params.id)
+      .select()
+      .single();
+
+    if (projectError) {
+      logger.error('Error updating project:', projectError);
+      return internalError('Failed to update project', { error: projectError.message });
+    }
+
+    if (!project) {
+      return notFound('Project not found');
+    }
+
+    // If template changed, regenerate project phases from the new template (fresh start)
+    if (templateChanged && newTemplateId) {
+      try {
+        logger.debug(`Template changed for project ${params.id}: ${oldTemplateId} -> ${newTemplateId}`);
+        
+        // Get template phases
+        const { data: templatePhases, error: templatePhasesError } = await supabase
+          .from('template_phases')
+          .select('*')
+          .eq('template_id', newTemplateId)
+          .eq('is_active', true)
+          .order('display_order', { ascending: true });
+
+        if (templatePhasesError) {
+          logger.error('Error loading template phases:', templatePhasesError);
+          return internalError('Failed to load template phases', { error: templatePhasesError.message });
+        }
+
+        if (!templatePhases || templatePhases.length === 0) {
+          logger.warn(`Template ${newTemplateId} has no phases`);
+          return internalError('Selected template has no phases defined');
+        }
+
+        logger.debug(`Found ${templatePhases.length} template phases to create`);
+
+        // Deactivate all existing phases (soft delete - avoids RLS DELETE policy issues)
+        // Then we'll insert new ones, which will replace them due to unique constraint
+        const { data: existingPhases, error: checkExistingError } = await supabase
+          .from('project_phases')
+          .select('phase_number')
+          .eq('project_id', params.id)
+          .eq('is_active', true);
+
+        if (checkExistingError) {
+          logger.warn('Error checking existing phases (non-critical):', checkExistingError);
+        } else if (existingPhases && existingPhases.length > 0) {
+          logger.debug(`Found ${existingPhases.length} existing active phases to deactivate`);
+          
+          // Deactivate all existing phases (soft delete - UPDATE is allowed by RLS)
+          const { error: deactivateError } = await supabase
+            .from('project_phases')
+            .update({ is_active: false })
+            .eq('project_id', params.id)
+            .eq('is_active', true);
+
+          if (deactivateError) {
+            logger.error('Error deactivating old phases:', deactivateError);
+            return internalError('Failed to deactivate old phases', { error: deactivateError.message });
+          }
+
+          logger.debug(`Deactivated ${existingPhases.length} existing phases`);
+        }
+
+      // Create new phases from template (fresh start - use template data, not existing data)
+      // Ensure all required fields are present and valid
+      const phaseInserts = templatePhases.map((templatePhase, index) => {
+        // Ensure phase_number is present and valid
+        if (!templatePhase.phase_number || typeof templatePhase.phase_number !== 'number') {
+          logger.error(`Template phase at index ${index} is missing or invalid phase_number:`, templatePhase);
+          throw new Error(`Template phase at index ${index} is missing or invalid phase_number`);
+        }
+        
+        // Ensure phase_number is positive
+        if (templatePhase.phase_number <= 0) {
+          logger.error(`Template phase at index ${index} has invalid phase_number (must be > 0):`, templatePhase.phase_number);
+          throw new Error(`Template phase at index ${index} has invalid phase_number (must be > 0)`);
+        }
+        
+        // Use display_order from template, or fallback to index + 1
+        const displayOrder = templatePhase.display_order != null ? templatePhase.display_order : (index + 1);
+        
+        // Ensure display_order is a number
+        if (typeof displayOrder !== 'number' || displayOrder <= 0) {
+          logger.error(`Template phase at index ${index} has invalid display_order:`, displayOrder);
+          throw new Error(`Template phase at index ${index} has invalid display_order`);
+        }
+        
+        // Use phase_name from template, or generate a default name
+        const phaseName = templatePhase.phase_name || `Phase ${templatePhase.phase_number}`;
+        
+        // Ensure phase_name is a string
+        if (typeof phaseName !== 'string' || phaseName.trim().length === 0) {
+          logger.error(`Template phase at index ${index} has invalid phase_name:`, phaseName);
+          throw new Error(`Template phase at index ${index} has invalid phase_name`);
+        }
+        
+        // Ensure data is a valid object (JSONB)
+        let phaseData = {};
+        if (templatePhase.data) {
+          if (typeof templatePhase.data === 'object' && !Array.isArray(templatePhase.data)) {
+            phaseData = templatePhase.data;
+          } else {
+            logger.warn(`Template phase at index ${index} has invalid data format, using empty object`);
+            phaseData = {};
+          }
+        }
+        
+        return {
+          project_id: params.id,
+          phase_number: templatePhase.phase_number,
+          phase_name: phaseName.trim(),
+          display_order: displayOrder,
+          data: phaseData,
+          completed: false,
+          is_active: true,
+        };
+      });
+
+      // Validate phase inserts before attempting insert
+      if (phaseInserts.length === 0) {
+        return internalError('No phases to create from template');
+      }
+
+      // Check for duplicate phase_numbers in the template (shouldn't happen, but safety check)
+      const phaseNumbers = phaseInserts.map(p => p.phase_number);
+      const uniquePhaseNumbers = new Set(phaseNumbers);
+      if (phaseNumbers.length !== uniquePhaseNumbers.size) {
+        logger.error('Duplicate phase numbers detected in template phases:', phaseNumbers);
+        const duplicates = phaseNumbers.filter((num, idx) => phaseNumbers.indexOf(num) !== idx);
+        return internalError(`Template has duplicate phase numbers: ${duplicates.join(', ')}`);
+      }
+
+      // Log what we're about to insert for debugging
+      logger.debug('About to insert phases:', JSON.stringify(phaseInserts.map(p => ({
+        phase_number: p.phase_number,
+        phase_name: p.phase_name,
+        display_order: p.display_order
+      })), null, 2));
+
+      // Final check - ensure no active phases exist with these phase_numbers
+      // Upsert will handle inactive phases with same phase_numbers
+      const phaseNumbersToInsert = phaseInserts.map(p => p.phase_number);
+      const { data: conflictingPhases, error: conflictCheckError } = await supabase
+        .from('project_phases')
+        .select('phase_number, is_active')
+        .eq('project_id', params.id)
+        .in('phase_number', phaseNumbersToInsert)
+        .eq('is_active', true);
+
+      if (conflictCheckError) {
+        logger.warn('Error checking for conflicting phases (non-critical):', conflictCheckError);
+      } else if (conflictingPhases && conflictingPhases.length > 0) {
+        logger.warn('Found active conflicting phases - deactivating them:', conflictingPhases);
+        // Deactivate the specific conflicting phases (UPDATE is allowed by RLS)
+        const { error: deactivateConflictsError } = await supabase
+          .from('project_phases')
+          .update({ is_active: false })
+          .eq('project_id', params.id)
+          .in('phase_number', phaseNumbersToInsert)
+          .eq('is_active', true);
+        
+        if (deactivateConflictsError) {
+          return internalError('Failed to deactivate conflicting phases', { 
+            error: deactivateConflictsError.message 
+          });
+        }
+      }
+
+      // Use upsert to handle any remaining inactive phases with same phase_numbers
+      // This will update existing inactive phases or insert new ones
+      // The unique constraint on (project_id, phase_number) means upsert will update existing rows
+      const { data: insertedPhases, error: insertPhasesError } = await supabase
+        .from('project_phases')
+        .upsert(phaseInserts, {
+          onConflict: 'project_id,phase_number',
+        })
+        .select();
+
+      if (insertPhasesError) {
+        logger.error('Error inserting new phases:', insertPhasesError);
+        logger.error('Phase inserts data:', JSON.stringify(phaseInserts, null, 2));
+        logger.error('Template phases data:', JSON.stringify(templatePhases, null, 2));
+        
+        // Return a more user-friendly error message
+        let errorMessage = 'Failed to create phases from template';
+        if (insertPhasesError.message) {
+          errorMessage += `: ${insertPhasesError.message}`;
+        }
+        if (insertPhasesError.hint) {
+          errorMessage += ` (${insertPhasesError.hint})`;
+        }
+        
+        return internalError(errorMessage, { 
+          error: insertPhasesError.message,
+          details: insertPhasesError.details,
+          hint: insertPhasesError.hint,
+          code: insertPhasesError.code,
+        });
+      }
+
+      if (!insertedPhases || insertedPhases.length === 0) {
+        logger.error('No phases were inserted despite no error');
+        return internalError('Failed to create phases from template - no phases were created');
+      }
+
+        logger.debug(`Successfully created ${insertedPhases.length} phases for project ${params.id} from template ${newTemplateId}`);
+        logger.debug('Created phases:', JSON.stringify(insertedPhases.map(p => ({ 
+          phase_number: p.phase_number, 
+          phase_name: p.phase_name, 
+          display_order: p.display_order 
+        })), null, 2));
+      } catch (error) {
+        logger.error('Unexpected error during phase creation:', error);
+        return internalError('Failed to create phases from template', { 
+          error: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+      }
+    } else if (templateChanged && !newTemplateId) {
+      // Template was removed (set to null) - keep existing phases but log
+      logger.debug(`Template removed for project ${params.id}, keeping existing phases`);
+    }
+
+    return NextResponse.json(project);
+  } catch (error) {
+    logger.error('Error in PUT /api/projects/[id]:', error);
+    return internalError('Failed to update project', { error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session) {
+      return unauthorized('You must be logged in to delete projects');
+    }
+
+    // Get user record to check role
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('role')
+      .eq('auth_id', session.user.id)
+      .single();
+
+    if (userError || !userData) {
+      return notFound('User not found');
+    }
+
+    // Only admins can delete projects
+    if (userData.role !== 'admin') {
+      return forbidden('Admin role required to delete projects');
+    }
+
+    // Delete the project (cascade will handle related records)
+    const { error: deleteError } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', params.id);
+
+    if (deleteError) {
+      logger.error('Error deleting project:', deleteError);
+      return internalError('Failed to delete project', { error: deleteError.message });
+    }
+
+    return NextResponse.json({ message: 'Project deleted successfully' });
+  } catch (error) {
+    logger.error('Error in DELETE /api/projects/[id]:', error);
+    return internalError('Failed to delete project', { error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+}
+

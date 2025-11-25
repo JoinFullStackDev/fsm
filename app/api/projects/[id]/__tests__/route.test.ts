@@ -1,0 +1,261 @@
+// Mock Next.js server modules before imports
+jest.mock('next/server', () => {
+  const mockNextRequest = class NextRequest {
+    constructor(public url: string, public init?: any) {}
+    async json() {
+      return this.init?.body ? JSON.parse(this.init.body) : {};
+    }
+  };
+
+  const mockNextResponse = {
+    json: (data: any, init?: any) => {
+      const Response = global.Response;
+      return Response.json(data, init);
+    },
+  };
+
+  return {
+    NextRequest: mockNextRequest,
+    NextResponse: mockNextResponse,
+  };
+});
+
+import { NextRequest } from 'next/server';
+import { GET, PUT, DELETE } from '../route';
+import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createMockProject, createMockUser } from '@/lib/test-helpers';
+
+jest.mock('@/lib/supabaseServer');
+jest.mock('@/lib/utils/logger', () => ({
+  __esModule: true,
+  default: {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
+describe('/api/projects/[id]', () => {
+  const mockSupabaseClient = {
+    auth: {
+      getSession: jest.fn(),
+    },
+    from: jest.fn(),
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (createServerSupabaseClient as jest.Mock).mockResolvedValue(mockSupabaseClient);
+  });
+
+  describe('GET', () => {
+    it('should return project with phases', async () => {
+      const mockProject = createMockProject();
+      const mockPhases = [
+        { phase_number: 1, phase_name: 'Phase 1', completed: false },
+        { phase_number: 2, phase_name: 'Phase 2', completed: false },
+      ];
+
+      mockSupabaseClient.auth.getSession.mockResolvedValue({
+        data: {
+          session: {
+            user: { id: 'auth-123' },
+          },
+        },
+      });
+
+      const mockProjectQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: mockProject,
+          error: null,
+        }),
+      };
+
+      const mockPhasesQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({
+          data: mockPhases,
+          error: null,
+        }),
+      };
+
+      mockSupabaseClient.from
+        .mockReturnValueOnce(mockProjectQuery)
+        .mockReturnValueOnce(mockPhasesQuery);
+
+      const request = new NextRequest('http://localhost:3000/api/projects/project-1');
+      const response = await GET(request, { params: { id: 'project-1' } });
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.id).toBe(mockProject.id);
+      expect(data.phases).toEqual(mockPhases);
+    });
+
+    it('should return 404 when project not found', async () => {
+      mockSupabaseClient.auth.getSession.mockResolvedValue({
+        data: {
+          session: {
+            user: { id: 'auth-123' },
+          },
+        },
+      });
+
+      const mockProjectQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Not found' },
+        }),
+      };
+
+      mockSupabaseClient.from.mockReturnValue(mockProjectQuery);
+
+      const request = new NextRequest('http://localhost:3000/api/projects/project-1');
+      const response = await GET(request, { params: { id: 'project-1' } });
+      const data = await response.json();
+
+      expect(response.status).toBe(404);
+      expect(data.error).toBe('Project not found');
+    });
+
+    it('should return 401 for unauthenticated requests', async () => {
+      mockSupabaseClient.auth.getSession.mockResolvedValue({
+        data: { session: null },
+      });
+
+      const request = new NextRequest('http://localhost:3000/api/projects/project-1');
+      const response = await GET(request, { params: { id: 'project-1' } });
+      const data = await response.json();
+
+      expect(response.status).toBe(401);
+    });
+  });
+
+  describe('PUT', () => {
+    it('should update project', async () => {
+      const mockUser = createMockUser();
+      const mockProject = createMockProject();
+      const updatedProject = { ...mockProject, name: 'Updated Name' };
+
+      mockSupabaseClient.auth.getSession.mockResolvedValue({
+        data: {
+          session: {
+            user: { id: 'auth-123' },
+          },
+        },
+      });
+
+      const mockUpdateQuery = {
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: updatedProject,
+          error: null,
+        }),
+      };
+
+      mockSupabaseClient.from.mockReturnValue(mockUpdateQuery);
+
+      const request = new NextRequest('http://localhost:3000/api/projects/project-1', {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: 'Updated Name',
+        }),
+      });
+
+      const response = await PUT(request, { params: { id: 'project-1' } });
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.name).toBe('Updated Name');
+    });
+
+    it('should return 500 when project update fails', async () => {
+      mockSupabaseClient.auth.getSession.mockResolvedValue({
+        data: {
+          session: {
+            user: { id: 'auth-123' },
+          },
+        },
+      });
+
+      const mockUpdateQuery = {
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Database error' },
+        }),
+      };
+
+      mockSupabaseClient.from.mockReturnValue(mockUpdateQuery);
+
+      const request = new NextRequest('http://localhost:3000/api/projects/project-1', {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: 'Updated Name',
+        }),
+      });
+
+      const response = await PUT(request, { params: { id: 'project-1' } });
+      const data = await response.json();
+
+      expect(response.status).toBe(500);
+      expect(data.error).toBeDefined();
+    });
+  });
+
+  describe('DELETE', () => {
+    it('should delete project when user is admin', async () => {
+      const mockUser = createMockUser({ role: 'admin' });
+
+      mockSupabaseClient.auth.getSession.mockResolvedValue({
+        data: {
+          session: {
+            user: { id: 'auth-123' },
+          },
+        },
+      });
+
+      const mockUserQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: mockUser,
+          error: null,
+        }),
+      };
+
+      const mockDeleteQuery = {
+        delete: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockResolvedValue({
+          data: null,
+          error: null,
+        }),
+      };
+
+      mockSupabaseClient.from
+        .mockReturnValueOnce(mockUserQuery)
+        .mockReturnValueOnce(mockDeleteQuery);
+
+      const request = new NextRequest('http://localhost:3000/api/projects/project-1', {
+        method: 'DELETE',
+      });
+
+      const response = await DELETE(request, { params: { id: 'project-1' } });
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.message).toBe('Project deleted successfully');
+    });
+  });
+});
+
