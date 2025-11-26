@@ -19,7 +19,7 @@ import {
   Grid,
   IconButton,
 } from '@mui/material';
-import { Add as AddIcon, Search as SearchIcon, Delete as DeleteIcon, Edit as EditIcon, Visibility as VisibilityIcon } from '@mui/icons-material';
+import { Add as AddIcon, Search as SearchIcon, Delete as DeleteIcon, Visibility as VisibilityIcon } from '@mui/icons-material';
 import LoadingSkeleton from '@/components/ui/LoadingSkeleton';
 import EmptyState from '@/components/ui/EmptyState';
 import { Contacts as ContactsIcon } from '@mui/icons-material';
@@ -83,15 +83,6 @@ export default function ContactsPage() {
     e.stopPropagation();
     setSelectedContactId(contact.id);
     setSlideoutOpen(true);
-  };
-
-  const handleEditContact = (contact: CompanyContactWithCompany, e: React.MouseEvent) => {
-    e.stopPropagation();
-    router.push(`/ops/contacts/${contact.id}/edit`);
-  };
-
-  const handleEditFromSlideout = (contactId: string) => {
-    router.push(`/ops/contacts/${contactId}/edit`);
   };
 
   const handleDeleteFromSlideout = (contactId: string) => {
@@ -261,14 +252,6 @@ export default function ContactsPage() {
             title="View Details"
           >
             <VisibilityIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={(e) => handleEditContact(row, e)}
-            sx={{ color: '#00E5FF' }}
-            title="Edit"
-          >
-            <EditIcon fontSize="small" />
           </IconButton>
           <IconButton
             size="small"
@@ -563,7 +546,6 @@ export default function ContactsPage() {
           setSlideoutOpen(false);
           setSelectedContactId(null);
         }}
-        onEdit={handleEditFromSlideout}
         onDelete={handleDeleteFromSlideout}
         onRefresh={loadContacts}
       />
