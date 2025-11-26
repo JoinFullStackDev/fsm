@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useRef, useCallback } from 'react';
+import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { Box, Typography, Paper, Autocomplete, TextField, Checkbox, IconButton, Dialog, DialogTitle } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { ZoomIn, ZoomOut, FitScreen, Fullscreen, FullscreenExit } from '@mui/icons-material';
@@ -60,6 +60,22 @@ const getLineConfigs = (theme: any): LineConfig[] => [
 
 export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMultiLineChartProps) {
   const theme = useTheme();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(1200);
+  
+  // Update container width on resize
+  useEffect(() => {
+    const updateWidth = () => {
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.offsetWidth);
+      }
+    };
+    
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    return () => window.removeEventListener('resize', updateWidth);
+  }, []);
+  
   const LINE_CONFIGS = useMemo(() => getLineConfigs(theme), [theme]);
   const [visibleLines, setVisibleLines] = useState<Set<keyof DataPoint>>(
     new Set(LINE_CONFIGS.filter(config => config.defaultVisible).map(config => config.key))
@@ -316,8 +332,8 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
     return Array.from(dataMap.values());
   }, [timelineDays, tasks, projects]);
 
-  // Calculate chart dimensions
-  const chartWidth = 1200;
+  // Calculate chart dimensions - use container width or fallback to 1200
+  const chartWidth = Math.max(containerWidth - 48, 800); // Subtract padding from container
   const chartHeight = 400;
   const padding = { top: 40, right: 40, bottom: 60, left: 60 };
   const plotWidth = chartWidth - padding.left - padding.right;
@@ -1051,7 +1067,7 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
 
   return (
     <>
-      <Box>
+      <Box ref={containerRef} sx={{ width: '100%' }}>
         {renderChartContent(false)}
       </Box>
 
