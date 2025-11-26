@@ -150,6 +150,13 @@ export default function AdminUsersTab() {
   const handleDeleteConfirm = async () => {
     if (!userToDelete) return;
 
+    // Prevent deletion of super admin users
+    if ((userToDelete as any).is_super_admin) {
+      showError('Cannot delete super admin user');
+      setDeleteConfirmOpen(false);
+      return;
+    }
+
     const { error: deleteError } = await supabase
       .from('users')
       .delete()
@@ -176,6 +183,15 @@ export default function AdminUsersTab() {
     const userIds = Array.from(selectedUsers);
     
     if (action === 'delete') {
+      // Check for super admin users before deleting
+      const usersToDelete = users.filter(u => userIds.includes(u.id));
+      const superAdmins = usersToDelete.filter(u => (u as any).is_super_admin);
+      
+      if (superAdmins.length > 0) {
+        showError(`Cannot delete super admin user(s): ${superAdmins.map(u => u.email).join(', ')}`);
+        return;
+      }
+
       const { error } = await supabase
         .from('users')
         .delete()
@@ -314,6 +330,10 @@ export default function AdminUsersTab() {
                     backgroundColor: theme.palette.action.hover,
                   },
                 }}
+                disabled={Array.from(selectedUsers).some(id => {
+                  const user = users.find(u => u.id === id);
+                  return (user as any)?.is_super_admin === true;
+                })}
               >
                 Delete ({selectedUsers.size})
               </Button>
@@ -485,6 +505,7 @@ export default function AdminUsersTab() {
                       <TableCell padding="checkbox">
                         <Checkbox
                           checked={selectedUsers.has(user.id)}
+                          disabled={(user as any)?.is_super_admin === true}
                           onChange={(e) => {
                             const newSelected = new Set(selectedUsers);
                             if (e.target.checked) {
@@ -515,6 +536,25 @@ export default function AdminUsersTab() {
                             fontWeight: 600,
                           }}
                         />
+                      <TableCell sx={{ color: 'text.primary' }}>{user.name || 'N/A'}</TableCell>
+                      <TableCell sx={{ color: 'text.primary' }}>{user.email}</TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <Chip
+                            label={user.role.toUpperCase()}
+                            color={getRoleColor(user.role) as any}
+                            size="small"
+                            sx={{ fontWeight: 600 }}
+                          />
+                          {(user as any)?.is_super_admin && (
+                            <Chip
+                              label="SUPER ADMIN"
+                              color="warning"
+                              size="small"
+                              sx={{ fontWeight: 700, fontSize: '0.65rem' }}
+                            />
+                          )}
+                        </Box>
                       </TableCell>
                       <TableCell sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
                         {user.invited_by_admin && !user.last_active_at ? (
@@ -668,9 +708,11 @@ export default function AdminUsersTab() {
                     backgroundColor: theme.palette.action.hover,
                   },
                 }}
+                disabled={(user as any)?.is_super_admin === true}
+                sx={{ color: 'error.main' }}
               >
                 <DeleteIcon sx={{ mr: 1, fontSize: 18 }} />
-                Delete User
+                {(user as any)?.is_super_admin ? 'Delete User (Super Admin)' : 'Delete User'}
               </MenuItem>
             </>
           );

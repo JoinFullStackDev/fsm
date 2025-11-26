@@ -145,10 +145,10 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
     loadProjects();
   }, [supabase]);
 
-  // Load all templates (admin only)
+  // Load all templates (admin and PM only)
   useEffect(() => {
     const loadTemplates = async () => {
-      if (role !== 'admin') {
+      if (role !== 'admin' && role !== 'pm') {
         setTemplates([]);
         return;
       }
@@ -611,8 +611,8 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
           </ListItemButton>
         </ListItem>
 
-        {/* Templates (Admin only) */}
-        {role === 'admin' && (
+        {/* Templates (Admin and PM only) */}
+        {(role === 'admin' || role === 'pm') && (
           <ListItem disablePadding>
             <ListItemButton
               onClick={() => {

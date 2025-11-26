@@ -28,8 +28,9 @@ export async function GET(
       return notFound('User');
     }
 
-    if (currentUser.role !== 'admin') {
-      return forbidden('Admin access required');
+    // Allow admins and PMs to manage template phases
+    if (currentUser.role !== 'admin' && currentUser.role !== 'pm') {
+      return forbidden('Admin or PM access required');
     }
 
     // Fetch all active phases for the template
@@ -76,8 +77,9 @@ export async function POST(
       return notFound('User');
     }
 
-    if (currentUser.role !== 'admin') {
-      return forbidden('Admin access required');
+    // Allow admins and PMs to manage template phases
+    if (currentUser.role !== 'admin' && currentUser.role !== 'pm') {
+      return forbidden('Admin or PM access required');
     }
 
     const body = await request.json();
@@ -161,8 +163,9 @@ export async function PATCH(
       return notFound('User');
     }
 
-    if (currentUser.role !== 'admin') {
-      return forbidden('Admin access required');
+    // Allow admins and PMs to manage template phases
+    if (currentUser.role !== 'admin' && currentUser.role !== 'pm') {
+      return forbidden('Admin or PM access required');
     }
 
     const body = await request.json();
@@ -232,8 +235,9 @@ export async function DELETE(
       return notFound('User');
     }
 
-    if (currentUser.role !== 'admin') {
-      return forbidden('Admin access required');
+    // Allow admins and PMs to manage template phases
+    if (currentUser.role !== 'admin' && currentUser.role !== 'pm') {
+      return forbidden('Admin or PM access required');
     }
 
     const { searchParams } = new URL(request.url);

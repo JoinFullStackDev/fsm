@@ -64,20 +64,22 @@ export default function Navbar() {
         >
           Dashboard
         </Button>
-        {!roleLoading && role === 'admin' && (
+        {!roleLoading && (role === 'admin' || role === 'pm') && (
           <>
-            <Button
-              onClick={() => router.push('/admin')}
-              sx={{
-                color: '#E0E0E0',
-                '&:hover': {
-                  backgroundColor: 'rgba(233, 30, 99, 0.1)',
-                  color: '#E91E63',
-                },
-              }}
-            >
-              Admin
-            </Button>
+            {role === 'admin' && (
+              <Button
+                onClick={() => router.push('/admin')}
+                sx={{
+                  color: '#E0E0E0',
+                  '&:hover': {
+                    backgroundColor: 'rgba(233, 30, 99, 0.1)',
+                    color: '#E91E63',
+                  },
+                }}
+              >
+                Admin
+              </Button>
+            )}
             <Button
               onClick={() => router.push('/admin/templates')}
               sx={{

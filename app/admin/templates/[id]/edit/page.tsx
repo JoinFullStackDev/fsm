@@ -106,7 +106,8 @@ export default function EditTemplatePage() {
       return;
     }
 
-    if (role !== 'admin') {
+    // Allow admins and PMs to edit templates
+    if (role !== 'admin' && role !== 'pm') {
       router.push('/dashboard');
       return;
     }
@@ -336,7 +337,8 @@ export default function EditTemplatePage() {
     );
   }
 
-  if (role !== 'admin') {
+  // Allow admins and PMs to edit templates
+  if (role !== 'admin' && role !== 'pm') {
     return null;
   }
 

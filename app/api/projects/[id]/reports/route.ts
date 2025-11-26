@@ -88,20 +88,9 @@ export async function POST(
         name: m.users.name,
       })) || [];
 
-    // Get Gemini API key from admin settings
-    let geminiApiKey: string | undefined;
-    try {
-      const { data: settings } = await supabase
-        .from('admin_settings')
-        .select('value')
-        .eq('key', 'GEMINI_API_KEY')
-        .single();
-      if (settings?.value) {
-        geminiApiKey = settings.value as string;
-      }
-    } catch (error) {
-      logger.warn('Could not load Gemini API key, AI features may be limited');
-    }
+    // Get Gemini API key (prioritizes environment variable - super admin's credentials)
+    const { getGeminiApiKey } = await import('@/lib/utils/geminiConfig');
+    const geminiApiKey = await getGeminiApiKey(supabase) || undefined;
 
     // Aggregate data based on report type
     let reportData: any;

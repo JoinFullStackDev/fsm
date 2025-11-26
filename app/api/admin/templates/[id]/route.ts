@@ -36,19 +36,25 @@ export async function DELETE(
       return notFound('User');
     }
 
-    if (currentUser.role !== 'admin') {
-      return forbidden('Admin access required');
+    // Allow admins and PMs to delete templates
+    if (currentUser.role !== 'admin' && currentUser.role !== 'pm') {
+      return forbidden('Admin or PM access required');
     }
 
-    // Verify template exists
+    // Verify template exists and get created_by
     const { data: template, error: templateError } = await supabase
       .from('project_templates')
-      .select('id')
+      .select('id, created_by')
       .eq('id', params.id)
       .single();
 
     if (templateError || !template) {
       return notFound('Template not found');
+    }
+
+    // PMs can only delete templates they created
+    if (currentUser.role === 'pm' && template.created_by !== currentUser.id) {
+      return forbidden('You can only delete templates you created');
     }
 
     // Delete related records in the correct order (to avoid FK constraint violations)

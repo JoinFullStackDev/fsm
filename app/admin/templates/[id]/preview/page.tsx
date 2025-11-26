@@ -169,7 +169,8 @@ export default function TemplatePreviewPage() {
       return;
     }
 
-    if (role !== 'admin') {
+    // Allow admins and PMs to preview templates
+    if (role !== 'admin' && role !== 'pm') {
       router.push('/dashboard');
       return;
     }

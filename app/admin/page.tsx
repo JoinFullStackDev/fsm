@@ -65,6 +65,7 @@ export default function AdminPage() {
   const router = useRouter();
   const supabase = createSupabaseClient();
   const { role, loading: roleLoading } = useRole();
+  // Initialize activeTab: 0 for admin (Users), 1 for PM (Theme)
   const [activeTab, setActiveTab] = useState(0);
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -166,13 +167,21 @@ export default function AdminPage() {
       setLoadingAnalytics(false);
     }
   }, [supabase]);
+  
+  // Update activeTab when role loads - PMs start on Theme tab (index 1)
+  useEffect(() => {
+    if (!roleLoading && role === 'pm' && activeTab === 0) {
+      setActiveTab(1);
+    }
+  }, [role, roleLoading, activeTab]);
 
   useEffect(() => {
     if (roleLoading) {
       return;
     }
 
-    if (role !== 'admin') {
+    // Allow admins and PMs to access admin page
+    if (role !== 'admin' && role !== 'pm') {
       router.push('/dashboard');
       return;
     }
@@ -209,6 +218,15 @@ export default function AdminPage() {
           Access denied. Admin role required.
         </Alert>
       </Box>
+  if (role !== 'admin' && role !== 'pm') {
+    return (
+      <>
+        <Container>
+          <Alert severity="error" sx={{ mt: 4 }}>
+            Access denied. Admin or PM role required.
+          </Alert>
+        </Container>
+      </>
     );
   }
 
@@ -674,6 +692,24 @@ export default function AdminPage() {
             <Tab icon={<SettingsIcon />} iconPosition="start" label="System" />
           </Tabs>
         </Box>
+                '& .MuiTabs-indicator': {
+                  backgroundColor: '#00E5FF',
+                  height: 3,
+                },
+              }}
+            >
+              <Tab 
+                icon={<PeopleIcon />} 
+                iconPosition="start" 
+                label="Users"
+                disabled={role !== 'admin'}
+              />
+              <Tab icon={<PaletteIcon />} iconPosition="start" label="Theme" />
+              <Tab icon={<ApiIcon />} iconPosition="start" label="API Config" />
+              <Tab icon={<SettingsIcon />} iconPosition="start" label="System" />
+              <Tab icon={<AnalyticsIcon />} iconPosition="start" label="Analytics" />
+            </Tabs>
+          </Box>
 
         <Box sx={{ p: 3 }}>
           <TabPanel value={activeTab} index={0}>

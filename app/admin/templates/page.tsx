@@ -53,6 +53,7 @@ export default function TemplatesPage() {
   const { role, loading: roleLoading } = useRole();
   const { showSuccess, showError } = useNotification();
   const [templates, setTemplates] = useState<(ProjectTemplate & { usage_count?: number })[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
@@ -72,6 +73,19 @@ export default function TemplatesPage() {
 
   const loadTemplates = useCallback(async () => {
     setLoading(true);
+    
+    // Get current user ID
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_id', session.user.id)
+        .single();
+      if (userData) {
+        setCurrentUserId(userData.id);
+      }
+    }
     
     // Load templates with usage counts
     const { data: templatesData, error: templatesError } = await supabase
@@ -118,13 +132,14 @@ export default function TemplatesPage() {
       return; // Wait for role to load
     }
 
-    if (role !== 'admin') {
-      logger.debug('[TemplatesPage] User is not admin, redirecting. Role:', role);
+    // Allow admins and PMs to access templates
+    if (role !== 'admin' && role !== 'pm') {
+      logger.debug('[TemplatesPage] User is not admin or PM, redirecting. Role:', role);
       router.push('/dashboard');
       return;
     }
 
-    logger.debug('[TemplatesPage] User is admin, loading templates');
+    logger.debug('[TemplatesPage] User is admin or PM, loading templates. Role:', role);
     loadTemplates();
   }, [role, roleLoading, router, loadTemplates]);
 
@@ -289,7 +304,8 @@ export default function TemplatesPage() {
     }
   };
 
-  if (role !== 'admin') {
+  // Allow admins and PMs to access templates page
+  if (role !== 'admin' && role !== 'pm') {
     return null;
   }
 
@@ -634,6 +650,26 @@ export default function TemplatesPage() {
                       >
                         <DeleteIcon fontSize="small" />
                       </IconButton>
+                      {/* PMs can only delete templates they created */}
+                      {(role === 'admin' || (role === 'pm' && template.created_by === currentUserId)) && (
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(template.id);
+                          }}
+                          sx={{
+                            color: '#FF1744',
+                            '&:hover': {
+                              backgroundColor: 'rgba(255, 23, 68, 0.1)',
+                            },
+                          }}
+                          title="Delete Template"
+                          aria-label={`Delete template ${template.name}`}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      )}
                     </Box>
                   ),
                 },

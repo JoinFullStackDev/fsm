@@ -54,8 +54,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    if (userData.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    // Allow admins and PMs to save generated templates
+    if (userData.role !== 'admin' && userData.role !== 'pm') {
+      return NextResponse.json({ error: 'Forbidden - Admin or PM access required' }, { status: 403 });
     }
 
     const body = await request.json() as GeneratedTemplate;
