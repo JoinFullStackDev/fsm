@@ -14,6 +14,7 @@ import {
   Chip,
   CircularProgress,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Send as SendIcon,
   MoreVert as MoreVertIcon,
@@ -44,6 +45,7 @@ export default function TaskComments({
   onCommentUpdate,
   onCommentDelete,
 }: TaskCommentsProps) {
+  const theme = useTheme();
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -232,7 +234,7 @@ export default function TaskComments({
         const name = user.name || user.email;
         result = result.replace(
           new RegExp(`@${name}`, 'gi'),
-          `<span style="color: #00E5FF; font-weight: 600;">@${name}</span>`
+          `<span style="color: ${theme.palette.text.primary}; font-weight: 600;">@${name}</span>`
         );
       }
     });
@@ -244,7 +246,7 @@ export default function TaskComments({
       <Typography
         variant="subtitle2"
         sx={{
-          color: '#00E5FF',
+          color: theme.palette.text.primary,
           fontWeight: 600,
           mb: 2,
           textTransform: 'uppercase',
@@ -259,10 +261,10 @@ export default function TaskComments({
       <Box sx={{ mb: 3, maxHeight: 400, overflow: 'auto' }}>
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
-            <CircularProgress size={24} />
+            <CircularProgress size={24} sx={{ color: theme.palette.text.primary }} />
           </Box>
         ) : comments.length === 0 ? (
-          <Typography variant="body2" sx={{ color: '#B0B0B0', fontStyle: 'italic', p: 2 }}>
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontStyle: 'italic', p: 2 }}>
             No comments yet. Be the first to comment!
           </Typography>
         ) : (
@@ -272,8 +274,8 @@ export default function TaskComments({
               sx={{
                 p: 2,
                 mb: 2,
-                backgroundColor: 'rgba(0, 229, 255, 0.03)',
-                border: '1px solid rgba(0, 229, 255, 0.1)',
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
                 borderRadius: 2,
               }}
             >
@@ -285,17 +287,32 @@ export default function TaskComments({
                     projectMembers={availableUsers}
                   />
                   <Box sx={{ display: 'flex', gap: 1, mt: 1, justifyContent: 'flex-end' }}>
-                    <Button size="small" onClick={() => setEditingCommentId(null)} sx={{ color: '#B0B0B0' }}>
+                    <Button 
+                      size="small" 
+                      variant="outlined"
+                      onClick={() => setEditingCommentId(null)} 
+                      sx={{ 
+                        borderColor: theme.palette.text.primary,
+                        color: theme.palette.text.primary,
+                        '&:hover': {
+                          borderColor: theme.palette.text.primary,
+                          backgroundColor: theme.palette.action.hover,
+                        },
+                      }}
+                    >
                       Cancel
                     </Button>
                     <Button
                       size="small"
-                      variant="contained"
+                      variant="outlined"
                       onClick={handleEdit}
                       sx={{
-                        backgroundColor: '#00E5FF',
-                        color: '#000',
-                        '&:hover': { backgroundColor: '#00B2CC' },
+                        borderColor: theme.palette.text.primary,
+                        color: theme.palette.text.primary,
+                        '&:hover': {
+                          borderColor: theme.palette.text.primary,
+                          backgroundColor: theme.palette.action.hover,
+                        },
                       }}
                     >
                       Save
@@ -311,24 +328,24 @@ export default function TaskComments({
                         width: 32,
                         height: 32,
                         fontSize: '0.875rem',
-                        backgroundColor: 'rgba(0, 229, 255, 0.2)',
-                        color: '#00E5FF',
+                        backgroundColor: theme.palette.text.primary,
+                        color: theme.palette.background.default,
                       }}
                     >
                       {(comment.user?.name || comment.user?.email || 'U').substring(0, 2).toUpperCase()}
                     </Avatar>
                     <Box sx={{ flex: 1 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                        <Typography variant="body2" sx={{ color: '#E0E0E0', fontWeight: 600 }}>
+                        <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
                           {comment.user?.name || comment.user?.email || 'Unknown User'}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: '#B0B0B0' }}>
+                        <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
                           {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
                         </Typography>
                       </Box>
                       <Box
                         sx={{
-                          color: '#E0E0E0',
+                          color: theme.palette.text.primary,
                           '& p': { margin: 0, marginBottom: 1 },
                           '& p:last-child': { marginBottom: 0 },
                         }}
@@ -344,8 +361,9 @@ export default function TaskComments({
                                 label={`@${user.name || user.email}`}
                                 size="small"
                                 sx={{
-                                  backgroundColor: 'rgba(0, 229, 255, 0.15)',
-                                  color: '#00E5FF',
+                                  backgroundColor: theme.palette.action.hover,
+                                  color: theme.palette.text.primary,
+                                  border: `1px solid ${theme.palette.divider}`,
                                   fontSize: '0.7rem',
                                   height: 20,
                                 }}
@@ -359,7 +377,12 @@ export default function TaskComments({
                       <IconButton
                         size="small"
                         onClick={(e) => setMenuAnchor({ element: e.currentTarget, commentId: comment.id })}
-                        sx={{ color: '#B0B0B0' }}
+                        sx={{ 
+                          color: theme.palette.text.primary,
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        }}
                       >
                         <MoreVertIcon fontSize="small" />
                       </IconButton>
@@ -374,7 +397,7 @@ export default function TaskComments({
 
       {/* Add Comment */}
       <Box>
-        <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 1 }}>
+        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
           Add a comment (use @ to mention team members)
         </Typography>
         <RichTextEditor 
@@ -386,16 +409,22 @@ export default function TaskComments({
         />
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
           <Button
-            variant="contained"
-            startIcon={submitting ? <CircularProgress size={16} /> : <SendIcon />}
+            variant="outlined"
+            startIcon={submitting ? <CircularProgress size={16} sx={{ color: theme.palette.text.primary }} /> : <SendIcon />}
             onClick={handleSubmit}
             disabled={!newComment.trim() || submitting}
             sx={{
-              backgroundColor: '#00E5FF',
-              color: '#000',
+              borderColor: theme.palette.text.primary,
+              color: theme.palette.text.primary,
               fontWeight: 600,
-              '&:hover': { backgroundColor: '#00B2CC' },
-              '&:disabled': { backgroundColor: 'rgba(0, 229, 255, 0.3)' },
+              '&:hover': { 
+                borderColor: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
+              },
+              '&:disabled': { 
+                borderColor: theme.palette.divider,
+                color: theme.palette.text.secondary,
+              },
             }}
           >
             {submitting ? 'Posting...' : 'Post Comment'}
@@ -408,11 +437,23 @@ export default function TaskComments({
         anchorEl={menuAnchor?.element}
         open={Boolean(menuAnchor)}
         onClose={() => setMenuAnchor(null)}
+        PaperProps={{
+          sx: {
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
+          },
+        }}
       >
         <MenuItem
           onClick={() => {
             const comment = comments.find((c) => c.id === menuAnchor?.commentId);
             if (comment) startEditing(comment);
+          }}
+          sx={{
+            color: theme.palette.text.primary,
+            '&:hover': {
+              backgroundColor: theme.palette.action.hover,
+            },
           }}
         >
           <EditIcon sx={{ mr: 1, fontSize: 18 }} /> Edit
@@ -421,7 +462,12 @@ export default function TaskComments({
           onClick={() => {
             if (menuAnchor) handleDelete(menuAnchor.commentId);
           }}
-          sx={{ color: '#FF6B6B' }}
+          sx={{ 
+            color: theme.palette.text.primary,
+            '&:hover': {
+              backgroundColor: theme.palette.action.hover,
+            },
+          }}
         >
           <DeleteIcon sx={{ mr: 1, fontSize: 18 }} /> Delete
         </MenuItem>

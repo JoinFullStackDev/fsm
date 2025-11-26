@@ -4,8 +4,6 @@ import { useEffect, useState } from 'react';
 import {
   Box,
   Typography,
-  Card,
-  CardContent,
   TextField,
   Button,
   Grid,
@@ -13,6 +11,7 @@ import {
   CircularProgress,
   Alert,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { Save as SaveIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useNotification } from '@/components/providers/NotificationProvider';
@@ -25,12 +24,13 @@ interface ThemeColors {
 }
 
 export default function AdminThemeTab() {
+  const theme = useTheme();
   const supabase = createSupabaseClient();
   const { showSuccess, showError } = useNotification();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [theme, setTheme] = useState<ThemeColors>({
+  const [themeColors, setThemeColors] = useState<ThemeColors>({
     primary: { main: '#00E5FF', light: '#5DFFFF', dark: '#00B2CC' },
     secondary: { main: '#E91E63', light: '#FF6090', dark: '#B0003A' },
     background: { default: '#000', paper: '#000' },
@@ -55,11 +55,11 @@ export default function AdminThemeTab() {
     }
 
     const settings = data as AdminSetting[];
-    const primary = settings.find(s => s.key === 'theme_primary')?.value || theme.primary;
-    const secondary = settings.find(s => s.key === 'theme_secondary')?.value || theme.secondary;
-    const background = settings.find(s => s.key === 'theme_background')?.value || theme.background;
+    const primary = settings.find(s => s.key === 'theme_primary')?.value || themeColors.primary;
+    const secondary = settings.find(s => s.key === 'theme_secondary')?.value || themeColors.secondary;
+    const background = settings.find(s => s.key === 'theme_background')?.value || themeColors.background;
 
-    setTheme({ primary, secondary, background });
+    setThemeColors({ primary, secondary, background });
     setLoading(false);
   };
 
@@ -79,9 +79,9 @@ export default function AdminThemeTab() {
       .single();
 
     const updates = [
-      { key: 'theme_primary', value: theme.primary, updated_by: userData?.id },
-      { key: 'theme_secondary', value: theme.secondary, updated_by: userData?.id },
-      { key: 'theme_background', value: theme.background, updated_by: userData?.id },
+      { key: 'theme_primary', value: themeColors.primary, updated_by: userData?.id },
+      { key: 'theme_secondary', value: themeColors.secondary, updated_by: userData?.id },
+      { key: 'theme_background', value: themeColors.background, updated_by: userData?.id },
     ];
 
     for (const update of updates) {
@@ -109,7 +109,7 @@ export default function AdminThemeTab() {
   };
 
   const handleReset = () => {
-    setTheme({
+    setThemeColors({
       primary: { main: '#00E5FF', light: '#5DFFFF', dark: '#00B2CC' },
       secondary: { main: '#E91E63', light: '#FF6090', dark: '#B0003A' },
       background: { default: '#000', paper: '#000' },
@@ -119,7 +119,7 @@ export default function AdminThemeTab() {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-        <CircularProgress />
+        <CircularProgress sx={{ color: theme.palette.text.primary }} />
       </Box>
     );
   }
@@ -127,7 +127,7 @@ export default function AdminThemeTab() {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600 }}>
+        <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
           Theme Customization
         </Typography>
         <Box sx={{ display: 'flex', gap: 2 }}>
@@ -135,18 +135,34 @@ export default function AdminThemeTab() {
             startIcon={<RefreshIcon />}
             onClick={handleReset}
             variant="outlined"
-            sx={{ borderColor: 'warning.main', color: 'warning.main' }}
+            sx={{
+              borderColor: theme.palette.text.primary,
+              color: theme.palette.text.primary,
+              '&:hover': {
+                borderColor: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
+              },
+            }}
           >
             Reset
           </Button>
           <Button
             startIcon={<SaveIcon />}
             onClick={handleSave}
-            variant="contained"
+            variant="outlined"
             disabled={saving}
             sx={{
-              backgroundColor: 'primary.main',
-              color: 'primary.contrastText',
+              borderColor: theme.palette.text.primary,
+              color: theme.palette.text.primary,
+              fontWeight: 600,
+              '&:hover': {
+                borderColor: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
+              },
+              '&.Mui-disabled': {
+                borderColor: theme.palette.divider,
+                color: theme.palette.text.secondary,
+              },
             }}
           >
             {saving ? 'Saving...' : 'Save Theme'}
@@ -155,138 +171,330 @@ export default function AdminThemeTab() {
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert
+          severity="error"
+          sx={{
+            mb: 3,
+            backgroundColor: theme.palette.action.hover,
+            border: `1px solid ${theme.palette.divider}`,
+            color: theme.palette.text.primary,
+          }}
+        >
           {error}
         </Alert>
       )}
 
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
-          <Card sx={{ border: '2px solid', borderColor: 'primary.main' }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
-                Primary Colors
-              </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Paper
+            sx={{
+              p: 3,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
+            }}
+          >
+            <Typography variant="h6" sx={{ mb: 2, color: theme.palette.text.primary, fontWeight: 600 }}>
+              Primary Colors
+            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <TextField
                   label="Primary Main"
                   type="color"
-                  value={theme.primary.main}
-                  onChange={(e) => setTheme({ ...theme, primary: { ...theme.primary, main: e.target.value } })}
-                  InputLabelProps={{ shrink: true }}
-                  fullWidth
-                />
-                <TextField
-                  label="Primary Light"
-                  type="color"
-                  value={theme.primary.light}
-                  onChange={(e) => setTheme({ ...theme, primary: { ...theme.primary, light: e.target.value } })}
-                  InputLabelProps={{ shrink: true }}
-                  fullWidth
-                />
-                <TextField
-                  label="Primary Dark"
-                  type="color"
-                  value={theme.primary.dark}
-                  onChange={(e) => setTheme({ ...theme, primary: { ...theme.primary, dark: e.target.value } })}
-                  InputLabelProps={{ shrink: true }}
-                  fullWidth
-                />
-              </Box>
-            </CardContent>
-          </Card>
+                  value={themeColors.primary.main}
+                  onChange={(e) => setThemeColors({ ...themeColors, primary: { ...themeColors.primary, main: e.target.value } })}
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: theme.palette.action.hover,
+                    '& fieldset': {
+                      borderColor: theme.palette.divider,
+                    },
+                    '&:hover fieldset': {
+                      borderColor: theme.palette.text.secondary,
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: theme.palette.text.primary,
+                    },
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: theme.palette.text.secondary,
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: theme.palette.text.primary,
+                  },
+                }}
+              />
+              <TextField
+                label="Primary Light"
+                type="color"
+                  value={themeColors.primary.light}
+                  onChange={(e) => setThemeColors({ ...themeColors, primary: { ...themeColors.primary, light: e.target.value } })}
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: theme.palette.action.hover,
+                    '& fieldset': {
+                      borderColor: theme.palette.divider,
+                    },
+                    '&:hover fieldset': {
+                      borderColor: theme.palette.text.secondary,
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: theme.palette.text.primary,
+                    },
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: theme.palette.text.secondary,
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: theme.palette.text.primary,
+                  },
+                }}
+              />
+              <TextField
+                label="Primary Dark"
+                type="color"
+                  value={themeColors.primary.dark}
+                  onChange={(e) => setThemeColors({ ...themeColors, primary: { ...themeColors.primary, dark: e.target.value } })}
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: theme.palette.action.hover,
+                    '& fieldset': {
+                      borderColor: theme.palette.divider,
+                    },
+                    '&:hover fieldset': {
+                      borderColor: theme.palette.text.secondary,
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: theme.palette.text.primary,
+                    },
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: theme.palette.text.secondary,
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: theme.palette.text.primary,
+                  },
+                }}
+              />
+            </Box>
+          </Paper>
         </Grid>
 
         <Grid item xs={12} md={6}>
-          <Card sx={{ border: '2px solid', borderColor: 'secondary.main' }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2, color: 'secondary.main' }}>
-                Secondary Colors
-              </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <TextField
-                  label="Secondary Main"
-                  type="color"
-                  value={theme.secondary.main}
-                  onChange={(e) => setTheme({ ...theme, secondary: { ...theme.secondary, main: e.target.value } })}
-                  InputLabelProps={{ shrink: true }}
-                  fullWidth
-                />
-                <TextField
-                  label="Secondary Light"
-                  type="color"
-                  value={theme.secondary.light}
-                  onChange={(e) => setTheme({ ...theme, secondary: { ...theme.secondary, light: e.target.value } })}
-                  InputLabelProps={{ shrink: true }}
-                  fullWidth
-                />
-                <TextField
-                  label="Secondary Dark"
-                  type="color"
-                  value={theme.secondary.dark}
-                  onChange={(e) => setTheme({ ...theme, secondary: { ...theme.secondary, dark: e.target.value } })}
-                  InputLabelProps={{ shrink: true }}
-                  fullWidth
-                />
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12}>
-          <Card sx={{ border: '2px solid', borderColor: 'info.main' }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2, color: 'info.main' }}>
-                Background Colors
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <TextField
-                  label="Default Background"
-                  type="color"
-                  value={theme.background.default}
-                  onChange={(e) => setTheme({ ...theme, background: { ...theme.background, default: e.target.value } })}
-                  InputLabelProps={{ shrink: true }}
-                  fullWidth
-                />
-                <TextField
-                  label="Paper Background"
-                  type="color"
-                  value={theme.background.paper}
-                  onChange={(e) => setTheme({ ...theme, background: { ...theme.background, paper: e.target.value } })}
-                  InputLabelProps={{ shrink: true }}
-                  fullWidth
-                />
-              </Box>
-            </CardContent>
-          </Card>
+          <Paper
+            sx={{
+              p: 3,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
+            }}
+          >
+            <Typography variant="h6" sx={{ mb: 2, color: theme.palette.text.primary, fontWeight: 600 }}>
+              Secondary Colors
+            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <TextField
+                label="Secondary Main"
+                type="color"
+                  value={themeColors.secondary.main}
+                  onChange={(e) => setThemeColors({ ...themeColors, secondary: { ...themeColors.secondary, main: e.target.value } })}
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: theme.palette.action.hover,
+                    '& fieldset': {
+                      borderColor: theme.palette.divider,
+                    },
+                    '&:hover fieldset': {
+                      borderColor: theme.palette.text.secondary,
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: theme.palette.text.primary,
+                    },
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: theme.palette.text.secondary,
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: theme.palette.text.primary,
+                  },
+                }}
+              />
+              <TextField
+                label="Secondary Light"
+                type="color"
+                  value={themeColors.secondary.light}
+                  onChange={(e) => setThemeColors({ ...themeColors, secondary: { ...themeColors.secondary, light: e.target.value } })}
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: theme.palette.action.hover,
+                    '& fieldset': {
+                      borderColor: theme.palette.divider,
+                    },
+                    '&:hover fieldset': {
+                      borderColor: theme.palette.text.secondary,
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: theme.palette.text.primary,
+                    },
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: theme.palette.text.secondary,
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: theme.palette.text.primary,
+                  },
+                }}
+              />
+              <TextField
+                label="Secondary Dark"
+                type="color"
+                  value={themeColors.secondary.dark}
+                  onChange={(e) => setThemeColors({ ...themeColors, secondary: { ...themeColors.secondary, dark: e.target.value } })}
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: theme.palette.action.hover,
+                    '& fieldset': {
+                      borderColor: theme.palette.divider,
+                    },
+                    '&:hover fieldset': {
+                      borderColor: theme.palette.text.secondary,
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: theme.palette.text.primary,
+                    },
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: theme.palette.text.secondary,
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: theme.palette.text.primary,
+                  },
+                }}
+              />
+            </Box>
+          </Paper>
         </Grid>
 
         <Grid item xs={12}>
           <Paper
             sx={{
               p: 3,
-              backgroundColor: theme.background.paper,
-              border: `2px solid ${theme.primary.main}`,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
             }}
           >
-            <Typography variant="h6" sx={{ mb: 2, color: theme.primary.main }}>
+            <Typography variant="h6" sx={{ mb: 2, color: theme.palette.text.primary, fontWeight: 600 }}>
+              Background Colors
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
+                label="Default Background"
+                type="color"
+                  value={themeColors.background.default}
+                  onChange={(e) => setThemeColors({ ...themeColors, background: { ...themeColors.background, default: e.target.value } })}
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: theme.palette.action.hover,
+                    '& fieldset': {
+                      borderColor: theme.palette.divider,
+                    },
+                    '&:hover fieldset': {
+                      borderColor: theme.palette.text.secondary,
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: theme.palette.text.primary,
+                    },
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: theme.palette.text.secondary,
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: theme.palette.text.primary,
+                  },
+                }}
+              />
+              <TextField
+                label="Paper Background"
+                type="color"
+                  value={themeColors.background.paper}
+                  onChange={(e) => setThemeColors({ ...themeColors, background: { ...themeColors.background, paper: e.target.value } })}
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: theme.palette.action.hover,
+                    '& fieldset': {
+                      borderColor: theme.palette.divider,
+                    },
+                    '&:hover fieldset': {
+                      borderColor: theme.palette.text.secondary,
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: theme.palette.text.primary,
+                    },
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: theme.palette.text.secondary,
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: theme.palette.text.primary,
+                  },
+                }}
+              />
+            </Box>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12}>
+          <Paper
+            sx={{
+              p: 3,
+              backgroundColor: theme.palette.action.hover,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
+            }}
+          >
+            <Typography variant="h6" sx={{ mb: 2, color: theme.palette.text.primary, fontWeight: 600 }}>
               Preview
             </Typography>
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
               <Button
-                variant="contained"
+                variant="outlined"
                 sx={{
-                  backgroundColor: theme.primary.main,
-                  color: '#000',
+                  borderColor: theme.palette.text.primary,
+                  color: theme.palette.text.primary,
+                  '&:hover': {
+                    borderColor: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
+                  },
                 }}
               >
                 Primary Button
               </Button>
               <Button
-                variant="contained"
+                variant="outlined"
                 sx={{
-                  backgroundColor: theme.secondary.main,
-                  color: '#fff',
+                  borderColor: theme.palette.text.primary,
+                  color: theme.palette.text.primary,
+                  '&:hover': {
+                    borderColor: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
+                  },
                 }}
               >
                 Secondary Button

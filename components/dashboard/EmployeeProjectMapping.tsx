@@ -5,12 +5,6 @@ import {
   Box,
   Typography,
   Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Avatar,
   Chip,
   Tooltip,
@@ -19,11 +13,13 @@ import {
   Select,
   MenuItem,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { format, parseISO } from 'date-fns';
 import type { Project } from '@/types/project';
 import type { ProjectTask } from '@/types/project';
 import type { User, UserRole } from '@/types/project';
 import { STATUS_COLORS, PRIORITY_COLORS } from '@/lib/constants';
+import SortableTable from '@/components/dashboard/SortableTable';
 
 interface EmployeeProjectMappingProps {
   projects: Project[];
@@ -42,6 +38,7 @@ export default function EmployeeProjectMapping({
   currentUserId,
   currentUserRole,
 }: EmployeeProjectMappingProps) {
+  const theme = useTheme();
   const [viewMode, setViewMode] = useState<'team' | 'personal'>('team');
   const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
 
@@ -140,13 +137,13 @@ export default function EmployeeProjectMapping({
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'done':
-        return '#00FF88';
+        return '#4CAF50';
       case 'in_progress':
-        return '#00E5FF';
+        return theme.palette.text.primary;
       case 'todo':
-        return '#B0B0B0';
+        return theme.palette.text.secondary;
       default:
-        return '#B0B0B0';
+        return theme.palette.text.secondary;
     }
   };
 
@@ -173,114 +170,204 @@ export default function EmployeeProjectMapping({
     return projects.filter((p) => userProjectIds.has(p.id));
   }, [projects, projectMembers, currentUserId]);
 
-  // Personal task view
-  const renderPersonalTaskView = () => {
-    if (!currentUserId) return null;
-
+  // Personal task view columns
+  const personalTaskColumns = useMemo(() => {
     const filteredTasks = selectedProjectId === 'all' 
       ? currentUserTasks 
       : currentUserTasks.filter((t) => t.project_id === selectedProjectId);
 
-    return (
-      <TableContainer>
-          <Table>
-            <TableHead sx={{ backgroundColor: '#000' }}>
-              <TableRow>
-                <TableCell sx={{ backgroundColor: '#000', color: '#00E5FF', fontWeight: 600, borderBottom: '2px solid rgba(0, 229, 255, 0.2)' }}>
-                  Task
-                </TableCell>
-                <TableCell sx={{ backgroundColor: '#000', color: '#00E5FF', fontWeight: 600, borderBottom: '2px solid rgba(0, 229, 255, 0.2)' }}>
-                  Project
-                </TableCell>
-                <TableCell sx={{ backgroundColor: '#000', color: '#00E5FF', fontWeight: 600, borderBottom: '2px solid rgba(0, 229, 255, 0.2)', textAlign: 'center' }}>
-                  Status
-                </TableCell>
-                <TableCell sx={{ backgroundColor: '#000', color: '#00E5FF', fontWeight: 600, borderBottom: '2px solid rgba(0, 229, 255, 0.2)', textAlign: 'center' }}>
-                  Priority
-                </TableCell>
-                <TableCell sx={{ backgroundColor: '#000', color: '#00E5FF', fontWeight: 600, borderBottom: '2px solid rgba(0, 229, 255, 0.2)' }}>
-                  Due Date
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredTasks.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 4, color: '#B0B0B0' }}>
-                    No tasks found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredTasks.map((task) => {
-                  const project = projects.find((p) => p.id === task.project_id);
-                  return (
-                    <TableRow
-                      key={task.id}
-                      sx={{
-                        '&:hover': {
-                          backgroundColor: 'rgba(0, 229, 255, 0.05)',
-                        },
-                      }}
-                    >
-                      <TableCell sx={{ color: '#E0E0E0' }}>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                          {task.title}
-                        </Typography>
-                      </TableCell>
-                      <TableCell sx={{ color: '#E0E0E0' }}>
-                        {project?.name || 'Unknown Project'}
-                      </TableCell>
-                      <TableCell align="center">
-                        <Chip
-                          label={task.status === 'done' ? 'Completed' : task.status === 'in_progress' ? 'In Progress' : 'To Do'}
-                          size="small"
-                          sx={{
-                            backgroundColor: `${getStatusColor(task.status)}20`,
-                            color: getStatusColor(task.status),
-                            border: `1px solid ${getStatusColor(task.status)}40`,
-                            fontWeight: 600,
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell align="center">
-                        <Chip
-                          label={task.priority || 'Medium'}
-                          size="small"
-                          sx={{
-                            backgroundColor: `${PRIORITY_COLORS[task.priority as keyof typeof PRIORITY_COLORS] || '#00E5FF'}20`,
-                            color: PRIORITY_COLORS[task.priority as keyof typeof PRIORITY_COLORS] || '#00E5FF',
-                            border: `1px solid ${PRIORITY_COLORS[task.priority as keyof typeof PRIORITY_COLORS] || '#00E5FF'}40`,
-                            fontWeight: 600,
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell sx={{ color: '#E0E0E0' }}>
-                        {task.due_date ? format(parseISO(task.due_date), 'MMM d, yyyy') : '-'}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-    );
-  };
+    return [
+      {
+        key: 'title',
+        label: 'Task',
+        sortable: true,
+      },
+      {
+        key: 'project',
+        label: 'Project',
+        sortable: false,
+        render: (_: any, row: ProjectTask) => {
+          const project = projects.find((p) => p.id === row.project_id);
+          return project?.name || 'Unknown Project';
+        },
+      },
+      {
+        key: 'status',
+        label: 'Status',
+        sortable: true,
+        align: 'center' as const,
+        render: (value: string) => (
+          <Chip
+            label={value === 'done' ? 'Completed' : value === 'in_progress' ? 'In Progress' : 'To Do'}
+            size="small"
+            sx={{
+              backgroundColor: theme.palette.action.hover,
+              color: getStatusColor(value),
+              border: `1px solid ${theme.palette.divider}`,
+              fontWeight: 500,
+            }}
+          />
+        ),
+      },
+      {
+        key: 'priority',
+        label: 'Priority',
+        sortable: true,
+        align: 'center' as const,
+        render: (value: string) => (
+          <Chip
+            label={value || 'Medium'}
+            size="small"
+            sx={{
+              backgroundColor: theme.palette.action.hover,
+              color: theme.palette.text.primary,
+              border: `1px solid ${theme.palette.divider}`,
+              fontWeight: 500,
+            }}
+          />
+        ),
+      },
+      {
+        key: 'due_date',
+        label: 'Due Date',
+        sortable: true,
+        render: (value: string | null) => value ? format(parseISO(value), 'MMM d, yyyy') : '-',
+      },
+    ];
+  }, [currentUserTasks, selectedProjectId, projects, theme]);
+
+  // Team view columns
+  const teamColumns = useMemo(() => {
+    type EmployeeMappingItem = {
+      user: User;
+      projects: Array<{ project: Project; tasks: ProjectTask[]; role?: string }>;
+      totalTasks: number;
+      completedTasks: number;
+      inProgressTasks: number;
+    };
+
+    return [
+    {
+      key: 'user',
+      label: 'Team Member',
+      sortable: true,
+      render: (_: any, row: EmployeeMappingItem) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Avatar
+            src={row.user.avatar_url || undefined}
+            sx={{
+              width: 40,
+              height: 40,
+              bgcolor: theme.palette.text.primary,
+              color: theme.palette.background.default,
+            }}
+          >
+            {getInitials(row.user.name, row.user.email)}
+          </Avatar>
+          <Box>
+            <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontWeight: 500 }}>
+              {row.user.name || row.user.email || 'Unknown User'}
+            </Typography>
+            {row.user.role && (
+              <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                {row.user.role}
+              </Typography>
+            )}
+          </Box>
+        </Box>
+      ),
+    },
+    {
+      key: 'projects',
+      label: 'Projects',
+      sortable: false,
+      render: (_: any, row: EmployeeMappingItem) => (
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+          {row.projects.map(({ project, tasks: projectTasks, role }) => (
+            <Tooltip
+              key={project.id}
+              title={`${project.name} - ${projectTasks.length} task${projectTasks.length !== 1 ? 's' : ''}${role ? ` (${role})` : ''}`}
+            >
+              <Chip
+                label={project.name}
+                size="small"
+                sx={{
+                  backgroundColor: theme.palette.action.hover,
+                  color: theme.palette.text.primary,
+                  border: `1px solid ${theme.palette.divider}`,
+                  maxWidth: 200,
+                  '& .MuiChip-label': {
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  },
+                }}
+              />
+            </Tooltip>
+          ))}
+        </Box>
+      ),
+    },
+    {
+      key: 'totalTasks',
+      label: 'Total Tasks',
+      sortable: true,
+      align: 'center' as const,
+      render: (value: number) => (
+        <Typography sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+          {value}
+        </Typography>
+      ),
+    },
+    {
+      key: 'inProgressTasks',
+      label: 'In Progress',
+      sortable: true,
+      align: 'center' as const,
+      render: (value: number) => (
+        <Chip
+          label={value}
+          size="small"
+          sx={{
+            backgroundColor: theme.palette.action.hover,
+            color: theme.palette.text.primary,
+            border: `1px solid ${theme.palette.divider}`,
+            fontWeight: 600,
+          }}
+        />
+      ),
+    },
+    {
+      key: 'completedTasks',
+      label: 'Completed',
+      sortable: true,
+      align: 'center' as const,
+      render: (value: number) => (
+        <Chip
+          label={value}
+          size="small"
+          sx={{
+            backgroundColor: theme.palette.action.hover,
+            color: '#4CAF50',
+            border: `1px solid ${theme.palette.divider}`,
+            fontWeight: 600,
+          }}
+        />
+      ),
+    },
+    ];
+  }, [theme]);
+
+  const filteredTasks = selectedProjectId === 'all' 
+    ? currentUserTasks 
+    : currentUserTasks.filter((t) => t.project_id === selectedProjectId);
 
   return (
-    <Paper
-      sx={{
-        backgroundColor: '#000',
-        border: '2px solid rgba(0, 229, 255, 0.2)',
-        borderRadius: 2,
-        p: 3,
-      }}
-    >
+    <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography
           variant="h6"
           sx={{
-            color: '#00E5FF',
+            color: theme.palette.text.primary,
             fontWeight: 600,
           }}
         >
@@ -289,21 +376,21 @@ export default function EmployeeProjectMapping({
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
           {isAdminOrPM && (
             <FormControl size="small" sx={{ minWidth: 200 }}>
-              <InputLabel sx={{ color: '#B0B0B0' }}>View</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>View</InputLabel>
               <Select
                 value={viewMode}
                 onChange={(e) => setViewMode(e.target.value as 'team' | 'personal')}
                 label="View"
                 sx={{
-                  color: '#E0E0E0',
+                  color: theme.palette.text.primary,
                   '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                 }}
               >
@@ -314,21 +401,21 @@ export default function EmployeeProjectMapping({
           )}
           {showPersonalView && currentUserProjects.length > 1 && (
             <FormControl size="small" sx={{ minWidth: 200 }}>
-              <InputLabel sx={{ color: '#B0B0B0' }}>Project</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Project</InputLabel>
               <Select
                 value={selectedProjectId}
                 onChange={(e) => setSelectedProjectId(e.target.value)}
                 label="Project"
                 sx={{
-                  color: '#E0E0E0',
+                  color: theme.palette.text.primary,
                   '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                 }}
               >
@@ -345,169 +432,19 @@ export default function EmployeeProjectMapping({
       </Box>
 
       {showPersonalView ? (
-        renderPersonalTaskView()
+        <SortableTable
+          data={filteredTasks}
+          columns={personalTaskColumns}
+          emptyMessage="No tasks found"
+        />
       ) : (
-        <TableContainer>
-        <Table>
-          <TableHead sx={{ backgroundColor: '#000' }}>
-            <TableRow>
-              <TableCell
-                sx={{
-                  backgroundColor: '#000',
-                  color: '#00E5FF',
-                  fontWeight: 600,
-                  borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
-                }}
-              >
-                Team Member
-              </TableCell>
-              <TableCell
-                sx={{
-                  backgroundColor: '#000',
-                  color: '#00E5FF',
-                  fontWeight: 600,
-                  borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
-                }}
-              >
-                Projects
-              </TableCell>
-              <TableCell
-                sx={{
-                  backgroundColor: '#000',
-                  color: '#00E5FF',
-                  fontWeight: 600,
-                  borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
-                  textAlign: 'center',
-                }}
-              >
-                Total Tasks
-              </TableCell>
-              <TableCell
-                sx={{
-                  backgroundColor: '#000',
-                  color: '#00E5FF',
-                  fontWeight: 600,
-                  borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
-                  textAlign: 'center',
-                }}
-              >
-                In Progress
-              </TableCell>
-              <TableCell
-                sx={{
-                  backgroundColor: '#000',
-                  color: '#00E5FF',
-                  fontWeight: 600,
-                  borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
-                  textAlign: 'center',
-                }}
-              >
-                Completed
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {employeeMapping.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 4, color: '#B0B0B0' }}>
-                  No team member assignments found
-                </TableCell>
-              </TableRow>
-            ) : (
-              employeeMapping.map((employee) => (
-                <TableRow
-                  key={employee.user.id}
-                  sx={{
-                    '&:hover': {
-                      backgroundColor: 'rgba(0, 229, 255, 0.05)',
-                    },
-                  }}
-                >
-                  <TableCell sx={{ color: '#E0E0E0' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Avatar
-                        src={employee.user.avatar_url || undefined}
-                        sx={{
-                          width: 40,
-                          height: 40,
-                          bgcolor: '#00E5FF',
-                          color: '#000',
-                        }}
-                      >
-                        {getInitials(employee.user.name, employee.user.email)}
-                      </Avatar>
-                      <Box>
-                        <Typography variant="body2" sx={{ color: '#E0E0E0', fontWeight: 500 }}>
-                          {employee.user.name || employee.user.email || 'Unknown User'}
-                        </Typography>
-                        {employee.user.role && (
-                          <Typography variant="caption" sx={{ color: '#B0B0B0' }}>
-                            {employee.user.role}
-                          </Typography>
-                        )}
-                      </Box>
-                    </Box>
-                  </TableCell>
-                  <TableCell sx={{ color: '#E0E0E0' }}>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                      {employee.projects.map(({ project, tasks: projectTasks, role }) => (
-                        <Tooltip
-                          key={project.id}
-                          title={`${project.name} - ${projectTasks.length} task${projectTasks.length !== 1 ? 's' : ''}${role ? ` (${role})` : ''}`}
-                        >
-                          <Chip
-                            label={project.name}
-                            size="small"
-                            sx={{
-                              backgroundColor: 'rgba(0, 229, 255, 0.15)',
-                              color: '#00E5FF',
-                              border: '1px solid rgba(0, 229, 255, 0.3)',
-                              maxWidth: 200,
-                              '& .MuiChip-label': {
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                              },
-                            }}
-                          />
-                        </Tooltip>
-                      ))}
-                    </Box>
-                  </TableCell>
-                  <TableCell align="center" sx={{ color: '#E0E0E0', fontWeight: 600 }}>
-                    {employee.totalTasks}
-                  </TableCell>
-                  <TableCell align="center">
-                    <Chip
-                      label={employee.inProgressTasks}
-                      size="small"
-                      sx={{
-                        backgroundColor: 'rgba(0, 229, 255, 0.15)',
-                        color: '#00E5FF',
-                        border: '1px solid rgba(0, 229, 255, 0.3)',
-                        fontWeight: 600,
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell align="center">
-                    <Chip
-                      label={employee.completedTasks}
-                      size="small"
-                      sx={{
-                        backgroundColor: 'rgba(0, 255, 136, 0.15)',
-                        color: '#00FF88',
-                        border: '1px solid rgba(0, 255, 136, 0.3)',
-                        fontWeight: 600,
-                      }}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+        <SortableTable
+          data={employeeMapping}
+          columns={teamColumns}
+          emptyMessage="No team member assignments found"
+        />
       )}
-    </Paper>
+    </Box>
   );
 }
 

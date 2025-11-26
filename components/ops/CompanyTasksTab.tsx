@@ -11,6 +11,7 @@ import {
   Chip,
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import type { OpsTaskWithRelations, CompanyContact } from '@/types/ops';
 import SortableTable from '@/components/dashboard/SortableTable';
@@ -21,6 +22,7 @@ interface CompanyTasksTabProps {
 }
 
 export default function CompanyTasksTab({ companyId }: CompanyTasksTabProps) {
+  const theme = useTheme();
   const { showSuccess, showError } = useNotification();
   const [tasks, setTasks] = useState<OpsTaskWithRelations[]>([]);
   const [contacts, setContacts] = useState<CompanyContact[]>([]);
@@ -151,14 +153,14 @@ export default function CompanyTasksTab({ companyId }: CompanyTasksTabProps) {
           <IconButton
             size="small"
             onClick={(e) => handleEditTask(row, e)}
-            sx={{ color: '#00E5FF' }}
+            sx={{ color: theme.palette.text.primary }}
           >
             <EditIcon fontSize="small" />
           </IconButton>
           <IconButton
             size="small"
             onClick={(e) => handleDeleteTask(row, e)}
-            sx={{ color: '#FF1744' }}
+            sx={{ color: theme.palette.text.primary }}
           >
             <DeleteIcon fontSize="small" />
           </IconButton>
@@ -189,22 +191,23 @@ export default function CompanyTasksTab({ companyId }: CompanyTasksTabProps) {
         <Typography
           variant="h6"
           sx={{
-            color: '#00E5FF',
+            color: theme.palette.text.primary,
             fontWeight: 600,
           }}
         >
           Tasks
         </Typography>
         <Button
-          variant="contained"
+          variant="outlined"
           startIcon={<AddIcon />}
           onClick={handleCreateTask}
           sx={{
-            backgroundColor: '#00E5FF',
-            color: '#000',
+            borderColor: theme.palette.text.primary,
+            color: theme.palette.text.primary,
             fontWeight: 600,
             '&:hover': {
-              backgroundColor: '#00B2CC',
+              borderColor: theme.palette.text.secondary,
+              backgroundColor: theme.palette.action.hover,
             },
           }}
         >

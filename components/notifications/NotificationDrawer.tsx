@@ -19,6 +19,7 @@ import {
   MenuItem,
   Tooltip,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Close as CloseIcon,
   CheckCircle as CheckCircleIcon,
@@ -45,6 +46,7 @@ type NotificationGroup = {
 
 export default function NotificationDrawer({ open, onClose }: NotificationDrawerProps) {
   const router = useRouter();
+  const theme = useTheme();
   const supabase = createSupabaseClient();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -302,8 +304,8 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
       PaperProps={{
         sx: {
           width: { xs: '100%', sm: '75%', md: '50%' },
-          backgroundColor: '#000',
-          borderLeft: '2px solid rgba(0, 229, 255, 0.2)',
+          backgroundColor: theme.palette.background.paper,
+          borderLeft: `1px solid ${theme.palette.divider}`,
         },
       }}
     >
@@ -315,14 +317,14 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
             justifyContent: 'space-between',
             alignItems: 'center',
             p: 2,
-            borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+            borderBottom: `1px solid ${theme.palette.divider}`,
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Typography
               variant="h6"
               sx={{
-                color: '#00E5FF',
+                color: theme.palette.text.primary,
                 fontWeight: 600,
               }}
             >
@@ -332,8 +334,12 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
               <Chip
                 label={unreadCount}
                 size="small"
-                color="error"
-                sx={{ height: 20, fontSize: '0.7rem' }}
+                sx={{ 
+                  height: 20, 
+                  fontSize: '0.7rem',
+                  backgroundColor: theme.palette.text.primary,
+                  color: theme.palette.background.default,
+                }}
               />
             )}
           </Box>
@@ -344,7 +350,7 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
                 onClick={handleMarkAllAsRead}
                 disabled={markingAllRead}
                 sx={{
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                   textTransform: 'none',
                   fontSize: '0.75rem',
                 }}
@@ -352,7 +358,7 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
                 {markingAllRead ? <CircularProgress size={16} /> : 'Mark all read'}
               </Button>
             )}
-            <IconButton onClick={onClose} sx={{ color: '#00E5FF' }} title="Close">
+            <IconButton onClick={onClose} sx={{ color: theme.palette.text.primary }} title="Close">
               <CloseIcon />
             </IconButton>
           </Box>
@@ -365,7 +371,7 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
               <CircularProgress />
             </Box>
           ) : notifications.length === 0 ? (
-            <Alert severity="info" sx={{ backgroundColor: 'rgba(0, 229, 255, 0.1)' }}>
+            <Alert severity="info" sx={{ backgroundColor: theme.palette.action.hover }}>
               No notifications yet
             </Alert>
           ) : (
@@ -374,7 +380,7 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
                 <Typography
                   variant="overline"
                   sx={{
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
                     fontSize: '0.75rem',
                     fontWeight: 600,
                     textTransform: 'uppercase',
@@ -395,14 +401,12 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
                         borderRadius: 1,
                         backgroundColor: notification.read
                           ? 'transparent'
-                          : 'rgba(0, 229, 255, 0.05)',
-                        border: notification.read
-                          ? '1px solid rgba(0, 229, 255, 0.1)'
-                          : '2px solid rgba(0, 229, 255, 0.2)',
+                          : theme.palette.action.hover,
+                        border: `1px solid ${theme.palette.divider}`,
                         cursor: 'pointer',
                         position: 'relative',
                         '&:hover': {
-                          backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                          backgroundColor: theme.palette.action.hover,
                           '& .notification-actions': {
                             opacity: 1,
                           },
@@ -410,7 +414,7 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
                       }}
                     >
                       <Box sx={{ width: '100%', display: 'flex', gap: 1.5 }}>
-                        <Box sx={{ mt: 0.5, color: 'primary.main' }}>
+                        <Box sx={{ mt: 0.5, color: theme.palette.text.primary }}>
                           {getNotificationIcon(notification.type)}
                         </Box>
                         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -445,9 +449,9 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
                                   size="small"
                                   onClick={(e) => handleMenuOpen(e, notification.id)}
                                   sx={{
-                                    color: 'text.secondary',
+                                    color: theme.palette.text.secondary,
                                     '&:hover': {
-                                      backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                                      backgroundColor: theme.palette.action.hover,
                                     },
                                   }}
                                 >
@@ -491,8 +495,8 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
         onClick={(e) => e.stopPropagation()}
         PaperProps={{
           sx: {
-            backgroundColor: '#000',
-            border: '2px solid rgba(0, 229, 255, 0.2)',
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
           },
         }}
       >
@@ -517,7 +521,7 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
                 }
               }}
               disabled={deletingId === menuAnchor?.notificationId}
-              sx={{ color: 'error.main' }}
+              sx={{ color: theme.palette.text.primary }}
             >
               {deletingId === menuAnchor?.notificationId ? (
                 <>

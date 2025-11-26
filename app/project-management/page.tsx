@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Container,
   Box,
   Typography,
   Button,
@@ -11,7 +10,10 @@ import {
   Alert,
   Skeleton,
   LinearProgress,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   PlayArrow as PlayArrowIcon,
   Assignment as AssignmentIcon,
@@ -24,6 +26,7 @@ import SortableTable from '@/components/dashboard/SortableTable';
 import type { Project } from '@/types/project';
 
 export default function ProjectManagementPage() {
+  const theme = useTheme();
   const router = useRouter();
   const supabase = createSupabaseClient();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -177,26 +180,25 @@ export default function ProjectManagementPage() {
 
   if (loading) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
           <Skeleton variant="text" width="300px" height={48} />
         </Box>
         <LoadingSkeleton variant="dashboard" count={6} />
-      </Container>
+      </Box>
     );
   }
 
   return (
-    <Container maxWidth="lg" sx={{ pt: 4, pb: 4 }}>
+    <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
         <Typography
-          variant="h3"
+          variant="h4"
           component="h1"
           sx={{
-            fontWeight: 700,
-            background: '#00E5FF',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
+            fontWeight: 600,
+            color: theme.palette.text.primary,
+            fontSize: '1.5rem',
           }}
         >
           Project Management
@@ -208,9 +210,9 @@ export default function ProjectManagementPage() {
           severity="error"
           sx={{
             mb: 3,
-            backgroundColor: 'rgba(255, 23, 68, 0.1)',
-            border: '1px solid rgba(255, 23, 68, 0.3)',
-            color: '#FF1744',
+            backgroundColor: theme.palette.action.hover,
+            border: `1px solid ${theme.palette.divider}`,
+            color: theme.palette.text.primary,
           }}
           onClose={() => setError(null)}
         >
@@ -235,7 +237,7 @@ export default function ProjectManagementPage() {
               label: 'Project Name',
               sortable: true,
               render: (value) => (
-                <Typography variant="body2" sx={{ fontWeight: 600, color: '#00E5FF' }}>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
                   {value}
                 </Typography>
               ),
@@ -249,9 +251,9 @@ export default function ProjectManagementPage() {
                   label={String(value).replace('_', ' ')}
                   size="small"
                   sx={{
-                    backgroundColor: 'rgba(0, 255, 136, 0.15)',
-                    color: '#00FF88',
-                    border: '1px solid rgba(0, 255, 136, 0.3)',
+                    backgroundColor: theme.palette.action.hover,
+                    color: theme.palette.text.primary,
+                    border: `1px solid ${theme.palette.divider}`,
                     fontWeight: 500,
                   }}
                 />
@@ -264,7 +266,7 @@ export default function ProjectManagementPage() {
               render: (value, project) => {
                 if (!value) {
                   return (
-                    <Typography variant="body2" sx={{ color: '#B0B0B0' }}>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
                       Not initiated
                     </Typography>
                   );
@@ -273,7 +275,7 @@ export default function ProjectManagementPage() {
                 return (
                   <Box sx={{ minWidth: 150 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                      <Typography variant="body2" sx={{ color: '#B0B0B0' }}>
+                      <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
                         {progress}%
                       </Typography>
                     </Box>
@@ -283,9 +285,9 @@ export default function ProjectManagementPage() {
                       sx={{
                         height: 6,
                         borderRadius: 3,
-                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                        backgroundColor: theme.palette.action.hover,
                         '& .MuiLinearProgress-bar': {
-                          backgroundColor: '#00E5FF',
+                          backgroundColor: '#4CAF50',
                         },
                       }}
                     />
@@ -301,49 +303,45 @@ export default function ProjectManagementPage() {
               render: (_, project) => (
                 <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
                   {project.initiated_at ? (
-                    <Button
-                      variant="contained"
-                      size="small"
-                      startIcon={<AssignmentIcon />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(`/project-management/${project.id}`);
-                      }}
-                      sx={{
-                        backgroundColor: '#00E5FF',
-                        color: '#000',
-                        fontWeight: 600,
-                        '&:hover': {
-                          backgroundColor: '#00B2CC',
-                        },
-                      }}
-                    >
-                      Manage Tasks
-                    </Button>
+                    <Tooltip title="Manage Tasks">
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/project-management/${project.id}`);
+                        }}
+                        sx={{
+                          color: theme.palette.text.primary,
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        }}
+                      >
+                        <AssignmentIcon />
+                      </IconButton>
+                    </Tooltip>
                   ) : (
-                    <Button
-                      variant="contained"
-                      size="small"
-                      startIcon={<PlayArrowIcon />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleInitiateProject(project.id);
-                      }}
-                      disabled={initiating === project.id}
-                      sx={{
-                        backgroundColor: '#E91E63',
-                        color: '#FFF',
-                        fontWeight: 600,
-                        '&:hover': {
-                          backgroundColor: '#C2185B',
-                        },
-                        '&:disabled': {
-                          backgroundColor: 'rgba(233, 30, 99, 0.5)',
-                        },
-                      }}
-                    >
-                      {initiating === project.id ? 'Initiating...' : 'Initiate Project'}
-                    </Button>
+                    <Tooltip title={initiating === project.id ? 'Initiating...' : 'Initiate Project'}>
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleInitiateProject(project.id);
+                        }}
+                        disabled={initiating === project.id}
+                        sx={{
+                          color: theme.palette.text.primary,
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                          '&:disabled': {
+                            color: theme.palette.text.secondary,
+                          },
+                        }}
+                      >
+                        <PlayArrowIcon />
+                      </IconButton>
+                    </Tooltip>
                   )}
                 </Box>
               ),
@@ -357,7 +355,7 @@ export default function ProjectManagementPage() {
           emptyMessage="No projects found"
         />
       )}
-    </Container>
+    </Box>
   );
 }
 

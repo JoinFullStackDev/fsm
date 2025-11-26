@@ -80,17 +80,21 @@ const theme = createTheme({
     h4: { 
       fontFamily: 'var(--font-rubik), Rubik, sans-serif',
       fontWeight: 600, 
-      color: '#FFFFFF' 
+      color: '#FFFFFF',
+      fontSize: '1.25rem',
     },
     h5: { 
       fontFamily: 'var(--font-rubik), Rubik, sans-serif',
       fontWeight: 600, 
-      color: '#FFFFFF' 
+      color: '#4CAF50' 
     },
     h6: { 
       fontFamily: 'var(--font-rubik), Rubik, sans-serif',
       fontWeight: 600, 
       color: '#FFFFFF' 
+    },
+    body2: {
+      color: '#FFFFFF',
     },
   },
 
@@ -299,6 +303,14 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: 'none !important',
+        },
+      },
+    },
+
+    MuiTypography: {
+      styleOverrides: {
+        body2: {
+          color: '#FFFFFF !important',
         },
       },
     },

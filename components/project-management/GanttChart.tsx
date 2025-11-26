@@ -10,6 +10,7 @@ import {
   ToggleButton,
   ToggleButtonGroup,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import type { ProjectTask, ProjectTaskExtended } from '@/types/project';
 import { 
   format, 
@@ -31,13 +32,14 @@ interface GanttChartProps {
   phaseNames?: Record<number, string>;
 }
 
+// Muted, less vibrant phase colors that work well with monochrome theme
 const PHASE_COLORS: Record<number, string> = {
-  1: '#E91E63',
-  2: '#9C27B0',
-  3: '#673AB7',
-  4: '#3F51B5',
-  5: '#2196F3',
-  6: '#00BCD4',
+  1: '#8B7D8B', // Muted purple-gray
+  2: '#7A8B8B', // Muted teal-gray
+  3: '#8B8B7A', // Muted olive-gray
+  4: '#7A7A8B', // Muted blue-gray
+  5: '#8B7A7A', // Muted rose-gray
+  6: '#7A8B7A', // Muted green-gray
 };
 
 // Fallback phase names for backward compatibility
@@ -60,6 +62,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 type ViewMode = 'phases' | 'tasks';
 
 export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: GanttChartProps) {
+  const theme = useTheme();
   const [viewMode, setViewMode] = useState<ViewMode>('phases');
 
   // Merge provided phase names with defaults
@@ -324,14 +327,14 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
 
   return (
     <Box sx={{ width: '100%', height: '100%', overflow: 'auto' }}>
-      <Paper sx={{ p: 2, backgroundColor: '#000', minHeight: 600 }}>
+      <Paper sx={{ p: 2, backgroundColor: theme.palette.background.paper, minHeight: 600, border: `1px solid ${theme.palette.divider}` }}>
         {/* Header */}
         <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
-            <Typography variant="h6" sx={{ color: '#00E5FF', mb: 1 }}>
+            <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 1 }}>
               Gantt Chart
             </Typography>
-            <Typography variant="body2" sx={{ color: '#B0B0B0' }}>
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
               {viewMode === 'phases'
                 ? `${phaseData.length} phases`
                 : `${tasksWithDates.length} tasks with dates, ${tasksWithoutDates.length} without dates`}
@@ -348,18 +351,18 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
             size="small"
             sx={{
               '& .MuiToggleButton-root': {
-                color: '#B0B0B0',
-                borderColor: 'rgba(0, 229, 255, 0.3)',
+                color: theme.palette.text.secondary,
+                borderColor: theme.palette.divider,
                 '&.Mui-selected': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.2)',
-                  color: '#00E5FF',
-                  borderColor: '#00E5FF',
+                  backgroundColor: theme.palette.action.hover,
+                  color: theme.palette.text.primary,
+                  borderColor: theme.palette.text.primary,
                   '&:hover': {
-                    backgroundColor: 'rgba(0, 229, 255, 0.3)',
+                    backgroundColor: theme.palette.action.hover,
                   },
                 },
                 '&:hover': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                  backgroundColor: theme.palette.action.hover,
                 },
               },
             }}
@@ -373,16 +376,16 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
         <Box
           sx={{
             display: 'flex',
-            borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+            borderBottom: `1px solid ${theme.palette.divider}`,
             mb: 2,
             position: 'sticky',
             top: 0,
-            backgroundColor: '#000',
+            backgroundColor: theme.palette.background.paper,
             zIndex: 10,
           }}
         >
-          <Box sx={{ width: 250, p: 1, borderRight: '2px solid rgba(0, 229, 255, 0.2)' }}>
-            <Typography variant="caption" sx={{ color: '#B0B0B0', fontWeight: 600 }}>
+          <Box sx={{ width: 250, p: 1, borderRight: `1px solid ${theme.palette.divider}` }}>
+            <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600 }}>
               {viewMode === 'phases' ? 'Phase' : 'Task'}
             </Typography>
           </Box>
@@ -396,9 +399,9 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
                   top: 0,
                   bottom: 0,
                   width: '2px',
-                  backgroundColor: '#00E5FF',
+                  backgroundColor: theme.palette.text.primary,
                   zIndex: 15,
-                  boxShadow: '0 0 6px rgba(0, 229, 255, 0.8)',
+                  boxShadow: `0 0 6px ${theme.palette.text.primary}40`,
                   '&::before': {
                     content: '"Today"',
                     position: 'absolute',
@@ -406,7 +409,7 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
                     left: '50%',
                     transform: 'translateX(-50%)',
                     fontSize: '0.7rem',
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
                     fontWeight: 600,
                     whiteSpace: 'nowrap',
                   },
@@ -423,17 +426,17 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
                   key={weekIndex}
                   sx={{
                     width: `${weekWidth}%`,
-                    borderRight: '1px solid rgba(0, 229, 255, 0.1)',
+                    borderRight: `1px solid ${theme.palette.divider}`,
                     p: 1,
                     textAlign: 'center',
                     position: 'relative',
                   }}
                 >
-                  <Typography variant="caption" sx={{ color: '#B0B0B0', fontWeight: 500 }}>
+                  <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 500 }}>
                     {format(weekStart, 'MMM d')}
                   </Typography>
                   {weekIndex === dateColumns.length - 1 && (
-                    <Typography variant="caption" sx={{ color: '#B0B0B0', display: 'block', mt: 0.5 }}>
+                    <Typography variant="caption" sx={{ color: theme.palette.text.secondary, display: 'block', mt: 0.5 }}>
                       {format(weekEnd, 'MMM d')}
                     </Typography>
                   )}
@@ -451,7 +454,7 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
               const phaseBar = getPhaseBar(phase);
               if (!phaseBar) return null;
 
-              const phaseColor = PHASE_COLORS[phase.phaseNumber] || '#00E5FF';
+              const phaseColor = PHASE_COLORS[phase.phaseNumber] || theme.palette.text.secondary;
               const isOverdue = phase.endDate ? isBefore(phase.endDate, new Date()) : false;
 
               return (
@@ -462,7 +465,7 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
                     mb: 1.5,
                     minHeight: 40,
                     '&:hover': {
-                      backgroundColor: 'rgba(0, 229, 255, 0.05)',
+                      backgroundColor: theme.palette.action.hover,
                     },
                   }}
                 >
@@ -471,7 +474,7 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
                     sx={{
                       width: 250,
                       p: 1,
-                      borderRight: '2px solid rgba(0, 229, 255, 0.2)',
+                      borderRight: `1px solid ${theme.palette.divider}`,
                       display: 'flex',
                       alignItems: 'center',
                       gap: 1,
@@ -489,7 +492,7 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
                       <Typography
                         variant="body2"
                         sx={{
-                          color: '#E0E0E0',
+                          color: theme.palette.text.primary,
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
@@ -501,7 +504,7 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
                       <Typography
                         variant="caption"
                         sx={{
-                          color: '#B0B0B0',
+                          color: theme.palette.text.secondary,
                           fontSize: '0.7rem',
                         }}
                       >
@@ -528,9 +531,9 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
                           top: 0,
                           bottom: 0,
                           width: '2px',
-                          backgroundColor: '#00E5FF',
+                          backgroundColor: theme.palette.text.primary,
                           zIndex: 3,
-                          boxShadow: '0 0 4px rgba(0, 229, 255, 0.6)',
+                          boxShadow: `0 0 4px ${theme.palette.text.primary}40`,
                           pointerEvents: 'none',
                         }}
                       />
@@ -555,7 +558,7 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
                             Tasks: {phase.taskCount}
                           </Typography>
                           {isOverdue && (
-                            <Typography variant="caption" sx={{ display: 'block', color: '#FF6B6B', mt: 0.5 }}>
+                            <Typography variant="caption" sx={{ display: 'block', color: theme.palette.text.primary, mt: 0.5 }}>
                               ⚠ Phase overdue
                             </Typography>
                           )}
@@ -612,9 +615,9 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
             if (!taskBar) return null;
 
             const phaseColor = task.phase_number
-              ? PHASE_COLORS[task.phase_number] || '#00E5FF'
-              : '#00E5FF';
-            const priorityColor = PRIORITY_COLORS[task.priority] || '#00E5FF';
+              ? PHASE_COLORS[task.phase_number] || theme.palette.text.secondary
+              : theme.palette.text.secondary;
+            const priorityColor = PRIORITY_COLORS[task.priority] || theme.palette.text.secondary;
             
             // Check if task is overdue
             const isOverdue = task.due_date ? isBefore(parseISO(task.due_date), new Date()) : false;
@@ -628,7 +631,7 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
                   mb: 1.5,
                   minHeight: 36,
                   '&:hover': {
-                    backgroundColor: 'rgba(0, 229, 255, 0.05)',
+                    backgroundColor: theme.palette.action.hover,
                   },
                 }}
               >
@@ -637,7 +640,7 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
                   sx={{
                     width: 250,
                     p: 1,
-                    borderRight: '2px solid rgba(0, 229, 255, 0.2)',
+                    borderRight: `1px solid ${theme.palette.divider}`,
                     display: 'flex',
                     alignItems: 'center',
                     gap: 1,
@@ -655,14 +658,15 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
                     <Typography
                       variant="body2"
                       sx={{
-                        color: '#E0E0E0',
+                        color: theme.palette.text.primary,
                         cursor: 'pointer',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
                         fontWeight: 500,
                         '&:hover': {
-                          color: '#00E5FF',
+                          color: theme.palette.text.primary,
+                          opacity: 0.8,
                         },
                       }}
                       onClick={() => onTaskClick(task)}
@@ -672,7 +676,7 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
                     <Typography
                       variant="caption"
                       sx={{
-                        color: '#B0B0B0',
+                        color: theme.palette.text.secondary,
                         fontSize: '0.7rem',
                       }}
                     >
@@ -731,7 +735,7 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
                           </Typography>
                         )}
                         {isOverdue && (
-                          <Typography variant="caption" sx={{ display: 'block', color: '#FF6B6B', mt: 0.5 }}>
+                          <Typography variant="caption" sx={{ display: 'block', color: theme.palette.text.primary, mt: 0.5 }}>
                             ⚠ Overdue
                           </Typography>
                         )}
@@ -745,14 +749,14 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
                         left: taskBar.left,
                         width: taskBar.width,
                         height: 24,
-                        backgroundColor: isOverdue ? '#FF6B6B' : priorityColor,
+                        backgroundColor: isOverdue ? theme.palette.text.secondary : priorityColor,
                         borderRadius: 1,
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        border: isToday ? '2px solid #00E5FF' : 'none',
-                        boxShadow: isOverdue ? '0 0 8px rgba(255, 107, 107, 0.5)' : 'none',
+                        border: isToday ? `2px solid ${theme.palette.text.primary}` : 'none',
+                        boxShadow: isOverdue ? `0 0 8px ${theme.palette.text.secondary}40` : 'none',
                         zIndex: 4,
                         '&:hover': {
                           opacity: 0.85,
@@ -788,8 +792,8 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
 
           {/* Tasks without dates (only show in tasks view) */}
           {viewMode === 'tasks' && tasksWithoutDates.length > 0 && (
-            <Box sx={{ mt: 3, pt: 3, borderTop: '2px solid rgba(0, 229, 255, 0.2)' }}>
-              <Typography variant="subtitle2" sx={{ color: '#B0B0B0', mb: 2 }}>
+            <Box sx={{ mt: 3, pt: 3, borderTop: `1px solid ${theme.palette.divider}` }}>
+              <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, mb: 2 }}>
                 Tasks without dates ({tasksWithoutDates.length})
               </Typography>
               {tasksWithoutDates.map((task) => (
@@ -800,10 +804,12 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
                     mb: 1,
                     p: 1,
                     borderRadius: 1,
-                    backgroundColor: 'rgba(0, 229, 255, 0.05)',
+                    backgroundColor: theme.palette.action.hover,
+                    border: `1px solid ${theme.palette.divider}`,
                     cursor: 'pointer',
                     '&:hover': {
-                      backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                      backgroundColor: theme.palette.action.hover,
+                      opacity: 0.8,
                     },
                   }}
                   onClick={() => onTaskClick(task)}
@@ -813,20 +819,20 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
                       width: 4,
                       height: 20,
                       backgroundColor: task.phase_number
-                        ? PHASE_COLORS[task.phase_number] || '#00E5FF'
-                        : '#00E5FF',
+                        ? PHASE_COLORS[task.phase_number] || theme.palette.text.secondary
+                        : theme.palette.text.secondary,
                       borderRadius: 1,
                       mr: 1,
                     }}
                   />
-                  <Typography variant="body2" sx={{ color: '#E0E0E0', flex: 1 }}>
+                  <Typography variant="body2" sx={{ color: theme.palette.text.primary, flex: 1 }}>
                     {task.title}
                   </Typography>
                   <Chip
                     label={task.priority}
                     size="small"
                     sx={{
-                      backgroundColor: PRIORITY_COLORS[task.priority] || '#00E5FF',
+                      backgroundColor: PRIORITY_COLORS[task.priority] || theme.palette.text.secondary,
                       color: '#fff',
                       fontSize: '0.7rem',
                       height: 20,

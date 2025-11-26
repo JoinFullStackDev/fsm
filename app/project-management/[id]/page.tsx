@@ -13,6 +13,7 @@ import {
   Skeleton,
   Button,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import LoadingSkeleton from '@/components/ui/LoadingSkeleton';
 import { NavigateNext as NavigateNextIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
@@ -29,6 +30,7 @@ import type { ProjectTask, ProjectTaskExtended, Project } from '@/types/project'
 import type { User } from '@/types/project';
 
 export default function ProjectTaskManagementPage() {
+  const theme = useTheme();
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
@@ -362,18 +364,18 @@ export default function ProjectTaskManagementPage() {
     <Container maxWidth="xl" sx={{ py: 4, px: '15px' }}>
       {/* Breadcrumbs */}
       <Breadcrumbs
-        separator={<NavigateNextIcon fontSize="small" sx={{ color: '#B0B0B0' }} />}
+        separator={<NavigateNextIcon fontSize="small" sx={{ color: theme.palette.text.secondary }} />}
         sx={{ mb: 3 }}
       >
         <Link
           component="button"
           variant="body1"
           onClick={() => router.push('/project-management')}
-          sx={{ color: '#00E5FF', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+          sx={{ color: theme.palette.text.primary, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
         >
           Project Management
         </Link>
-        <Typography variant="body1" sx={{ color: '#E0E0E0' }}>
+        <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
           {project?.name || 'Project'}
         </Typography>
       </Breadcrumbs>
@@ -384,11 +386,9 @@ export default function ProjectTaskManagementPage() {
           variant="h3"
           component="h1"
           sx={{
-            fontWeight: 700,
-            fontSize: (theme) => `calc(${theme.typography.h3.fontSize} * 0.67)`,
-            background: '#00E5FF',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
+            fontWeight: 600,
+            fontSize: '1.5rem',
+            color: theme.palette.text.primary,
           }}
         >
           {project?.name || 'Project'} - Task Management
@@ -403,12 +403,12 @@ export default function ProjectTaskManagementPage() {
             sx={{
               height: '32px',
               minHeight: '32px',
-              borderColor: '#E91E63',
-              color: '#E91E63',
+              borderColor: theme.palette.text.primary,
+              color: theme.palette.text.primary,
               fontSize: '0.75rem',
               '&:hover': {
-                borderColor: '#C2185B',
-                backgroundColor: 'rgba(233, 30, 99, 0.1)',
+                borderColor: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
               },
             }}
           >
@@ -426,9 +426,9 @@ export default function ProjectTaskManagementPage() {
           severity="error"
           sx={{
             mb: 3,
-            backgroundColor: 'rgba(255, 23, 68, 0.1)',
-            border: '1px solid rgba(255, 23, 68, 0.3)',
-            color: '#FF1744',
+            backgroundColor: theme.palette.action.hover,
+            border: `1px solid ${theme.palette.divider}`,
+            color: theme.palette.text.primary,
           }}
           onClose={() => setError(null)}
         >

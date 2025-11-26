@@ -26,6 +26,7 @@ import {
   Select,
   MenuItem,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -46,6 +47,7 @@ import type { ProjectTemplate } from '@/types/project';
 import SortableTable from '@/components/dashboard/SortableTable';
 
 export default function TemplatesPage() {
+  const theme = useTheme();
   const router = useRouter();
   const supabase = createSupabaseClient();
   const { role, loading: roleLoading } = useRole();
@@ -293,87 +295,88 @@ export default function TemplatesPage() {
 
   if (loading) {
     return (
-      <>
-        <Container>
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-            <CircularProgress />
-          </Box>
-        </Container>
-      </>
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+        <CircularProgress sx={{ color: theme.palette.text.primary }} />
+      </Box>
     );
   }
 
   return (
-    <>
-      <Box sx={{ backgroundColor: '#000', minHeight: '100vh', pb: 4 }}>
-        <Container maxWidth="lg" sx={{ pt: 4, pb: 4 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-            <Typography
-              variant="h4"
-              sx={{
-                fontWeight: 700,
-                background: '#00E5FF',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}
-            >
-              Project Templates
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <Button
-                variant="outlined"
-                startIcon={<AutoAwesomeIcon />}
-                onClick={() => router.push('/admin/templates/generate')}
-                sx={{
-                  borderColor: '#E91E63',
-                  color: '#E91E63',
-                  fontWeight: 600,
-                  '&:hover': {
-                    borderColor: '#C2185B',
-                    backgroundColor: 'rgba(233, 30, 99, 0.1)',
-                    boxShadow: '0 6px 25px rgba(233, 30, 99, 0.3)',
-                  },
-                }}
-              >
-                Generate with AI
-              </Button>
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={() => handleOpenDialog()}
-                sx={{
-                  backgroundColor: '#00E5FF',
-                  color: '#000',
-                  fontWeight: 600,
-                  '&:hover': {
-                    backgroundColor: '#00B2CC',
-                    boxShadow: '0 6px 25px rgba(0, 229, 255, 0.5)',
-                  },
-                }}
-              >
-                Create Template
-              </Button>
-            </Box>
-          </Box>
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+        <Typography
+          variant="h4"
+          component="h1"
+          sx={{
+            fontSize: '1.5rem',
+            fontWeight: 600,
+            color: theme.palette.text.primary,
+          }}
+        >
+          Project Templates
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<AutoAwesomeIcon />}
+            onClick={() => router.push('/admin/templates/generate')}
+            sx={{
+              borderColor: theme.palette.text.primary,
+              color: theme.palette.text.primary,
+              fontWeight: 600,
+              '&:hover': {
+                borderColor: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
+              },
+            }}
+          >
+            Generate with AI
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<AddIcon />}
+            onClick={() => handleOpenDialog()}
+            sx={{
+              borderColor: theme.palette.text.primary,
+              color: theme.palette.text.primary,
+              fontWeight: 600,
+              '&:hover': {
+                borderColor: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
+              },
+            }}
+          >
+            Create Template
+          </Button>
+        </Box>
+      </Box>
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 3 }}>
-              {error}
-            </Alert>
-          )}
+      {error && (
+        <Alert
+          severity="error"
+          sx={{
+            mb: 3,
+            backgroundColor: theme.palette.action.hover,
+            border: `1px solid ${theme.palette.divider}`,
+            color: theme.palette.text.primary,
+          }}
+        >
+          {error}
+        </Alert>
+      )}
 
           {templates.length > 0 && (
-            <Paper
+            <Box
               sx={{
                 p: 2,
                 mb: 3,
-                backgroundColor: '#000',
-                border: '2px solid rgba(0, 229, 255, 0.2)',
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
                 borderRadius: 2,
               }}
             >
               <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} md={6}>
+                <Grid item xs={12} md={4}>
                   <TextField
                     fullWidth
                     size="small"
@@ -383,22 +386,22 @@ export default function TemplatesPage() {
                     InputProps={{
                       startAdornment: (
                         <InputAdornment position="start">
-                          <SearchIcon sx={{ color: '#00E5FF' }} />
+                          <SearchIcon sx={{ color: theme.palette.text.primary }} />
                         </InputAdornment>
                       ),
                     }}
                     sx={{
                       '& .MuiOutlinedInput-root': {
-                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                        color: '#E0E0E0',
+                        backgroundColor: theme.palette.action.hover,
+                        color: theme.palette.text.primary,
                         '& fieldset': {
-                          borderColor: 'rgba(0, 229, 255, 0.3)',
+                          borderColor: theme.palette.divider,
                         },
                         '&:hover fieldset': {
-                          borderColor: 'rgba(0, 229, 255, 0.5)',
+                          borderColor: theme.palette.text.secondary,
                         },
                         '&.Mui-focused fieldset': {
-                          borderColor: '#00E5FF',
+                          borderColor: theme.palette.text.primary,
                         },
                       },
                     }}
@@ -406,25 +409,25 @@ export default function TemplatesPage() {
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
                   <FormControl fullWidth size="small">
-                    <InputLabel sx={{ color: '#B0B0B0' }}>Visibility</InputLabel>
+                    <InputLabel sx={{ color: theme.palette.text.secondary }}>Visibility</InputLabel>
                     <Select
                       value={publicFilter}
                       onChange={(e) => setPublicFilter(e.target.value)}
                       label="Visibility"
                       sx={{
-                        color: '#E0E0E0',
-                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        color: theme.palette.text.primary,
+                        backgroundColor: theme.palette.action.hover,
                         '& .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'rgba(0, 229, 255, 0.3)',
+                          borderColor: theme.palette.divider,
                         },
                         '&:hover .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'rgba(0, 229, 255, 0.5)',
+                          borderColor: theme.palette.text.secondary,
                         },
                         '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                          borderColor: '#00E5FF',
+                          borderColor: theme.palette.text.primary,
                         },
                         '& .MuiSvgIcon-root': {
-                          color: '#00E5FF',
+                          color: theme.palette.text.primary,
                         },
                       }}
                     >
@@ -434,11 +437,11 @@ export default function TemplatesPage() {
                     </Select>
                   </FormControl>
                 </Grid>
-                <Grid item xs={12} md={3}>
+                <Grid item xs={12} md={5}>
                   <Typography
                     variant="body2"
                     sx={{
-                      color: '#B0B0B0',
+                      color: theme.palette.text.secondary,
                       textAlign: { xs: 'left', md: 'right' },
                     }}
                   >
@@ -446,7 +449,7 @@ export default function TemplatesPage() {
                   </Typography>
                 </Grid>
               </Grid>
-            </Paper>
+            </Box>
           )}
 
           {templates.length === 0 ? (
@@ -476,7 +479,7 @@ export default function TemplatesPage() {
                   label: 'Template Name',
                   sortable: true,
                   render: (value) => (
-                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#00E5FF' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
                       {value}
                     </Typography>
                   ),
@@ -486,15 +489,15 @@ export default function TemplatesPage() {
                   label: 'Category',
                   sortable: true,
                   render: (value) => {
-                    if (!value) return <Typography variant="body2" sx={{ color: '#B0B0B0' }}>-</Typography>;
+                    if (!value) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
                     return (
                       <Chip
                         label={String(value)}
                         size="small"
                         sx={{
-                          backgroundColor: 'rgba(233, 30, 99, 0.15)',
-                          color: '#E91E63',
-                          border: '1px solid rgba(233, 30, 99, 0.3)',
+                          backgroundColor: theme.palette.action.hover,
+                          color: theme.palette.text.primary,
+                          border: `1px solid ${theme.palette.divider}`,
                           fontWeight: 500,
                         }}
                       />
@@ -510,9 +513,9 @@ export default function TemplatesPage() {
                       label={value ? 'Public' : 'Private'}
                       size="small"
                       sx={{
-                        backgroundColor: value ? 'rgba(0, 255, 136, 0.15)' : 'rgba(176, 176, 176, 0.15)',
-                        color: value ? '#00FF88' : '#B0B0B0',
-                        border: `1px solid ${value ? 'rgba(0, 255, 136, 0.3)' : 'rgba(176, 176, 176, 0.3)'}`,
+                        backgroundColor: theme.palette.action.hover,
+                        color: theme.palette.text.primary,
+                        border: `1px solid ${theme.palette.divider}`,
                         fontWeight: 500,
                       }}
                     />
@@ -532,9 +535,9 @@ export default function TemplatesPage() {
                         label={String(count)}
                         size="small"
                         sx={{
-                          backgroundColor: count > 0 ? 'rgba(0, 255, 136, 0.15)' : 'rgba(176, 176, 176, 0.15)',
-                          color: count > 0 ? '#00FF88' : '#B0B0B0',
-                          border: `1px solid ${count > 0 ? 'rgba(0, 255, 136, 0.3)' : 'rgba(176, 176, 176, 0.3)'}`,
+                          backgroundColor: theme.palette.action.hover,
+                          color: theme.palette.text.primary,
+                          border: `1px solid ${theme.palette.divider}`,
                           fontWeight: 600,
                           minWidth: '50px',
                         }}
@@ -547,10 +550,10 @@ export default function TemplatesPage() {
                   label: 'Created',
                   sortable: true,
                   render: (value) => {
-                    if (!value) return <Typography variant="body2" sx={{ color: '#B0B0B0' }}>-</Typography>;
+                    if (!value) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
                     const date = new Date(value);
                     return (
-                      <Typography variant="body2" sx={{ color: '#B0B0B0' }}>
+                      <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
                         {date.toLocaleDateString()}
                       </Typography>
                     );
@@ -570,9 +573,9 @@ export default function TemplatesPage() {
                           router.push(`/admin/templates/${template.id}/builder`);
                         }}
                         sx={{
-                          color: '#00E5FF',
+                          color: theme.palette.text.primary,
                           '&:hover': {
-                            backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                            backgroundColor: theme.palette.action.hover,
                           },
                         }}
                         title="Build Template"
@@ -587,9 +590,9 @@ export default function TemplatesPage() {
                           router.push(`/admin/templates/${template.id}/edit`);
                         }}
                         sx={{
-                          color: '#00E5FF',
+                          color: theme.palette.text.primary,
                           '&:hover': {
-                            backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                            backgroundColor: theme.palette.action.hover,
                           },
                         }}
                         title="Edit Template"
@@ -604,9 +607,9 @@ export default function TemplatesPage() {
                           handleDuplicate(template);
                         }}
                         sx={{
-                          color: '#9C27B0',
+                          color: theme.palette.text.primary,
                           '&:hover': {
-                            backgroundColor: 'rgba(156, 39, 176, 0.1)',
+                            backgroundColor: theme.palette.action.hover,
                           },
                         }}
                         title="Duplicate Template"
@@ -621,9 +624,9 @@ export default function TemplatesPage() {
                           handleDelete(template.id);
                         }}
                         sx={{
-                          color: '#FF1744',
+                          color: theme.palette.text.primary,
                           '&:hover': {
-                            backgroundColor: 'rgba(255, 23, 68, 0.1)',
+                            backgroundColor: theme.palette.action.hover,
                           },
                         }}
                         title="Delete Template"
@@ -650,12 +653,12 @@ export default function TemplatesPage() {
             fullWidth
             PaperProps={{
               sx: {
-                backgroundColor: '#000',
-                border: '2px solid rgba(0, 229, 255, 0.2)',
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
               },
             }}
           >
-            <DialogTitle sx={{ color: '#00E5FF', fontWeight: 600 }}>
+            <DialogTitle sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
               {editingTemplate ? 'Edit Template' : 'Create Template'}
             </DialogTitle>
             <DialogContent>
@@ -694,28 +697,37 @@ export default function TemplatesPage() {
                     onChange={(e) => setFormData({ ...formData, is_public: e.target.checked })}
                     sx={{
                       '& .MuiSwitch-switchBase.Mui-checked': {
-                        color: '#00E5FF',
+                        color: theme.palette.text.primary,
                       },
                     }}
                   />
                 }
                 label="Make template public (visible to all users)"
-                sx={{ color: '#B0B0B0' }}
+                sx={{ color: theme.palette.text.secondary }}
               />
             </DialogContent>
-            <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(0, 229, 255, 0.1)' }}>
-              <Button onClick={handleCloseDialog} sx={{ color: '#B0B0B0' }}>
+            <DialogActions sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
+              <Button 
+                onClick={handleCloseDialog} 
+                sx={{ 
+                  color: theme.palette.text.secondary,
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+              >
                 Cancel
               </Button>
               <Button
                 onClick={handleSave}
-                variant="contained"
+                variant="outlined"
                 sx={{
-                  backgroundColor: '#00E5FF',
-                  color: '#000',
+                  borderColor: theme.palette.text.primary,
+                  color: theme.palette.text.primary,
                   fontWeight: 600,
                   '&:hover': {
-                    backgroundColor: '#00B2CC',
+                    borderColor: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
                   },
                 }}
               >
@@ -735,9 +747,7 @@ export default function TemplatesPage() {
             cancelText="Cancel"
             severity="error"
           />
-        </Container>
-      </Box>
-    </>
+    </Box>
   );
 }
 

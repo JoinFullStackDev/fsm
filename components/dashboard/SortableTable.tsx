@@ -13,6 +13,7 @@ import {
   Typography,
   IconButton,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   ArrowUpward as ArrowUpwardIcon,
   ArrowDownward as ArrowDownwardIcon,
@@ -47,6 +48,7 @@ function SortableHeader<T>({
   sortDirection: SortDirection;
   onSort: (field: keyof T | string) => void;
 }) {
+  const theme = useTheme();
   const isActive = sortField === column.key;
   const direction = isActive ? sortDirection : null;
 
@@ -54,10 +56,10 @@ function SortableHeader<T>({
     return (
       <TableCell
         sx={{
-          backgroundColor: '#000',
-          color: '#00E5FF',
+          backgroundColor: theme.palette.background.paper,
+          color: theme.palette.text.primary,
           fontWeight: 600,
-          borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+          borderBottom: `1px solid ${theme.palette.divider}`,
           width: column.width,
           textAlign: column.align || 'left',
         }}
@@ -70,16 +72,16 @@ function SortableHeader<T>({
   return (
     <TableCell
       sx={{
-        backgroundColor: '#000',
-        color: '#00E5FF',
+        backgroundColor: theme.palette.background.paper,
+        color: theme.palette.text.primary,
         fontWeight: 600,
         cursor: 'pointer',
         userSelect: 'none',
-        borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+        borderBottom: `1px solid ${theme.palette.divider}`,
         width: column.width,
         textAlign: column.align || 'left',
         '&:hover': {
-          backgroundColor: 'rgba(0, 229, 255, 0.1)',
+          backgroundColor: theme.palette.action.hover,
         },
       }}
       onClick={() => onSort(column.key)}
@@ -90,14 +92,14 @@ function SortableHeader<T>({
           <ArrowUpwardIcon
             sx={{
               fontSize: 14,
-              color: isActive && direction === 'asc' ? '#00E5FF' : 'rgba(176, 176, 176, 0.3)',
+              color: isActive && direction === 'asc' ? theme.palette.text.primary : theme.palette.text.secondary,
               opacity: isActive && direction === 'asc' ? 1 : 0.5,
             }}
           />
           <ArrowDownwardIcon
             sx={{
               fontSize: 14,
-              color: isActive && direction === 'desc' ? '#00E5FF' : 'rgba(176, 176, 176, 0.3)',
+              color: isActive && direction === 'desc' ? theme.palette.text.primary : theme.palette.text.secondary,
               opacity: isActive && direction === 'desc' ? 1 : 0.5,
               mt: -0.5,
             }}
@@ -114,6 +116,7 @@ export default function SortableTable<T extends Record<string, any>>({
   onRowClick,
   emptyMessage = 'No data available',
 }: SortableTableProps<T>) {
+  const theme = useTheme();
   const [sortField, setSortField] = useState<keyof T | string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
 
@@ -178,13 +181,13 @@ export default function SortableTable<T extends Record<string, any>>({
     <TableContainer
       component={Paper}
       sx={{
-        backgroundColor: '#000',
-        border: '2px solid rgba(0, 229, 255, 0.2)',
+        backgroundColor: theme.palette.background.paper,
+        border: `1px solid ${theme.palette.divider}`,
         borderRadius: 2,
       }}
     >
       <Table>
-        <TableHead sx={{ backgroundColor: '#000' }}>
+        <TableHead sx={{ backgroundColor: theme.palette.background.paper }}>
           <TableRow>
             {columns.map((column) => (
               <SortableHeader
@@ -200,7 +203,7 @@ export default function SortableTable<T extends Record<string, any>>({
         <TableBody>
           {sortedData.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={columns.length} align="center" sx={{ py: 4, color: '#B0B0B0' }}>
+              <TableCell colSpan={columns.length} align="center" sx={{ py: 4, color: theme.palette.text.secondary }}>
                 {emptyMessage}
               </TableCell>
             </TableRow>
@@ -212,7 +215,7 @@ export default function SortableTable<T extends Record<string, any>>({
                 sx={{
                   cursor: onRowClick ? 'pointer' : 'default',
                   '&:hover': {
-                    backgroundColor: onRowClick ? 'rgba(0, 229, 255, 0.05)' : 'transparent',
+                    backgroundColor: onRowClick ? theme.palette.action.hover : 'transparent',
                   },
                 }}
               >
@@ -222,8 +225,8 @@ export default function SortableTable<T extends Record<string, any>>({
                     <TableCell
                       key={String(column.key)}
                       sx={{
-                        color: '#E0E0E0',
-                        borderBottom: '1px solid rgba(0, 229, 255, 0.1)',
+                        color: theme.palette.text.primary,
+                        borderBottom: `1px solid ${theme.palette.divider}`,
                         textAlign: column.align || 'left',
                       }}
                     >

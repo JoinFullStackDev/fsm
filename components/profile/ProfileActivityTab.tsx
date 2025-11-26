@@ -4,8 +4,6 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   Box,
   Typography,
-  Card,
-  CardContent,
   CircularProgress,
   Alert,
   List,
@@ -15,6 +13,7 @@ import {
   Divider,
   Chip,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Create as CreateIcon,
   Download as DownloadIcon,
@@ -25,6 +24,7 @@ import { createSupabaseClient } from '@/lib/supabaseClient';
 import type { ActivityLog } from '@/types/project';
 
 export default function ProfileActivityTab() {
+  const theme = useTheme();
   const supabase = createSupabaseClient();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,14 +87,21 @@ export default function ProfileActivityTab() {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-        <CircularProgress />
+        <CircularProgress sx={{ color: theme.palette.text.primary }} />
       </Box>
     );
   }
 
   if (error) {
     return (
-      <Alert severity="error">
+      <Alert 
+        severity="error"
+        sx={{
+          backgroundColor: theme.palette.action.hover,
+          border: `1px solid ${theme.palette.divider}`,
+          color: theme.palette.text.primary,
+        }}
+      >
         {error}
       </Alert>
     );
@@ -102,47 +109,62 @@ export default function ProfileActivityTab() {
 
   return (
     <Box>
-      <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600, mb: 3 }}>
+      <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600, mb: 3 }}>
         Activity History
       </Typography>
 
-      <Card sx={{ border: '2px solid', borderColor: 'primary.main' }}>
-        <CardContent>
-          {activities.length === 0 ? (
-            <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'center', py: 4 }}>
-              No activity yet. Your actions will appear here.
-            </Typography>
-          ) : (
-            <List>
-              {activities.map((activity, index) => (
-                <Box key={activity.id}>
-                  <ListItem>
-                    <ListItemIcon sx={{ color: 'primary.main' }}>
-                      {getActivityIcon(activity.action_type)}
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="subtitle2" sx={{ color: 'text.primary', fontWeight: 600 }}>
-                            {formatActionType(activity.action_type)}
-                          </Typography>
-                          <Chip
-                            label={activity.resource_type || 'General'}
-                            size="small"
-                            sx={{ height: 20, fontSize: '0.7rem' }}
-                          />
-                        </Box>
-                      }
-                      secondary={new Date(activity.created_at).toLocaleString()}
-                    />
-                  </ListItem>
-                  {index < activities.length - 1 && <Divider />}
-                </Box>
-              ))}
-            </List>
-          )}
-        </CardContent>
-      </Card>
+      <Box
+        sx={{
+          p: 3,
+          backgroundColor: theme.palette.background.paper,
+          border: `1px solid ${theme.palette.divider}`,
+          borderRadius: 2,
+        }}
+      >
+        {activities.length === 0 ? (
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary, textAlign: 'center', py: 4 }}>
+            No activity yet. Your actions will appear here.
+          </Typography>
+        ) : (
+          <List>
+            {activities.map((activity, index) => (
+              <Box key={activity.id}>
+                <ListItem>
+                  <ListItemIcon sx={{ color: theme.palette.text.primary }}>
+                    {getActivityIcon(activity.action_type)}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="subtitle2" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+                          {formatActionType(activity.action_type)}
+                        </Typography>
+                        <Chip
+                          label={activity.resource_type || 'General'}
+                          size="small"
+                          sx={{
+                            height: 20,
+                            fontSize: '0.7rem',
+                            backgroundColor: theme.palette.action.hover,
+                            color: theme.palette.text.primary,
+                            border: `1px solid ${theme.palette.divider}`,
+                          }}
+                        />
+                      </Box>
+                    }
+                    secondary={
+                      <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                        {new Date(activity.created_at).toLocaleString()}
+                      </Typography>
+                    }
+                  />
+                </ListItem>
+                {index < activities.length - 1 && <Divider sx={{ borderColor: theme.palette.divider }} />}
+              </Box>
+            ))}
+          </List>
+        )}
+      </Box>
     </Box>
   );
 }

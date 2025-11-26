@@ -10,6 +10,7 @@ import {
   IconButton,
   Grid,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   DragHandle as DragHandleIcon,
   Delete as DeleteIcon,
@@ -27,6 +28,7 @@ interface FieldItemProps {
 }
 
 function FieldItem({ field, onSelect, onDelete, onDuplicate, isSelected }: FieldItemProps) {
+  const theme = useTheme();
   const {
     attributes,
     listeners,
@@ -71,13 +73,12 @@ function FieldItem({ field, onSelect, onDelete, onDuplicate, isSelected }: Field
       sx={{
         p: 2,
         mb: 2,
-        border: '2px solid',
-        borderColor: isSelected ? 'primary.main' : 'rgba(0, 229, 255, 0.3)',
-        backgroundColor: isSelected ? 'rgba(0, 229, 255, 0.1)' : '#1A1F3A',
+        border: `1px solid ${isSelected ? theme.palette.text.primary : theme.palette.divider}`,
+        backgroundColor: isSelected ? theme.palette.action.hover : theme.palette.background.paper,
         cursor: 'pointer',
         '&:hover': {
-          borderColor: 'primary.main',
-          backgroundColor: 'rgba(0, 229, 255, 0.15)',
+          borderColor: theme.palette.text.primary,
+          backgroundColor: theme.palette.action.hover,
         },
       }}
       onClick={() => onSelect(field)}
@@ -88,7 +89,7 @@ function FieldItem({ field, onSelect, onDelete, onDuplicate, isSelected }: Field
           {...listeners}
           sx={{
             cursor: 'grab',
-            color: 'primary.main',
+            color: theme.palette.text.primary,
             '&:active': {
               cursor: 'grabbing',
             },
@@ -100,10 +101,10 @@ function FieldItem({ field, onSelect, onDelete, onDuplicate, isSelected }: Field
           <DragHandleIcon />
         </Box>
         <Box sx={{ flex: 1 }}>
-          <Typography variant="subtitle1" sx={{ color: 'primary.main', fontWeight: 600 }}>
+          <Typography variant="subtitle1" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
             {field.field_config.label || field.field_key}
           </Typography>
-          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+          <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
             {getFieldTypeLabel(field.field_type)} • Order: {field.display_order}
             {field.group_id && ` • Group: ${field.group_id}`}
           </Typography>
@@ -115,7 +116,12 @@ function FieldItem({ field, onSelect, onDelete, onDuplicate, isSelected }: Field
               e.stopPropagation();
               onDuplicate(field);
             }}
-            sx={{ color: 'info.main' }}
+            sx={{ 
+              color: theme.palette.text.primary,
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+              },
+            }}
             title="Duplicate field"
             aria-label={`Duplicate field ${field.field_config.label || field.field_key}`}
           >
@@ -128,7 +134,12 @@ function FieldItem({ field, onSelect, onDelete, onDuplicate, isSelected }: Field
             e.stopPropagation();
             onSelect(field);
           }}
-          sx={{ color: 'primary.main' }}
+          sx={{ 
+            color: theme.palette.text.primary,
+            '&:hover': {
+              backgroundColor: theme.palette.action.hover,
+            },
+          }}
           title="Edit field"
           aria-label={`Edit field ${field.field_config.label || field.field_key}`}
         >
@@ -141,7 +152,12 @@ function FieldItem({ field, onSelect, onDelete, onDuplicate, isSelected }: Field
             const fieldId = field.id || field.field_key;
             onDelete(fieldId);
           }}
-          sx={{ color: 'error.main' }}
+          sx={{ 
+            color: theme.palette.text.primary,
+            '&:hover': {
+              backgroundColor: theme.palette.action.hover,
+            },
+          }}
           title="Delete field"
           aria-label={`Delete field ${field.field_config.label || field.field_key}`}
         >
@@ -169,6 +185,7 @@ export default function FieldCanvas({
   onFieldDuplicate,
   phaseNumber,
 }: FieldCanvasProps) {
+  const theme = useTheme();
   const { setNodeRef, isOver } = useDroppable({
     id: `canvas-phase-${phaseNumber}`,
     data: {
@@ -186,9 +203,8 @@ export default function FieldCanvas({
       sx={{
         p: 3,
         minHeight: 400,
-        backgroundColor: '#000',
-        border: '2px dashed',
-        borderColor: isOver ? 'primary.main' : 'rgba(0, 229, 255, 0.3)',
+        backgroundColor: theme.palette.background.paper,
+        border: `1px dashed ${isOver ? theme.palette.text.primary : theme.palette.divider}`,
         borderRadius: 2,
         transition: 'all 0.2s',
       }}
@@ -197,10 +213,9 @@ export default function FieldCanvas({
         variant="h6"
         sx={{
           mb: 3,
-          color: 'primary.main',
+          color: theme.palette.text.primary,
           fontWeight: 600,
-          borderBottom: '1px solid',
-          borderColor: 'primary.main',
+          borderBottom: `1px solid ${theme.palette.divider}`,
           pb: 1,
         }}
       >

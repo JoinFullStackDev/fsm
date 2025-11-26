@@ -4,8 +4,6 @@ import { useEffect, useState } from 'react';
 import {
   Box,
   Typography,
-  Card,
-  CardContent,
   TextField,
   Button,
   Switch,
@@ -15,7 +13,9 @@ import {
   IconButton,
   InputAdornment,
   Grid,
+  Paper,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Save as SaveIcon,
   Visibility as VisibilityIcon,
@@ -27,6 +27,7 @@ import { useNotification } from '@/components/providers/NotificationProvider';
 import type { AdminSetting } from '@/types/project';
 
 export default function AdminApiConfigTab() {
+  const theme = useTheme();
   const supabase = createSupabaseClient();
   const { showSuccess, showError } = useNotification();
   const [loading, setLoading] = useState(true);
@@ -204,7 +205,7 @@ export default function AdminApiConfigTab() {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-        <CircularProgress />
+        <CircularProgress sx={{ color: theme.palette.text.primary }} />
       </Box>
     );
   }
@@ -212,17 +213,26 @@ export default function AdminApiConfigTab() {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600 }}>
+        <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
           API Configuration
         </Typography>
         <Button
           startIcon={<SaveIcon />}
           onClick={handleSave}
-          variant="contained"
+          variant="outlined"
           disabled={saving}
           sx={{
-            backgroundColor: 'primary.main',
-            color: 'primary.contrastText',
+            borderColor: theme.palette.text.primary,
+            color: theme.palette.text.primary,
+            fontWeight: 600,
+            '&:hover': {
+              borderColor: theme.palette.text.primary,
+              backgroundColor: theme.palette.action.hover,
+            },
+            '&.Mui-disabled': {
+              borderColor: theme.palette.divider,
+              color: theme.palette.text.secondary,
+            },
           }}
         >
           {saving ? 'Saving...' : 'Save Settings'}
@@ -230,126 +240,218 @@ export default function AdminApiConfigTab() {
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert
+          severity="error"
+          sx={{
+            mb: 3,
+            backgroundColor: theme.palette.action.hover,
+            border: `1px solid ${theme.palette.divider}`,
+            color: theme.palette.text.primary,
+          }}
+        >
           {error}
         </Alert>
       )}
 
       <Grid container spacing={3}>
         <Grid item xs={12}>
-          <Card sx={{ border: '2px solid', borderColor: 'primary.main' }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
-                Gemini AI Configuration
-              </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={geminiEnabled}
-                      onChange={(e) => setGeminiEnabled(e.target.checked)}
-                      sx={{
-                        '& .MuiSwitch-switchBase.Mui-checked': {
-                          color: 'success.main',
-                        },
-                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                          backgroundColor: 'success.main',
-                        },
-                      }}
-                    />
-                  }
-                  label="Enable Gemini AI Features"
-                />
-                <TextField
-                  label="Gemini API Key"
-                  type={showGeminiKey ? 'text' : 'password'}
-                  value={geminiKey}
-                  onChange={(e) => setGeminiKey(e.target.value)}
-                  fullWidth
-                  placeholder="Enter your Gemini API key"
-                  error={!!(apiKeyInfo && !apiKeyInfo.isValidFormat && geminiKey.length > 0)}
-                  helperText={
-                    apiKeyInfo
+          <Paper
+            sx={{
+              p: 3,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
+            }}
+          >
+            <Typography variant="h6" sx={{ mb: 2, color: theme.palette.text.primary, fontWeight: 600 }}>
+              Gemini AI Configuration
+            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={geminiEnabled}
+                    onChange={(e) => setGeminiEnabled(e.target.checked)}
+                    sx={{
+                      '& .MuiSwitch-switchBase.Mui-checked': {
+                        color: theme.palette.text.primary,
+                      },
+                    }}
+                  />
+                }
+                label="Enable Gemini AI Features"
+                sx={{ color: theme.palette.text.primary }}
+              />
+              <TextField
+                label="Gemini API Key"
+                type={showGeminiKey ? 'text' : 'password'}
+                value={geminiKey}
+                onChange={(e) => setGeminiKey(e.target.value)}
+                fullWidth
+                placeholder="Enter your Gemini API key"
+                error={!!(apiKeyInfo && !apiKeyInfo.isValidFormat && geminiKey.length > 0)}
+                helperText={
+                  apiKeyInfo
+                    ? apiKeyInfo.warning
                       ? apiKeyInfo.warning
-                        ? apiKeyInfo.warning
-                        : apiKeyInfo.startsWithAIza
-                        ? `API key format looks valid (${apiKeyInfo.length} characters)`
-                        : `API key length: ${apiKeyInfo.length} characters`
-                      : 'Gemini API keys typically start with "AIza"'
-                  }
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          onClick={() => setShowGeminiKey(!showGeminiKey)}
-                          edge="end"
-                        >
-                          {showGeminiKey ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
+                      : apiKeyInfo.startsWithAIza
+                      ? `API key format looks valid (${apiKeyInfo.length} characters)`
+                      : `API key length: ${apiKeyInfo.length} characters`
+                    : 'Gemini API keys typically start with "AIza"'
+                }
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: theme.palette.action.hover,
+                    color: theme.palette.text.primary,
+                    '& fieldset': {
+                      borderColor: theme.palette.divider,
+                    },
+                    '&:hover fieldset': {
+                      borderColor: theme.palette.text.secondary,
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: theme.palette.text.primary,
+                    },
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: theme.palette.text.secondary,
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: theme.palette.text.primary,
+                  },
+                  '& .MuiFormHelperText-root': {
+                    color: theme.palette.text.secondary,
+                  },
+                }}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowGeminiKey(!showGeminiKey)}
+                        edge="end"
+                        sx={{ color: theme.palette.text.secondary }}
+                      >
+                        {showGeminiKey ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              {apiKeyInfo && apiKeyInfo.warning && (
+                <Alert
+                  severity="warning"
+                  sx={{
+                    mt: 1,
+                    backgroundColor: theme.palette.action.hover,
+                    border: `1px solid ${theme.palette.divider}`,
+                    color: theme.palette.text.primary,
                   }}
-                />
-                {apiKeyInfo && apiKeyInfo.warning && (
-                  <Alert severity="warning" sx={{ mt: 1 }}>
-                    {apiKeyInfo.warning}. If you&apos;re using a Vertex AI key or a different type of key, try the &quot;Test with Direct HTTP&quot; button instead.
-                  </Alert>
-                )}
-                <TextField
-                  label="Project Name"
-                  type="text"
-                  value={geminiProjectName}
-                  onChange={(e) => setGeminiProjectName(e.target.value)}
-                  fullWidth
-                  placeholder="Enter your project name/identifier"
-                  sx={{ mt: 2 }}
-                />
-                <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
-                  <Button
-                    variant="outlined"
-                    onClick={() => handleTestGemini(false)}
-                    disabled={!geminiKey || !geminiEnabled}
-                    sx={{ borderColor: 'info.main', color: 'info.main' }}
-                  >
-                    Test Connection (SDK)
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    onClick={() => handleTestGemini(true)}
-                    disabled={!geminiKey || !geminiEnabled}
-                    sx={{ borderColor: 'warning.main', color: 'warning.main' }}
-                  >
-                    Test with Direct HTTP
-                  </Button>
-                </Box>
+                >
+                  {apiKeyInfo.warning}. If you&apos;re using a Vertex AI key or a different type of key, try the &quot;Test with Direct HTTP&quot; button instead.
+                </Alert>
+              )}
+              <TextField
+                label="Project Name"
+                type="text"
+                value={geminiProjectName}
+                onChange={(e) => setGeminiProjectName(e.target.value)}
+                fullWidth
+                placeholder="Enter your project name/identifier"
+                sx={{
+                  mt: 2,
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: theme.palette.action.hover,
+                    color: theme.palette.text.primary,
+                    '& fieldset': {
+                      borderColor: theme.palette.divider,
+                    },
+                    '&:hover fieldset': {
+                      borderColor: theme.palette.text.secondary,
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: theme.palette.text.primary,
+                    },
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: theme.palette.text.secondary,
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: theme.palette.text.primary,
+                  },
+                }}
+              />
+              <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+                <Button
+                  variant="outlined"
+                  onClick={() => handleTestGemini(false)}
+                  disabled={!geminiKey || !geminiEnabled}
+                  sx={{
+                    borderColor: theme.palette.text.primary,
+                    color: theme.palette.text.primary,
+                    '&:hover': {
+                      borderColor: theme.palette.text.primary,
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                    '&.Mui-disabled': {
+                      borderColor: theme.palette.divider,
+                      color: theme.palette.text.secondary,
+                    },
+                  }}
+                >
+                  Test Connection (SDK)
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => handleTestGemini(true)}
+                  disabled={!geminiKey || !geminiEnabled}
+                  sx={{
+                    borderColor: theme.palette.text.primary,
+                    color: theme.palette.text.primary,
+                    '&:hover': {
+                      borderColor: theme.palette.text.primary,
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                    '&.Mui-disabled': {
+                      borderColor: theme.palette.divider,
+                      color: theme.palette.text.secondary,
+                    },
+                  }}
+                >
+                  Test with Direct HTTP
+                </Button>
               </Box>
-            </CardContent>
-          </Card>
+            </Box>
+          </Paper>
         </Grid>
 
         <Grid item xs={12}>
-          <Card sx={{ border: '2px solid', borderColor: 'success.main' }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2, color: 'success.main' }}>
-                Supabase Connection
+          <Paper
+            sx={{
+              p: 3,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
+            }}
+          >
+            <Typography variant="h6" sx={{ mb: 2, color: theme.palette.text.primary, fontWeight: 600 }}>
+              Supabase Connection
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Typography variant="body1" sx={{ color: theme.palette.text.primary }}>
+                Status:
               </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Typography variant="body1" sx={{ color: 'text.primary' }}>
-                  Status:
-                </Typography>
-                {supabaseStatus === 'checking' && <CircularProgress size={20} />}
-                {supabaseStatus === 'connected' && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'success.main' }}>
-                    <CheckCircleIcon />
-                    <Typography>Connected</Typography>
-                  </Box>
-                )}
-                {supabaseStatus === 'error' && (
-                  <Typography sx={{ color: 'error.main' }}>Connection Error</Typography>
-                )}
-              </Box>
-            </CardContent>
-          </Card>
+              {supabaseStatus === 'checking' && <CircularProgress size={20} sx={{ color: theme.palette.text.primary }} />}
+              {supabaseStatus === 'connected' && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#4CAF50' }}>
+                  <CheckCircleIcon />
+                  <Typography sx={{ color: '#4CAF50' }}>Connected</Typography>
+                </Box>
+              )}
+              {supabaseStatus === 'error' && (
+                <Typography sx={{ color: theme.palette.text.primary }}>Connection Error</Typography>
+              )}
+            </Box>
+          </Paper>
         </Grid>
       </Grid>
     </Box>

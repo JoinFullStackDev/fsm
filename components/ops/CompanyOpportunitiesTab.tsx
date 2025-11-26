@@ -15,6 +15,7 @@ import {
   DialogContent,
   DialogActions,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, CheckCircle as CheckCircleIcon, Visibility as VisibilityIcon } from '@mui/icons-material';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import type { Opportunity } from '@/types/ops';
@@ -26,6 +27,7 @@ interface CompanyOpportunitiesTabProps {
 
 export default function CompanyOpportunitiesTab({ companyId }: CompanyOpportunitiesTabProps) {
   const router = useRouter();
+  const theme = useTheme();
   const { showSuccess, showError } = useNotification();
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -197,7 +199,7 @@ export default function CompanyOpportunitiesTab({ companyId }: CompanyOpportunit
           <IconButton
             size="small"
             onClick={(e) => handleViewOpportunity(row, e)}
-            sx={{ color: '#00E5FF' }}
+            sx={{ color: theme.palette.text.primary }}
             title="View Details"
           >
             <VisibilityIcon fontSize="small" />
@@ -206,7 +208,7 @@ export default function CompanyOpportunitiesTab({ companyId }: CompanyOpportunit
             <IconButton
               size="small"
               onClick={(e) => handleConvertOpportunity(row, e)}
-              sx={{ color: '#4CAF50' }}
+              sx={{ color: theme.palette.text.primary }}
               title="Convert to Project"
             >
               <CheckCircleIcon fontSize="small" />
@@ -215,7 +217,7 @@ export default function CompanyOpportunitiesTab({ companyId }: CompanyOpportunit
           <IconButton
             size="small"
             onClick={(e) => handleEditOpportunity(row, e)}
-            sx={{ color: '#00E5FF' }}
+            sx={{ color: theme.palette.text.primary }}
             title="Edit"
           >
             <EditIcon fontSize="small" />
@@ -223,7 +225,7 @@ export default function CompanyOpportunitiesTab({ companyId }: CompanyOpportunit
           <IconButton
             size="small"
             onClick={(e) => handleDeleteOpportunity(row, e)}
-            sx={{ color: '#FF1744' }}
+            sx={{ color: theme.palette.text.primary }}
             title="Delete"
           >
             <DeleteIcon fontSize="small" />
@@ -255,22 +257,23 @@ export default function CompanyOpportunitiesTab({ companyId }: CompanyOpportunit
         <Typography
           variant="h6"
           sx={{
-            color: '#00E5FF',
+            color: theme.palette.text.primary,
             fontWeight: 600,
           }}
         >
           Opportunities
         </Typography>
         <Button
-          variant="contained"
+          variant="outlined"
           startIcon={<AddIcon />}
           onClick={handleCreateOpportunity}
           sx={{
-            backgroundColor: '#00E5FF',
-            color: '#000',
+            borderColor: theme.palette.text.primary,
+            color: theme.palette.text.primary,
             fontWeight: 600,
             '&:hover': {
-              backgroundColor: '#00B2CC',
+              borderColor: theme.palette.text.secondary,
+              backgroundColor: theme.palette.action.hover,
             },
           }}
         >

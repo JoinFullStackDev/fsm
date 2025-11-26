@@ -7,8 +7,7 @@ import {
   Box,
   Typography,
   Button,
-  Card,
-  CardContent,
+  Paper,
   Tabs,
   Tab,
   CircularProgress,
@@ -17,7 +16,10 @@ import {
   TextField,
   Switch,
   FormControlLabel,
+  Grid,
+  Chip,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   ArrowBack as ArrowBackIcon,
   Save as SaveIcon,
@@ -31,6 +33,7 @@ import { ensurePhasesExist } from '@/lib/templates/ensurePhasesExist';
 import type { ProjectTemplate, TemplatePhase } from '@/types/project';
 
 export default function EditTemplatePage() {
+  const theme = useTheme();
   const router = useRouter();
   const params = useParams();
   const templateId = params.id as string;
@@ -157,7 +160,7 @@ export default function EditTemplatePage() {
       return (
         <Box>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 600 }}>
+            <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
               Template Settings
             </Typography>
             {!editingMetadata && (
@@ -166,11 +169,11 @@ export default function EditTemplatePage() {
                 startIcon={<EditIcon />}
                 onClick={() => setEditingMetadata(true)}
                 sx={{
-                  borderColor: 'primary.main',
-                  color: 'primary.main',
+                  borderColor: theme.palette.text.primary,
+                  color: theme.palette.text.primary,
                   '&:hover': {
-                    borderColor: 'primary.dark',
-                    backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                    borderColor: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
                   },
                 }}
               >
@@ -216,26 +219,31 @@ export default function EditTemplatePage() {
                     onChange={(e) => setTemplateIsPublic(e.target.checked)}
                     sx={{
                       '& .MuiSwitch-switchBase.Mui-checked': {
-                        color: '#00E5FF',
+                        color: theme.palette.text.primary,
                       },
                     }}
                   />
                 }
                 label="Make template public (visible to all users)"
-                sx={{ color: '#B0B0B0', mb: 3 }}
+                sx={{ color: theme.palette.text.secondary, mb: 3 }}
               />
               <Box sx={{ display: 'flex', gap: 2 }}>
                 <Button
-                  variant="contained"
+                  variant="outlined"
                   startIcon={<SaveIcon />}
                   onClick={handleSaveMetadata}
                   disabled={savingMetadata || !templateName.trim()}
                   sx={{
-                    backgroundColor: '#00E5FF',
-                    color: '#000',
+                    borderColor: theme.palette.text.primary,
+                    color: theme.palette.text.primary,
                     fontWeight: 600,
                     '&:hover': {
-                      backgroundColor: '#00B2CC',
+                      borderColor: theme.palette.text.primary,
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                    '&.Mui-disabled': {
+                      borderColor: theme.palette.divider,
+                      color: theme.palette.text.secondary,
                     },
                   }}
                 >
@@ -255,8 +263,16 @@ export default function EditTemplatePage() {
                   }}
                   disabled={savingMetadata}
                   sx={{
-                    borderColor: '#B0B0B0',
-                    color: '#B0B0B0',
+                    borderColor: theme.palette.text.primary,
+                    color: theme.palette.text.primary,
+                    '&:hover': {
+                      borderColor: theme.palette.text.primary,
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                    '&.Mui-disabled': {
+                      borderColor: theme.palette.divider,
+                      color: theme.palette.text.secondary,
+                    },
                   }}
                 >
                   Cancel
@@ -314,13 +330,9 @@ export default function EditTemplatePage() {
   // Show loading while role is being checked
   if (roleLoading) {
     return (
-      <>
-        <Container>
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-            <CircularProgress />
-          </Box>
-        </Container>
-      </>
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+        <CircularProgress sx={{ color: theme.palette.text.primary }} />
+      </Box>
     );
   }
 
@@ -330,96 +342,168 @@ export default function EditTemplatePage() {
 
   if (loading) {
     return (
-      <>
-        <Container>
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-            <CircularProgress />
-          </Box>
-        </Container>
-      </>
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+        <CircularProgress sx={{ color: theme.palette.text.primary }} />
+      </Box>
     );
   }
 
   if (error || !template) {
     return (
-      <>
-        <Container>
-          <Alert severity="error" sx={{ mt: 4 }}>
-            {error || 'Template not found'}
-          </Alert>
-        </Container>
-      </>
+      <Box sx={{ mt: 4 }}>
+        <Alert 
+          severity="error"
+          sx={{
+            backgroundColor: theme.palette.action.hover,
+            border: `1px solid ${theme.palette.divider}`,
+            color: theme.palette.text.primary,
+          }}
+        >
+          {error || 'Template not found'}
+        </Alert>
+      </Box>
     );
   }
 
   return (
-    <>
-      <Box sx={{ backgroundColor: '#000', minHeight: '100vh', pb: 4 }}>
-        <Container maxWidth="xl" sx={{ pt: 4, pb: 4 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-            <IconButton
-              onClick={() => router.push('/admin/templates')}
-              sx={{
-                color: '#00E5FF',
-                border: '1px solid',
-                borderColor: '#00E5FF',
-                '&:hover': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                },
-              }}
-            >
-              <ArrowBackIcon />
-            </IconButton>
-            <Typography
-              variant="h4"
-              sx={{
-                flex: 1,
-                fontWeight: 700,
-                background: '#00E5FF',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}
-            >
-              Edit Template: {template.name}
-            </Typography>
-          </Box>
+    <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+      {/* Header */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+        <IconButton
+          onClick={() => router.push('/admin/templates')}
+          sx={{
+            color: theme.palette.text.primary,
+            border: `1px solid ${theme.palette.divider}`,
+            '&:hover': {
+              backgroundColor: theme.palette.action.hover,
+            },
+          }}
+        >
+          <ArrowBackIcon />
+        </IconButton>
+        <Typography
+          variant="h4"
+          component="h1"
+          sx={{
+            flex: 1,
+            fontSize: '1.5rem',
+            fontWeight: 600,
+            color: theme.palette.text.primary,
+          }}
+        >
+          Edit Template: {template.name}
+        </Typography>
+      </Box>
 
-          <Card
+      {/* Template Overview Cards */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper
             sx={{
-              backgroundColor: '#000',
-              border: '2px solid rgba(0, 229, 255, 0.2)',
-              borderRadius: 3,
+              p: 2,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
             }}
           >
-            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-              <Tabs
-                value={activeTab}
-                onChange={(_, newValue) => setActiveTab(newValue)}
-                variant="scrollable"
-                scrollButtons="auto"
-                sx={{
-                  '& .MuiTab-root': {
-                    color: '#B0B0B0',
-                    '&.Mui-selected': {
-                      color: '#00E5FF',
-                    },
-                  },
-                  '& .MuiTabs-indicator': {
-                    backgroundColor: '#00E5FF',
-                  },
-                }}
-              >
-                <Tab key="template-settings" label="Template Settings" />
-                <Tab key="phase-management" label="Phase Management" />
-              </Tabs>
-            </Box>
-            <CardContent sx={{ pt: 3 }}>
-              {renderContent()}
-            </CardContent>
-          </Card>
-        </Container>
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+              Template Name
+            </Typography>
+            <Typography variant="body1" sx={{ color: theme.palette.text.primary, fontWeight: 500 }}>
+              {template.name}
+            </Typography>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper
+            sx={{
+              p: 2,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+            }}
+          >
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+              Category
+            </Typography>
+            <Typography variant="body1" sx={{ color: theme.palette.text.primary }}>
+              {template.category || 'No category'}
+            </Typography>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper
+            sx={{
+              p: 2,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+            }}
+          >
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+              Visibility
+            </Typography>
+            <Chip
+              label={template.is_public ? 'Public' : 'Private'}
+              size="small"
+              sx={{
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
+                border: `1px solid ${theme.palette.divider}`,
+              }}
+            />
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper
+            sx={{
+              p: 2,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+            }}
+          >
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+              Phases
+            </Typography>
+            <Typography variant="body1" sx={{ color: theme.palette.text.primary }}>
+              {templatePhases.length} phase{templatePhases.length !== 1 ? 's' : ''}
+            </Typography>
+          </Paper>
+        </Grid>
+      </Grid>
+
+      {/* Tabs */}
+      <Box sx={{ borderBottom: 1, borderColor: theme.palette.divider, mb: 3 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, newValue) => setActiveTab(newValue)}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{
+            '& .MuiTab-root': {
+              color: theme.palette.text.secondary,
+              '&.Mui-selected': {
+                color: theme.palette.text.primary,
+              },
+            },
+            '& .MuiTabs-indicator': {
+              backgroundColor: theme.palette.text.primary,
+            },
+          }}
+        >
+          <Tab key="template-settings" label="Template Settings" />
+          <Tab key="phase-management" label="Phase Management" />
+        </Tabs>
       </Box>
-    </>
+
+      {/* Tab Content */}
+      <Paper
+        sx={{
+          p: 3,
+          backgroundColor: theme.palette.background.paper,
+          border: `1px solid ${theme.palette.divider}`,
+        }}
+      >
+        {renderContent()}
+      </Paper>
+    </Container>
   );
 }
 

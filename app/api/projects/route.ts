@@ -4,6 +4,8 @@ import { notifyProjectCreated } from '@/lib/notifications';
 import { unauthorized, notFound, internalError, badRequest } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
@@ -13,10 +15,10 @@ export async function GET(request: NextRequest) {
       return unauthorized('You must be logged in to view projects');
     }
 
-    // Get user record
+    // Get user record with role
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('id')
+      .select('id, role')
       .eq('auth_id', session.user.id)
       .single();
 
@@ -34,12 +36,19 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         company:companies(id, name)
-      `)
-      .or(`owner_id.eq.${userData.id},id.in.(select project_id from project_members where user_id.eq.${userData.id})`);
+      `);
 
-    // Filter by company_id if provided
-    if (companyId) {
+    // If admin and filtering by company, show all projects for that company
+    // Otherwise, filter by user ownership/membership
+    if (userData.role === 'admin' && companyId) {
       query = query.eq('company_id', companyId);
+    } else {
+      query = query.or(`owner_id.eq.${userData.id},id.in.(select project_id from project_members where user_id.eq.${userData.id})`);
+      
+      // Filter by company_id if provided
+      if (companyId) {
+        query = query.eq('company_id', companyId);
+      }
     }
 
     query = query.order('updated_at', { ascending: false });

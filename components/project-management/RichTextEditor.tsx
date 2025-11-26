@@ -4,6 +4,7 @@ import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
 import { Box, Paper, MenuList, MenuItem, Avatar, Typography, ListItemAvatar, ListItemText } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import type { User } from '@/types/project';
 
 // Dynamically import ReactQuill to avoid SSR issues
@@ -34,6 +35,7 @@ export default function RichTextEditor({
   projectMembers = [],
   onMentionSelect,
 }: RichTextEditorProps) {
+  const theme = useTheme();
   const quillRef = useRef<any>(null);
   const [showMentions, setShowMentions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
@@ -393,82 +395,82 @@ export default function RichTextEditor({
       sx={{
         position: 'relative',
         '& .quill': {
-          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          backgroundColor: theme.palette.background.paper,
           borderRadius: 1,
-          border: '1px solid rgba(0, 229, 255, 0.3)',
+          border: `1px solid ${theme.palette.divider}`,
           '&:hover': {
-            borderColor: 'rgba(0, 229, 255, 0.5)',
+            borderColor: theme.palette.text.primary,
           },
           '&.ql-focused': {
-            borderColor: '#00E5FF',
+            borderColor: theme.palette.text.primary,
           },
         },
         '& .ql-toolbar': {
-          backgroundColor: 'rgba(18, 22, 51, 0.8)',
+          backgroundColor: theme.palette.background.paper,
           borderTopLeftRadius: 4,
           borderTopRightRadius: 4,
-          borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+          borderBottom: `1px solid ${theme.palette.divider}`,
           '& .ql-stroke': {
-            stroke: '#B0B0B0',
+            stroke: theme.palette.text.secondary,
           },
           '& .ql-fill': {
-            fill: '#B0B0B0',
+            fill: theme.palette.text.secondary,
           },
           '& .ql-picker-label': {
-            color: '#B0B0B0',
+            color: theme.palette.text.secondary,
           },
           '& button:hover, & .ql-picker-label:hover': {
-            color: '#00E5FF',
+            color: theme.palette.text.primary,
             '& .ql-stroke': {
-              stroke: '#00E5FF',
+              stroke: theme.palette.text.primary,
             },
             '& .ql-fill': {
-              fill: '#00E5FF',
+              fill: theme.palette.text.primary,
             },
           },
           '& button.ql-active': {
-            color: '#00E5FF',
+            color: theme.palette.text.primary,
             '& .ql-stroke': {
-              stroke: '#00E5FF',
+              stroke: theme.palette.text.primary,
             },
             '& .ql-fill': {
-              fill: '#00E5FF',
+              fill: theme.palette.text.primary,
             },
           },
         },
         '& .ql-container': {
-          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          backgroundColor: theme.palette.background.paper,
           borderBottomLeftRadius: 4,
           borderBottomRightRadius: 4,
           fontFamily: 'inherit',
           fontSize: '0.875rem',
           '& .ql-editor': {
-            color: '#E0E0E0',
+            color: theme.palette.text.primary,
             minHeight: '200px',
             '&::before': {
-              color: '#B0B0B0',
+              color: theme.palette.text.secondary,
               fontStyle: 'normal',
             },
             '& p, & h1, & h2, & h3, & ul, & ol, & blockquote': {
-              color: '#E0E0E0',
+              color: theme.palette.text.primary,
             },
             '& a': {
-              color: '#00E5FF',
+              color: theme.palette.text.primary,
             },
             '& code': {
-              backgroundColor: 'rgba(0, 229, 255, 0.1)',
-              color: '#00E5FF',
+              backgroundColor: theme.palette.action.hover,
+              color: theme.palette.text.primary,
               padding: '2px 4px',
               borderRadius: 2,
             },
             '& pre': {
-              backgroundColor: 'rgba(0, 0, 0, 0.3)',
-              color: '#E0E0E0',
+              backgroundColor: theme.palette.action.hover,
+              color: theme.palette.text.primary,
               padding: '12px',
               borderRadius: 4,
             },
             '& blockquote': {
-              borderLeft: '3px solid #00E5FF',
+              borderLeft: `3px solid ${theme.palette.text.primary}`,
               paddingLeft: '12px',
               marginLeft: 0,
             },
@@ -667,8 +669,8 @@ export default function RichTextEditor({
             zIndex: 99999,
             maxHeight: 200,
             overflow: 'auto',
-            backgroundColor: '#000',
-            border: '1px solid rgba(0, 229, 255, 0.3)',
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
             borderRadius: 1,
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
             minWidth: 250,
@@ -688,9 +690,9 @@ export default function RichTextEditor({
                   insertMention(member);
                 }}
                 sx={{
-                  backgroundColor: index === selectedMentionIndex ? 'rgba(0, 229, 255, 0.1)' : 'transparent',
+                  backgroundColor: index === selectedMentionIndex ? theme.palette.action.hover : 'transparent',
                   '&:hover': {
-                    backgroundColor: 'rgba(0, 229, 255, 0.15)',
+                    backgroundColor: theme.palette.action.hover,
                   },
                   cursor: 'pointer',
                 }}
@@ -698,20 +700,26 @@ export default function RichTextEditor({
                 <ListItemAvatar>
                   <Avatar
                     src={member.avatar_url || undefined}
-                    sx={{ width: 32, height: 32, fontSize: '0.875rem' }}
+                    sx={{ 
+                      width: 32, 
+                      height: 32, 
+                      fontSize: '0.875rem',
+                      backgroundColor: theme.palette.text.primary,
+                      color: theme.palette.background.default,
+                    }}
                   >
                     {(member.name || member.email || 'U').substring(0, 2).toUpperCase()}
                   </Avatar>
                 </ListItemAvatar>
                 <ListItemText
                   primary={
-                    <Typography variant="body2" sx={{ color: '#E0E0E0' }}>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
                       {member.name || member.email}
                     </Typography>
                   }
                   secondary={
                     member.name && (
-                      <Typography variant="caption" sx={{ color: '#B0B0B0' }}>
+                      <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
                         {member.email}
                       </Typography>
                     )

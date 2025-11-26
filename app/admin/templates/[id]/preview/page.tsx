@@ -15,6 +15,7 @@ import {
   Paper,
   Divider,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   ArrowBack as ArrowBackIcon,
   Refresh as RefreshIcon,
@@ -35,6 +36,7 @@ const PHASE_NAMES = [
 ];
 
 export default function TemplatePreviewPage() {
+  const theme = useTheme();
   const router = useRouter();
   const params = useParams();
   const templateId = params.id as string;
@@ -176,25 +178,26 @@ export default function TemplatePreviewPage() {
 
   if (roleLoading || loading) {
     return (
-      <>
-        <Container>
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-            <CircularProgress />
-          </Box>
-        </Container>
-      </>
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+        <CircularProgress sx={{ color: theme.palette.text.primary }} />
+      </Box>
     );
   }
 
   if (error || !template) {
     return (
-      <>
-        <Container>
-          <Alert severity="error" sx={{ mt: 4 }}>
-            {error || 'Template not found'}
-          </Alert>
-        </Container>
-      </>
+      <Box sx={{ mt: 4 }}>
+        <Alert 
+          severity="error"
+          sx={{
+            backgroundColor: theme.palette.action.hover,
+            border: `1px solid ${theme.palette.divider}`,
+            color: theme.palette.text.primary,
+          }}
+        >
+          {error || 'Template not found'}
+        </Alert>
+      </Box>
     );
   }
 
@@ -202,168 +205,181 @@ export default function TemplatePreviewPage() {
   const sortedFields = [...currentFields].sort((a, b) => a.display_order - b.display_order);
 
   return (
-    <>
-      <Box sx={{ backgroundColor: '#000', minHeight: '100vh', pb: 4 }}>
-        <Container maxWidth="lg" sx={{ pt: 4 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-            <IconButton
-              onClick={() => router.push(`/admin/templates/${templateId}/builder`)}
-              sx={{
-                color: '#00E5FF',
-                border: '1px solid',
-                borderColor: '#00E5FF',
-              }}
-            >
-              <ArrowBackIcon />
-            </IconButton>
-            <Typography
-              variant="h4"
-              sx={{
-                flex: 1,
-                fontWeight: 700,
-                background: '#00E5FF',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}
-            >
-              Template Preview: {template.name}
+    <Box sx={{ pb: 4 }}>
+      <Container maxWidth="lg" sx={{ pt: 4 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+          <IconButton
+            onClick={() => router.push(`/admin/templates/${templateId}/builder`)}
+            sx={{
+              color: theme.palette.text.primary,
+              border: `1px solid ${theme.palette.divider}`,
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+              },
+            }}
+          >
+            <ArrowBackIcon />
+          </IconButton>
+          <Typography
+            variant="h4"
+            component="h1"
+            sx={{
+              flex: 1,
+              fontSize: '1.5rem',
+              fontWeight: 600,
+              color: theme.palette.text.primary,
+            }}
+          >
+            Template Preview: {template.name}
+          </Typography>
+        </Box>
+
+        <Paper
+          sx={{
+            mb: 3,
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
+          }}
+        >
+          <Tabs
+            value={activePhase - 1}
+            onChange={(_, newValue) => setActivePhase(newValue + 1)}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{
+              '& .MuiTab-root': {
+                color: theme.palette.text.secondary,
+                '&.Mui-selected': {
+                  color: theme.palette.text.primary,
+                },
+              },
+              '& .MuiTabs-indicator': {
+                backgroundColor: theme.palette.text.primary,
+              },
+            }}
+          >
+            {PHASE_NAMES.map((name, index) => (
+              <Tab key={index + 1} label={`Phase ${index + 1}: ${name}`} />
+            ))}
+          </Tabs>
+        </Paper>
+
+        <Paper
+          sx={{
+            p: 4,
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
+          }}
+        >
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+              Phase {activePhase} Preview
             </Typography>
+            <Button
+              startIcon={<RefreshIcon />}
+              onClick={() => {
+                // Reset preview data to defaults
+                const resetData: Record<number, any> = {};
+                for (let phaseNum = 1; phaseNum <= 6; phaseNum++) {
+                  resetData[phaseNum] = {};
+                  const phaseFields = fields[phaseNum] || [];
+                  phaseFields.forEach(field => {
+                    const fieldKey = field.field_key;
+                    const fieldConfig = field.field_config || {};
+                    
+                    if (fieldConfig.defaultValue !== undefined) {
+                      resetData[phaseNum][fieldKey] = fieldConfig.defaultValue;
+                    } else {
+                      switch (field.field_type) {
+                        case 'text':
+                        case 'textarea':
+                          resetData[phaseNum][fieldKey] = '';
+                          break;
+                        case 'array':
+                          resetData[phaseNum][fieldKey] = [];
+                          break;
+                        case 'checkbox':
+                          resetData[phaseNum][fieldKey] = false;
+                          break;
+                        case 'select':
+                          resetData[phaseNum][fieldKey] = '';
+                          break;
+                        case 'custom':
+                          if (['personas', 'jtbd', 'features', 'scored_features', 'screens', 'flows', 'components', 'entities', 'api_spec', 'user_stories', 'acceptance_criteria', 'test_cases'].includes(fieldKey)) {
+                            resetData[phaseNum][fieldKey] = [];
+                          } else if (['design_tokens', 'erd', 'rbac', 'navigation'].includes(fieldKey)) {
+                            resetData[phaseNum][fieldKey] = fieldKey === 'navigation' 
+                              ? { primary_nav: [], secondary_nav: [], route_map: {} }
+                              : {};
+                          } else {
+                            resetData[phaseNum][fieldKey] = {};
+                          }
+                          break;
+                        default:
+                          resetData[phaseNum][fieldKey] = '';
+                      }
+                    }
+                  });
+                }
+                setPreviewData(resetData);
+              }}
+              size="small"
+              variant="outlined"
+              sx={{
+                borderColor: theme.palette.text.primary,
+                color: theme.palette.text.primary,
+                '&:hover': {
+                  borderColor: theme.palette.text.primary,
+                  backgroundColor: theme.palette.action.hover,
+                },
+              }}
+            >
+              Reset Preview
+            </Button>
           </Box>
 
-          <Paper
-            sx={{
-              mb: 3,
-              backgroundColor: '#000',
-              border: '1px solid',
-              borderColor: 'primary.main',
-            }}
-          >
-            <Tabs
-              value={activePhase - 1}
-              onChange={(_, newValue) => setActivePhase(newValue + 1)}
-              variant="scrollable"
-              scrollButtons="auto"
+          {sortedFields.length === 0 ? (
+            <Alert 
+              severity="info"
               sx={{
-                '& .MuiTab-root': {
-                  color: '#B0B0B0',
-                  '&.Mui-selected': {
-                    color: '#00E5FF',
-                  },
-                },
-                '& .MuiTabs-indicator': {
-                  backgroundColor: '#00E5FF',
-                },
+                backgroundColor: theme.palette.action.hover,
+                border: `1px solid ${theme.palette.divider}`,
+                color: theme.palette.text.primary,
               }}
             >
-              {PHASE_NAMES.map((name, index) => (
-                <Tab key={index + 1} label={`Phase ${index + 1}: ${name}`} />
-              ))}
-            </Tabs>
-          </Paper>
-
-          <Paper
-            sx={{
-              p: 4,
-              backgroundColor: '#000',
-              border: '1px solid',
-              borderColor: 'primary.main',
-            }}
-          >
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-              <Typography variant="h6" sx={{ color: 'primary.main' }}>
-                Phase {activePhase} Preview
-              </Typography>
-              <Button
-                startIcon={<RefreshIcon />}
-                onClick={() => {
-                  // Reset preview data to defaults
-                  const resetData: Record<number, any> = {};
-                  for (let phaseNum = 1; phaseNum <= 6; phaseNum++) {
-                    resetData[phaseNum] = {};
-                    const phaseFields = fields[phaseNum] || [];
-                    phaseFields.forEach(field => {
-                      const fieldKey = field.field_key;
-                      const fieldConfig = field.field_config || {};
-                      
-                      if (fieldConfig.defaultValue !== undefined) {
-                        resetData[phaseNum][fieldKey] = fieldConfig.defaultValue;
-                      } else {
-                        switch (field.field_type) {
-                          case 'text':
-                          case 'textarea':
-                            resetData[phaseNum][fieldKey] = '';
-                            break;
-                          case 'array':
-                            resetData[phaseNum][fieldKey] = [];
-                            break;
-                          case 'checkbox':
-                            resetData[phaseNum][fieldKey] = false;
-                            break;
-                          case 'select':
-                            resetData[phaseNum][fieldKey] = '';
-                            break;
-                          case 'custom':
-                            if (['personas', 'jtbd', 'features', 'scored_features', 'screens', 'flows', 'components', 'entities', 'api_spec', 'user_stories', 'acceptance_criteria', 'test_cases'].includes(fieldKey)) {
-                              resetData[phaseNum][fieldKey] = [];
-                            } else if (['design_tokens', 'erd', 'rbac', 'navigation'].includes(fieldKey)) {
-                              resetData[phaseNum][fieldKey] = fieldKey === 'navigation' 
-                                ? { primary_nav: [], secondary_nav: [], route_map: {} }
-                                : {};
-                            } else {
-                              resetData[phaseNum][fieldKey] = {};
-                            }
-                            break;
-                          default:
-                            resetData[phaseNum][fieldKey] = '';
-                        }
-                      }
-                    });
-                  }
-                  setPreviewData(resetData);
-                }}
-                size="small"
-                variant="outlined"
-                sx={{
-                  borderColor: 'primary.main',
-                  color: 'primary.main',
-                  '&:hover': {
-                    borderColor: 'primary.light',
-                    backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                  },
+              No fields configured for this phase yet. Go back to the builder to add fields.
+            </Alert>
+          ) : (
+            <Box>
+              <Alert 
+                severity="info" 
+                sx={{ 
+                  mb: 3, 
+                  backgroundColor: theme.palette.action.hover, 
+                  border: `1px solid ${theme.palette.divider}`,
+                  color: theme.palette.text.primary,
                 }}
               >
-                Reset Preview
-              </Button>
-            </Box>
-
-            {sortedFields.length === 0 ? (
-              <Alert severity="info">
-                No fields configured for this phase yet. Go back to the builder to add fields.
+                <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
+                  This is a live preview of how the form will appear to users. You can interact with the fields to test the template.
+                </Typography>
               </Alert>
-            ) : (
-              <Box>
-                <Alert severity="info" sx={{ mb: 3, backgroundColor: 'rgba(0, 229, 255, 0.1)', borderColor: 'primary.main' }}>
-                  <Typography variant="body2">
-                    This is a live preview of how the form will appear to users. You can interact with the fields to test the template.
-                  </Typography>
-                </Alert>
-                <TemplateBasedPhaseForm
-                  templateId={templateId}
-                  phaseNumber={activePhase}
-                  data={previewData[activePhase] || {}}
-                  onChange={(newData) => {
-                    setPreviewData(prev => ({
-                      ...prev,
-                      [activePhase]: newData,
-                    }));
-                  }}
-                />
-              </Box>
-            )}
-          </Paper>
-        </Container>
-      </Box>
-    </>
+              <TemplateBasedPhaseForm
+                templateId={templateId}
+                phaseNumber={activePhase}
+                data={previewData[activePhase] || {}}
+                onChange={(newData) => {
+                  setPreviewData(prev => ({
+                    ...prev,
+                    [activePhase]: newData,
+                  }));
+                }}
+              />
+            </Box>
+          )}
+        </Paper>
+      </Container>
+    </Box>
   );
 }
 

@@ -11,6 +11,7 @@ import {
   IconButton,
   Chip,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { Add as AddIcon, Delete as DeleteIcon, Visibility as VisibilityIcon } from '@mui/icons-material';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import type { CompanyContact } from '@/types/ops';
@@ -23,6 +24,7 @@ interface CompanyContactsTabProps {
 
 export default function CompanyContactsTab({ companyId }: CompanyContactsTabProps) {
   const router = useRouter();
+  const theme = useTheme();
   const { showSuccess, showError } = useNotification();
   const [contacts, setContacts] = useState<CompanyContact[]>([]);
   const [loading, setLoading] = useState(true);
@@ -222,7 +224,7 @@ export default function CompanyContactsTab({ companyId }: CompanyContactsTabProp
           <IconButton
             size="small"
             onClick={(e) => handleViewContact(row, e)}
-            sx={{ color: '#00E5FF' }}
+            sx={{ color: theme.palette.text.primary }}
             title="View Details"
           >
             <VisibilityIcon fontSize="small" />
@@ -230,7 +232,7 @@ export default function CompanyContactsTab({ companyId }: CompanyContactsTabProp
           <IconButton
             size="small"
             onClick={(e) => handleDeleteContact(row, e)}
-            sx={{ color: '#FF1744' }}
+            sx={{ color: theme.palette.text.primary }}
             title="Delete"
           >
             <DeleteIcon fontSize="small" />
@@ -262,22 +264,23 @@ export default function CompanyContactsTab({ companyId }: CompanyContactsTabProp
         <Typography
           variant="h6"
           sx={{
-            color: '#00E5FF',
+            color: theme.palette.text.primary,
             fontWeight: 600,
           }}
         >
           Contacts
         </Typography>
         <Button
-          variant="contained"
+          variant="outlined"
           startIcon={<AddIcon />}
           onClick={handleCreateContact}
           sx={{
-            backgroundColor: '#00E5FF',
-            color: '#000',
+            borderColor: theme.palette.text.primary,
+            color: theme.palette.text.primary,
             fontWeight: 600,
             '&:hover': {
-              backgroundColor: '#00B2CC',
+              borderColor: theme.palette.text.secondary,
+              backgroundColor: theme.palette.action.hover,
             },
           }}
         >
