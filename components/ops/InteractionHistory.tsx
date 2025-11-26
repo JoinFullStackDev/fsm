@@ -19,6 +19,7 @@ import {
   DialogContent,
   DialogActions,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Add as AddIcon,
   Phone as PhoneIcon,
@@ -61,6 +62,7 @@ export default function InteractionHistory({
   interactions,
   onInteractionsChange,
 }: InteractionHistoryProps) {
+  const theme = useTheme();
   const { showSuccess, showError } = useNotification();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -139,7 +141,7 @@ export default function InteractionHistory({
         <Typography
           variant="subtitle2"
           sx={{
-            color: '#B0B0B0',
+            color: theme.palette.text.secondary,
             fontWeight: 600,
           }}
         >
@@ -150,11 +152,13 @@ export default function InteractionHistory({
           startIcon={<AddIcon />}
           onClick={() => setDialogOpen(true)}
           sx={{
-            backgroundColor: '#00E5FF',
-            color: '#000',
+            backgroundColor: theme.palette.background.paper,
+            color: theme.palette.text.primary,
             fontWeight: 600,
+            border: `1px solid ${theme.palette.divider}`,
             '&:hover': {
-              backgroundColor: '#00B2CC',
+              backgroundColor: theme.palette.action.hover,
+              borderColor: theme.palette.text.primary,
             },
           }}
         >
@@ -166,7 +170,7 @@ export default function InteractionHistory({
         <Typography
           variant="body2"
           sx={{
-            color: '#808080',
+            color: theme.palette.text.secondary,
             fontStyle: 'italic',
             textAlign: 'center',
             py: 3,
@@ -181,15 +185,15 @@ export default function InteractionHistory({
               key={interaction.id}
               sx={{
                 p: 2,
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                border: '2px solid rgba(0, 229, 255, 0.2)',
+                backgroundColor: theme.palette.background.paper,
+                border: `2px solid ${theme.palette.divider}`,
                 borderRadius: 1,
               }}
             >
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
                 <Box
                   sx={{
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
                     display: 'flex',
                     alignItems: 'center',
                     mt: 0.5,
@@ -203,7 +207,7 @@ export default function InteractionHistory({
                       <Typography
                         variant="body2"
                         sx={{
-                          color: '#00E5FF',
+                          color: theme.palette.text.primary,
                           fontWeight: 600,
                           textTransform: 'uppercase',
                           fontSize: '0.75rem',
@@ -215,7 +219,7 @@ export default function InteractionHistory({
                         <Typography
                           variant="body1"
                           sx={{
-                            color: '#E0E0E0',
+                            color: theme.palette.text.primary,
                             fontWeight: 600,
                             mt: 0.5,
                           }}
@@ -227,7 +231,7 @@ export default function InteractionHistory({
                     <Typography
                       variant="caption"
                       sx={{
-                        color: '#808080',
+                        color: theme.palette.text.secondary,
                         whiteSpace: 'nowrap',
                       }}
                     >
@@ -237,7 +241,7 @@ export default function InteractionHistory({
                   <Typography
                     variant="body2"
                     sx={{
-                      color: '#E0E0E0',
+                      color: theme.palette.text.primary,
                       whiteSpace: 'pre-wrap',
                       mb: 1,
                     }}
@@ -248,7 +252,7 @@ export default function InteractionHistory({
                     <Typography
                       variant="caption"
                       sx={{
-                        color: '#808080',
+                        color: theme.palette.text.secondary,
                       }}
                     >
                       Logged by {interaction.created_user.name || interaction.created_user.email}
@@ -276,9 +280,15 @@ export default function InteractionHistory({
         }}
         maxWidth="sm"
         fullWidth
+        PaperProps={{
+          sx: {
+            backgroundColor: theme.palette.background.default,
+            border: `2px solid ${theme.palette.divider}`,
+          },
+        }}
       >
         <form onSubmit={handleSubmit}>
-          <DialogTitle sx={{ color: '#00E5FF', fontWeight: 600 }}>
+          <DialogTitle sx={{ color: theme.palette.text.primary, fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif' }}>
             Log Interaction
           </DialogTitle>
           <DialogContent>
@@ -287,9 +297,9 @@ export default function InteractionHistory({
                 severity="error"
                 sx={{
                   mb: 2,
-                  backgroundColor: 'rgba(255, 23, 68, 0.1)',
-                  border: '1px solid rgba(255, 23, 68, 0.3)',
-                  color: '#FF1744',
+                  backgroundColor: theme.palette.action.hover,
+                  border: `1px solid ${theme.palette.divider}`,
+                  color: theme.palette.text.primary,
                 }}
               >
                 {error}
@@ -297,26 +307,46 @@ export default function InteractionHistory({
             )}
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
               <FormControl fullWidth>
-                <InputLabel sx={{ color: '#B0B0B0' }}>Interaction Type</InputLabel>
+                <InputLabel sx={{ color: theme.palette.text.secondary }}>Interaction Type</InputLabel>
                 <Select
                   value={interactionType}
                   label="Interaction Type"
                   onChange={(e) => setInteractionType(e.target.value as InteractionType)}
                   disabled={loading}
+                  MenuProps={{
+                    PaperProps: {
+                      sx: {
+                        backgroundColor: theme.palette.background.paper,
+                        border: `1px solid ${theme.palette.divider}`,
+                        '& .MuiMenuItem-root': {
+                          color: theme.palette.text.primary,
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                          '&.Mui-selected': {
+                            backgroundColor: theme.palette.action.hover,
+                            '&:hover': {
+                              backgroundColor: theme.palette.action.hover,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  }}
                   sx={{
-                    color: '#E0E0E0',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.background.default,
                     '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                     '& .MuiSvgIcon-root': {
-                      color: '#00E5FF',
+                      color: theme.palette.text.primary,
                     },
                   }}
                 >
@@ -335,23 +365,23 @@ export default function InteractionHistory({
                 disabled={loading}
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    color: '#E0E0E0',
+                    backgroundColor: theme.palette.background.default,
+                    color: theme.palette.text.primary,
                     '& fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused fieldset': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                   },
                   '& .MuiInputLabel-root': {
-                    color: '#B0B0B0',
+                    color: theme.palette.text.secondary,
                   },
                   '& .MuiInputLabel-root.Mui-focused': {
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
                   },
                 }}
               />
@@ -367,23 +397,23 @@ export default function InteractionHistory({
                 disabled={loading}
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    color: '#E0E0E0',
+                    backgroundColor: theme.palette.background.default,
+                    color: theme.palette.text.primary,
                     '& fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused fieldset': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                   },
                   '& .MuiInputLabel-root': {
-                    color: '#B0B0B0',
+                    color: theme.palette.text.secondary,
                   },
                   '& .MuiInputLabel-root.Mui-focused': {
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
                   },
                 }}
               />
@@ -401,29 +431,29 @@ export default function InteractionHistory({
                 disabled={loading}
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    color: '#E0E0E0',
+                    backgroundColor: theme.palette.background.default,
+                    color: theme.palette.text.primary,
                     '& fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused fieldset': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                   },
                   '& .MuiInputLabel-root': {
-                    color: '#B0B0B0',
+                    color: theme.palette.text.secondary,
                   },
                   '& .MuiInputLabel-root.Mui-focused': {
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
                   },
                 }}
               />
             </Box>
           </DialogContent>
-          <DialogActions sx={{ p: 2 }}>
+          <DialogActions sx={{ p: 2, borderTop: `2px solid ${theme.palette.divider}` }}>
             <Button
               onClick={() => {
                 setDialogOpen(false);
@@ -435,11 +465,14 @@ export default function InteractionHistory({
               }}
               disabled={loading}
               sx={{
-                color: '#B0B0B0',
+                borderColor: theme.palette.divider,
+                color: theme.palette.text.primary,
                 '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  borderColor: theme.palette.text.primary,
+                  backgroundColor: theme.palette.action.hover,
                 },
               }}
+              variant="outlined"
             >
               Cancel
             </Button>
@@ -448,11 +481,13 @@ export default function InteractionHistory({
               variant="contained"
               disabled={loading}
               sx={{
-                backgroundColor: '#00E5FF',
-                color: '#000',
+                backgroundColor: theme.palette.background.paper,
+                color: theme.palette.text.primary,
                 fontWeight: 600,
+                border: `1px solid ${theme.palette.divider}`,
                 '&:hover': {
-                  backgroundColor: '#00B2CC',
+                  backgroundColor: theme.palette.action.hover,
+                  borderColor: theme.palette.text.primary,
                 },
               }}
             >

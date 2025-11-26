@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo } from 'react';
-import { Box, Typography } from '@mui/material';
+import { useMemo, useState, useEffect } from 'react';
+import { Box, Typography, IconButton, Collapse } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   format,
   parseISO,
@@ -12,6 +13,10 @@ import {
   isBefore,
   addDays,
 } from 'date-fns';
+import {
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+} from '@mui/icons-material';
 import type { ProjectTask, ProjectTaskExtended } from '@/types/project';
 import type { WeeklyReportData, MonthlyReportData, ForecastReportData } from '@/lib/reports/dataAggregator';
 
@@ -26,7 +31,25 @@ const PRIORITY_COLORS: Record<string, string> = {
   low: '#9C27B0',
 };
 
+// Fallback phase names for backward compatibility
+const DEFAULT_PHASE_NAMES: Record<number, string> = {
+  1: 'Concept Framing',
+  2: 'Product Strategy',
+  3: 'Rapid Prototype Definition',
+  4: 'Analysis & User Stories',
+  5: 'Build Accelerator',
+  6: 'QA & Hardening',
+};
+
+interface PhaseGroup {
+  phaseNumber: number | null;
+  phaseName: string;
+  tasks: (ProjectTask | ProjectTaskExtended)[];
+}
+
 export default function ReportGanttChart({ data, reportType }: ReportGanttChartProps) {
+  const theme = useTheme();
+
   // Get tasks based on report type
   const tasks = useMemo(() => {
     if ('lastWeek' in data) {
@@ -40,6 +63,71 @@ export default function ReportGanttChart({ data, reportType }: ReportGanttChartP
       return data.tasks;
     }
   }, [data]);
+
+  // Group tasks by phase
+  const phasesGrouped = useMemo(() => {
+    const phaseMap = new Map<number | null, PhaseGroup>();
+    
+    // Initialize with "No Phase" group
+    phaseMap.set(null, {
+      phaseNumber: null,
+      phaseName: 'No Phase',
+      tasks: [],
+    });
+
+    tasks.forEach((task) => {
+      const phaseNumber = task.phase_number ?? null;
+      
+      if (!phaseMap.has(phaseNumber)) {
+        const phaseName = phaseNumber 
+          ? (DEFAULT_PHASE_NAMES[phaseNumber] || `Phase ${phaseNumber}`)
+          : 'No Phase';
+        phaseMap.set(phaseNumber, {
+          phaseNumber,
+          phaseName,
+          tasks: [],
+        });
+      }
+      
+      phaseMap.get(phaseNumber)!.tasks.push(task);
+    });
+
+    // Convert to array and sort by phase number (null last)
+    const phases = Array.from(phaseMap.values()).sort((a, b) => {
+      if (a.phaseNumber === null) return 1;
+      if (b.phaseNumber === null) return -1;
+      return a.phaseNumber - b.phaseNumber;
+    });
+
+    // Filter phases that have tasks with dates
+    return phases.map(phase => ({
+      ...phase,
+      tasks: phase.tasks
+        .filter((task) => task.start_date || task.due_date)
+        .sort((a, b) => {
+          const aDate = a.start_date ? parseISO(a.start_date) : a.due_date ? parseISO(a.due_date) : new Date(0);
+          const bDate = b.start_date ? parseISO(b.start_date) : b.due_date ? parseISO(b.due_date) : new Date(0);
+          return aDate.getTime() - bDate.getTime();
+        }),
+    })).filter(phase => phase.tasks.length > 0);
+  }, [tasks]);
+
+  // Initialize expanded phase to the first phase (or null if no phases)
+  const [expandedPhase, setExpandedPhase] = useState<number | null>(null);
+
+  // Set the first phase as expanded when phases are loaded
+  useEffect(() => {
+    if (phasesGrouped.length > 0 && expandedPhase === null) {
+      setExpandedPhase(phasesGrouped[0].phaseNumber);
+    }
+  }, [phasesGrouped, expandedPhase]);
+
+  const togglePhase = (phaseNumber: number | null) => {
+    setExpandedPhase(prev => {
+      // If clicking the same phase, close it; otherwise, open the new one
+      return prev === phaseNumber ? null : phaseNumber;
+    });
+  };
 
   // Calculate date range
   const dateRange = useMemo(() => {
@@ -60,17 +148,6 @@ export default function ReportGanttChart({ data, reportType }: ReportGanttChartP
     return { start, end };
   }, [data]);
 
-  // Filter tasks with dates
-  const tasksWithDates = useMemo(() => {
-    return tasks
-      .filter((task) => task.start_date || task.due_date)
-      .slice(0, 20) // Limit to 20 tasks for readability
-      .sort((a, b) => {
-        const aDate = a.start_date ? parseISO(a.start_date) : a.due_date ? parseISO(a.due_date) : new Date(0);
-        const bDate = b.start_date ? parseISO(b.start_date) : b.due_date ? parseISO(b.due_date) : new Date(0);
-        return aDate.getTime() - bDate.getTime();
-      });
-  }, [tasks]);
 
   // Calculate timeline days
   const timelineDays = useMemo(() => {
@@ -131,6 +208,7 @@ export default function ReportGanttChart({ data, reportType }: ReportGanttChartP
           mb: 2,
           ml: '200px', // Offset to align with task bars (after task name column)
           minWidth: `${totalDays * dayWidth}px`,
+          borderBottom: `1px solid ${theme.palette.divider}`,
         }}
       >
         {/* Month labels row */}
@@ -170,7 +248,7 @@ export default function ReportGanttChart({ data, reportType }: ReportGanttChartP
                   variant="caption"
                   sx={{
                     fontSize: '0.75rem',
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
                     fontWeight: 600,
                     whiteSpace: 'nowrap',
                   }}
@@ -206,9 +284,9 @@ export default function ReportGanttChart({ data, reportType }: ReportGanttChartP
                   sx={{
                     width: `${dayWidth}px`,
                     minWidth: `${dayWidth}px`,
-                    borderRight: '1px solid rgba(0, 229, 255, 0.1)',
+                    borderRight: `1px solid ${theme.palette.divider}`,
                     backgroundColor: isWeekend
-                      ? 'rgba(255, 255, 255, 0.02)'
+                      ? theme.palette.background.paper
                       : 'transparent',
                   }}
                 />
@@ -221,13 +299,13 @@ export default function ReportGanttChart({ data, reportType }: ReportGanttChartP
                 sx={{
                   width: `${dayWidth}px`,
                   minWidth: `${dayWidth}px`,
-                  borderRight: '2px solid rgba(0, 229, 255, 0.2)',
+                  borderRight: `1px solid ${theme.palette.divider}`,
                   textAlign: 'center',
                   py: 0.5,
                   backgroundColor: isToday
-                    ? 'rgba(0, 229, 255, 0.2)'
+                    ? theme.palette.action.hover
                     : isWeekend
-                    ? 'rgba(255, 255, 255, 0.02)'
+                    ? theme.palette.background.paper
                     : 'transparent',
                 }}
               >
@@ -235,7 +313,7 @@ export default function ReportGanttChart({ data, reportType }: ReportGanttChartP
                   variant="caption"
                   sx={{
                     fontSize: '0.7rem',
-                    color: isToday ? '#00E5FF' : '#B0B0B0',
+                    color: isToday ? theme.palette.text.primary : theme.palette.text.secondary,
                     display: 'block',
                     fontWeight: isToday ? 600 : 400,
                     whiteSpace: 'nowrap',
@@ -249,94 +327,147 @@ export default function ReportGanttChart({ data, reportType }: ReportGanttChartP
         </Box>
       </Box>
 
-      {/* Task bars */}
+      {/* Phase groups */}
       <Box sx={{ minWidth: `${totalDays * dayWidth}px` }}>
-        {tasksWithDates.map((task, index) => {
-          const taskBar = getTaskBar(task);
-          if (!taskBar) return null;
-
-          const priorityColor = PRIORITY_COLORS[task.priority] || '#00E5FF';
+        {phasesGrouped.map((phase) => {
+          const isExpanded = expandedPhase === phase.phaseNumber;
+          const phaseKey = phase.phaseNumber ?? 'no-phase';
 
           return (
-            <Box
-              key={task.id}
-              sx={{
-                display: 'flex',
-                mb: 1.5,
-                minHeight: 32,
-                alignItems: 'center',
-              }}
-            >
-              {/* Task name */}
+            <Box key={phaseKey} sx={{ mb: 2 }}>
+              {/* Phase header */}
               <Box
                 sx={{
-                  width: 200,
-                  minWidth: 200,
-                  pr: 2,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  mb: 1,
+                  cursor: 'pointer',
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                  borderRadius: 1,
+                  p: 0.5,
                 }}
+                onClick={() => togglePhase(phase.phaseNumber)}
               >
-                <Typography
-                  variant="body2"
+                <IconButton
+                  size="small"
                   sx={{
-                    color: '#E0E0E0',
-                    fontSize: '0.9rem',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
+                    color: theme.palette.text.primary,
+                    p: 0.5,
                   }}
                 >
-                  {task.title}
+                  {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                </IconButton>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    color: theme.palette.text.primary,
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    fontFamily: 'var(--font-rubik), Rubik, sans-serif',
+                    flex: 1,
+                  }}
+                >
+                  {phase.phaseName}
                 </Typography>
               </Box>
 
-              {/* Timeline bar */}
-              <Box
-                sx={{
-                  position: 'relative',
-                  width: `${totalDays * dayWidth}px`,
-                  height: 24,
-                  backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                  borderRadius: 1,
-                }}
-              >
-                {/* Task bar */}
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    left: `${taskBar.left * dayWidth}px`,
-                    width: `${taskBar.width * dayWidth}px`,
-                    height: '100%',
-                    backgroundColor: taskBar.isOverdue
-                      ? 'rgba(233, 30, 99, 0.6)'
-                      : task.status === 'done'
-                      ? 'rgba(76, 175, 80, 0.6)'
-                      : priorityColor,
-                    borderRadius: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: `1px solid ${priorityColor}`,
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  {taskBar.width > 3 && (
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        color: '#FFFFFF',
-                        fontSize: '0.7rem',
-                        fontWeight: 500,
-                        textAlign: 'center',
-                        px: 0.5,
-                      }}
-                    >
-                      {task.status === 'done' ? '✓' : task.priority}
-                    </Typography>
-                  )}
+              {/* Phase tasks */}
+              <Collapse in={isExpanded}>
+                <Box sx={{ pl: 4 }}>
+                  {phase.tasks.map((task) => {
+                    const taskBar = getTaskBar(task);
+                    if (!taskBar) return null;
+
+                    const priorityColor = PRIORITY_COLORS[task.priority] || theme.palette.text.primary;
+
+                    return (
+                      <Box
+                        key={task.id}
+                        sx={{
+                          display: 'flex',
+                          mb: 1.5,
+                          minHeight: 32,
+                          alignItems: 'center',
+                        }}
+                      >
+                        {/* Task name */}
+                        <Box
+                          sx={{
+                            width: 200,
+                            minWidth: 200,
+                            pr: 2,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              color: theme.palette.text.primary,
+                              fontSize: '0.9rem',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            {task.title}
+                          </Typography>
+                        </Box>
+
+                        {/* Timeline bar */}
+                        <Box
+                          sx={{
+                            position: 'relative',
+                            width: `${totalDays * dayWidth}px`,
+                            height: 24,
+                            backgroundColor: theme.palette.action.hover,
+                            borderRadius: 1,
+                          }}
+                        >
+                          {/* Task bar */}
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              left: `${taskBar.left * dayWidth}px`,
+                              width: `${taskBar.width * dayWidth}px`,
+                              height: '100%',
+                              backgroundColor: taskBar.isOverdue
+                                ? theme.palette.error.main
+                                : task.status === 'done'
+                                ? '#4CAF50'
+                                : priorityColor,
+                              borderRadius: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              border: `1px solid ${task.status === 'done' ? '#4CAF50' : priorityColor}`,
+                              transition: 'all 0.2s',
+                              opacity: task.status === 'done' ? 0.8 : 1,
+                            }}
+                          >
+                            {taskBar.width > 3 && (
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  color: '#FFFFFF',
+                                  fontSize: '0.7rem',
+                                  fontWeight: 500,
+                                  textAlign: 'center',
+                                  px: 0.5,
+                                }}
+                              >
+                                {task.status === 'done' ? '✓' : task.priority}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+                      </Box>
+                    );
+                  })}
                 </Box>
-              </Box>
+              </Collapse>
             </Box>
           );
         })}
@@ -361,7 +492,7 @@ export default function ReportGanttChart({ data, reportType }: ReportGanttChartP
               borderRadius: 1,
             }}
           />
-          <Typography variant="caption" sx={{ color: '#B0B0B0' }}>
+          <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
             High Priority
           </Typography>
         </Box>
@@ -370,11 +501,11 @@ export default function ReportGanttChart({ data, reportType }: ReportGanttChartP
             sx={{
               width: 16,
               height: 16,
-              backgroundColor: '#00E5FF',
+              backgroundColor: theme.palette.text.primary,
               borderRadius: 1,
             }}
           />
-          <Typography variant="caption" sx={{ color: '#B0B0B0' }}>
+          <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
             Medium Priority
           </Typography>
         </Box>
@@ -387,7 +518,7 @@ export default function ReportGanttChart({ data, reportType }: ReportGanttChartP
               borderRadius: 1,
             }}
           />
-          <Typography variant="caption" sx={{ color: '#B0B0B0' }}>
+          <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
             Completed
           </Typography>
         </Box>
@@ -396,11 +527,11 @@ export default function ReportGanttChart({ data, reportType }: ReportGanttChartP
             sx={{
               width: 16,
               height: 16,
-              backgroundColor: 'rgba(233, 30, 99, 0.6)',
+              backgroundColor: theme.palette.error.main,
               borderRadius: 1,
             }}
           />
-          <Typography variant="caption" sx={{ color: '#B0B0B0' }}>
+          <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
             Overdue
           </Typography>
         </Box>

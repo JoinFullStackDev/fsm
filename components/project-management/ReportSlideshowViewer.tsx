@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Box, IconButton, Button } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   ArrowBack as ArrowBackIcon,
   ArrowForward as ArrowForwardIcon,
@@ -42,6 +43,7 @@ export default function ReportSlideshowViewer({
   projectMembers = [],
   onDownload,
 }: ReportSlideshowViewerProps) {
+  const theme = useTheme();
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const reportTypeLabel = reportType.charAt(0).toUpperCase() + reportType.slice(1);
@@ -89,9 +91,8 @@ export default function ReportSlideshowViewer({
               sx={{
                 fontSize: '4rem',
                 fontWeight: 700,
-                background: '#00E5FF',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
+                color: theme.palette.text.primary,
+                fontFamily: 'var(--font-rubik), Rubik, sans-serif',
                 mb: 2,
               }}
             >
@@ -101,17 +102,18 @@ export default function ReportSlideshowViewer({
               component="h2"
               sx={{
                 fontSize: '2.5rem',
-                color: '#00E5FF',
+                color: theme.palette.text.primary,
                 mb: 2,
                 fontWeight: 600,
+                fontFamily: 'var(--font-rubik), Rubik, sans-serif',
               }}
             >
               {reportTypeLabel} Report
             </Box>
-            <Box sx={{ fontSize: '1.5rem', color: '#B0B0B0', mb: 1 }}>
+            <Box sx={{ fontSize: '1.5rem', color: theme.palette.text.secondary, mb: 1 }}>
               {dateRange}
             </Box>
-            <Box sx={{ fontSize: '1rem', color: '#808080' }}>
+            <Box sx={{ fontSize: '1rem', color: theme.palette.text.secondary }}>
               Generated: {format(new Date(), 'MMM d, yyyy')}
             </Box>
           </Box>
@@ -124,9 +126,10 @@ export default function ReportSlideshowViewer({
               component="h2"
               sx={{
                 fontSize: '3rem',
-                color: '#00E5FF',
+                color: theme.palette.text.primary,
                 mb: 4,
                 fontWeight: 600,
+                fontFamily: 'var(--font-rubik), Rubik, sans-serif',
               }}
             >
               Executive Summary
@@ -135,7 +138,7 @@ export default function ReportSlideshowViewer({
               sx={{
                 fontSize: '1.5rem',
                 lineHeight: 1.8,
-                color: '#E0E0E0',
+                color: theme.palette.text.primary,
               }}
             >
               {content.executiveSummary}
@@ -150,9 +153,10 @@ export default function ReportSlideshowViewer({
               component="h2"
               sx={{
                 fontSize: '3rem',
-                color: '#00E5FF',
+                color: theme.palette.text.primary,
                 mb: 4,
                 fontWeight: 600,
+                fontFamily: 'var(--font-rubik), Rubik, sans-serif',
               }}
             >
               Timeline Overview
@@ -169,9 +173,10 @@ export default function ReportSlideshowViewer({
               component="h2"
               sx={{
                 fontSize: '3rem',
-                color: '#00E5FF',
+                color: theme.palette.text.primary,
                 mb: 4,
                 fontWeight: 600,
+                fontFamily: 'var(--font-rubik), Rubik, sans-serif',
               }}
             >
               Metrics Overview
@@ -187,97 +192,127 @@ export default function ReportSlideshowViewer({
               >
                 <Box
                   sx={{
-                    background: 'rgba(0, 229, 255, 0.1)',
-                    border: '1px solid rgba(0, 229, 255, 0.3)',
+                    backgroundColor: theme.palette.background.paper,
+                    border: `1px solid ${theme.palette.divider}`,
                     borderRadius: 2,
                     p: 3,
                     textAlign: 'center',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      borderColor: theme.palette.text.primary,
+                      backgroundColor: theme.palette.action.hover,
+                    },
                   }}
                 >
-                  <Box sx={{ fontSize: '3rem', fontWeight: 700, color: '#00E5FF', mb: 1 }}>
+                  <Box sx={{ fontSize: '3rem', fontWeight: 700, color: theme.palette.text.primary, mb: 1 }}>
                     {metrics.total}
                   </Box>
-                  <Box sx={{ fontSize: '1rem', color: '#B0B0B0', textTransform: 'uppercase' }}>
+                  <Box sx={{ fontSize: '1rem', color: theme.palette.text.secondary, textTransform: 'uppercase' }}>
                     Total Tasks
                   </Box>
                 </Box>
                 <Box
                   sx={{
-                    background: 'rgba(0, 229, 255, 0.1)',
-                    border: '1px solid rgba(0, 229, 255, 0.3)',
+                    backgroundColor: theme.palette.background.paper,
+                    border: `1px solid ${theme.palette.divider}`,
                     borderRadius: 2,
                     p: 3,
                     textAlign: 'center',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      borderColor: theme.palette.text.primary,
+                      backgroundColor: theme.palette.action.hover,
+                    },
                   }}
                 >
-                  <Box sx={{ fontSize: '3rem', fontWeight: 700, color: '#00E5FF', mb: 1 }}>
+                  <Box sx={{ fontSize: '3rem', fontWeight: 700, color: '#4CAF50', mb: 1 }}>
                     {metrics.completed}
                   </Box>
-                  <Box sx={{ fontSize: '1rem', color: '#B0B0B0', textTransform: 'uppercase' }}>
+                  <Box sx={{ fontSize: '1rem', color: theme.palette.text.secondary, textTransform: 'uppercase' }}>
                     Completed
                   </Box>
                 </Box>
                 <Box
                   sx={{
-                    background: 'rgba(0, 229, 255, 0.1)',
-                    border: '1px solid rgba(0, 229, 255, 0.3)',
+                    backgroundColor: theme.palette.background.paper,
+                    border: `1px solid ${theme.palette.divider}`,
                     borderRadius: 2,
                     p: 3,
                     textAlign: 'center',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      borderColor: theme.palette.text.primary,
+                      backgroundColor: theme.palette.action.hover,
+                    },
                   }}
                 >
-                  <Box sx={{ fontSize: '3rem', fontWeight: 700, color: '#00E5FF', mb: 1 }}>
+                  <Box sx={{ fontSize: '3rem', fontWeight: 700, color: theme.palette.text.primary, mb: 1 }}>
                     {metrics.inProgress}
                   </Box>
-                  <Box sx={{ fontSize: '1rem', color: '#B0B0B0', textTransform: 'uppercase' }}>
+                  <Box sx={{ fontSize: '1rem', color: theme.palette.text.secondary, textTransform: 'uppercase' }}>
                     In Progress
                   </Box>
                 </Box>
                 <Box
                   sx={{
-                    background: 'rgba(0, 229, 255, 0.1)',
-                    border: '1px solid rgba(0, 229, 255, 0.3)',
+                    backgroundColor: theme.palette.background.paper,
+                    border: `1px solid ${theme.palette.divider}`,
                     borderRadius: 2,
                     p: 3,
                     textAlign: 'center',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      borderColor: theme.palette.text.primary,
+                      backgroundColor: theme.palette.action.hover,
+                    },
                   }}
                 >
-                  <Box sx={{ fontSize: '3rem', fontWeight: 700, color: '#00E5FF', mb: 1 }}>
+                  <Box sx={{ fontSize: '3rem', fontWeight: 700, color: theme.palette.text.primary, mb: 1 }}>
                     {metrics.todo}
                   </Box>
-                  <Box sx={{ fontSize: '1rem', color: '#B0B0B0', textTransform: 'uppercase' }}>
+                  <Box sx={{ fontSize: '1rem', color: theme.palette.text.secondary, textTransform: 'uppercase' }}>
                     Todo
                   </Box>
                 </Box>
                 <Box
                   sx={{
-                    background: metrics.overdue > 0 ? 'rgba(233, 30, 99, 0.1)' : 'rgba(0, 229, 255, 0.1)',
-                    border: metrics.overdue > 0 ? '1px solid rgba(233, 30, 99, 0.3)' : '1px solid rgba(0, 229, 255, 0.3)',
+                    backgroundColor: theme.palette.background.paper,
+                    border: `1px solid ${theme.palette.divider}`,
                     borderRadius: 2,
                     p: 3,
                     textAlign: 'center',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      borderColor: theme.palette.text.primary,
+                      backgroundColor: theme.palette.action.hover,
+                    },
                   }}
                 >
-                  <Box sx={{ fontSize: '3rem', fontWeight: 700, color: metrics.overdue > 0 ? '#E91E63' : '#00E5FF', mb: 1 }}>
+                  <Box sx={{ fontSize: '3rem', fontWeight: 700, color: metrics.overdue > 0 ? theme.palette.error.main : theme.palette.text.primary, mb: 1 }}>
                     {metrics.overdue}
                   </Box>
-                  <Box sx={{ fontSize: '1rem', color: '#B0B0B0', textTransform: 'uppercase' }}>
+                  <Box sx={{ fontSize: '1rem', color: theme.palette.text.secondary, textTransform: 'uppercase' }}>
                     Overdue
                   </Box>
                 </Box>
                 <Box
                   sx={{
-                    background: 'rgba(0, 229, 255, 0.1)',
-                    border: '1px solid rgba(0, 229, 255, 0.3)',
+                    backgroundColor: theme.palette.background.paper,
+                    border: `1px solid ${theme.palette.divider}`,
                     borderRadius: 2,
                     p: 3,
                     textAlign: 'center',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      borderColor: theme.palette.text.primary,
+                      backgroundColor: theme.palette.action.hover,
+                    },
                   }}
                 >
-                  <Box sx={{ fontSize: '3rem', fontWeight: 700, color: '#00E5FF', mb: 1 }}>
+                  <Box sx={{ fontSize: '3rem', fontWeight: 700, color: theme.palette.text.primary, mb: 1 }}>
                     {metrics.upcomingDeadlines}
                   </Box>
-                  <Box sx={{ fontSize: '1rem', color: '#B0B0B0', textTransform: 'uppercase' }}>
+                  <Box sx={{ fontSize: '1rem', color: theme.palette.text.secondary, textTransform: 'uppercase' }}>
                     Upcoming (7d)
                   </Box>
                 </Box>
@@ -293,9 +328,10 @@ export default function ReportSlideshowViewer({
               component="h2"
               sx={{
                 fontSize: '3rem',
-                color: '#E91E63',
+                color: theme.palette.text.primary,
                 mb: 4,
                 fontWeight: 600,
+                fontFamily: 'var(--font-rubik), Rubik, sans-serif',
               }}
             >
               Risks & Concerns
@@ -308,12 +344,14 @@ export default function ReportSlideshowViewer({
                   sx={{
                     pl: 4,
                     mb: 2,
+                    color: theme.palette.text.primary,
                     position: 'relative',
                     '&:before': {
                       content: '"⚠"',
                       position: 'absolute',
                       left: 0,
                       fontSize: '1.5rem',
+                      color: theme.palette.error.main,
                     },
                   }}
                 >
@@ -331,9 +369,10 @@ export default function ReportSlideshowViewer({
               component="h2"
               sx={{
                 fontSize: '3rem',
-                color: '#00E5FF',
+                color: theme.palette.text.primary,
                 mb: 4,
                 fontWeight: 600,
+                fontFamily: 'var(--font-rubik), Rubik, sans-serif',
               }}
             >
               Recommendations
@@ -346,12 +385,13 @@ export default function ReportSlideshowViewer({
                   sx={{
                     pl: 4,
                     mb: 2,
+                    color: theme.palette.text.primary,
                     position: 'relative',
                     '&:before': {
                       content: '"→"',
                       position: 'absolute',
                       left: 0,
-                      color: '#00E5FF',
+                      color: '#4CAF50',
                       fontSize: '1.5rem',
                     },
                   }}
@@ -391,9 +431,10 @@ export default function ReportSlideshowViewer({
               component="h2"
               sx={{
                 fontSize: '3rem',
-                color: '#00E5FF',
+                color: theme.palette.text.primary,
                 mb: 4,
                 fontWeight: 600,
+                fontFamily: 'var(--font-rubik), Rubik, sans-serif',
               }}
             >
               Team Workload Analysis
@@ -401,56 +442,56 @@ export default function ReportSlideshowViewer({
             <TableContainer
               component={Paper}
               sx={{
-                backgroundColor: 'rgba(0, 229, 255, 0.05)',
-                border: '2px solid rgba(0, 229, 255, 0.2)',
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
                 borderRadius: 2,
                 maxHeight: 600,
                 overflow: 'auto',
               }}
             >
               <Table stickyHeader>
-                <TableHead sx={{ backgroundColor: '#000' }}>
+                <TableHead sx={{ backgroundColor: theme.palette.background.paper }}>
                   <TableRow>
                     <TableCell
                       sx={{
-                        backgroundColor: '#000',
-                        color: '#00E5FF',
+                        backgroundColor: theme.palette.background.paper,
+                        color: theme.palette.text.primary,
                         fontWeight: 600,
                         fontSize: '1.1rem',
-                        borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+                        borderBottom: `1px solid ${theme.palette.divider}`,
                       }}
                     >
                       Task
                     </TableCell>
                     <TableCell
                       sx={{
-                        backgroundColor: '#000',
-                        color: '#00E5FF',
+                        backgroundColor: theme.palette.background.paper,
+                        color: theme.palette.text.primary,
                         fontWeight: 600,
                         fontSize: '1.1rem',
-                        borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+                        borderBottom: `1px solid ${theme.palette.divider}`,
                       }}
                     >
                       Priority
                     </TableCell>
                     <TableCell
                       sx={{
-                        backgroundColor: '#000',
-                        color: '#00E5FF',
+                        backgroundColor: theme.palette.background.paper,
+                        color: theme.palette.text.primary,
                         fontWeight: 600,
                         fontSize: '1.1rem',
-                        borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+                        borderBottom: `1px solid ${theme.palette.divider}`,
                       }}
                     >
                       Status
                     </TableCell>
                     <TableCell
                       sx={{
-                        backgroundColor: '#000',
-                        color: '#00E5FF',
+                        backgroundColor: theme.palette.background.paper,
+                        color: theme.palette.text.primary,
                         fontWeight: 600,
                         fontSize: '1.1rem',
-                        borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+                        borderBottom: `1px solid ${theme.palette.divider}`,
                       }}
                     >
                       Due Date
@@ -461,47 +502,43 @@ export default function ReportSlideshowViewer({
                   {sortedTasks.map((task) => {
                     const statusColor = 
                       task.status === 'done' ? '#4CAF50' :
-                      task.status === 'in_progress' ? '#00E5FF' :
-                      task.status === 'todo' ? '#9E9E9E' : '#B0B0B0';
+                      task.status === 'in_progress' ? theme.palette.text.primary :
+                      theme.palette.text.secondary;
 
                     const priorityColor = 
-                      task.priority === 'high' ? '#E91E63' :
-                      task.priority === 'low' ? '#9C27B0' : '#00E5FF';
+                      task.priority === 'high' ? theme.palette.error.main :
+                      task.priority === 'low' ? theme.palette.text.secondary : theme.palette.text.primary;
 
                     return (
                       <TableRow
                         key={task.id}
                         sx={{
                           '&:hover': {
-                            backgroundColor: 'rgba(0, 229, 255, 0.05)',
+                            backgroundColor: theme.palette.action.hover,
                           },
                         }}
                       >
                         <TableCell
                           sx={{
-                            color: '#E0E0E0',
+                            color: theme.palette.text.primary,
                             fontSize: '0.95rem',
-                            borderBottom: '1px solid rgba(0, 229, 255, 0.1)',
+                            borderBottom: `1px solid ${theme.palette.divider}`,
                           }}
                         >
                           {task.title}
                         </TableCell>
                         <TableCell
                           sx={{
-                            borderBottom: '1px solid rgba(0, 229, 255, 0.1)',
+                            borderBottom: `1px solid ${theme.palette.divider}`,
                           }}
                         >
                           <Chip
                             label={task.priority || 'medium'}
                             size="small"
                             sx={{
-                              backgroundColor: 
-                                task.priority === 'high'
-                                  ? 'rgba(233, 30, 99, 0.2)'
-                                  : task.priority === 'low'
-                                  ? 'rgba(156, 39, 176, 0.2)'
-                                  : 'rgba(0, 229, 255, 0.2)',
+                              backgroundColor: theme.palette.action.hover,
                               color: priorityColor,
+                              border: `1px solid ${theme.palette.divider}`,
                               fontSize: '0.75rem',
                               fontWeight: 500,
                             }}
@@ -509,7 +546,7 @@ export default function ReportSlideshowViewer({
                         </TableCell>
                         <TableCell
                           sx={{
-                            borderBottom: '1px solid rgba(0, 229, 255, 0.1)',
+                            borderBottom: `1px solid ${theme.palette.divider}`,
                           }}
                         >
                           <Chip
@@ -519,10 +556,9 @@ export default function ReportSlideshowViewer({
                               backgroundColor: 
                                 task.status === 'done'
                                   ? 'rgba(76, 175, 80, 0.2)'
-                                  : task.status === 'in_progress'
-                                  ? 'rgba(0, 229, 255, 0.2)'
-                                  : 'rgba(158, 158, 158, 0.2)',
+                                  : theme.palette.action.hover,
                               color: statusColor,
+                              border: `1px solid ${theme.palette.divider}`,
                               fontSize: '0.75rem',
                               fontWeight: 500,
                             }}
@@ -530,9 +566,9 @@ export default function ReportSlideshowViewer({
                         </TableCell>
                         <TableCell
                           sx={{
-                            color: '#E0E0E0',
+                            color: theme.palette.text.secondary,
                             fontSize: '0.95rem',
-                            borderBottom: '1px solid rgba(0, 229, 255, 0.1)',
+                            borderBottom: `1px solid ${theme.palette.divider}`,
                           }}
                         >
                           {task.due_date ? format(parseISO(task.due_date), 'MMM d, yyyy') : 'No date'}
@@ -555,7 +591,7 @@ export default function ReportSlideshowViewer({
     <Box
       sx={{
         minHeight: '100vh',
-        backgroundColor: '#000',
+        backgroundColor: theme.palette.background.default,
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
@@ -578,11 +614,11 @@ export default function ReportSlideshowViewer({
             startIcon={<DownloadIcon />}
             onClick={onDownload}
             sx={{
-              borderColor: '#00E5FF',
-              color: '#00E5FF',
+              borderColor: theme.palette.text.primary,
+              color: theme.palette.text.primary,
               '&:hover': {
-                borderColor: '#00E5FF',
-                backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                borderColor: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
               },
             }}
           >
@@ -625,16 +661,18 @@ export default function ReportSlideshowViewer({
           onClick={() => showSlide(currentSlide - 1)}
           disabled={currentSlide === 0}
           sx={{
-            color: '#00E5FF',
-            backgroundColor: 'rgba(0, 229, 255, 0.2)',
-            border: '1px solid rgba(0, 229, 255, 0.5)',
+            color: theme.palette.text.primary,
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
             borderRight: 'none',
             borderRadius: '4px 0 0 4px',
             '&:hover': {
-              backgroundColor: 'rgba(0, 229, 255, 0.3)',
+              backgroundColor: theme.palette.action.hover,
+              borderColor: theme.palette.text.primary,
             },
             '&.Mui-disabled': {
               opacity: 0.3,
+              color: theme.palette.text.secondary,
             },
           }}
         >
@@ -644,16 +682,18 @@ export default function ReportSlideshowViewer({
           onClick={() => showSlide(currentSlide + 1)}
           disabled={currentSlide === totalSlides - 1}
           sx={{
-            color: '#00E5FF',
-            backgroundColor: 'rgba(0, 229, 255, 0.2)',
-            border: '1px solid rgba(0, 229, 255, 0.5)',
+            color: theme.palette.text.primary,
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
             borderLeft: 'none',
             borderRadius: '0 4px 4px 0',
             '&:hover': {
-              backgroundColor: 'rgba(0, 229, 255, 0.3)',
+              backgroundColor: theme.palette.action.hover,
+              borderColor: theme.palette.text.primary,
             },
             '&.Mui-disabled': {
               opacity: 0.3,
+              color: theme.palette.text.secondary,
             },
           }}
         >
@@ -681,12 +721,13 @@ export default function ReportSlideshowViewer({
               width: 12,
               height: 12,
               borderRadius: '50%',
-              backgroundColor: index === currentSlide ? '#00E5FF' : 'rgba(0, 229, 255, 0.3)',
+              backgroundColor: index === currentSlide ? theme.palette.text.primary : theme.palette.divider,
               cursor: 'pointer',
               transition: 'all 0.3s',
               transform: index === currentSlide ? 'scale(1.2)' : 'scale(1)',
               '&:hover': {
-                backgroundColor: 'rgba(0, 229, 255, 0.5)',
+                backgroundColor: theme.palette.text.primary,
+                opacity: 0.7,
               },
             }}
           />

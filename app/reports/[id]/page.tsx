@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Box, CircularProgress, Alert } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import ReportSlideshowViewer from '@/components/project-management/ReportSlideshowViewer';
 import { generateSlideshowHTML } from '@/lib/reports/slideshowGenerator';
 import type { WeeklyReportData, MonthlyReportData, ForecastReportData } from '@/lib/reports/dataAggregator';
@@ -21,6 +22,7 @@ interface ReportData {
 }
 
 export default function ReportPage() {
+  const theme = useTheme();
   const params = useParams();
   const reportId = params.id as string;
   const [report, setReport] = useState<ReportData | null>(null);
@@ -83,10 +85,10 @@ export default function ReportPage() {
           justifyContent: 'center',
           alignItems: 'center',
           minHeight: '100vh',
-          backgroundColor: '#000',
+          backgroundColor: theme.palette.background.default,
         }}
       >
-        <CircularProgress sx={{ color: '#00E5FF' }} />
+        <CircularProgress sx={{ color: theme.palette.text.primary }} />
       </Box>
     );
   }
@@ -99,11 +101,19 @@ export default function ReportPage() {
           justifyContent: 'center',
           alignItems: 'center',
           minHeight: '100vh',
-          backgroundColor: '#000',
+          backgroundColor: theme.palette.background.default,
           p: 4,
         }}
       >
-        <Alert severity="error" sx={{ maxWidth: 600 }}>
+        <Alert 
+          severity="error" 
+          sx={{ 
+            maxWidth: 600,
+            backgroundColor: theme.palette.action.hover,
+            border: `1px solid ${theme.palette.divider}`,
+            color: theme.palette.text.primary,
+          }}
+        >
           {error || 'Report not found'}
         </Alert>
       </Box>
@@ -114,7 +124,7 @@ export default function ReportPage() {
     <Box
       sx={{
         minHeight: '100vh',
-        backgroundColor: '#000',
+        backgroundColor: theme.palette.background.default,
         position: 'relative',
       }}
     >

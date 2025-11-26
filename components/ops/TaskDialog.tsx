@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Drawer,
+  Box,
+  Typography,
+  IconButton,
   TextField,
   Button,
   FormControl,
@@ -13,8 +13,10 @@ import {
   Select,
   MenuItem,
   Alert,
-  Box,
+  Divider,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { Close as CloseIcon } from '@mui/icons-material';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import type { OpsTaskWithRelations, CompanyContact } from '@/types/ops';
 
@@ -35,6 +37,7 @@ export default function TaskDialog({
   task,
   contacts = [],
 }: TaskDialogProps) {
+  const theme = useTheme();
   const { showSuccess, showError } = useNotification();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -121,26 +124,87 @@ export default function TaskDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <form onSubmit={handleSubmit}>
-        <DialogTitle sx={{ color: '#00E5FF', fontWeight: 600 }}>
-          {isEdit ? 'Edit Task' : 'Create Task'}
-        </DialogTitle>
-        <DialogContent>
+    <Drawer
+      anchor="right"
+      open={open}
+      onClose={onClose}
+      PaperProps={{
+        sx: {
+          width: { xs: '100%', sm: '75%', md: '600px' },
+          backgroundColor: theme.palette.background.default,
+          borderLeft: `2px solid ${theme.palette.divider}`,
+        },
+      }}
+    >
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        {/* Header */}
+        <Box
+          sx={{
+            p: 3,
+            px: 4,
+            pb: 2,
+            borderBottom: `2px solid ${theme.palette.divider}`,
+            backgroundColor: theme.palette.background.paper,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            minHeight: '64px',
+          }}
+        >
+          <Typography
+            variant="h6"
+            sx={{
+              color: theme.palette.text.primary,
+              fontWeight: 600,
+              fontFamily: 'var(--font-rubik), Rubik, sans-serif',
+            }}
+          >
+            {isEdit ? 'Edit Task' : 'Create Task'}
+          </Typography>
+          <IconButton
+            onClick={onClose}
+            title="Close"
+            sx={{
+              color: theme.palette.text.secondary,
+              padding: '8px',
+              '&:hover': {
+                color: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
+              },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </Box>
+
+        {/* Content */}
+        <Box
+          component="form"
+          id="task-form"
+          onSubmit={handleSubmit}
+          sx={{
+            flex: 1,
+            overflowY: 'auto',
+            p: 3,
+            px: 4,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
           {error && (
             <Alert
               severity="error"
               sx={{
-                mb: 2,
-                backgroundColor: 'rgba(255, 23, 68, 0.1)',
-                border: '1px solid rgba(255, 23, 68, 0.3)',
-                color: '#FF1744',
+                mb: 3,
+                backgroundColor: theme.palette.action.hover,
+                border: `1px solid ${theme.palette.divider}`,
+                color: theme.palette.text.primary,
               }}
             >
               {error}
             </Alert>
           )}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <TextField
               fullWidth
               label="Task Title"
@@ -157,23 +221,23 @@ export default function TaskDialog({
               disabled={loading}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#E0E0E0',
+                  backgroundColor: theme.palette.background.default,
+                  color: theme.palette.text.primary,
                   '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                 },
                 '& .MuiInputLabel-root': {
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                 },
                 '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                 },
               }}
             />
@@ -187,47 +251,67 @@ export default function TaskDialog({
               disabled={loading}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#E0E0E0',
+                  backgroundColor: theme.palette.background.default,
+                  color: theme.palette.text.primary,
                   '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                 },
                 '& .MuiInputLabel-root': {
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                 },
                 '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                 },
               }}
             />
             <FormControl fullWidth>
-              <InputLabel sx={{ color: '#B0B0B0' }}>Contact (Optional)</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Contact (Optional)</InputLabel>
               <Select
                 value={contactId}
                 label="Contact (Optional)"
                 onChange={(e) => setContactId(e.target.value)}
                 disabled={loading}
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      backgroundColor: theme.palette.background.paper,
+                      border: `1px solid ${theme.palette.divider}`,
+                      '& .MuiMenuItem-root': {
+                        color: theme.palette.text.primary,
+                        '&:hover': {
+                          backgroundColor: theme.palette.action.hover,
+                        },
+                        '&.Mui-selected': {
+                          backgroundColor: theme.palette.action.hover,
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        },
+                      },
+                    },
+                  },
+                }}
                 sx={{
-                  color: '#E0E0E0',
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.default,
                   '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                   '& .MuiSvgIcon-root': {
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
                   },
                 }}
               >
@@ -251,23 +335,23 @@ export default function TaskDialog({
               disabled={loading}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#E0E0E0',
+                  backgroundColor: theme.palette.background.default,
+                  color: theme.palette.text.primary,
                   '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                 },
                 '& .MuiInputLabel-root': {
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                 },
                 '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                 },
               }}
             />
@@ -281,38 +365,53 @@ export default function TaskDialog({
               disabled={loading}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#E0E0E0',
+                  backgroundColor: theme.palette.background.default,
+                  color: theme.palette.text.primary,
                   '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                 },
                 '& .MuiInputLabel-root': {
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                 },
                 '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                 },
               }}
             />
           </Box>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
+        </Box>
+
+        {/* Footer */}
+        <Box
+          sx={{
+            p: 3,
+            px: 4,
+            borderTop: `2px solid ${theme.palette.divider}`,
+            backgroundColor: theme.palette.background.paper,
+            display: 'flex',
+            gap: 2,
+            justifyContent: 'flex-end',
+          }}
+        >
           <Button
             onClick={onClose}
             disabled={loading}
             sx={{
-              color: '#B0B0B0',
+              borderColor: theme.palette.divider,
+              color: theme.palette.text.primary,
               '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                borderColor: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
               },
             }}
+            variant="outlined"
           >
             Cancel
           </Button>
@@ -320,20 +419,23 @@ export default function TaskDialog({
             type="submit"
             variant="contained"
             disabled={loading}
+            form="task-form"
             sx={{
-              backgroundColor: '#00E5FF',
-              color: '#000',
+              backgroundColor: theme.palette.background.paper,
+              color: theme.palette.text.primary,
               fontWeight: 600,
+              border: `1px solid ${theme.palette.divider}`,
               '&:hover': {
-                backgroundColor: '#00B2CC',
+                backgroundColor: theme.palette.action.hover,
+                borderColor: theme.palette.text.primary,
               },
             }}
           >
-            {loading ? (isEdit ? 'Updating...' : 'Creating...') : (isEdit ? 'Update' : 'Create')}
+            {loading ? (isEdit ? 'Updating...' : 'Creating...') : (isEdit ? 'Update Task' : 'Create Task')}
           </Button>
-        </DialogActions>
-      </form>
-    </Dialog>
+        </Box>
+      </Box>
+    </Drawer>
   );
 }
 

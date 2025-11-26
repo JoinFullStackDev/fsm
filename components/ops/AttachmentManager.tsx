@@ -14,6 +14,7 @@ import {
   ListItemText,
   ListItemSecondaryAction,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Upload as UploadIcon,
   Delete as DeleteIcon,
@@ -35,6 +36,7 @@ export default function AttachmentManager({
   attachments,
   onAttachmentsChange,
 }: AttachmentManagerProps) {
+  const theme = useTheme();
   const { showSuccess, showError } = useNotification();
   const supabase = createSupabaseClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -192,7 +194,7 @@ export default function AttachmentManager({
         <Typography
           variant="subtitle2"
           sx={{
-            color: '#B0B0B0',
+            color: theme.palette.text.secondary,
             fontWeight: 600,
           }}
         >
@@ -211,15 +213,18 @@ export default function AttachmentManager({
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
           sx={{
-            backgroundColor: '#00E5FF',
-            color: '#000',
+            backgroundColor: theme.palette.background.paper,
+            color: theme.palette.text.primary,
             fontWeight: 600,
+            border: `1px solid ${theme.palette.divider}`,
             '&:hover': {
-              backgroundColor: '#00B2CC',
+              backgroundColor: theme.palette.action.hover,
+              borderColor: theme.palette.text.primary,
             },
             '&:disabled': {
-              backgroundColor: 'rgba(0, 229, 255, 0.3)',
-              color: '#808080',
+              backgroundColor: theme.palette.action.hover,
+              color: theme.palette.text.secondary,
+              borderColor: theme.palette.divider,
             },
           }}
         >
@@ -232,9 +237,9 @@ export default function AttachmentManager({
           severity="error"
           sx={{
             mb: 2,
-            backgroundColor: 'rgba(255, 23, 68, 0.1)',
-            border: '1px solid rgba(255, 23, 68, 0.3)',
-            color: '#FF1744',
+            backgroundColor: theme.palette.action.hover,
+            border: `1px solid ${theme.palette.divider}`,
+            color: theme.palette.text.primary,
           }}
         >
           {error}
@@ -245,7 +250,7 @@ export default function AttachmentManager({
         <Typography
           variant="body2"
           sx={{
-            color: '#808080',
+            color: theme.palette.text.secondary,
             fontStyle: 'italic',
             textAlign: 'center',
             py: 3,
@@ -260,14 +265,14 @@ export default function AttachmentManager({
               key={attachment.id}
               sx={{
                 mb: 1,
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                border: '2px solid rgba(0, 229, 255, 0.2)',
+                backgroundColor: theme.palette.background.paper,
+                border: `2px solid ${theme.palette.divider}`,
               }}
             >
               <ListItem>
                 <AttachFileIcon
                   sx={{
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
                     mr: 2,
                   }}
                 />
@@ -276,7 +281,7 @@ export default function AttachmentManager({
                     <Typography
                       variant="body2"
                       sx={{
-                        color: '#E0E0E0',
+                        color: theme.palette.text.primary,
                         fontWeight: 500,
                       }}
                     >
@@ -288,7 +293,7 @@ export default function AttachmentManager({
                       <Typography
                         variant="caption"
                         sx={{
-                          color: '#808080',
+                          color: theme.palette.text.secondary,
                           display: 'block',
                         }}
                       >
@@ -299,7 +304,7 @@ export default function AttachmentManager({
                         <Typography
                           variant="caption"
                           sx={{
-                            color: '#808080',
+                            color: theme.palette.text.secondary,
                             display: 'block',
                           }}
                         >
@@ -316,10 +321,10 @@ export default function AttachmentManager({
                     edge="end"
                     onClick={() => window.open(attachment.file_path, '_blank')}
                     sx={{
-                      color: '#00E5FF',
+                      color: theme.palette.text.primary,
                       mr: 1,
                       '&:hover': {
-                        backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                        backgroundColor: theme.palette.action.hover,
                       },
                     }}
                   >
@@ -330,9 +335,9 @@ export default function AttachmentManager({
                     onClick={() => handleDelete(attachment.id, attachment.file_path)}
                     disabled={deleting === attachment.id}
                     sx={{
-                      color: '#FF1744',
+                      color: theme.palette.error.main,
                       '&:hover': {
-                        backgroundColor: 'rgba(255, 23, 68, 0.1)',
+                        backgroundColor: theme.palette.action.hover,
                       },
                     }}
                   >

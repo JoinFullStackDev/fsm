@@ -18,11 +18,13 @@ import {
   IconButton,
   CircularProgress,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import type { CompanyStatus, CompanySize, RevenueBand } from '@/types/ops';
 
 export default function EditCompanyPage() {
+  const theme = useTheme();
   const router = useRouter();
   const params = useParams();
   const companyId = params.id as string;
@@ -140,7 +142,7 @@ export default function EditCompanyPage() {
     return (
       <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-          <CircularProgress />
+          <CircularProgress sx={{ color: theme.palette.text.primary }} />
         </Box>
       </Container>
     );
@@ -152,9 +154,12 @@ export default function EditCompanyPage() {
         <IconButton
           onClick={() => router.push(`/ops/companies/${companyId}`)}
           sx={{
-            color: '#00E5FF',
-            border: '1px solid',
-            borderColor: '#00E5FF',
+            color: theme.palette.text.primary,
+            border: `1px solid ${theme.palette.divider}`,
+            '&:hover': {
+              backgroundColor: theme.palette.action.hover,
+              borderColor: theme.palette.text.primary,
+            },
           }}
         >
           <ArrowBackIcon />
@@ -164,9 +169,8 @@ export default function EditCompanyPage() {
           component="h1"
           sx={{
             fontWeight: 700,
-            background: '#00E5FF',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
+            color: theme.palette.text.primary,
+            fontFamily: 'var(--font-rubik), Rubik, sans-serif',
           }}
         >
           Edit Company
@@ -175,8 +179,8 @@ export default function EditCompanyPage() {
 
       <Card
         sx={{
-          backgroundColor: '#000',
-          border: '2px solid rgba(0, 229, 255, 0.2)',
+          backgroundColor: theme.palette.background.paper,
+          border: `1px solid ${theme.palette.divider}`,
           borderRadius: 2,
         }}
       >
@@ -186,9 +190,9 @@ export default function EditCompanyPage() {
               severity="error"
               sx={{
                 mb: 2,
-                backgroundColor: 'rgba(255, 23, 68, 0.1)',
-                border: '1px solid rgba(255, 23, 68, 0.3)',
-                color: '#FF1744',
+                backgroundColor: theme.palette.action.hover,
+                border: `1px solid ${theme.palette.divider}`,
+                color: theme.palette.text.primary,
               }}
             >
               {error}
@@ -212,47 +216,67 @@ export default function EditCompanyPage() {
               disabled={loading}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#E0E0E0',
+                  backgroundColor: theme.palette.background.default,
+                  color: theme.palette.text.primary,
                   '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                 },
                 '& .MuiInputLabel-root': {
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                 },
                 '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                 },
               }}
             />
             <FormControl fullWidth margin="normal">
-              <InputLabel sx={{ color: '#B0B0B0' }}>Status</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Status</InputLabel>
               <Select
                 value={status}
                 label="Status"
                 onChange={(e) => setStatus(e.target.value as CompanyStatus)}
                 disabled={loading}
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      backgroundColor: theme.palette.background.paper,
+                      border: `1px solid ${theme.palette.divider}`,
+                      '& .MuiMenuItem-root': {
+                        color: theme.palette.text.primary,
+                        '&:hover': {
+                          backgroundColor: theme.palette.action.hover,
+                        },
+                        '&.Mui-selected': {
+                          backgroundColor: theme.palette.action.hover,
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        },
+                      },
+                    },
+                  },
+                }}
                 sx={{
-                  color: '#E0E0E0',
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.default,
                   '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                   '& .MuiSvgIcon-root': {
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
                   },
                 }}
               >
@@ -264,26 +288,46 @@ export default function EditCompanyPage() {
               </Select>
             </FormControl>
             <FormControl fullWidth margin="normal">
-              <InputLabel sx={{ color: '#B0B0B0' }}>Company Size</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Company Size</InputLabel>
               <Select
                 value={company_size}
                 label="Company Size"
                 onChange={(e) => setCompanySize(e.target.value as CompanySize)}
                 disabled={loading}
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      backgroundColor: theme.palette.background.paper,
+                      border: `1px solid ${theme.palette.divider}`,
+                      '& .MuiMenuItem-root': {
+                        color: theme.palette.text.primary,
+                        '&:hover': {
+                          backgroundColor: theme.palette.action.hover,
+                        },
+                        '&.Mui-selected': {
+                          backgroundColor: theme.palette.action.hover,
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        },
+                      },
+                    },
+                  },
+                }}
                 sx={{
-                  color: '#E0E0E0',
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.default,
                   '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                   '& .MuiSvgIcon-root': {
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
                   },
                 }}
               >
@@ -305,47 +349,67 @@ export default function EditCompanyPage() {
               disabled={loading}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#E0E0E0',
+                  backgroundColor: theme.palette.background.default,
+                  color: theme.palette.text.primary,
                   '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                 },
                 '& .MuiInputLabel-root': {
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                 },
                 '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                 },
               }}
             />
             <FormControl fullWidth margin="normal">
-              <InputLabel sx={{ color: '#B0B0B0' }}>Revenue Band</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Revenue Band</InputLabel>
               <Select
                 value={revenue_band}
                 label="Revenue Band"
                 onChange={(e) => setRevenueBand(e.target.value as RevenueBand)}
                 disabled={loading}
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      backgroundColor: theme.palette.background.paper,
+                      border: `1px solid ${theme.palette.divider}`,
+                      '& .MuiMenuItem-root': {
+                        color: theme.palette.text.primary,
+                        '&:hover': {
+                          backgroundColor: theme.palette.action.hover,
+                        },
+                        '&.Mui-selected': {
+                          backgroundColor: theme.palette.action.hover,
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        },
+                      },
+                    },
+                  },
+                }}
                 sx={{
-                  color: '#E0E0E0',
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.default,
                   '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                   '& .MuiSvgIcon-root': {
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
                   },
                 }}
               >
@@ -366,23 +430,23 @@ export default function EditCompanyPage() {
               disabled={loading}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#E0E0E0',
+                  backgroundColor: theme.palette.background.default,
+                  color: theme.palette.text.primary,
                   '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                 },
                 '& .MuiInputLabel-root': {
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                 },
                 '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                 },
               }}
             />
@@ -395,23 +459,23 @@ export default function EditCompanyPage() {
               disabled={loading}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#E0E0E0',
+                  backgroundColor: theme.palette.background.default,
+                  color: theme.palette.text.primary,
                   '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                 },
                 '& .MuiInputLabel-root': {
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                 },
                 '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                 },
               }}
             />
@@ -425,23 +489,23 @@ export default function EditCompanyPage() {
                 disabled={loading}
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    color: '#E0E0E0',
+                    backgroundColor: theme.palette.background.default,
+                    color: theme.palette.text.primary,
                     '& fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused fieldset': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                   },
                   '& .MuiInputLabel-root': {
-                    color: '#B0B0B0',
+                    color: theme.palette.text.secondary,
                   },
                   '& .MuiInputLabel-root.Mui-focused': {
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
                   },
                 }}
               />
@@ -454,23 +518,23 @@ export default function EditCompanyPage() {
                 disabled={loading}
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    color: '#E0E0E0',
+                    backgroundColor: theme.palette.background.default,
+                    color: theme.palette.text.primary,
                     '& fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused fieldset': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                   },
                   '& .MuiInputLabel-root': {
-                    color: '#B0B0B0',
+                    color: theme.palette.text.secondary,
                   },
                   '& .MuiInputLabel-root.Mui-focused': {
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
                   },
                 }}
               />
@@ -483,23 +547,23 @@ export default function EditCompanyPage() {
                 disabled={loading}
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    color: '#E0E0E0',
+                    backgroundColor: theme.palette.background.default,
+                    color: theme.palette.text.primary,
                     '& fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused fieldset': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                   },
                   '& .MuiInputLabel-root': {
-                    color: '#B0B0B0',
+                    color: theme.palette.text.secondary,
                   },
                   '& .MuiInputLabel-root.Mui-focused': {
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
                   },
                 }}
               />
@@ -513,23 +577,23 @@ export default function EditCompanyPage() {
               disabled={loading}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#E0E0E0',
+                  backgroundColor: theme.palette.background.default,
+                  color: theme.palette.text.primary,
                   '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                 },
                 '& .MuiInputLabel-root': {
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                 },
                 '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                 },
               }}
             />
@@ -544,23 +608,23 @@ export default function EditCompanyPage() {
               disabled={loading}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#E0E0E0',
+                  backgroundColor: theme.palette.background.default,
+                  color: theme.palette.text.primary,
                   '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                 },
                 '& .MuiInputLabel-root': {
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                 },
                 '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                 },
               }}
             />
@@ -575,23 +639,23 @@ export default function EditCompanyPage() {
               disabled={loading}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#E0E0E0',
+                  backgroundColor: theme.palette.background.default,
+                  color: theme.palette.text.primary,
                   '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                 },
                 '& .MuiInputLabel-root': {
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                 },
                 '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                 },
               }}
             />
@@ -601,11 +665,11 @@ export default function EditCompanyPage() {
                 onClick={() => router.push(`/ops/companies/${companyId}`)}
                 disabled={loading}
                 sx={{
-                  borderColor: 'rgba(0, 229, 255, 0.3)',
-                  color: '#00E5FF',
+                  borderColor: theme.palette.divider,
+                  color: theme.palette.text.primary,
                   '&:hover': {
-                    borderColor: '#00E5FF',
-                    backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                    borderColor: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
                   },
                 }}
               >
@@ -616,11 +680,13 @@ export default function EditCompanyPage() {
                 variant="contained"
                 disabled={loading}
                 sx={{
-                  backgroundColor: '#00E5FF',
-                  color: '#000',
+                  backgroundColor: theme.palette.background.paper,
+                  color: theme.palette.text.primary,
                   fontWeight: 600,
+                  border: `1px solid ${theme.palette.divider}`,
                   '&:hover': {
-                    backgroundColor: '#00B2CC',
+                    backgroundColor: theme.palette.action.hover,
+                    borderColor: theme.palette.text.primary,
                   },
                 }}
               >

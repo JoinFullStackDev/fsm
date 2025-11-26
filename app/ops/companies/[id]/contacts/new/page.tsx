@@ -11,11 +11,13 @@ import {
   IconButton,
   CircularProgress,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import ContactForm from '@/components/ops/ContactForm';
 
 export default function NewCompanyContactPage() {
+  const theme = useTheme();
   const router = useRouter();
   const params = useParams();
   const companyId = params.id as string;
@@ -90,7 +92,7 @@ export default function NewCompanyContactPage() {
     return (
       <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-          <CircularProgress />
+          <CircularProgress sx={{ color: theme.palette.text.primary }} />
         </Box>
       </Container>
     );
@@ -102,9 +104,12 @@ export default function NewCompanyContactPage() {
         <IconButton
           onClick={() => router.push(`/ops/companies/${companyId}`)}
           sx={{
-            color: '#00E5FF',
-            border: '1px solid',
-            borderColor: '#00E5FF',
+            color: theme.palette.text.primary,
+            border: `1px solid ${theme.palette.divider}`,
+            '&:hover': {
+              backgroundColor: theme.palette.action.hover,
+              borderColor: theme.palette.text.primary,
+            },
           }}
         >
           <ArrowBackIcon />
@@ -114,9 +119,8 @@ export default function NewCompanyContactPage() {
           component="h1"
           sx={{
             fontWeight: 700,
-            background: '#00E5FF',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
+            color: theme.palette.text.primary,
+            fontFamily: 'var(--font-rubik), Rubik, sans-serif',
           }}
         >
           Add Contact{companyName ? ` to ${companyName}` : ''}
@@ -125,8 +129,8 @@ export default function NewCompanyContactPage() {
 
       <Card
         sx={{
-          backgroundColor: '#000',
-          border: '2px solid rgba(0, 229, 255, 0.2)',
+          backgroundColor: theme.palette.background.paper,
+          border: `2px solid ${theme.palette.divider}`,
           borderRadius: 2,
         }}
       >
