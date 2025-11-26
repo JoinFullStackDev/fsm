@@ -11,7 +11,7 @@ import {
   IconButton,
   Chip,
 } from '@mui/material';
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Visibility as VisibilityIcon } from '@mui/icons-material';
+import { Add as AddIcon, Delete as DeleteIcon, Visibility as VisibilityIcon } from '@mui/icons-material';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import type { CompanyContact } from '@/types/ops';
 import SortableTable from '@/components/dashboard/SortableTable';
@@ -63,15 +63,6 @@ export default function CompanyContactsTab({ companyId }: CompanyContactsTabProp
     e.stopPropagation();
     setSelectedContactId(contact.id);
     setSlideoutOpen(true);
-  };
-
-  const handleEditContact = (contact: CompanyContact, e: React.MouseEvent) => {
-    e.stopPropagation();
-    router.push(`/ops/contacts/${contact.id}/edit`);
-  };
-
-  const handleEditFromSlideout = (contactId: string) => {
-    router.push(`/ops/contacts/${contactId}/edit`);
   };
 
   const handleDeleteFromSlideout = (contactId: string) => {
@@ -238,14 +229,6 @@ export default function CompanyContactsTab({ companyId }: CompanyContactsTabProp
           </IconButton>
           <IconButton
             size="small"
-            onClick={(e) => handleEditContact(row, e)}
-            sx={{ color: '#00E5FF' }}
-            title="Edit"
-          >
-            <EditIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
             onClick={(e) => handleDeleteContact(row, e)}
             sx={{ color: '#FF1744' }}
             title="Delete"
@@ -321,7 +304,6 @@ export default function CompanyContactsTab({ companyId }: CompanyContactsTabProp
           setSlideoutOpen(false);
           setSelectedContactId(null);
         }}
-        onEdit={handleEditFromSlideout}
         onDelete={handleDeleteFromSlideout}
         onRefresh={loadContacts}
       />
