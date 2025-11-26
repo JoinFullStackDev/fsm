@@ -18,11 +18,13 @@ import {
   IconButton,
   CircularProgress,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import type { OpportunityStatus, OpportunitySource } from '@/types/ops';
 
 export default function EditOpportunityPage() {
+  const theme = useTheme();
   const router = useRouter();
   const params = useParams();
   const opportunityId = params.id as string;
@@ -125,7 +127,7 @@ export default function EditOpportunityPage() {
     return (
       <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-          <CircularProgress />
+          <CircularProgress sx={{ color: theme.palette.text.primary }} />
         </Box>
       </Container>
     );
@@ -137,9 +139,12 @@ export default function EditOpportunityPage() {
         <IconButton
           onClick={() => companyId ? router.push(`/ops/companies/${companyId}`) : router.push('/ops/opportunities')}
           sx={{
-            color: '#00E5FF',
-            border: '1px solid',
-            borderColor: '#00E5FF',
+            color: theme.palette.text.primary,
+            border: `1px solid ${theme.palette.divider}`,
+            '&:hover': {
+              backgroundColor: theme.palette.action.hover,
+              borderColor: theme.palette.text.primary,
+            },
           }}
         >
           <ArrowBackIcon />
@@ -149,9 +154,8 @@ export default function EditOpportunityPage() {
           component="h1"
           sx={{
             fontWeight: 700,
-            background: '#00E5FF',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
+            color: theme.palette.text.primary,
+            fontFamily: 'var(--font-rubik), Rubik, sans-serif',
           }}
         >
           Edit Opportunity{companyName ? ` - ${companyName}` : ''}
@@ -160,8 +164,8 @@ export default function EditOpportunityPage() {
 
       <Card
         sx={{
-          backgroundColor: '#000',
-          border: '2px solid rgba(0, 229, 255, 0.2)',
+          backgroundColor: theme.palette.background.paper,
+          border: `1px solid ${theme.palette.divider}`,
           borderRadius: 2,
         }}
       >
@@ -171,9 +175,9 @@ export default function EditOpportunityPage() {
               severity="error"
               sx={{
                 mb: 2,
-                backgroundColor: 'rgba(255, 23, 68, 0.1)',
-                border: '1px solid rgba(255, 23, 68, 0.3)',
-                color: '#FF1744',
+                backgroundColor: theme.palette.action.hover,
+                border: `1px solid ${theme.palette.divider}`,
+                color: theme.palette.text.primary,
               }}
             >
               {error}
@@ -197,23 +201,23 @@ export default function EditOpportunityPage() {
               disabled={loading}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#E0E0E0',
+                  backgroundColor: theme.palette.background.default,
+                  color: theme.palette.text.primary,
                   '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                 },
                 '& .MuiInputLabel-root': {
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                 },
                 '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                 },
               }}
             />
@@ -234,47 +238,67 @@ export default function EditOpportunityPage() {
               disabled={loading}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#E0E0E0',
+                  backgroundColor: theme.palette.background.default,
+                  color: theme.palette.text.primary,
                   '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                 },
                 '& .MuiInputLabel-root': {
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                 },
                 '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                 },
               }}
             />
             <FormControl fullWidth margin="normal">
-              <InputLabel sx={{ color: '#B0B0B0' }}>Status</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Status</InputLabel>
               <Select
                 value={status}
                 label="Status"
                 onChange={(e) => setStatus(e.target.value as OpportunityStatus)}
                 disabled={loading}
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      backgroundColor: theme.palette.background.paper,
+                      border: `1px solid ${theme.palette.divider}`,
+                      '& .MuiMenuItem-root': {
+                        color: theme.palette.text.primary,
+                        '&:hover': {
+                          backgroundColor: theme.palette.action.hover,
+                        },
+                        '&.Mui-selected': {
+                          backgroundColor: theme.palette.action.hover,
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        },
+                      },
+                    },
+                  },
+                }}
                 sx={{
-                  color: '#E0E0E0',
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.default,
                   '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                   '& .MuiSvgIcon-root': {
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
                   },
                 }}
               >
@@ -288,26 +312,46 @@ export default function EditOpportunityPage() {
               </Select>
             </FormControl>
             <FormControl fullWidth margin="normal">
-              <InputLabel sx={{ color: '#B0B0B0' }}>Source</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Source</InputLabel>
               <Select
                 value={source}
                 label="Source"
                 onChange={(e) => setSource(e.target.value as OpportunitySource)}
                 disabled={loading}
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      backgroundColor: theme.palette.background.paper,
+                      border: `1px solid ${theme.palette.divider}`,
+                      '& .MuiMenuItem-root': {
+                        color: theme.palette.text.primary,
+                        '&:hover': {
+                          backgroundColor: theme.palette.action.hover,
+                        },
+                        '&.Mui-selected': {
+                          backgroundColor: theme.palette.action.hover,
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        },
+                      },
+                    },
+                  },
+                }}
                 sx={{
-                  color: '#E0E0E0',
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.default,
                   '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                   '& .MuiSvgIcon-root': {
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
                   },
                 }}
               >
@@ -321,11 +365,11 @@ export default function EditOpportunityPage() {
                 onClick={() => companyId ? router.push(`/ops/companies/${companyId}`) : router.push('/ops/opportunities')}
                 disabled={loading}
                 sx={{
-                  borderColor: 'rgba(0, 229, 255, 0.3)',
-                  color: '#00E5FF',
+                  borderColor: theme.palette.divider,
+                  color: theme.palette.text.primary,
                   '&:hover': {
-                    borderColor: '#00E5FF',
-                    backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                    borderColor: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
                   },
                 }}
               >
@@ -336,11 +380,13 @@ export default function EditOpportunityPage() {
                 variant="contained"
                 disabled={loading}
                 sx={{
-                  backgroundColor: '#00E5FF',
-                  color: '#000',
+                  backgroundColor: theme.palette.background.paper,
+                  color: theme.palette.text.primary,
                   fontWeight: 600,
+                  border: `1px solid ${theme.palette.divider}`,
                   '&:hover': {
-                    backgroundColor: '#00B2CC',
+                    backgroundColor: theme.palette.action.hover,
+                    borderColor: theme.palette.text.primary,
                   },
                 }}
               >

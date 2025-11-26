@@ -16,6 +16,7 @@ import {
   Checkbox,
   FormControlLabel,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import type {
   ContactStatus,
   LeadSource,
@@ -87,6 +88,7 @@ export default function ContactForm({
   error,
   validationErrors = {},
 }: ContactFormProps) {
+  const theme = useTheme();
   const [activeTab, setActiveTab] = useState(0);
   const [users, setUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -232,43 +234,63 @@ export default function ContactForm({
     disabled: loading,
     sx: {
       '& .MuiOutlinedInput-root': {
-        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-        color: '#E0E0E0',
+        backgroundColor: theme.palette.background.default,
+        color: theme.palette.text.primary,
         '& fieldset': {
-          borderColor: 'rgba(0, 229, 255, 0.3)',
+          borderColor: theme.palette.divider,
         },
         '&:hover fieldset': {
-          borderColor: 'rgba(0, 229, 255, 0.5)',
+          borderColor: theme.palette.text.secondary,
         },
         '&.Mui-focused fieldset': {
-          borderColor: '#00E5FF',
+          borderColor: theme.palette.text.primary,
         },
       },
       '& .MuiInputLabel-root': {
-        color: '#B0B0B0',
+        color: theme.palette.text.secondary,
       },
       '& .MuiInputLabel-root.Mui-focused': {
-        color: '#00E5FF',
+        color: theme.palette.text.primary,
       },
     },
   };
 
   const commonSelectProps = {
     disabled: loading,
+    MenuProps: {
+      PaperProps: {
+        sx: {
+          backgroundColor: theme.palette.background.paper,
+          border: `1px solid ${theme.palette.divider}`,
+          '& .MuiMenuItem-root': {
+            color: theme.palette.text.primary,
+            '&:hover': {
+              backgroundColor: theme.palette.action.hover,
+            },
+            '&.Mui-selected': {
+              backgroundColor: theme.palette.action.hover,
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+              },
+            },
+          },
+        },
+      },
+    },
     sx: {
-      color: '#E0E0E0',
-      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+      color: theme.palette.text.primary,
+      backgroundColor: theme.palette.background.default,
       '& .MuiOutlinedInput-notchedOutline': {
-        borderColor: 'rgba(0, 229, 255, 0.3)',
+        borderColor: theme.palette.divider,
       },
       '&:hover .MuiOutlinedInput-notchedOutline': {
-        borderColor: 'rgba(0, 229, 255, 0.5)',
+        borderColor: theme.palette.text.secondary,
       },
       '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-        borderColor: '#00E5FF',
+        borderColor: theme.palette.text.primary,
       },
       '& .MuiSvgIcon-root': {
-        color: '#00E5FF',
+        color: theme.palette.text.primary,
       },
     },
   };
@@ -280,9 +302,9 @@ export default function ContactForm({
           severity="error"
           sx={{
             mb: 2,
-            backgroundColor: 'rgba(255, 23, 68, 0.1)',
-            border: '1px solid rgba(255, 23, 68, 0.3)',
-            color: '#FF1744',
+            backgroundColor: theme.palette.action.hover,
+            border: `1px solid ${theme.palette.divider}`,
+            color: theme.palette.text.primary,
           }}
         >
           {error}
@@ -294,18 +316,18 @@ export default function ContactForm({
         onChange={(_, newValue) => setActiveTab(newValue)}
         sx={{
           mb: 3,
-          borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+          borderBottom: `2px solid ${theme.palette.divider}`,
           '& .MuiTab-root': {
-            color: '#B0B0B0',
+            color: theme.palette.text.secondary,
             fontWeight: 500,
             textTransform: 'none',
             '&.Mui-selected': {
-              color: '#00E5FF',
+              color: theme.palette.text.primary,
               fontWeight: 600,
             },
           },
           '& .MuiTabs-indicator': {
-            backgroundColor: '#00E5FF',
+            backgroundColor: theme.palette.text.primary,
           },
         }}
       >
@@ -446,7 +468,7 @@ export default function ContactForm({
           </Grid>
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth>
-              <InputLabel sx={{ color: '#B0B0B0' }}>Status</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Status</InputLabel>
               <Select
                 {...commonSelectProps}
                 value={status}
@@ -478,7 +500,7 @@ export default function ContactForm({
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth>
-              <InputLabel sx={{ color: '#B0B0B0' }}>Lead Source</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Lead Source</InputLabel>
               <Select
                 {...commonSelectProps}
                 value={lead_source}
@@ -535,7 +557,7 @@ export default function ContactForm({
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth>
-              <InputLabel sx={{ color: '#B0B0B0' }}>Lead Status</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Lead Status</InputLabel>
               <Select
                 {...commonSelectProps}
                 value={lead_status}
@@ -557,7 +579,7 @@ export default function ContactForm({
           </Grid>
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth>
-              <InputLabel sx={{ color: '#B0B0B0' }}>Pipeline Stage</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Pipeline Stage</InputLabel>
               <Select
                 {...commonSelectProps}
                 value={pipeline_stage}
@@ -577,7 +599,7 @@ export default function ContactForm({
           </Grid>
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth>
-              <InputLabel sx={{ color: '#B0B0B0' }}>Priority Level</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Priority Level</InputLabel>
               <Select
                 {...commonSelectProps}
                 value={priority_level}
@@ -594,7 +616,7 @@ export default function ContactForm({
           </Grid>
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth>
-              <InputLabel sx={{ color: '#B0B0B0' }}>Lifecycle Stage</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Lifecycle Stage</InputLabel>
               <Select
                 {...commonSelectProps}
                 value={lifecycle_stage}
@@ -612,7 +634,7 @@ export default function ContactForm({
           </Grid>
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth>
-              <InputLabel sx={{ color: '#B0B0B0' }}>Assigned To</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Assigned To</InputLabel>
               <Select
                 {...commonSelectProps}
                 value={assigned_to}
@@ -659,7 +681,7 @@ export default function ContactForm({
           </Grid>
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth>
-              <InputLabel sx={{ color: '#B0B0B0' }}>Follow-Up Type</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Follow-Up Type</InputLabel>
               <Select
                 {...commonSelectProps}
                 value={follow_up_type}
@@ -677,7 +699,7 @@ export default function ContactForm({
           </Grid>
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth>
-              <InputLabel sx={{ color: '#B0B0B0' }}>Preferred Communication</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Preferred Communication</InputLabel>
               <Select
                 {...commonSelectProps}
                 value={preferred_communication}
@@ -707,15 +729,15 @@ export default function ContactForm({
                   onChange={(e) => setIsDecisionMaker(e.target.checked)}
                   disabled={loading}
                   sx={{
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
                     '&.Mui-checked': {
-                      color: '#00E5FF',
+                      color: theme.palette.text.primary,
                     },
                   }}
                 />
               }
               label="Decision Maker"
-              sx={{ color: '#E0E0E0' }}
+              sx={{ color: theme.palette.text.primary }}
             />
           </Grid>
           <Grid item xs={12} sm={6}>
@@ -819,7 +841,7 @@ export default function ContactForm({
           </Grid>
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth>
-              <InputLabel sx={{ color: '#B0B0B0' }}>Support Rep / CSM</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Support Rep / CSM</InputLabel>
               <Select
                 {...commonSelectProps}
                 value={support_rep_csm}
@@ -867,11 +889,11 @@ export default function ContactForm({
           onClick={onCancel}
           disabled={loading}
           sx={{
-            borderColor: 'rgba(0, 229, 255, 0.3)',
-            color: '#00E5FF',
+            borderColor: theme.palette.divider,
+            color: theme.palette.text.primary,
             '&:hover': {
-              borderColor: '#00E5FF',
-              backgroundColor: 'rgba(0, 229, 255, 0.1)',
+              borderColor: theme.palette.text.primary,
+              backgroundColor: theme.palette.action.hover,
             },
           }}
         >
@@ -882,11 +904,13 @@ export default function ContactForm({
           variant="contained"
           disabled={loading}
           sx={{
-            backgroundColor: '#00E5FF',
-            color: '#000',
+            backgroundColor: theme.palette.background.paper,
+            color: theme.palette.text.primary,
             fontWeight: 600,
+            border: `1px solid ${theme.palette.divider}`,
             '&:hover': {
-              backgroundColor: '#00B2CC',
+              backgroundColor: theme.palette.action.hover,
+              borderColor: theme.palette.text.primary,
             },
           }}
         >

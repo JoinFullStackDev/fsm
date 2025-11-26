@@ -11,6 +11,7 @@ import {
   CircularProgress,
   Typography,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Add as AddIcon,
   Close as CloseIcon,
@@ -31,6 +32,7 @@ export default function TagManager({
   tags,
   onTagsChange,
 }: TagManagerProps) {
+  const theme = useTheme();
   const { showSuccess, showError } = useNotification();
   const [newTagName, setNewTagName] = useState('');
   const [adding, setAdding] = useState(false);
@@ -115,11 +117,12 @@ export default function TagManager({
   return (
     <Box>
       <Typography
-        variant="subtitle2"
+        variant="h6"
         sx={{
-          color: '#B0B0B0',
+          color: theme.palette.text.primary,
           fontWeight: 600,
-          mb: 2,
+          fontFamily: 'var(--font-rubik), Rubik, sans-serif',
+          mb: 3,
         }}
       >
         Tags
@@ -130,9 +133,9 @@ export default function TagManager({
           severity="error"
           sx={{
             mb: 2,
-            backgroundColor: 'rgba(255, 23, 68, 0.1)',
-            border: '1px solid rgba(255, 23, 68, 0.3)',
-            color: '#FF1744',
+            backgroundColor: theme.palette.action.hover,
+            border: `1px solid ${theme.palette.divider}`,
+            color: theme.palette.text.primary,
           }}
         >
           {error}
@@ -149,17 +152,18 @@ export default function TagManager({
               onDelete={() => handleRemoveTag(tag.tag_name)}
               disabled={removing === tag.tag_name}
               sx={{
-                backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                color: '#00E5FF',
-                border: '1px solid rgba(0, 229, 255, 0.3)',
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
+                border: `1px solid ${theme.palette.divider}`,
                 '& .MuiChip-deleteIcon': {
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                   '&:hover': {
-                    color: '#FF1744',
+                    color: theme.palette.error.main,
                   },
                 },
                 '&:hover': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.2)',
+                  backgroundColor: theme.palette.action.hover,
+                  borderColor: theme.palette.text.primary,
                 },
               }}
             />
@@ -187,21 +191,27 @@ export default function TagManager({
           size="small"
           sx={{
             '& .MuiOutlinedInput-root': {
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
-              color: '#E0E0E0',
+              backgroundColor: theme.palette.background.default,
+              color: theme.palette.text.primary,
               '& fieldset': {
-                borderColor: 'rgba(0, 229, 255, 0.3)',
+                borderColor: theme.palette.divider,
               },
               '&:hover fieldset': {
-                borderColor: 'rgba(0, 229, 255, 0.5)',
+                borderColor: theme.palette.text.secondary,
               },
               '&.Mui-focused fieldset': {
-                borderColor: '#00E5FF',
+                borderColor: theme.palette.text.primary,
               },
             },
             '& .MuiInputBase-input::placeholder': {
-              color: '#808080',
+              color: theme.palette.text.secondary,
               opacity: 1,
+            },
+            '& .MuiInputLabel-root': {
+              color: theme.palette.text.secondary,
+            },
+            '& .MuiInputLabel-root.Mui-focused': {
+              color: theme.palette.text.primary,
             },
           }}
         />
@@ -211,16 +221,19 @@ export default function TagManager({
           disabled={adding || !newTagName.trim()}
           startIcon={adding ? <CircularProgress size={16} /> : <AddIcon />}
           sx={{
-            backgroundColor: '#00E5FF',
-            color: '#000',
+            backgroundColor: theme.palette.background.paper,
+            color: theme.palette.text.primary,
             fontWeight: 600,
             minWidth: '100px',
+            border: `1px solid ${theme.palette.divider}`,
             '&:hover': {
-              backgroundColor: '#00B2CC',
+              backgroundColor: theme.palette.action.hover,
+              borderColor: theme.palette.text.primary,
             },
             '&:disabled': {
-              backgroundColor: 'rgba(0, 229, 255, 0.3)',
-              color: '#808080',
+              backgroundColor: theme.palette.action.hover,
+              color: theme.palette.text.secondary,
+              borderColor: theme.palette.divider,
             },
           }}
         >
