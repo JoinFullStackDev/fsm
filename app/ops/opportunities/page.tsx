@@ -18,7 +18,13 @@ import {
   Paper,
   Grid,
   IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { Add as AddIcon, Search as SearchIcon, Delete as DeleteIcon, Edit as EditIcon, CheckCircle as CheckCircleIcon, Visibility as VisibilityIcon } from '@mui/icons-material';
 import LoadingSkeleton from '@/components/ui/LoadingSkeleton';
 import EmptyState from '@/components/ui/EmptyState';
@@ -28,6 +34,7 @@ import type { OpportunityWithCompany } from '@/types/ops';
 import SortableTable from '@/components/dashboard/SortableTable';
 
 export default function OpportunitiesPage() {
+  const theme = useTheme();
   const router = useRouter();
   const { showSuccess, showError } = useNotification();
   const [opportunities, setOpportunities] = useState<OpportunityWithCompany[]>([]);
@@ -165,18 +172,37 @@ export default function OpportunitiesPage() {
       key: 'name',
       label: 'Opportunity Name',
       sortable: true,
+      render: (value: string) => (
+        <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
+          {value}
+        </Typography>
+      ),
     },
     {
       key: 'company',
       label: 'Company',
       sortable: false,
-      render: (value: any) => value?.name || '-',
+      render: (value: any) => {
+        if (!value?.name) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
+        return (
+          <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
+            {value.name}
+          </Typography>
+        );
+      },
     },
     {
       key: 'value',
       label: 'Value',
       sortable: true,
-      render: (value: number | null) => value ? `$${value.toLocaleString()}` : '-',
+      render: (value: number | null) => {
+        if (!value) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
+        return (
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+            ${value.toLocaleString()}
+          </Typography>
+        );
+      },
     },
     {
       key: 'status',
@@ -185,8 +211,13 @@ export default function OpportunitiesPage() {
       render: (value: string) => (
         <Chip
           label={value.charAt(0).toUpperCase() + value.slice(1)}
-          color={getStatusColor(value) as any}
           size="small"
+          sx={{
+            backgroundColor: theme.palette.action.hover,
+            color: theme.palette.text.primary,
+            border: `1px solid ${theme.palette.divider}`,
+            fontWeight: 500,
+          }}
         />
       ),
     },
@@ -194,13 +225,27 @@ export default function OpportunitiesPage() {
       key: 'source',
       label: 'Source',
       sortable: true,
-      render: (value: string) => value || 'Manual',
+      render: (value: string) => {
+        const displayValue = value || 'Manual';
+        return (
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+            {displayValue}
+          </Typography>
+        );
+      },
     },
     {
       key: 'created_at',
       label: 'Created',
       sortable: true,
-      render: (value: string) => new Date(value).toLocaleDateString(),
+      render: (value: string) => {
+        if (!value) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
+        return (
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+            {new Date(value).toLocaleDateString()}
+          </Typography>
+        );
+      },
     },
     {
       key: 'actions',
@@ -212,7 +257,12 @@ export default function OpportunitiesPage() {
           <IconButton
             size="small"
             onClick={(e) => handleViewOpportunity(row, e)}
-            sx={{ color: '#00E5FF' }}
+            sx={{ 
+              color: theme.palette.text.primary,
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+              },
+            }}
             title="View Details"
           >
             <VisibilityIcon fontSize="small" />
@@ -221,7 +271,12 @@ export default function OpportunitiesPage() {
             <IconButton
               size="small"
               onClick={(e) => handleConvertOpportunity(row, e)}
-              sx={{ color: '#4CAF50' }}
+              sx={{ 
+                color: theme.palette.text.primary,
+                '&:hover': {
+                  backgroundColor: theme.palette.action.hover,
+                },
+              }}
               title="Convert to Project"
             >
               <CheckCircleIcon fontSize="small" />
@@ -230,7 +285,12 @@ export default function OpportunitiesPage() {
           <IconButton
             size="small"
             onClick={(e) => handleEditOpportunity(row, e)}
-            sx={{ color: '#00E5FF' }}
+            sx={{ 
+              color: theme.palette.text.primary,
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+              },
+            }}
             title="Edit"
           >
             <EditIcon fontSize="small" />
@@ -238,7 +298,12 @@ export default function OpportunitiesPage() {
           <IconButton
             size="small"
             onClick={(e) => handleDeleteOpportunity(row, e)}
-            sx={{ color: '#FF1744' }}
+            sx={{ 
+              color: theme.palette.text.primary,
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+              },
+            }}
             title="Delete"
           >
             <DeleteIcon fontSize="small" />
@@ -274,26 +339,24 @@ export default function OpportunitiesPage() {
           variant="h4"
           component="h1"
           sx={{
-            fontWeight: 700,
-            background: '#00E5FF',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
+            fontSize: '1.5rem',
+            fontWeight: 600,
+            color: theme.palette.text.primary,
           }}
         >
           Opportunities
         </Typography>
         <Button
-          variant="contained"
+          variant="outlined"
           startIcon={<AddIcon />}
           onClick={handleCreateOpportunity}
           sx={{
-            backgroundColor: '#00E5FF',
-            color: '#000',
+            borderColor: theme.palette.text.primary,
+            color: theme.palette.text.primary,
             fontWeight: 600,
             '&:hover': {
-              backgroundColor: '#00B2CC',
-              boxShadow: '0 6px 25px rgba(0, 229, 255, 0.5)',
-              transform: 'translateY(-2px)',
+              borderColor: theme.palette.text.primary,
+              backgroundColor: theme.palette.action.hover,
             },
           }}
         >
@@ -306,9 +369,9 @@ export default function OpportunitiesPage() {
           severity="error"
           sx={{
             mb: 3,
-            backgroundColor: 'rgba(255, 23, 68, 0.1)',
-            border: '1px solid rgba(255, 23, 68, 0.3)',
-            color: '#FF1744',
+            backgroundColor: theme.palette.action.hover,
+            border: `1px solid ${theme.palette.divider}`,
+            color: theme.palette.text.primary,
           }}
           onClose={() => setError(null)}
         >
@@ -317,12 +380,12 @@ export default function OpportunitiesPage() {
       )}
 
       {opportunities.length > 0 && (
-        <Paper
+        <Box
           sx={{
             p: 2,
             mb: 3,
-            backgroundColor: '#000',
-            border: '2px solid rgba(0, 229, 255, 0.2)',
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
             borderRadius: 2,
           }}
         >
@@ -337,22 +400,22 @@ export default function OpportunitiesPage() {
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <SearchIcon sx={{ color: '#00E5FF' }} />
+                      <SearchIcon sx={{ color: theme.palette.text.primary }} />
                     </InputAdornment>
                   ),
                 }}
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    color: '#E0E0E0',
+                    backgroundColor: theme.palette.action.hover,
+                    color: theme.palette.text.primary,
                     '& fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused fieldset': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                   },
                 }}
@@ -360,25 +423,25 @@ export default function OpportunitiesPage() {
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
               <FormControl fullWidth size="small">
-                <InputLabel sx={{ color: '#B0B0B0' }}>Status</InputLabel>
+                <InputLabel sx={{ color: theme.palette.text.secondary }}>Status</InputLabel>
                 <Select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                   label="Status"
                   sx={{
-                    color: '#E0E0E0',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
                     '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                     '& .MuiSvgIcon-root': {
-                      color: '#00E5FF',
+                      color: theme.palette.text.primary,
                     },
                   }}
                 >
@@ -392,11 +455,11 @@ export default function OpportunitiesPage() {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={5}>
               <Typography
                 variant="body2"
                 sx={{
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                   textAlign: { xs: 'left', md: 'right' },
                 }}
               >
@@ -404,12 +467,12 @@ export default function OpportunitiesPage() {
               </Typography>
             </Grid>
           </Grid>
-        </Paper>
+        </Box>
       )}
 
       {opportunities.length === 0 && !loading ? (
         <EmptyState
-          icon={<TrendingUpIcon sx={{ fontSize: 64, color: '#00E5FF' }} />}
+          icon={<TrendingUpIcon sx={{ fontSize: 64 }} />}
           title="No Opportunities"
           description="Get started by creating your first opportunity"
           actionLabel="Add Opportunity"
@@ -424,68 +487,59 @@ export default function OpportunitiesPage() {
       )}
 
       {/* Convert Confirmation Dialog */}
-      {convertDialogOpen && (
-        <Box
-          sx={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1300,
-          }}
-          onClick={() => setConvertDialogOpen(false)}
-        >
-          <Paper
+      <Dialog
+        open={convertDialogOpen}
+        onClose={() => setConvertDialogOpen(false)}
+        PaperProps={{
+          sx: {
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+          Convert to Project
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: theme.palette.text.secondary }}>
+            Are you sure you want to convert &quot;{opportunityToConvert?.name}&quot; to a project? This will create a new project and mark the opportunity as converted.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ borderTop: `1px solid ${theme.palette.divider}` }}>
+          <Button
+            onClick={() => setConvertDialogOpen(false)}
+            disabled={converting}
             sx={{
-              p: 3,
-              maxWidth: 400,
-              backgroundColor: '#000',
-              border: '1px solid rgba(76, 175, 80, 0.3)',
+              color: theme.palette.text.secondary,
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+              },
             }}
-            onClick={(e) => e.stopPropagation()}
           >
-            <Typography variant="h6" sx={{ mb: 2, color: '#4CAF50', fontWeight: 600 }}>
-              Convert to Project
-            </Typography>
-            <Typography sx={{ mb: 3, color: '#B0B0B0' }}>
-              Are you sure you want to convert &quot;{opportunityToConvert?.name}&quot; to a project? This will create a new project and mark the opportunity as converted.
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-              <Button
-                onClick={() => setConvertDialogOpen(false)}
-                disabled={converting}
-                sx={{ color: '#B0B0B0' }}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={confirmConvert}
-                variant="contained"
-                disabled={converting}
-                sx={{
-                  backgroundColor: '#4CAF50',
-                  color: '#fff',
-                  fontWeight: 600,
-                  '&:hover': {
-                    backgroundColor: '#45A049',
-                  },
-                  '&.Mui-disabled': {
-                    backgroundColor: 'rgba(76, 175, 80, 0.3)',
-                    color: 'rgba(255, 255, 255, 0.5)',
-                  },
-                }}
-              >
-                {converting ? 'Converting...' : 'Convert'}
-              </Button>
-            </Box>
-          </Paper>
-        </Box>
-      )}
+            Cancel
+          </Button>
+          <Button
+            onClick={confirmConvert}
+            variant="outlined"
+            disabled={converting}
+            sx={{
+              borderColor: theme.palette.text.primary,
+              color: theme.palette.text.primary,
+              fontWeight: 600,
+              '&:hover': {
+                borderColor: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
+              },
+              '&.Mui-disabled': {
+                borderColor: theme.palette.divider,
+                color: theme.palette.text.secondary,
+              },
+            }}
+          >
+            {converting ? 'Converting...' : 'Convert'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

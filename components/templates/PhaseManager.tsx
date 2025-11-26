@@ -40,6 +40,7 @@ import {
   ListItemText,
   ListItemSecondaryAction,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   DragHandle as DragHandleIcon,
   Edit as EditIcon,
@@ -65,6 +66,7 @@ interface PhaseItemProps {
 }
 
 function PhaseItem({ phase, onEdit, onDelete, isDragging }: PhaseItemProps) {
+  const theme = useTheme();
   const {
     attributes,
     listeners,
@@ -85,13 +87,12 @@ function PhaseItem({ phase, onEdit, onDelete, isDragging }: PhaseItemProps) {
       ref={setNodeRef}
       style={style}
       sx={{
-        border: '1px solid',
-        borderColor: 'primary.main',
+        border: `1px solid ${theme.palette.divider}`,
         borderRadius: 1,
         mb: 1,
-        backgroundColor: 'rgba(0, 229, 255, 0.05)',
+        backgroundColor: theme.palette.background.paper,
         '&:hover': {
-          backgroundColor: 'rgba(0, 229, 255, 0.1)',
+          backgroundColor: theme.palette.action.hover,
         },
       }}
     >
@@ -108,20 +109,21 @@ function PhaseItem({ phase, onEdit, onDelete, isDragging }: PhaseItemProps) {
           },
         }}
       >
-        <DragHandleIcon sx={{ color: 'primary.main' }} />
+        <DragHandleIcon sx={{ color: theme.palette.text.primary }} />
       </Box>
       <ListItemText
         primary={
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="body1" sx={{ fontWeight: 600, color: 'primary.main' }}>
+            <Typography variant="body1" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
               {phase.phase_name}
             </Typography>
             <Chip
               label={`Phase ${phase.phase_number}`}
               size="small"
               sx={{
-                backgroundColor: 'rgba(0, 229, 255, 0.15)',
-                color: 'primary.main',
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
+                border: `1px solid ${theme.palette.divider}`,
                 fontSize: '0.7rem',
               }}
             />
@@ -129,15 +131,16 @@ function PhaseItem({ phase, onEdit, onDelete, isDragging }: PhaseItemProps) {
               label={`Order: ${phase.display_order}`}
               size="small"
               sx={{
-                backgroundColor: 'rgba(176, 176, 176, 0.15)',
-                color: 'text.secondary',
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.secondary,
+                border: `1px solid ${theme.palette.divider}`,
                 fontSize: '0.7rem',
               }}
             />
           </Box>
         }
         secondary={
-          <Typography variant="caption" sx={{ color: 'text.secondary', mt: 0.5 }}>
+          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
             {phase.is_active ? 'Active' : 'Inactive'}
           </Typography>
         }
@@ -147,7 +150,13 @@ function PhaseItem({ phase, onEdit, onDelete, isDragging }: PhaseItemProps) {
           <IconButton
             edge="end"
             onClick={() => onEdit(phase)}
-            sx={{ color: 'primary.main', mr: 1 }}
+            sx={{ 
+              color: theme.palette.text.primary, 
+              mr: 1,
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+              },
+            }}
           >
             <EditIcon />
           </IconButton>
@@ -156,7 +165,12 @@ function PhaseItem({ phase, onEdit, onDelete, isDragging }: PhaseItemProps) {
           <IconButton
             edge="end"
             onClick={() => onDelete(phase.id)}
-            sx={{ color: 'error.main' }}
+            sx={{ 
+              color: theme.palette.text.primary,
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+              },
+            }}
           >
             <DeleteIcon />
           </IconButton>
@@ -167,6 +181,7 @@ function PhaseItem({ phase, onEdit, onDelete, isDragging }: PhaseItemProps) {
 }
 
 export default function PhaseManager({ templateId, onPhasesChange }: PhaseManagerProps) {
+  const theme = useTheme();
   const { showSuccess, showError } = useNotification();
   const supabase = createSupabaseClient();
   const [phases, setPhases] = useState<TemplatePhase[]>([]);
@@ -399,7 +414,7 @@ export default function PhaseManager({ templateId, onPhasesChange }: PhaseManage
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-        <CircularProgress />
+        <CircularProgress sx={{ color: theme.palette.text.primary }} />
       </Box>
     );
   }
@@ -409,17 +424,19 @@ export default function PhaseManager({ templateId, onPhasesChange }: PhaseManage
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 600 }}>
+        <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
           Phase Management
         </Typography>
         <Button
-          variant="contained"
+          variant="outlined"
           startIcon={<AddIcon />}
           onClick={() => setAddDialogOpen(true)}
           sx={{
-            backgroundColor: 'primary.main',
+            borderColor: theme.palette.text.primary,
+            color: theme.palette.text.primary,
             '&:hover': {
-              backgroundColor: 'primary.dark',
+              borderColor: theme.palette.text.primary,
+              backgroundColor: theme.palette.action.hover,
             },
           }}
         >
@@ -427,7 +444,15 @@ export default function PhaseManager({ templateId, onPhasesChange }: PhaseManage
         </Button>
       </Box>
 
-      <Alert severity="info" sx={{ mb: 2 }}>
+      <Alert 
+        severity="info" 
+        sx={{ 
+          mb: 2,
+          backgroundColor: theme.palette.action.hover,
+          border: `1px solid ${theme.palette.divider}`,
+          color: theme.palette.text.primary,
+        }}
+      >
         Drag phases to reorder them. The display order determines how phases appear in projects.
       </Alert>
 
@@ -454,13 +479,12 @@ export default function PhaseManager({ templateId, onPhasesChange }: PhaseManage
             <Paper
               sx={{
                 p: 2,
-                border: '2px solid',
-                borderColor: 'primary.main',
-                backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                border: `1px solid ${theme.palette.divider}`,
+                backgroundColor: theme.palette.action.hover,
                 minWidth: 300,
               }}
             >
-              <Typography variant="body1" sx={{ fontWeight: 600, color: 'primary.main' }}>
+              <Typography variant="body1" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
                 {activePhase.phase_name}
               </Typography>
             </Paper>
@@ -469,14 +493,35 @@ export default function PhaseManager({ templateId, onPhasesChange }: PhaseManage
       </DndContext>
 
       {phases.length === 0 && (
-        <Alert severity="warning" sx={{ mt: 2 }}>
+        <Alert 
+          severity="warning" 
+          sx={{ 
+            mt: 2,
+            backgroundColor: theme.palette.action.hover,
+            border: `1px solid ${theme.palette.divider}`,
+            color: theme.palette.text.primary,
+          }}
+        >
           No phases found. Add your first phase to get started.
         </Alert>
       )}
 
       {/* Edit Phase Dialog */}
-      <Dialog open={editingPhase !== null} onClose={handleEditCancel} maxWidth="sm" fullWidth>
-        <DialogTitle>Edit Phase</DialogTitle>
+      <Dialog 
+        open={editingPhase !== null} 
+        onClose={handleEditCancel} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+          Edit Phase
+        </DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
@@ -489,15 +534,36 @@ export default function PhaseManager({ templateId, onPhasesChange }: PhaseManage
             sx={{ mt: 2 }}
           />
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleEditCancel} disabled={saving}>
+        <DialogActions sx={{ borderTop: `1px solid ${theme.palette.divider}` }}>
+          <Button 
+            onClick={handleEditCancel} 
+            disabled={saving}
+            sx={{
+              color: theme.palette.text.secondary,
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+              },
+            }}
+          >
             Cancel
           </Button>
           <Button
             onClick={handleEditSave}
-            variant="contained"
+            variant="outlined"
             startIcon={<SaveIcon />}
             disabled={saving || !editName.trim()}
+            sx={{
+              borderColor: theme.palette.text.primary,
+              color: theme.palette.text.primary,
+              '&:hover': {
+                borderColor: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
+              },
+              '&.Mui-disabled': {
+                borderColor: theme.palette.divider,
+                color: theme.palette.text.secondary,
+              },
+            }}
           >
             Save
           </Button>
@@ -505,8 +571,21 @@ export default function PhaseManager({ templateId, onPhasesChange }: PhaseManage
       </Dialog>
 
       {/* Add Phase Dialog */}
-      <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add New Phase</DialogTitle>
+      <Dialog 
+        open={addDialogOpen} 
+        onClose={() => setAddDialogOpen(false)} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+          Add New Phase
+        </DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
@@ -520,15 +599,36 @@ export default function PhaseManager({ templateId, onPhasesChange }: PhaseManage
             sx={{ mt: 2 }}
           />
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setAddDialogOpen(false)} disabled={saving}>
+        <DialogActions sx={{ borderTop: `1px solid ${theme.palette.divider}` }}>
+          <Button 
+            onClick={() => setAddDialogOpen(false)} 
+            disabled={saving}
+            sx={{
+              color: theme.palette.text.secondary,
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+              },
+            }}
+          >
             Cancel
           </Button>
           <Button
             onClick={handleAddPhase}
-            variant="contained"
+            variant="outlined"
             startIcon={<AddIcon />}
             disabled={saving || !newPhaseName.trim()}
+            sx={{
+              borderColor: theme.palette.text.primary,
+              color: theme.palette.text.primary,
+              '&:hover': {
+                borderColor: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
+              },
+              '&.Mui-disabled': {
+                borderColor: theme.palette.divider,
+                color: theme.palette.text.secondary,
+              },
+            }}
           >
             Create Phase
           </Button>
@@ -536,35 +636,79 @@ export default function PhaseManager({ templateId, onPhasesChange }: PhaseManage
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteConfirm.open} onClose={() => setDeleteConfirm({ phase: null, open: false, hasFieldConfigs: false })}>
-        <DialogTitle>Delete Phase</DialogTitle>
+      <Dialog 
+        open={deleteConfirm.open} 
+        onClose={() => setDeleteConfirm({ phase: null, open: false, hasFieldConfigs: false })}
+        PaperProps={{
+          sx: {
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+          Delete Phase
+        </DialogTitle>
         <DialogContent>
-          <Alert severity="warning" sx={{ mb: 2 }}>
+          <Alert 
+            severity="warning" 
+            sx={{ 
+              mb: 2,
+              backgroundColor: theme.palette.action.hover,
+              border: `1px solid ${theme.palette.divider}`,
+              color: theme.palette.text.primary,
+            }}
+          >
             Are you sure you want to delete &quot;{deleteConfirm.phase?.phase_name}&quot;?
           </Alert>
           {deleteConfirm.hasFieldConfigs && (
-            <Alert severity="error" sx={{ mb: 2 }}>
+            <Alert 
+              severity="error" 
+              sx={{ 
+                mb: 2,
+                backgroundColor: theme.palette.action.hover,
+                border: `1px solid ${theme.palette.divider}`,
+                color: theme.palette.text.primary,
+              }}
+            >
               <strong>Warning:</strong> This phase has field configurations. Deleting it will hide the phase, but field configs will remain associated with this phase number.
               Consider removing field configs first in the Template Builder.
             </Alert>
           )}
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
             This will soft-delete the phase (set it to inactive). The phase will be hidden but not removed from the database.
             Projects using this template will retain their phase data.
           </Typography>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ borderTop: `1px solid ${theme.palette.divider}` }}>
           <Button
             onClick={() => setDeleteConfirm({ phase: null, open: false, hasFieldConfigs: false })}
             disabled={saving}
+            sx={{
+              color: theme.palette.text.secondary,
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+              },
+            }}
           >
             Cancel
           </Button>
           <Button
             onClick={handleDeleteConfirm}
-            variant="contained"
-            color="error"
+            variant="outlined"
             disabled={saving}
+            sx={{
+              borderColor: theme.palette.text.primary,
+              color: theme.palette.text.primary,
+              '&:hover': {
+                borderColor: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
+              },
+              '&.Mui-disabled': {
+                borderColor: theme.palette.divider,
+                color: theme.palette.text.secondary,
+              },
+            }}
           >
             Delete
           </Button>

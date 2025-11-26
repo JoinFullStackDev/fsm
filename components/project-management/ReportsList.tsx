@@ -16,6 +16,7 @@ import {
   CircularProgress,
   Alert,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Visibility as VisibilityIcon,
 } from '@mui/icons-material';
@@ -43,6 +44,7 @@ interface ReportsListProps {
 }
 
 export default function ReportsList({ projectId, refreshTrigger }: ReportsListProps) {
+  const theme = useTheme();
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -92,14 +94,14 @@ export default function ReportsList({ projectId, refreshTrigger }: ReportsListPr
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-        <CircularProgress sx={{ color: '#00E5FF' }} />
+        <CircularProgress sx={{ color: theme.palette.text.primary }} />
       </Box>
     );
   }
 
   if (error) {
     return (
-      <Alert severity="error" sx={{ mb: 3 }}>
+      <Alert severity="error" sx={{ mb: 3, backgroundColor: theme.palette.action.hover, color: theme.palette.text.primary, border: `1px solid ${theme.palette.divider}` }}>
         {error}
       </Alert>
     );
@@ -110,7 +112,7 @@ export default function ReportsList({ projectId, refreshTrigger }: ReportsListPr
       <Typography
         variant="h5"
         sx={{
-          color: '#00E5FF',
+          color: theme.palette.text.primary,
           fontWeight: 600,
           mb: 3,
         }}
@@ -127,70 +129,70 @@ export default function ReportsList({ projectId, refreshTrigger }: ReportsListPr
         <TableContainer
           component={Paper}
           sx={{
-            backgroundColor: '#000',
-            border: '2px solid rgba(0, 229, 255, 0.2)',
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
             borderRadius: 2,
           }}
         >
           <Table>
-            <TableHead sx={{ backgroundColor: '#000' }}>
+            <TableHead sx={{ backgroundColor: theme.palette.background.paper }}>
               <TableRow>
                 <TableCell
                   sx={{
-                    backgroundColor: '#000',
-                    color: '#00E5FF',
+                    backgroundColor: theme.palette.background.paper,
+                    color: theme.palette.text.primary,
                     fontWeight: 600,
-                    borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+                    borderBottom: `1px solid ${theme.palette.divider}`,
                   }}
                 >
                   Type
                 </TableCell>
                 <TableCell
                   sx={{
-                    backgroundColor: '#000',
-                    color: '#00E5FF',
+                    backgroundColor: theme.palette.background.paper,
+                    color: theme.palette.text.primary,
                     fontWeight: 600,
-                    borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+                    borderBottom: `1px solid ${theme.palette.divider}`,
                   }}
                 >
                   Format
                 </TableCell>
                 <TableCell
                   sx={{
-                    backgroundColor: '#000',
-                    color: '#00E5FF',
+                    backgroundColor: theme.palette.background.paper,
+                    color: theme.palette.text.primary,
                     fontWeight: 600,
-                    borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+                    borderBottom: `1px solid ${theme.palette.divider}`,
                   }}
                 >
                   Date Range
                 </TableCell>
                 <TableCell
                   sx={{
-                    backgroundColor: '#000',
-                    color: '#00E5FF',
+                    backgroundColor: theme.palette.background.paper,
+                    color: theme.palette.text.primary,
                     fontWeight: 600,
-                    borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+                    borderBottom: `1px solid ${theme.palette.divider}`,
                   }}
                 >
                   Created
                 </TableCell>
                 <TableCell
                   sx={{
-                    backgroundColor: '#000',
-                    color: '#00E5FF',
+                    backgroundColor: theme.palette.background.paper,
+                    color: theme.palette.text.primary,
                     fontWeight: 600,
-                    borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+                    borderBottom: `1px solid ${theme.palette.divider}`,
                   }}
                 >
                   Created By
                 </TableCell>
                 <TableCell
                   sx={{
-                    backgroundColor: '#000',
-                    color: '#00E5FF',
+                    backgroundColor: theme.palette.background.paper,
+                    color: theme.palette.text.primary,
                     fontWeight: 600,
-                    borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+                    borderBottom: `1px solid ${theme.palette.divider}`,
                     textAlign: 'right',
                   }}
                 >
@@ -203,53 +205,53 @@ export default function ReportsList({ projectId, refreshTrigger }: ReportsListPr
                 <TableRow
                   key={report.id}
                   sx={{
+                    borderBottom: `1px solid ${theme.palette.divider}`,
                     '&:hover': {
-                      backgroundColor: 'rgba(0, 229, 255, 0.05)',
+                      backgroundColor: theme.palette.action.hover,
                     },
                   }}
                 >
-                  <TableCell sx={{ color: '#E0E0E0' }}>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>
                     <Chip
                       label={getReportTypeLabel(report.report_type)}
                       size="small"
                       sx={{
-                        backgroundColor: 'rgba(0, 229, 255, 0.2)',
-                        color: '#00E5FF',
+                        backgroundColor: theme.palette.action.hover,
+                        color: theme.palette.text.primary,
+                        border: `1px solid ${theme.palette.divider}`,
                       }}
                     />
                     {report.report_type === 'forecast' && report.forecast_days && (
-                      <Typography variant="caption" sx={{ color: '#B0B0B0', ml: 1 }}>
+                      <Typography variant="caption" sx={{ color: theme.palette.text.secondary, ml: 1 }}>
                         ({report.forecast_days} days)
                       </Typography>
                     )}
                   </TableCell>
-                  <TableCell sx={{ color: '#E0E0E0' }}>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>
                     <Chip
                       label={report.format.toUpperCase()}
                       size="small"
                       sx={{
-                        backgroundColor:
-                          report.format === 'pdf'
-                            ? 'rgba(233, 30, 99, 0.2)'
-                            : 'rgba(156, 39, 176, 0.2)',
-                        color: report.format === 'pdf' ? '#E91E63' : '#9C27B0',
+                        backgroundColor: theme.palette.action.hover,
+                        color: theme.palette.text.primary,
+                        border: `1px solid ${theme.palette.divider}`,
                       }}
                     />
                   </TableCell>
-                  <TableCell sx={{ color: '#E0E0E0' }}>{report.date_range}</TableCell>
-                  <TableCell sx={{ color: '#E0E0E0' }}>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>{report.date_range}</TableCell>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>
                     {format(new Date(report.created_at), 'MMM d, yyyy')}
                   </TableCell>
-                  <TableCell sx={{ color: '#E0E0E0' }}>
+                  <TableCell sx={{ color: theme.palette.text.primary }}>
                     {report.user?.name || report.user?.email || 'Unknown'}
                   </TableCell>
                   <TableCell sx={{ textAlign: 'right' }}>
                     <IconButton
                       onClick={() => handleViewReport(report)}
                       sx={{
-                        color: '#00E5FF',
+                        color: theme.palette.text.primary,
                         '&:hover': {
-                          backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                          backgroundColor: theme.palette.action.hover,
                         },
                       }}
                     >

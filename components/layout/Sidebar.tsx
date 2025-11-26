@@ -18,6 +18,7 @@ import {
   MenuList,
   MenuItem,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Dashboard as DashboardIcon,
   Folder as FolderIcon,
@@ -52,6 +53,7 @@ interface Template {
 export default function Sidebar({ open, onToggle }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const theme = useTheme();
   const { role } = useRole();
   const supabase = createSupabaseClient();
   
@@ -326,8 +328,8 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
         '& .MuiDrawer-paper': {
         width: open ? DRAWER_WIDTH : DRAWER_WIDTH_COLLAPSED,
         boxSizing: 'border-box',
-        backgroundColor: '#000',
-        borderRight: '2px solid rgba(0, 229, 255, 0.2)',
+        backgroundColor: theme.palette.background.paper,
+        borderRight: `1px solid ${theme.palette.divider}`,
         transition: 'width 0.3s ease',
         overflowX: 'hidden',
         pt: '64px', // Account for TopBar height
@@ -345,7 +347,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
           justifyContent: open ? 'space-between' : 'center',
           padding: '16px',
           minHeight: 64,
-          borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+          borderBottom: `1px solid ${theme.palette.divider}`,
         }}
       >
         <Box
@@ -364,9 +366,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                 variant="h6"
                 sx={{
                   fontWeight: 700,
-                  background: '#00E5FF',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
+                  color: theme.palette.text.primary,
                 }}
               >
                 FSM
@@ -430,9 +430,9 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
           <IconButton
             onClick={onToggle}
             sx={{
-              color: 'primary.main',
+              color: theme.palette.text.primary,
               '&:hover': {
-                backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                backgroundColor: theme.palette.action.hover,
               },
             }}
           >
@@ -448,15 +448,15 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
             display: 'flex',
             justifyContent: 'center',
             padding: '8px',
-            borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+            borderBottom: `1px solid ${theme.palette.divider}`,
           }}
         >
           <IconButton
             onClick={onToggle}
             sx={{
-              color: 'primary.main',
+              color: theme.palette.text.primary,
               '&:hover': {
-                backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                backgroundColor: theme.palette.action.hover,
               },
             }}
           >
@@ -475,15 +475,14 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
             sx={{
               minHeight: 48,
               '&.Mui-selected': {
-                backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                borderLeft: '3px solid',
-                borderLeftColor: 'primary.main',
+                backgroundColor: theme.palette.action.hover,
+                borderLeft: `1px solid ${theme.palette.text.primary}`,
                 '&:hover': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.15)',
+                  backgroundColor: theme.palette.action.hover,
                 },
               },
               '&:hover': {
-                backgroundColor: 'rgba(0, 229, 255, 0.05)',
+                backgroundColor: theme.palette.action.hover,
               },
             }}
           >
@@ -491,7 +490,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
               sx={{
                 minWidth: 40,
                 justifyContent: 'center',
-                color: isActive('/dashboard') ? 'primary.main' : 'text.secondary',
+                color: isActive('/dashboard') ? theme.palette.text.primary : theme.palette.text.secondary,
               }}
             >
               <DashboardIcon />
@@ -532,15 +531,14 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
             sx={{
               minHeight: 48,
               '&.Mui-selected': {
-                backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                borderLeft: '3px solid',
-                borderLeftColor: 'primary.main',
+                backgroundColor: theme.palette.action.hover,
+                borderLeft: `1px solid ${theme.palette.text.primary}`,
                 '&:hover': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.15)',
+                  backgroundColor: theme.palette.action.hover,
                 },
               },
               '&:hover': {
-                backgroundColor: 'rgba(0, 229, 255, 0.05)',
+                backgroundColor: theme.palette.action.hover,
               },
             }}
           >
@@ -548,7 +546,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
               sx={{
                 minWidth: open ? 40 : 40,
                 justifyContent: 'center',
-                color: isActive('/projects') ? 'primary.main' : 'text.secondary',
+                color: isActive('/projects') ? theme.palette.text.primary : theme.palette.text.secondary,
               }}
             >
               <FolderIcon />
@@ -589,15 +587,14 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
             sx={{
               minHeight: 48,
               '&.Mui-selected': {
-                backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                borderLeft: '3px solid',
-                borderLeftColor: 'primary.main',
+                backgroundColor: theme.palette.action.hover,
+                borderLeft: `1px solid ${theme.palette.text.primary}`,
                 '&:hover': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.15)',
+                  backgroundColor: theme.palette.action.hover,
                 },
               },
               '&:hover': {
-                backgroundColor: 'rgba(0, 229, 255, 0.05)',
+                backgroundColor: theme.palette.action.hover,
               },
             }}
           >
@@ -605,7 +602,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
               sx={{
                 minWidth: open ? 40 : 40,
                 justifyContent: 'center',
-                color: isActive('/project-management') ? 'primary.main' : 'text.secondary',
+                color: isActive('/project-management') ? theme.palette.text.primary : theme.palette.text.secondary,
               }}
             >
               <AssignmentIcon />
@@ -647,15 +644,14 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
               sx={{
                 minHeight: 48,
                 '&.Mui-selected': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                  borderLeft: '3px solid',
-                  borderLeftColor: 'primary.main',
+                  backgroundColor: theme.palette.action.hover,
+                  borderLeft: `1px solid ${theme.palette.text.primary}`,
                   '&:hover': {
-                    backgroundColor: 'rgba(0, 229, 255, 0.15)',
+                    backgroundColor: theme.palette.action.hover,
                   },
                 },
                 '&:hover': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.05)',
+                  backgroundColor: theme.palette.action.hover,
                 },
               }}
             >
@@ -663,7 +659,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                 sx={{
                   minWidth: open ? 40 : 40,
                   justifyContent: 'center',
-                  color: isActive('/admin/templates') ? 'primary.main' : 'text.secondary',
+                  color: isActive('/admin/templates') ? theme.palette.text.primary : theme.palette.text.secondary,
                 }}
               >
                 <DescriptionIcon />
@@ -674,13 +670,13 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
         )}
 
         {/* Ops Tool Section */}
-        <Divider sx={{ my: 1, borderColor: 'rgba(0, 229, 255, 0.2)' }} />
+        <Divider sx={{ my: 1, borderColor: theme.palette.divider }} />
         {open && (
           <Box sx={{ px: 2, py: 1 }}>
             <Typography
               variant="caption"
               sx={{
-                color: 'text.secondary',
+                color: theme.palette.text.secondary,
                 textTransform: 'uppercase',
                 letterSpacing: 1,
                 fontSize: '0.7rem',
@@ -700,15 +696,14 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
             sx={{
               minHeight: 48,
               '&.Mui-selected': {
-                backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                borderLeft: '3px solid',
-                borderLeftColor: 'primary.main',
+                backgroundColor: theme.palette.action.hover,
+                borderLeft: `1px solid ${theme.palette.text.primary}`,
                 '&:hover': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.15)',
+                  backgroundColor: theme.palette.action.hover,
                 },
               },
               '&:hover': {
-                backgroundColor: 'rgba(0, 229, 255, 0.05)',
+                backgroundColor: theme.palette.action.hover,
               },
             }}
           >
@@ -716,7 +711,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
               sx={{
                 minWidth: 40,
                 justifyContent: 'center',
-                color: isActive('/ops/companies') ? 'primary.main' : 'text.secondary',
+                color: isActive('/ops/companies') ? theme.palette.text.primary : theme.palette.text.secondary,
               }}
             >
               <BusinessIcon />
@@ -733,15 +728,14 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
             sx={{
               minHeight: 48,
               '&.Mui-selected': {
-                backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                borderLeft: '3px solid',
-                borderLeftColor: 'primary.main',
+                backgroundColor: theme.palette.action.hover,
+                borderLeft: `1px solid ${theme.palette.text.primary}`,
                 '&:hover': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.15)',
+                  backgroundColor: theme.palette.action.hover,
                 },
               },
               '&:hover': {
-                backgroundColor: 'rgba(0, 229, 255, 0.05)',
+                backgroundColor: theme.palette.action.hover,
               },
             }}
           >
@@ -749,7 +743,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
               sx={{
                 minWidth: 40,
                 justifyContent: 'center',
-                color: isActive('/ops/opportunities') ? 'primary.main' : 'text.secondary',
+                color: isActive('/ops/opportunities') ? theme.palette.text.primary : theme.palette.text.secondary,
               }}
             >
               <TrendingUpIcon />
@@ -766,15 +760,14 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
             sx={{
               minHeight: 48,
               '&.Mui-selected': {
-                backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                borderLeft: '3px solid',
-                borderLeftColor: 'primary.main',
+                backgroundColor: theme.palette.action.hover,
+                borderLeft: `1px solid ${theme.palette.text.primary}`,
                 '&:hover': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.15)',
+                  backgroundColor: theme.palette.action.hover,
                 },
               },
               '&:hover': {
-                backgroundColor: 'rgba(0, 229, 255, 0.05)',
+                backgroundColor: theme.palette.action.hover,
               },
             }}
           >
@@ -782,7 +775,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
               sx={{
                 minWidth: 40,
                 justifyContent: 'center',
-                color: isActive('/ops/contacts') ? 'primary.main' : 'text.secondary',
+                color: isActive('/ops/contacts') ? theme.palette.text.primary : theme.palette.text.secondary,
               }}
             >
               <ContactsIcon />
@@ -834,8 +827,8 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
       >
         <Paper
           sx={{
-            backgroundColor: '#000',
-            border: '1px solid rgba(0, 229, 255, 0.3)',
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
             minWidth: 200,
             maxHeight: 400,
             overflow: 'auto',
@@ -850,13 +843,13 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
               sx={{
                 color: 'text.primary',
                 '&:hover': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                  backgroundColor: theme.palette.action.hover,
                 },
               }}
             >
               <ListItemText primary="All Projects" />
             </MenuItem>
-            <Divider sx={{ borderColor: 'rgba(0, 229, 255, 0.2)' }} />
+            <Divider sx={{ borderColor: theme.palette.divider }} />
             {projects.map((project) => (
               <MenuItem
                 key={project.id}
@@ -866,12 +859,12 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                 }}
                 selected={isProjectActive(project.id)}
                 sx={{
-                  color: isProjectActive(project.id) ? 'primary.main' : 'text.secondary',
+                  color: isProjectActive(project.id) ? theme.palette.text.primary : theme.palette.text.secondary,
                   '&:hover': {
-                    backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                    backgroundColor: theme.palette.action.hover,
                   },
                   '&.Mui-selected': {
-                    backgroundColor: 'rgba(0, 229, 255, 0.15)',
+                    backgroundColor: theme.palette.action.hover,
                   },
                 }}
               >
@@ -929,8 +922,8 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
       >
         <Paper
           sx={{
-            backgroundColor: '#000',
-            border: '1px solid rgba(0, 229, 255, 0.3)',
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
             minWidth: 200,
             maxHeight: 400,
             overflow: 'auto',
@@ -945,7 +938,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
               sx={{
                 color: 'text.primary',
                 '&:hover': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                  backgroundColor: theme.palette.action.hover,
                 },
               }}
             >
@@ -953,7 +946,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
             </MenuItem>
             {templates.length > 0 && (
               <>
-                <Divider sx={{ borderColor: 'rgba(0, 229, 255, 0.2)' }} />
+                <Divider sx={{ borderColor: theme.palette.divider }} />
                 {templates.map((template) => (
                   <MenuItem
                     key={template.id}
@@ -963,13 +956,13 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                     }}
                     selected={isTemplateActive(template.id)}
                     sx={{
-                      color: isTemplateActive(template.id) ? 'primary.main' : 'text.secondary',
+                      color: isTemplateActive(template.id) ? theme.palette.text.primary : theme.palette.text.secondary,
                       '&:hover': {
                         backgroundColor: 'rgba(0, 229, 255, 0.1)',
                       },
-                      '&.Mui-selected': {
-                        backgroundColor: 'rgba(0, 229, 255, 0.15)',
-                      },
+                  '&.Mui-selected': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
                     }}
                   >
                     <ListItemText
@@ -1028,8 +1021,8 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
       >
         <Paper
           sx={{
-            backgroundColor: '#000',
-            border: '1px solid rgba(0, 229, 255, 0.3)',
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
             minWidth: 200,
             maxHeight: 400,
             overflow: 'auto',
@@ -1044,7 +1037,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
               sx={{
                 color: 'text.primary',
                 '&:hover': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                  backgroundColor: theme.palette.action.hover,
                 },
               }}
             >
@@ -1052,7 +1045,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
             </MenuItem>
             {projectManagementProjects.length > 0 && (
               <>
-                <Divider sx={{ borderColor: 'rgba(0, 229, 255, 0.2)' }} />
+                <Divider sx={{ borderColor: theme.palette.divider }} />
                 {projectManagementProjects.map((project) => (
                   <MenuItem
                     key={project.id}
@@ -1062,13 +1055,13 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                     }}
                     selected={isProjectManagementActive(project.id)}
                     sx={{
-                      color: isProjectManagementActive(project.id) ? 'primary.main' : 'text.secondary',
+                      color: isProjectManagementActive(project.id) ? theme.palette.text.primary : theme.palette.text.secondary,
                       '&:hover': {
                         backgroundColor: 'rgba(0, 229, 255, 0.1)',
                       },
-                      '&.Mui-selected': {
-                        backgroundColor: 'rgba(0, 229, 255, 0.15)',
-                      },
+                  '&.Mui-selected': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
                     }}
                   >
                     <ListItemText
@@ -1087,7 +1080,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
       </Box>
 
       {/* My Tasks - Bottom Navigation Item */}
-      <Box sx={{ borderTop: '1px solid rgba(0, 229, 255, 0.1)', flexShrink: 0 }}>
+      <Box sx={{ borderTop: `1px solid ${theme.palette.divider}`, flexShrink: 0 }}>
         <List>
           <ListItem disablePadding>
             <ListItemButton
@@ -1097,15 +1090,14 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                 minHeight: 48,
                 position: 'relative',
                 '&.Mui-selected': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                  borderLeft: '3px solid',
-                  borderLeftColor: 'primary.main',
+                  backgroundColor: theme.palette.action.hover,
+                  borderLeft: `1px solid ${theme.palette.text.primary}`,
                   '&:hover': {
-                    backgroundColor: 'rgba(0, 229, 255, 0.15)',
+                    backgroundColor: theme.palette.action.hover,
                   },
                 },
                 '&:hover': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.05)',
+                  backgroundColor: theme.palette.action.hover,
                 },
               }}
             >
@@ -1113,7 +1105,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                 sx={{
                   minWidth: open ? 40 : 40,
                   justifyContent: 'center',
-                  color: isActive('/my-tasks') ? 'primary.main' : 'text.secondary',
+                  color: isActive('/my-tasks') ? theme.palette.text.primary : theme.palette.text.secondary,
                 }}
               >
                 <ScheduleIcon />
@@ -1131,8 +1123,8 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                       minWidth: 20,
                       height: 20,
                       borderRadius: '10px',
-                      backgroundColor: '#FF1744',
-                      color: '#fff',
+                      backgroundColor: theme.palette.text.primary,
+                      color: theme.palette.background.default,
                       fontSize: '0.75rem',
                       fontWeight: 600,
                       px: 0.75,

@@ -18,6 +18,7 @@ import {
   Paper,
   Grid,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { Add as AddIcon, Search as SearchIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import LoadingSkeleton from '@/components/ui/LoadingSkeleton';
@@ -37,6 +38,7 @@ import {
 import SortableTable from '@/components/dashboard/SortableTable';
 
 export default function ProjectsPage() {
+  const theme = useTheme();
   const router = useRouter();
   const supabase = createSupabaseClient();
   const { role, loading: roleLoading } = useRole();
@@ -219,26 +221,24 @@ export default function ProjectsPage() {
           variant="h4"
           component="h1"
           sx={{
-            fontWeight: 700,
-            background: '#00E5FF',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
+            fontSize: '1.5rem',
+            fontWeight: 600,
+            color: theme.palette.text.primary,
           }}
         >
           Projects
         </Typography>
         <Button
-          variant="contained"
+          variant="outlined"
           startIcon={<AddIcon />}
           onClick={handleCreateProject}
           sx={{
-            backgroundColor: '#00E5FF',
-            color: '#000',
+            borderColor: theme.palette.text.primary,
+            color: theme.palette.text.primary,
             fontWeight: 600,
             '&:hover': {
-              backgroundColor: '#00B2CC',
-              boxShadow: '0 6px 25px rgba(0, 229, 255, 0.5)',
-              transform: 'translateY(-2px)',
+              borderColor: theme.palette.text.primary,
+              backgroundColor: theme.palette.action.hover,
             },
           }}
         >
@@ -251,9 +251,9 @@ export default function ProjectsPage() {
           severity="error"
           sx={{
             mb: 3,
-            backgroundColor: 'rgba(255, 23, 68, 0.1)',
-            border: '1px solid rgba(255, 23, 68, 0.3)',
-            color: '#FF1744',
+            backgroundColor: theme.palette.action.hover,
+            border: `1px solid ${theme.palette.divider}`,
+            color: theme.palette.text.primary,
           }}
         >
           {error}
@@ -261,12 +261,12 @@ export default function ProjectsPage() {
       )}
 
       {projects.length > 0 && (
-        <Paper
+        <Box
           sx={{
             p: 2,
             mb: 3,
-            backgroundColor: '#000',
-            border: '2px solid rgba(0, 229, 255, 0.2)',
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
             borderRadius: 2,
           }}
         >
@@ -281,22 +281,22 @@ export default function ProjectsPage() {
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <SearchIcon sx={{ color: '#00E5FF' }} />
+                      <SearchIcon sx={{ color: theme.palette.text.primary }} />
                     </InputAdornment>
                   ),
                 }}
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    color: '#E0E0E0',
+                    backgroundColor: theme.palette.action.hover,
+                    color: theme.palette.text.primary,
                     '& fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused fieldset': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                   },
                 }}
@@ -304,25 +304,25 @@ export default function ProjectsPage() {
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
               <FormControl fullWidth size="small">
-                <InputLabel sx={{ color: '#B0B0B0' }}>Status</InputLabel>
+                <InputLabel sx={{ color: theme.palette.text.secondary }}>Status</InputLabel>
                 <Select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                   label="Status"
                   sx={{
-                    color: '#E0E0E0',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
                     '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                     '& .MuiSvgIcon-root': {
-                      color: '#00E5FF',
+                      color: theme.palette.text.primary,
                     },
                   }}
                 >
@@ -338,7 +338,7 @@ export default function ProjectsPage() {
               <Typography
                 variant="body2"
                 sx={{
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                   textAlign: { xs: 'left', md: 'right' },
                 }}
               >
@@ -346,7 +346,7 @@ export default function ProjectsPage() {
               </Typography>
             </Grid>
           </Grid>
-        </Paper>
+        </Box>
       )}
 
       {projects.length === 0 ? (
@@ -376,7 +376,7 @@ export default function ProjectsPage() {
               label: 'Project Name',
               sortable: true,
               render: (value) => (
-                <Typography variant="body2" sx={{ fontWeight: 600, color: '#00E5FF' }}>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
                   {value}
                 </Typography>
               ),
@@ -390,9 +390,9 @@ export default function ProjectsPage() {
                   label={String(value).replace('_', ' ')}
                   size="small"
                   sx={{
-                    backgroundColor: 'rgba(0, 255, 136, 0.15)',
-                    color: '#00FF88',
-                    border: '1px solid rgba(0, 255, 136, 0.3)',
+                    backgroundColor: theme.palette.action.hover,
+                    color: theme.palette.text.primary,
+                    border: `1px solid ${theme.palette.divider}`,
                     fontWeight: 500,
                   }}
                 />
@@ -403,15 +403,15 @@ export default function ProjectsPage() {
               label: 'Primary Tool',
               sortable: true,
               render: (value) => {
-                if (!value) return <Typography variant="body2" sx={{ color: '#B0B0B0' }}>-</Typography>;
+                if (!value) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
                 return (
                   <Chip
                     label={String(value)}
                     size="small"
                     sx={{
-                      backgroundColor: 'rgba(233, 30, 99, 0.15)',
-                      color: '#E91E63',
-                      border: '1px solid rgba(233, 30, 99, 0.3)',
+                      backgroundColor: theme.palette.action.hover,
+                      color: theme.palette.text.primary,
+                      border: `1px solid ${theme.palette.divider}`,
                       fontWeight: 500,
                     }}
                   />
@@ -423,10 +423,10 @@ export default function ProjectsPage() {
               label: 'Last Updated',
               sortable: true,
               render: (value) => {
-                if (!value) return <Typography variant="body2" sx={{ color: '#B0B0B0' }}>-</Typography>;
+                if (!value) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
                 const date = new Date(value);
                 return (
-                  <Typography variant="body2" sx={{ color: '#B0B0B0' }}>
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
                     {date.toLocaleDateString()}
                   </Typography>
                 );
@@ -447,9 +447,9 @@ export default function ProjectsPage() {
                         handleDeleteClick(project);
                       }}
                       sx={{
-                        color: '#FF1744',
+                        color: theme.palette.text.primary,
                         '&:hover': {
-                          backgroundColor: 'rgba(255, 23, 68, 0.1)',
+                          backgroundColor: theme.palette.action.hover,
                         },
                       }}
                       title="Delete project"
@@ -465,11 +465,11 @@ export default function ProjectsPage() {
                     }}
                     variant="outlined"
                     sx={{
-                      borderColor: '#00E5FF',
-                      color: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
+                      color: theme.palette.text.primary,
                       '&:hover': {
-                        borderColor: '#00E5FF',
-                        backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                        borderColor: theme.palette.text.primary,
+                        backgroundColor: theme.palette.action.hover,
                       },
                     }}
                   >
@@ -492,27 +492,27 @@ export default function ProjectsPage() {
         onClose={handleDeleteCancel}
         PaperProps={{
           sx: {
-            backgroundColor: '#000',
-            border: '1px solid rgba(255, 23, 68, 0.3)',
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
           },
         }}
       >
-        <DialogTitle sx={{ color: '#FF1744', fontWeight: 600 }}>
+        <DialogTitle sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
           Delete Project
         </DialogTitle>
         <DialogContent>
-          <DialogContentText sx={{ color: '#B0B0B0' }}>
+          <DialogContentText sx={{ color: theme.palette.text.secondary }}>
             Are you sure you want to delete &quot;{projectToDelete?.name}&quot;? This action cannot be undone and will permanently delete the project and all associated data.
           </DialogContentText>
         </DialogContent>
-        <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(255, 23, 68, 0.2)' }}>
+        <DialogActions sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
           <Button
             onClick={handleDeleteCancel}
             disabled={deleting}
             sx={{
-              color: '#B0B0B0',
+              color: theme.palette.text.secondary,
               '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                backgroundColor: theme.palette.action.hover,
               },
             }}
           >
@@ -521,17 +521,18 @@ export default function ProjectsPage() {
           <Button
             onClick={handleDeleteConfirm}
             disabled={deleting}
-            variant="contained"
+            variant="outlined"
             sx={{
-              backgroundColor: '#FF1744',
-              color: '#fff',
+              borderColor: theme.palette.text.primary,
+              color: theme.palette.text.primary,
               fontWeight: 600,
               '&:hover': {
-                backgroundColor: '#D50000',
+                borderColor: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
               },
               '&.Mui-disabled': {
-                backgroundColor: 'rgba(255, 23, 68, 0.3)',
-                color: 'rgba(255, 255, 255, 0.5)',
+                borderColor: theme.palette.divider,
+                color: theme.palette.text.secondary,
               },
             }}
           >

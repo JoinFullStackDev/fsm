@@ -11,6 +11,7 @@ import {
   ListItemIcon,
   ListItemText,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   TextFields as TextFieldsIcon,
   Article as ArticleIcon,
@@ -118,6 +119,7 @@ interface DraggableComponentProps {
 }
 
 function DraggableComponent({ component }: DraggableComponentProps) {
+  const theme = useTheme();
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `palette-${component.id}`,
     data: {
@@ -141,7 +143,7 @@ function DraggableComponent({ component }: DraggableComponentProps) {
       sx={{
         mb: 1,
         '&:hover': {
-          backgroundColor: 'rgba(0, 229, 255, 0.1)',
+          backgroundColor: theme.palette.action.hover,
         },
       }}
     >
@@ -149,27 +151,26 @@ function DraggableComponent({ component }: DraggableComponentProps) {
         {...listeners}
         {...attributes}
         sx={{
-          border: '1px solid',
-          borderColor: 'primary.main',
+          border: `1px solid ${theme.palette.divider}`,
           borderRadius: 1,
-          backgroundColor: 'rgba(0, 229, 255, 0.05)',
+          backgroundColor: theme.palette.background.paper,
           cursor: 'grab',
           '&:active': {
             cursor: 'grabbing',
           },
         }}
       >
-        <ListItemIcon sx={{ color: 'primary.main', minWidth: 40 }}>
+        <ListItemIcon sx={{ color: theme.palette.text.primary, minWidth: 40 }}>
           {component.icon}
         </ListItemIcon>
         <ListItemText
           primary={component.label}
           secondary={component.description}
           primaryTypographyProps={{
-            sx: { color: 'primary.main', fontWeight: 500 },
+            sx: { color: theme.palette.text.primary, fontWeight: 500 },
           }}
           secondaryTypographyProps={{
-            sx: { color: 'text.secondary', fontSize: '0.75rem' },
+            sx: { color: theme.palette.text.secondary, fontSize: '0.75rem' },
           }}
         />
       </ListItemButton>
@@ -182,14 +183,14 @@ interface ComponentPaletteProps {
 }
 
 export default function ComponentPalette({ onComponentSelect }: ComponentPaletteProps) {
+  const theme = useTheme();
   return (
     <Paper
       sx={{
         p: 2,
         height: '100%',
-        backgroundColor: '#000',
-        border: '1px solid',
-        borderColor: 'primary.main',
+        backgroundColor: theme.palette.background.paper,
+        border: `1px solid ${theme.palette.divider}`,
         borderRadius: 2,
       }}
     >
@@ -197,10 +198,9 @@ export default function ComponentPalette({ onComponentSelect }: ComponentPalette
         variant="h6"
         sx={{
           mb: 2,
-          color: 'primary.main',
+          color: theme.palette.text.primary,
           fontWeight: 600,
-          borderBottom: '1px solid',
-          borderColor: 'primary.main',
+          borderBottom: `1px solid ${theme.palette.divider}`,
           pb: 1,
         }}
       >

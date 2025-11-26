@@ -4,8 +4,6 @@ import { useEffect, useState } from 'react';
 import {
   Box,
   Typography,
-  Card,
-  CardContent,
   TextField,
   Button,
   Switch,
@@ -13,13 +11,16 @@ import {
   Alert,
   CircularProgress,
   Grid,
+  Paper,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { Save as SaveIcon } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import type { AdminSetting } from '@/types/project';
 
 export default function AdminSystemTab() {
+  const theme = useTheme();
   const supabase = createSupabaseClient();
   const { showSuccess, showError } = useNotification();
   const [loading, setLoading] = useState(true);
@@ -131,7 +132,7 @@ export default function AdminSystemTab() {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-        <CircularProgress />
+        <CircularProgress sx={{ color: theme.palette.text.primary }} />
       </Box>
     );
   }
@@ -139,17 +140,26 @@ export default function AdminSystemTab() {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600 }}>
+        <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
           System Settings
         </Typography>
         <Button
           startIcon={<SaveIcon />}
           onClick={handleSave}
-          variant="contained"
+          variant="outlined"
           disabled={saving}
           sx={{
-            backgroundColor: 'primary.main',
-            color: 'primary.contrastText',
+            borderColor: theme.palette.text.primary,
+            color: theme.palette.text.primary,
+            fontWeight: 600,
+            '&:hover': {
+              borderColor: theme.palette.text.primary,
+              backgroundColor: theme.palette.action.hover,
+            },
+            '&.Mui-disabled': {
+              borderColor: theme.palette.divider,
+              color: theme.palette.text.secondary,
+            },
           }}
         >
           {saving ? 'Saving...' : 'Save Settings'}
@@ -157,85 +167,169 @@ export default function AdminSystemTab() {
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert
+          severity="error"
+          sx={{
+            mb: 3,
+            backgroundColor: theme.palette.action.hover,
+            border: `1px solid ${theme.palette.divider}`,
+            color: theme.palette.text.primary,
+          }}
+        >
           {error}
         </Alert>
       )}
 
       <Grid container spacing={3}>
         <Grid item xs={12}>
-          <Card sx={{ border: '2px solid', borderColor: 'warning.main' }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2, color: 'warning.main' }}>
-                Maintenance Mode
-              </Typography>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={maintenanceMode}
-                    onChange={(e) => setMaintenanceMode(e.target.checked)}
-                    sx={{
-                      '& .MuiSwitch-switchBase.Mui-checked': {
-                        color: 'warning.main',
-                      },
-                      '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                        backgroundColor: 'warning.main',
-                      },
-                    }}
-                  />
-                }
-                label={maintenanceMode ? 'Maintenance mode is ON' : 'Maintenance mode is OFF'}
-              />
-              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
-                When enabled, only admins can access the application.
-              </Typography>
-            </CardContent>
-          </Card>
+          <Paper
+            sx={{
+              p: 3,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
+            }}
+          >
+            <Typography variant="h6" sx={{ mb: 2, color: theme.palette.text.primary, fontWeight: 600 }}>
+              Maintenance Mode
+            </Typography>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={maintenanceMode}
+                  onChange={(e) => setMaintenanceMode(e.target.checked)}
+                  sx={{
+                    '& .MuiSwitch-switchBase.Mui-checked': {
+                      color: theme.palette.text.primary,
+                    },
+                  }}
+                />
+              }
+              label={maintenanceMode ? 'Maintenance mode is ON' : 'Maintenance mode is OFF'}
+              sx={{ color: theme.palette.text.primary }}
+            />
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 1 }}>
+              When enabled, only admins can access the application.
+            </Typography>
+          </Paper>
         </Grid>
 
         <Grid item xs={12}>
-          <Card sx={{ border: '2px solid', borderColor: 'primary.main' }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
-                Application Configuration
-              </Typography>
-              <TextField
-                label="Application Name"
-                value={appName}
-                onChange={(e) => setAppName(e.target.value)}
-                fullWidth
-                sx={{ mb: 2 }}
-              />
-            </CardContent>
-          </Card>
+          <Paper
+            sx={{
+              p: 3,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
+            }}
+          >
+            <Typography variant="h6" sx={{ mb: 2, color: theme.palette.text.primary, fontWeight: 600 }}>
+              Application Configuration
+            </Typography>
+            <TextField
+              label="Application Name"
+              value={appName}
+              onChange={(e) => setAppName(e.target.value)}
+              fullWidth
+              sx={{
+                mb: 2,
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: theme.palette.action.hover,
+                  color: theme.palette.text.primary,
+                  '& fieldset': {
+                    borderColor: theme.palette.divider,
+                  },
+                  '&:hover fieldset': {
+                    borderColor: theme.palette.text.secondary,
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: theme.palette.text.primary,
+                  },
+                },
+                '& .MuiInputLabel-root': {
+                  color: theme.palette.text.secondary,
+                },
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: theme.palette.text.primary,
+                },
+              }}
+            />
+          </Paper>
         </Grid>
 
         <Grid item xs={12}>
-          <Card sx={{ border: '2px solid', borderColor: 'info.main' }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2, color: 'info.main' }}>
-                Email Templates
-              </Typography>
-              <Typography variant="subtitle2" sx={{ mb: 2, color: 'text.secondary' }}>
-                Signup Welcome Email
-              </Typography>
-              <TextField
-                label="Subject"
-                value={emailSignupSubject}
-                onChange={(e) => setEmailSignupSubject(e.target.value)}
-                fullWidth
-                sx={{ mb: 2 }}
-              />
-              <TextField
-                label="Body"
-                value={emailSignupBody}
-                onChange={(e) => setEmailSignupBody(e.target.value)}
-                fullWidth
-                multiline
-                rows={4}
-              />
-            </CardContent>
-          </Card>
+          <Paper
+            sx={{
+              p: 3,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
+            }}
+          >
+            <Typography variant="h6" sx={{ mb: 2, color: theme.palette.text.primary, fontWeight: 600 }}>
+              Email Templates
+            </Typography>
+            <Typography variant="subtitle2" sx={{ mb: 2, color: theme.palette.text.secondary }}>
+              Signup Welcome Email
+            </Typography>
+            <TextField
+              label="Subject"
+              value={emailSignupSubject}
+              onChange={(e) => setEmailSignupSubject(e.target.value)}
+              fullWidth
+              sx={{
+                mb: 2,
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: theme.palette.action.hover,
+                  color: theme.palette.text.primary,
+                  '& fieldset': {
+                    borderColor: theme.palette.divider,
+                  },
+                  '&:hover fieldset': {
+                    borderColor: theme.palette.text.secondary,
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: theme.palette.text.primary,
+                  },
+                },
+                '& .MuiInputLabel-root': {
+                  color: theme.palette.text.secondary,
+                },
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: theme.palette.text.primary,
+                },
+              }}
+            />
+            <TextField
+              label="Body"
+              value={emailSignupBody}
+              onChange={(e) => setEmailSignupBody(e.target.value)}
+              fullWidth
+              multiline
+              rows={4}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: theme.palette.action.hover,
+                  color: theme.palette.text.primary,
+                  '& fieldset': {
+                    borderColor: theme.palette.divider,
+                  },
+                  '&:hover fieldset': {
+                    borderColor: theme.palette.text.secondary,
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: theme.palette.text.primary,
+                  },
+                },
+                '& .MuiInputLabel-root': {
+                  color: theme.palette.text.secondary,
+                },
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: theme.palette.text.primary,
+                },
+              }}
+            />
+          </Paper>
         </Grid>
       </Grid>
     </Box>

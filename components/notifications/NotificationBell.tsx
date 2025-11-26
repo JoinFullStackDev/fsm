@@ -13,6 +13,7 @@ import {
   Button,
   CircularProgress,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Notifications as NotificationsIcon,
   NotificationsNone as NotificationsNoneIcon,
@@ -28,6 +29,7 @@ interface NotificationBellProps {
 
 export default function NotificationBell({ onOpenDrawer }: NotificationBellProps) {
   const router = useRouter();
+  const theme = useTheme();
   const supabase = createSupabaseClient();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -195,17 +197,25 @@ export default function NotificationBell({ onOpenDrawer }: NotificationBellProps
       <IconButton
         onClick={handleMenuOpen}
         sx={{
-          color: 'text.primary',
+          color: theme.palette.text.primary,
           '&:hover': {
-            backgroundColor: 'rgba(0, 229, 255, 0.1)',
+            backgroundColor: theme.palette.action.hover,
           },
         }}
       >
-        <Badge badgeContent={unreadCount} color="error">
+        <Badge 
+          badgeContent={unreadCount} 
+          sx={{
+            '& .MuiBadge-badge': {
+              backgroundColor: theme.palette.text.primary,
+              color: theme.palette.background.default,
+            },
+          }}
+        >
           {unreadCount > 0 ? (
-            <NotificationsIcon sx={{ color: '#00E5FF' }} />
+            <NotificationsIcon sx={{ color: theme.palette.text.primary }} />
           ) : (
-            <NotificationsNoneIcon sx={{ color: '#00E5FF' }} />
+            <NotificationsNoneIcon sx={{ color: theme.palette.text.primary }} />
           )}
         </Badge>
       </IconButton>
@@ -228,15 +238,14 @@ export default function NotificationBell({ onOpenDrawer }: NotificationBellProps
             minWidth: 320,
             maxWidth: 400,
             maxHeight: 500,
-            backgroundColor: '#000',
-            border: '1px solid',
-            borderColor: 'primary.main',
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
             overflow: 'auto',
           },
         }}
       >
-        <Box sx={{ px: 2, py: 1.5, borderBottom: '2px solid rgba(0, 229, 255, 0.2)' }}>
-          <Typography variant="h6" sx={{ color: '#00E5FF', fontWeight: 600 }}>
+        <Box sx={{ px: 2, py: 1.5, borderBottom: `1px solid ${theme.palette.divider}` }}>
+          <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
             Notifications
           </Typography>
         </Box>
@@ -260,12 +269,12 @@ export default function NotificationBell({ onOpenDrawer }: NotificationBellProps
                 sx={{
                   py: 1.5,
                   px: 2,
-                  borderBottom: '1px solid rgba(0, 229, 255, 0.1)',
+                  borderBottom: `1px solid ${theme.palette.divider}`,
                   backgroundColor: notification.read
                     ? 'transparent'
-                    : 'rgba(0, 229, 255, 0.05)',
+                    : theme.palette.action.hover,
                   '&:hover': {
-                    backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                    backgroundColor: theme.palette.action.hover,
                   },
                 }}
               >
@@ -307,16 +316,16 @@ export default function NotificationBell({ onOpenDrawer }: NotificationBellProps
           </>
         )}
 
-        <Divider sx={{ borderColor: 'rgba(0, 229, 255, 0.2)' }} />
+        <Divider sx={{ borderColor: theme.palette.divider }} />
         <Box sx={{ p: 1 }}>
           <Button
             fullWidth
             onClick={handleViewAll}
             sx={{
-              color: '#00E5FF',
+              color: theme.palette.text.primary,
               textTransform: 'none',
               '&:hover': {
-                backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                backgroundColor: theme.palette.action.hover,
               },
             }}
           >

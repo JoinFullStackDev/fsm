@@ -20,6 +20,7 @@ import {
   FormControl,
   InputLabel,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Close as CloseIcon,
   ExpandMore as ExpandMoreIcon,
@@ -39,6 +40,7 @@ interface FieldConfigPanelProps {
 }
 
 export default function FieldConfigPanel({ field, onUpdate, onClose }: FieldConfigPanelProps) {
+  const theme = useTheme();
   const [localField, setLocalField] = useState<TemplateFieldConfig>(field);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
@@ -101,9 +103,8 @@ export default function FieldConfigPanel({ field, onUpdate, onClose }: FieldConf
     <Paper
       sx={{
         p: 3,
-        backgroundColor: '#000',
-        border: '1px solid',
-        borderColor: 'primary.main',
+        backgroundColor: theme.palette.background.paper,
+        border: `1px solid ${theme.palette.divider}`,
         borderRadius: 2,
         maxHeight: 'calc(100vh - 120px)',
         overflow: 'auto',
@@ -111,22 +112,31 @@ export default function FieldConfigPanel({ field, onUpdate, onClose }: FieldConf
     >
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 600 }}>
+        <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
           Field Configuration
         </Typography>
-        <IconButton onClick={onClose} sx={{ color: 'text.secondary' }} aria-label="Close field configuration panel">
+        <IconButton 
+          onClick={onClose} 
+          sx={{ 
+            color: theme.palette.text.primary,
+            '&:hover': {
+              backgroundColor: theme.palette.action.hover,
+            },
+          }} 
+          aria-label="Close field configuration panel"
+        >
           <CloseIcon />
         </IconButton>
       </Box>
 
-      <Divider sx={{ mb: 3, borderColor: 'primary.main' }} />
+      <Divider sx={{ mb: 3, borderColor: theme.palette.divider }} />
 
       {/* Basic Settings */}
-      <Accordion defaultExpanded sx={{ mb: 2, backgroundColor: 'transparent', color: 'text.primary' }}>
-        <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: 'primary.main' }} />}>
+      <Accordion defaultExpanded sx={{ mb: 2, backgroundColor: 'transparent', color: theme.palette.text.primary }}>
+        <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: theme.palette.text.primary }} />}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <SettingsIcon sx={{ color: 'primary.main', fontSize: 20 }} />
-            <Typography sx={{ color: 'primary.main', fontWeight: 500 }}>Basic Settings</Typography>
+            <SettingsIcon sx={{ color: theme.palette.text.primary, fontSize: 20 }} />
+            <Typography sx={{ color: theme.palette.text.primary, fontWeight: 500 }}>Basic Settings</Typography>
           </Box>
         </AccordionSummary>
         <AccordionDetails>
@@ -185,7 +195,7 @@ export default function FieldConfigPanel({ field, onUpdate, onClose }: FieldConf
                     onChange={(e) => updateFieldConfig({ required: e.target.checked })}
                     sx={{
                       '& .MuiSwitch-switchBase.Mui-checked': {
-                        color: 'primary.main',
+                        color: theme.palette.text.primary,
                       },
                     }}
                   />
@@ -209,11 +219,11 @@ export default function FieldConfigPanel({ field, onUpdate, onClose }: FieldConf
       </Accordion>
 
       {/* Layout Settings */}
-      <Accordion sx={{ mb: 2, backgroundColor: 'transparent', color: 'text.primary' }}>
-        <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: 'primary.main' }} />}>
+      <Accordion sx={{ mb: 2, backgroundColor: 'transparent', color: theme.palette.text.primary }}>
+        <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: theme.palette.text.primary }} />}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <ViewModuleIcon sx={{ color: 'primary.main', fontSize: 20 }} />
-            <Typography sx={{ color: 'primary.main', fontWeight: 500 }}>Layout</Typography>
+            <ViewModuleIcon sx={{ color: theme.palette.text.primary, fontSize: 20 }} />
+            <Typography sx={{ color: theme.palette.text.primary, fontWeight: 500 }}>Layout</Typography>
           </Box>
         </AccordionSummary>
         <AccordionDetails>
@@ -267,11 +277,11 @@ export default function FieldConfigPanel({ field, onUpdate, onClose }: FieldConf
       </Accordion>
 
       {/* Validation Settings */}
-      <Accordion sx={{ mb: 2, backgroundColor: 'transparent', color: 'text.primary' }}>
-        <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: 'primary.main' }} />}>
+      <Accordion sx={{ mb: 2, backgroundColor: 'transparent', color: theme.palette.text.primary }}>
+        <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: theme.palette.text.primary }} />}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <CheckCircleIcon sx={{ color: 'primary.main', fontSize: 20 }} />
-            <Typography sx={{ color: 'primary.main', fontWeight: 500 }}>Validation</Typography>
+            <CheckCircleIcon sx={{ color: theme.palette.text.primary, fontSize: 20 }} />
+            <Typography sx={{ color: theme.palette.text.primary, fontWeight: 500 }}>Validation</Typography>
           </Box>
         </AccordionSummary>
         <AccordionDetails>
@@ -338,11 +348,11 @@ export default function FieldConfigPanel({ field, onUpdate, onClose }: FieldConf
 
       {/* Field Type Specific Settings */}
       {(localField.field_type === 'select' || localField.field_type === 'slider') && (
-        <Accordion sx={{ mb: 2, backgroundColor: 'transparent', color: 'text.primary' }}>
-          <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: 'primary.main' }} />}>
+        <Accordion sx={{ mb: 2, backgroundColor: 'transparent', color: theme.palette.text.primary }}>
+          <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: theme.palette.text.primary }} />}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <TuneIcon sx={{ color: 'primary.main', fontSize: 20 }} />
-              <Typography sx={{ color: 'primary.main', fontWeight: 500 }}>
+              <TuneIcon sx={{ color: theme.palette.text.primary, fontSize: 20 }} />
+              <Typography sx={{ color: theme.palette.text.primary, fontWeight: 500 }}>
                 {localField.field_type === 'select' ? 'Select Options' : 'Slider Settings'}
               </Typography>
             </Box>
@@ -431,11 +441,11 @@ export default function FieldConfigPanel({ field, onUpdate, onClose }: FieldConf
       )}
 
       {/* AI Settings */}
-      <Accordion sx={{ mb: 2, backgroundColor: 'transparent', color: 'text.primary' }}>
-        <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: 'primary.main' }} />}>
+      <Accordion sx={{ mb: 2, backgroundColor: 'transparent', color: theme.palette.text.primary }}>
+        <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: theme.palette.text.primary }} />}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <SmartToyIcon sx={{ color: 'primary.main', fontSize: 20 }} />
-            <Typography sx={{ color: 'primary.main', fontWeight: 500 }}>AI Generation</Typography>
+            <SmartToyIcon sx={{ color: theme.palette.text.primary, fontSize: 20 }} />
+            <Typography sx={{ color: theme.palette.text.primary, fontWeight: 500 }}>AI Generation</Typography>
           </Box>
         </AccordionSummary>
         <AccordionDetails>
@@ -455,7 +465,7 @@ export default function FieldConfigPanel({ field, onUpdate, onClose }: FieldConf
                     }
                     sx={{
                       '& .MuiSwitch-switchBase.Mui-checked': {
-                        color: 'primary.main',
+                        color: theme.palette.text.primary,
                       },
                     }}
                   />

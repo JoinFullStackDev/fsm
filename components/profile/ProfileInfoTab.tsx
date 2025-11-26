@@ -4,8 +4,6 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   Box,
   Typography,
-  Card,
-  CardContent,
   TextField,
   Button,
   Grid,
@@ -13,12 +11,14 @@ import {
   CircularProgress,
   Alert,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { Save as SaveIcon, CloudUpload as UploadIcon } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import type { User } from '@/types/project';
 
 export default function ProfileInfoTab() {
+  const theme = useTheme();
   const supabase = createSupabaseClient();
   const { showSuccess, showError } = useNotification();
   const [loading, setLoading] = useState(true);
@@ -256,14 +256,21 @@ export default function ProfileInfoTab() {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-        <CircularProgress />
+        <CircularProgress sx={{ color: theme.palette.text.primary }} />
       </Box>
     );
   }
 
   if (error || !profile) {
     return (
-      <Alert severity="error">
+      <Alert 
+        severity="error"
+        sx={{
+          backgroundColor: theme.palette.action.hover,
+          border: `1px solid ${theme.palette.divider}`,
+          color: theme.palette.text.primary,
+        }}
+      >
         {error || 'Failed to load profile'}
       </Alert>
     );
@@ -272,17 +279,26 @@ export default function ProfileInfoTab() {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600 }}>
+        <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
           Profile Information
         </Typography>
         <Button
           startIcon={<SaveIcon />}
           onClick={handleSave}
-          variant="contained"
+          variant="outlined"
           disabled={saving}
           sx={{
-            backgroundColor: 'primary.main',
-            color: 'primary.contrastText',
+            borderColor: theme.palette.text.primary,
+            color: theme.palette.text.primary,
+            fontWeight: 600,
+            '&:hover': {
+              borderColor: theme.palette.text.primary,
+              backgroundColor: theme.palette.action.hover,
+            },
+            '&.Mui-disabled': {
+              borderColor: theme.palette.divider,
+              color: theme.palette.text.secondary,
+            },
           }}
         >
           {saving ? 'Saving...' : 'Save Changes'}
@@ -291,118 +307,299 @@ export default function ProfileInfoTab() {
 
       <Grid container spacing={3}>
         <Grid item xs={12} md={4}>
-          <Card sx={{ border: '2px solid', borderColor: 'primary.main' }}>
-            <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <Avatar
-                src={avatarPreview || undefined}
+          <Box
+            sx={{
+              p: 3,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+            }}
+          >
+            <Avatar
+              src={avatarPreview || undefined}
+              sx={{
+                width: 120,
+                height: 120,
+                mb: 2,
+                border: `2px solid ${theme.palette.divider}`,
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
+              }}
+            >
+              {formData.name?.[0]?.toUpperCase() || 'U'}
+            </Avatar>
+            <input
+              accept="image/*"
+              style={{ display: 'none' }}
+              id="avatar-upload"
+              type="file"
+              onChange={handleFileChange}
+            />
+            <label htmlFor="avatar-upload">
+              <Button
+                component="span"
+                variant="outlined"
+                startIcon={<UploadIcon />}
                 sx={{
-                  width: 120,
-                  height: 120,
                   mb: 2,
-                  border: '3px solid',
-                  borderColor: 'primary.main',
+                  borderColor: theme.palette.text.primary,
+                  color: theme.palette.text.primary,
+                  '&:hover': {
+                    borderColor: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
+                  },
                 }}
               >
-                {formData.name?.[0]?.toUpperCase() || 'U'}
-              </Avatar>
-              <input
-                accept="image/*"
-                style={{ display: 'none' }}
-                id="avatar-upload"
-                type="file"
-                onChange={handleFileChange}
-              />
-              <label htmlFor="avatar-upload">
-                <Button
-                  component="span"
-                  variant="outlined"
-                  startIcon={<UploadIcon />}
-                  sx={{ mb: 2 }}
-                >
-                  Upload Avatar
-                </Button>
-              </label>
-              {avatarFile && (
-                <Button
-                  onClick={handleUploadAvatar}
-                  variant="contained"
-                  disabled={saving}
-                  size="small"
-                  sx={{ mt: 1 }}
-                >
-                  {saving ? 'Uploading...' : 'Save Avatar'}
-                </Button>
-              )}
-            </CardContent>
-          </Card>
+                Upload Avatar
+              </Button>
+            </label>
+            {avatarFile && (
+              <Button
+                onClick={handleUploadAvatar}
+                variant="outlined"
+                disabled={saving}
+                size="small"
+                sx={{
+                  mt: 1,
+                  borderColor: theme.palette.text.primary,
+                  color: theme.palette.text.primary,
+                  '&:hover': {
+                    borderColor: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                  '&.Mui-disabled': {
+                    borderColor: theme.palette.divider,
+                    color: theme.palette.text.secondary,
+                  },
+                }}
+              >
+                {saving ? 'Uploading...' : 'Save Avatar'}
+              </Button>
+            )}
+          </Box>
         </Grid>
 
         <Grid item xs={12} md={8}>
-          <Card sx={{ border: '2px solid', borderColor: 'primary.main' }}>
-            <CardContent>
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <TextField
-                    label="Name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    fullWidth
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    label="Bio"
-                    value={formData.bio}
-                    onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                    fullWidth
-                    multiline
-                    rows={3}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    label="Company"
-                    value={formData.company}
-                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                    fullWidth
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    label="Title"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    fullWidth
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    label="Location"
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    fullWidth
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    label="Phone"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    fullWidth
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    label="Website"
-                    value={formData.website}
-                    onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                    fullWidth
-                    placeholder="https://example.com"
-                  />
-                </Grid>
+          <Box
+            sx={{
+              p: 3,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
+            }}
+          >
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <TextField
+                  label="Name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  fullWidth
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: theme.palette.action.hover,
+                      color: theme.palette.text.primary,
+                      '& fieldset': {
+                        borderColor: theme.palette.divider,
+                      },
+                      '&:hover fieldset': {
+                        borderColor: theme.palette.text.secondary,
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: theme.palette.text.primary,
+                      },
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: theme.palette.text.secondary,
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: theme.palette.text.primary,
+                    },
+                  }}
+                />
               </Grid>
-            </CardContent>
-          </Card>
+              <Grid item xs={12}>
+                <TextField
+                  label="Bio"
+                  value={formData.bio}
+                  onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                  fullWidth
+                  multiline
+                  rows={3}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: theme.palette.action.hover,
+                      color: theme.palette.text.primary,
+                      '& fieldset': {
+                        borderColor: theme.palette.divider,
+                      },
+                      '&:hover fieldset': {
+                        borderColor: theme.palette.text.secondary,
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: theme.palette.text.primary,
+                      },
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: theme.palette.text.secondary,
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: theme.palette.text.primary,
+                    },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Company"
+                  value={formData.company}
+                  onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                  fullWidth
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: theme.palette.action.hover,
+                      color: theme.palette.text.primary,
+                      '& fieldset': {
+                        borderColor: theme.palette.divider,
+                      },
+                      '&:hover fieldset': {
+                        borderColor: theme.palette.text.secondary,
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: theme.palette.text.primary,
+                      },
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: theme.palette.text.secondary,
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: theme.palette.text.primary,
+                    },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Title"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  fullWidth
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: theme.palette.action.hover,
+                      color: theme.palette.text.primary,
+                      '& fieldset': {
+                        borderColor: theme.palette.divider,
+                      },
+                      '&:hover fieldset': {
+                        borderColor: theme.palette.text.secondary,
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: theme.palette.text.primary,
+                      },
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: theme.palette.text.secondary,
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: theme.palette.text.primary,
+                    },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Location"
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  fullWidth
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: theme.palette.action.hover,
+                      color: theme.palette.text.primary,
+                      '& fieldset': {
+                        borderColor: theme.palette.divider,
+                      },
+                      '&:hover fieldset': {
+                        borderColor: theme.palette.text.secondary,
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: theme.palette.text.primary,
+                      },
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: theme.palette.text.secondary,
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: theme.palette.text.primary,
+                    },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  fullWidth
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: theme.palette.action.hover,
+                      color: theme.palette.text.primary,
+                      '& fieldset': {
+                        borderColor: theme.palette.divider,
+                      },
+                      '&:hover fieldset': {
+                        borderColor: theme.palette.text.secondary,
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: theme.palette.text.primary,
+                      },
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: theme.palette.text.secondary,
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: theme.palette.text.primary,
+                    },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  label="Website"
+                  value={formData.website}
+                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                  fullWidth
+                  placeholder="https://example.com"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: theme.palette.action.hover,
+                      color: theme.palette.text.primary,
+                      '& fieldset': {
+                        borderColor: theme.palette.divider,
+                      },
+                      '&:hover fieldset': {
+                        borderColor: theme.palette.text.secondary,
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: theme.palette.text.primary,
+                      },
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: theme.palette.text.secondary,
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: theme.palette.text.primary,
+                    },
+                  }}
+                />
+              </Grid>
+            </Grid>
+          </Box>
         </Grid>
       </Grid>
     </Box>

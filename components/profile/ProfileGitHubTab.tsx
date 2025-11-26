@@ -4,13 +4,12 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   Box,
   Typography,
-  Card,
-  CardContent,
   Button,
   CircularProgress,
   Alert,
   Chip,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   GitHub as GitHubIcon,
   Link as LinkIcon,
@@ -21,6 +20,7 @@ import { useNotification } from '@/components/providers/NotificationProvider';
 import type { User } from '@/types/project';
 
 export default function ProfileGitHubTab() {
+  const theme = useTheme();
   const supabase = createSupabaseClient();
   const { showSuccess, showError } = useNotification();
   const [loading, setLoading] = useState(true);
@@ -105,71 +105,88 @@ export default function ProfileGitHubTab() {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-        <CircularProgress />
+        <CircularProgress sx={{ color: theme.palette.text.primary }} />
       </Box>
     );
   }
 
   return (
     <Box>
-      <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600, mb: 3 }}>
+      <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600, mb: 3 }}>
         GitHub Integration
       </Typography>
 
-      <Card sx={{ border: '2px solid', borderColor: 'primary.main' }}>
-        <CardContent>
-          {githubConnected ? (
-            <Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                <CheckCircleIcon sx={{ color: 'success.main', fontSize: 32 }} />
-                <Typography variant="h6" sx={{ color: 'success.main' }}>
-                  GitHub Connected
-                </Typography>
-              </Box>
-              {profile?.github_username && (
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
-                    Username:
-                  </Typography>
-                  <Chip
-                    icon={<GitHubIcon />}
-                    label={profile.github_username}
-                    sx={{ backgroundColor: 'rgba(0, 0, 0, 0.2)' }}
-                  />
-                </Box>
-              )}
-              <Button
-                variant="outlined"
-                color="error"
-                onClick={handleDisconnectGitHub}
-                sx={{ mt: 2 }}
-              >
-                Disconnect GitHub
-              </Button>
-            </Box>
-          ) : (
-            <Box>
-              <Typography variant="body1" sx={{ color: 'text.secondary', mb: 3 }}>
-                Connect your GitHub account to display your repositories and activity.
+      <Box
+        sx={{
+          p: 3,
+          backgroundColor: theme.palette.background.paper,
+          border: `1px solid ${theme.palette.divider}`,
+          borderRadius: 2,
+        }}
+      >
+        {githubConnected ? (
+          <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+              <CheckCircleIcon sx={{ color: '#4CAF50', fontSize: 32 }} />
+              <Typography variant="h6" sx={{ color: '#4CAF50' }}>
+                GitHub Connected
               </Typography>
-              <Button
-                variant="contained"
-                startIcon={<GitHubIcon />}
-                onClick={handleConnectGitHub}
-                sx={{
-                  backgroundColor: '#24292e',
-                  color: '#fff',
-                  '&:hover': {
-                    backgroundColor: '#1a1e22',
-                  },
-                }}
-              >
-                Connect GitHub
-              </Button>
             </Box>
-          )}
-        </CardContent>
-      </Card>
+            {profile?.github_username && (
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+                  Username:
+                </Typography>
+                <Chip
+                  icon={<GitHubIcon />}
+                  label={profile.github_username}
+                  sx={{
+                    backgroundColor: theme.palette.action.hover,
+                    color: theme.palette.text.primary,
+                    border: `1px solid ${theme.palette.divider}`,
+                  }}
+                />
+              </Box>
+            )}
+            <Button
+              variant="outlined"
+              onClick={handleDisconnectGitHub}
+              sx={{
+                mt: 2,
+                borderColor: theme.palette.text.primary,
+                color: theme.palette.text.primary,
+                '&:hover': {
+                  borderColor: theme.palette.text.primary,
+                  backgroundColor: theme.palette.action.hover,
+                },
+              }}
+            >
+              Disconnect GitHub
+            </Button>
+          </Box>
+        ) : (
+          <Box>
+            <Typography variant="body1" sx={{ color: theme.palette.text.secondary, mb: 3 }}>
+              Connect your GitHub account to display your repositories and activity.
+            </Typography>
+            <Button
+              variant="outlined"
+              startIcon={<GitHubIcon />}
+              onClick={handleConnectGitHub}
+              sx={{
+                borderColor: theme.palette.text.primary,
+                color: theme.palette.text.primary,
+                '&:hover': {
+                  borderColor: theme.palette.text.primary,
+                  backgroundColor: theme.palette.action.hover,
+                },
+              }}
+            >
+              Connect GitHub
+            </Button>
+          </Box>
+        )}
+      </Box>
     </Box>
   );
 }

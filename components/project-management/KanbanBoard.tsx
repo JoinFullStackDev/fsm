@@ -9,6 +9,7 @@ import {
   Avatar,
   Tooltip,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import type { ProjectTask, ProjectTaskExtended, TaskStatus } from '@/types/project';
 
 interface KanbanBoardProps {
@@ -16,11 +17,12 @@ interface KanbanBoardProps {
   onTaskClick: (task: ProjectTask | ProjectTaskExtended) => void;
 }
 
+// Muted status colors that work well with monochrome theme
 const STATUS_COLUMNS: { status: TaskStatus; label: string; color: string }[] = [
-  { status: 'todo', label: 'To Do', color: '#9E9E9E' },
-  { status: 'in_progress', label: 'In Progress', color: '#2196F3' },
-  { status: 'done', label: 'Done', color: '#4CAF50' },
-  { status: 'archived', label: 'Archived', color: '#757575' },
+  { status: 'todo', label: 'To Do', color: '#8B8B8B' }, // Muted gray
+  { status: 'in_progress', label: 'In Progress', color: '#7A8B8B' }, // Muted teal-gray
+  { status: 'done', label: 'Done', color: '#7A8B7A' }, // Muted green-gray
+  { status: 'archived', label: 'Archived', color: '#6B6B6B' }, // Darker muted gray
 ];
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -30,16 +32,18 @@ const PRIORITY_COLORS: Record<string, string> = {
   critical: '#F44336',
 };
 
+// Muted phase colors matching GanttChart
 const PHASE_COLORS: Record<number, string> = {
-  1: '#E91E63',
-  2: '#9C27B0',
-  3: '#673AB7',
-  4: '#3F51B5',
-  5: '#2196F3',
-  6: '#00BCD4',
+  1: '#8B7D8B', // Muted purple-gray
+  2: '#7A8B8B', // Muted teal-gray
+  3: '#8B8B7A', // Muted olive-gray
+  4: '#7A7A8B', // Muted blue-gray
+  5: '#8B7A7A', // Muted rose-gray
+  6: '#7A8B7A', // Muted green-gray
 };
 
 export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
+  const theme = useTheme();
   // Group tasks by status
   const tasksByStatus = useMemo(() => {
     const grouped: Record<TaskStatus, (ProjectTask | ProjectTaskExtended)[]> = {
@@ -86,15 +90,16 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
                 sx={{
                   p: 2,
                   mb: 2,
-                  backgroundColor: '#1A1F3A',
+                  backgroundColor: theme.palette.background.paper,
                   borderLeft: `4px solid ${column.color}`,
+                  border: `1px solid ${theme.palette.divider}`,
                 }}
               >
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Typography
                     variant="h6"
                     sx={{
-                      color: '#E0E0E0',
+                      color: theme.palette.text.primary,
                       fontWeight: 600,
                       textTransform: 'uppercase',
                       fontSize: '0.9rem',
@@ -106,8 +111,9 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
                     label={columnTasks.length}
                     size="small"
                     sx={{
-                      backgroundColor: column.color,
-                      color: '#fff',
+                      backgroundColor: theme.palette.action.hover,
+                      color: theme.palette.text.primary,
+                      border: `1px solid ${theme.palette.divider}`,
                       fontWeight: 'bold',
                     }}
                   />
@@ -127,9 +133,9 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
               >
                 {columnTasks.map((task) => {
                   const phaseColor = task.phase_number
-                    ? PHASE_COLORS[task.phase_number] || '#00E5FF'
-                    : '#00E5FF';
-                  const priorityColor = PRIORITY_COLORS[task.priority] || '#00E5FF';
+                    ? PHASE_COLORS[task.phase_number] || theme.palette.text.secondary
+                    : theme.palette.text.secondary;
+                  const priorityColor = PRIORITY_COLORS[task.priority] || theme.palette.text.secondary;
 
                   return (
                     <Paper
@@ -137,16 +143,16 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
                       onClick={() => onTaskClick(task)}
                       sx={{
                         p: 2,
-                        backgroundColor: '#000',
-                        border: '2px solid rgba(0, 229, 255, 0.2)',
+                        backgroundColor: theme.palette.background.paper,
+                        border: `1px solid ${theme.palette.divider}`,
                         borderRadius: 2,
                         cursor: 'pointer',
                         transition: 'all 0.2s',
                         '&:hover': {
-                          borderColor: '#00E5FF',
-                          backgroundColor: 'rgba(0, 229, 255, 0.05)',
+                          borderColor: theme.palette.text.primary,
+                          backgroundColor: theme.palette.action.hover,
                           transform: 'translateY(-2px)',
-                          boxShadow: '0 4px 12px rgba(0, 229, 255, 0.2)',
+                          boxShadow: `0 4px 12px ${theme.palette.text.primary}20`,
                         },
                       }}
                     >
@@ -154,7 +160,7 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
                       <Typography
                         variant="subtitle1"
                         sx={{
-                          color: '#E0E0E0',
+                          color: theme.palette.text.primary,
                           fontWeight: 600,
                           mb: 1,
                           lineHeight: 1.3,
@@ -168,7 +174,7 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
                         <Typography
                           variant="body2"
                           sx={{
-                            color: '#B0B0B0',
+                            color: theme.palette.text.secondary,
                             mb: 1.5,
                             fontSize: '0.85rem',
                             overflow: 'hidden',
@@ -192,8 +198,9 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
                                 label={tag}
                                 size="small"
                                 sx={{
-                                  backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                                  color: '#00E5FF',
+                                  backgroundColor: theme.palette.action.hover,
+                                  color: theme.palette.text.primary,
+                                  border: `1px solid ${theme.palette.divider}`,
                                   fontSize: '0.7rem',
                                   height: 20,
                                 }}
@@ -204,8 +211,9 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
                                 label={`+${task.tags.length - 2}`}
                                 size="small"
                                 sx={{
-                                  backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                                  color: '#00E5FF',
+                                  backgroundColor: theme.palette.action.hover,
+                                  color: theme.palette.text.primary,
+                                  border: `1px solid ${theme.palette.divider}`,
                                   fontSize: '0.7rem',
                                   height: 20,
                                 }}
@@ -222,7 +230,7 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
                           justifyContent: 'space-between',
                           alignItems: 'center',
                           pt: 1,
-                          borderTop: '1px solid rgba(0, 229, 255, 0.1)',
+                          borderTop: `1px solid ${theme.palette.divider}`,
                         }}
                       >
                         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
@@ -269,8 +277,8 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
                                 width: 24,
                                 height: 24,
                                 fontSize: '0.7rem',
-                                backgroundColor: '#00E5FF',
-                                color: '#000',
+                                backgroundColor: theme.palette.text.primary,
+                                color: theme.palette.background.default,
                               }}
                             >
                               {(
@@ -283,7 +291,7 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
                             </Avatar>
                           </Tooltip>
                         ) : (
-                          <Typography variant="caption" sx={{ color: '#666' }}>
+                          <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
                             Unassigned
                           </Typography>
                         )}
@@ -295,7 +303,7 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
                           <Typography
                             variant="caption"
                             sx={{
-                              color: '#B0B0B0',
+                              color: theme.palette.text.secondary,
                               fontSize: '0.75rem',
                             }}
                           >
@@ -312,12 +320,12 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
                     sx={{
                       p: 3,
                       textAlign: 'center',
-                      color: '#666',
-                      border: '2px dashed rgba(0, 229, 255, 0.2)',
+                      color: theme.palette.text.secondary,
+                      border: `1px dashed ${theme.palette.divider}`,
                       borderRadius: 2,
                     }}
                   >
-                    <Typography variant="body2">No tasks</Typography>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>No tasks</Typography>
                   </Box>
                 )}
               </Box>

@@ -5,15 +5,12 @@ import { useDebounce } from '@/lib/hooks/useDebounce';
 import {
   Box,
   Typography,
-  Card,
-  CardContent,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
   Chip,
   IconButton,
   Menu,
@@ -25,7 +22,11 @@ import {
   Checkbox,
   Button,
   CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   MoreVert as MoreVertIcon,
   Search as SearchIcon,
@@ -44,6 +45,7 @@ import { People as PeopleIcon } from '@mui/icons-material';
 import type { User, UserRole } from '@/types/project';
 
 export default function AdminUsersTab() {
+  const theme = useTheme();
   const supabase = createSupabaseClient();
   const { showSuccess, showError } = useNotification();
   const [users, setUsers] = useState<User[]>([]);
@@ -256,7 +258,7 @@ export default function AdminUsersTab() {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-        <CircularProgress />
+        <CircularProgress sx={{ color: theme.palette.text.primary }} />
       </Box>
     );
   }
@@ -264,20 +266,21 @@ export default function AdminUsersTab() {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600 }}>
+        <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
           User Management
         </Typography>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
           <Button
-            variant="contained"
+            variant="outlined"
             startIcon={<AddIcon />}
             onClick={() => setCreateUserDialogOpen(true)}
             sx={{
-              backgroundColor: '#00E5FF',
-              color: '#000',
+              borderColor: theme.palette.text.primary,
+              color: theme.palette.text.primary,
               fontWeight: 600,
               '&:hover': {
-                backgroundColor: '#00B2CC',
+                borderColor: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
               },
             }}
           >
@@ -289,7 +292,14 @@ export default function AdminUsersTab() {
                 size="small"
                 variant="outlined"
                 onClick={() => handleBulkAction('activate')}
-                sx={{ borderColor: 'success.main', color: 'success.main' }}
+                sx={{
+                  borderColor: theme.palette.text.primary,
+                  color: theme.palette.text.primary,
+                  '&:hover': {
+                    borderColor: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
               >
                 Activate ({selectedUsers.size})
               </Button>
@@ -297,15 +307,29 @@ export default function AdminUsersTab() {
                 size="small"
                 variant="outlined"
                 onClick={() => handleBulkAction('deactivate')}
-                sx={{ borderColor: 'warning.main', color: 'warning.main' }}
+                sx={{
+                  borderColor: theme.palette.text.primary,
+                  color: theme.palette.text.primary,
+                  '&:hover': {
+                    borderColor: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
               >
                 Deactivate ({selectedUsers.size})
               </Button>
               <Button
                 size="small"
                 variant="outlined"
-                color="error"
                 onClick={() => handleBulkAction('delete')}
+                sx={{
+                  borderColor: theme.palette.text.primary,
+                  color: theme.palette.text.primary,
+                  '&:hover': {
+                    borderColor: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
                 disabled={Array.from(selectedUsers).some(id => {
                   const user = users.find(u => u.id === id);
                   return (user as any)?.is_super_admin === true;
@@ -324,82 +348,134 @@ export default function AdminUsersTab() {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           size="small"
-          sx={{ flex: 1, minWidth: 200 }}
+          sx={{
+            flex: 1,
+            minWidth: 200,
+            '& .MuiOutlinedInput-root': {
+              backgroundColor: theme.palette.action.hover,
+              color: theme.palette.text.primary,
+              '& fieldset': {
+                borderColor: theme.palette.divider,
+              },
+              '&:hover fieldset': {
+                borderColor: theme.palette.text.secondary,
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: theme.palette.text.primary,
+              },
+            },
+            '& .MuiInputLabel-root': {
+              color: theme.palette.text.secondary,
+            },
+            '& input::placeholder': {
+              color: theme.palette.text.secondary,
+            },
+          }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon />
+                <SearchIcon sx={{ color: theme.palette.text.secondary }} />
               </InputAdornment>
             ),
           }}
         />
-        <TextField
-          select
-          label="Role"
-          value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value)}
-          size="small"
-          sx={{ minWidth: 120 }}
-          SelectProps={{
-            native: true,
-          }}
-        >
-          <option value="all">All Roles</option>
-          <option value="admin">Admin</option>
-          <option value="pm">PM</option>
-          <option value="designer">Designer</option>
-          <option value="engineer">Engineer</option>
-        </TextField>
-        <TextField
-          select
-          label="Status"
-          value={activeFilter}
-          onChange={(e) => setActiveFilter(e.target.value)}
-          size="small"
-          sx={{ minWidth: 120 }}
-          SelectProps={{
-            native: true,
-          }}
-        >
-          <option value="all">All</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </TextField>
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel sx={{ color: theme.palette.text.secondary }}>Role</InputLabel>
+          <Select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            label="Role"
+            sx={{
+              backgroundColor: theme.palette.action.hover,
+              color: theme.palette.text.primary,
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: theme.palette.divider,
+              },
+              '&:hover .MuiOutlinedInput-notchedOutline': {
+                borderColor: theme.palette.text.secondary,
+              },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                borderColor: theme.palette.text.primary,
+              },
+              '& .MuiSvgIcon-root': {
+                color: theme.palette.text.secondary,
+              },
+            }}
+          >
+            <MenuItem value="all">All Roles</MenuItem>
+            <MenuItem value="admin">Admin</MenuItem>
+            <MenuItem value="pm">PM</MenuItem>
+            <MenuItem value="designer">Designer</MenuItem>
+            <MenuItem value="engineer">Engineer</MenuItem>
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel sx={{ color: theme.palette.text.secondary }}>Status</InputLabel>
+          <Select
+            value={activeFilter}
+            onChange={(e) => setActiveFilter(e.target.value)}
+            label="Status"
+            sx={{
+              backgroundColor: theme.palette.action.hover,
+              color: theme.palette.text.primary,
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: theme.palette.divider,
+              },
+              '&:hover .MuiOutlinedInput-notchedOutline': {
+                borderColor: theme.palette.text.secondary,
+              },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                borderColor: theme.palette.text.primary,
+              },
+              '& .MuiSvgIcon-root': {
+                color: theme.palette.text.secondary,
+              },
+            }}
+          >
+            <MenuItem value="all">All</MenuItem>
+            <MenuItem value="active">Active</MenuItem>
+            <MenuItem value="inactive">Inactive</MenuItem>
+          </Select>
+        </FormControl>
       </Box>
 
-      <Card
+      <TableContainer
         sx={{
-          border: '2px solid',
-          borderColor: 'error.main',
-          backgroundColor: 'background.paper',
+          backgroundColor: theme.palette.background.paper,
+          border: `1px solid ${theme.palette.divider}`,
+          borderRadius: 2,
         }}
       >
-        <CardContent>
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow sx={{ backgroundColor: 'rgba(0, 229, 255, 0.1)' }}>
-                  <TableCell padding="checkbox">
-                    <Checkbox
-                      checked={selectedUsers.size === filteredUsers.length && filteredUsers.length > 0}
-                      indeterminate={selectedUsers.size > 0 && selectedUsers.size < filteredUsers.length}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedUsers(new Set(filteredUsers.map(u => u.id)));
-                        } else {
-                          setSelectedUsers(new Set());
-                        }
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell sx={{ color: 'primary.main', fontWeight: 600 }}>Name</TableCell>
-                  <TableCell sx={{ color: 'primary.main', fontWeight: 600 }}>Email</TableCell>
-                  <TableCell sx={{ color: 'primary.main', fontWeight: 600 }}>Role</TableCell>
-                  <TableCell sx={{ color: 'primary.main', fontWeight: 600 }}>Status</TableCell>
-                  <TableCell sx={{ color: 'primary.main', fontWeight: 600 }}>Created</TableCell>
-                  <TableCell align="right" sx={{ color: 'primary.main', fontWeight: 600 }}>Actions</TableCell>
-                </TableRow>
-              </TableHead>
+        <Table>
+          <TableHead>
+            <TableRow sx={{ backgroundColor: theme.palette.background.paper }}>
+              <TableCell padding="checkbox">
+                <Checkbox
+                  checked={selectedUsers.size === filteredUsers.length && filteredUsers.length > 0}
+                  indeterminate={selectedUsers.size > 0 && selectedUsers.size < filteredUsers.length}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedUsers(new Set(filteredUsers.map(u => u.id)));
+                    } else {
+                      setSelectedUsers(new Set());
+                    }
+                  }}
+                  sx={{
+                    color: theme.palette.text.secondary,
+                    '&.Mui-checked': {
+                      color: theme.palette.text.primary,
+                    },
+                  }}
+                />
+              </TableCell>
+              <TableCell sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Name</TableCell>
+              <TableCell sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Email</TableCell>
+              <TableCell sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Role</TableCell>
+              <TableCell sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Status</TableCell>
+              <TableCell sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Created</TableCell>
+              <TableCell align="right" sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Actions</TableCell>
+            </TableRow>
+          </TableHead>
               <TableBody>
                 {filteredUsers.length === 0 ? (
                   <TableRow>
@@ -420,9 +496,10 @@ export default function AdminUsersTab() {
                       key={user.id}
                       sx={{
                         '&:hover': {
-                          backgroundColor: 'rgba(0, 229, 255, 0.05)',
+                          backgroundColor: theme.palette.action.hover,
                         },
                         opacity: user.is_active === false ? 0.6 : 1,
+                        borderBottom: `1px solid ${theme.palette.divider}`,
                       }}
                     >
                       <TableCell padding="checkbox">
@@ -438,11 +515,17 @@ export default function AdminUsersTab() {
                             }
                             setSelectedUsers(newSelected);
                           }}
+                          sx={{
+                            color: theme.palette.text.secondary,
+                            '&.Mui-checked': {
+                              color: theme.palette.text.primary,
+                            },
+                          }}
                         />
                       </TableCell>
-                      <TableCell sx={{ color: 'text.primary' }}>{user.name || 'N/A'}</TableCell>
-                      <TableCell sx={{ color: 'text.primary' }}>{user.email}</TableCell>
-                      <TableCell>
+                      <TableCell sx={{ color: theme.palette.text.primary, borderBottom: `1px solid ${theme.palette.divider}` }}>{user.name || 'N/A'}</TableCell>
+                      <TableCell sx={{ color: theme.palette.text.primary, borderBottom: `1px solid ${theme.palette.divider}` }}>{user.email}</TableCell>
+                      <TableCell sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
                         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
                           <Chip
                             label={user.role.toUpperCase()}
@@ -460,14 +543,15 @@ export default function AdminUsersTab() {
                           )}
                         </Box>
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
                         {user.invited_by_admin && !user.last_active_at ? (
                           <Chip
                             label="Pending Invite"
                             size="small"
                             sx={{
-                              backgroundColor: 'rgba(255, 152, 0, 0.2)',
-                              color: '#FF9800',
+                              backgroundColor: theme.palette.action.hover,
+                              color: theme.palette.text.primary,
+                              border: `1px solid ${theme.palette.divider}`,
                               fontWeight: 600,
                             }}
                           />
@@ -481,33 +565,32 @@ export default function AdminUsersTab() {
                                 disabled={user.invited_by_admin && !user.last_active_at}
                                 sx={{
                                   '& .MuiSwitch-switchBase.Mui-checked': {
-                                    color: 'success.main',
+                                    color: theme.palette.text.primary,
                                   },
                                   '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                                    backgroundColor: 'success.main',
+                                    backgroundColor: theme.palette.text.primary,
                                   },
                                 }}
                               />
                             }
                             label={user.is_active ?? true ? 'Active' : 'Inactive'}
-                            sx={{ m: 0 }}
+                            sx={{ m: 0, color: theme.palette.text.primary }}
                           />
                         )}
                       </TableCell>
-                      <TableCell sx={{ color: 'text.secondary' }}>
+                      <TableCell sx={{ color: theme.palette.text.secondary, borderBottom: `1px solid ${theme.palette.divider}` }}>
                         {new Date(user.created_at).toLocaleDateString()}
                       </TableCell>
-                      <TableCell align="right">
+                      <TableCell align="right" sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
                         <IconButton
                           onClick={(e) => {
                             setAnchorEl(e.currentTarget);
                             setSelectedUser(user.id);
                           }}
                           sx={{
-                            color: 'text.secondary',
+                            color: theme.palette.text.primary,
                             '&:hover': {
-                              color: 'primary.main',
-                              backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                              backgroundColor: theme.palette.action.hover,
                             },
                           }}
                         >
@@ -520,8 +603,6 @@ export default function AdminUsersTab() {
               </TableBody>
             </Table>
           </TableContainer>
-        </CardContent>
-      </Card>
 
       <Menu
         anchorEl={anchorEl}
@@ -529,6 +610,12 @@ export default function AdminUsersTab() {
         onClose={() => {
           setAnchorEl(null);
           setSelectedUser(null);
+        }}
+        PaperProps={{
+          sx: {
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
+          },
         }}
       >
         {selectedUser && (() => {
@@ -542,21 +629,58 @@ export default function AdminUsersTab() {
                   onClick={() => {
                     if (user) handleViewInvite(user);
                   }}
-                  sx={{ color: '#00E5FF' }}
+                  sx={{
+                    color: theme.palette.text.primary,
+                    '&:hover': {
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                  }}
                 >
                   View Invite
                 </MenuItem>
               )}
-              <MenuItem onClick={() => selectedUser && handleRoleChange(selectedUser, 'admin')}>
+              <MenuItem
+                onClick={() => selectedUser && handleRoleChange(selectedUser, 'admin')}
+                sx={{
+                  color: theme.palette.text.primary,
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+              >
                 Set as Admin
               </MenuItem>
-              <MenuItem onClick={() => selectedUser && handleRoleChange(selectedUser, 'pm')}>
+              <MenuItem
+                onClick={() => selectedUser && handleRoleChange(selectedUser, 'pm')}
+                sx={{
+                  color: theme.palette.text.primary,
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+              >
                 Set as PM
               </MenuItem>
-              <MenuItem onClick={() => selectedUser && handleRoleChange(selectedUser, 'designer')}>
+              <MenuItem
+                onClick={() => selectedUser && handleRoleChange(selectedUser, 'designer')}
+                sx={{
+                  color: theme.palette.text.primary,
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+              >
                 Set as Designer
               </MenuItem>
-              <MenuItem onClick={() => selectedUser && handleRoleChange(selectedUser, 'engineer')}>
+              <MenuItem
+                onClick={() => selectedUser && handleRoleChange(selectedUser, 'engineer')}
+                sx={{
+                  color: theme.palette.text.primary,
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+              >
                 Set as Engineer
               </MenuItem>
               <MenuItem 
@@ -566,7 +690,12 @@ export default function AdminUsersTab() {
                   }
                 }}
                 disabled={(user as any)?.is_super_admin === true}
-                sx={{ color: 'error.main' }}
+                sx={{
+                  color: theme.palette.error.main,
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
               >
                 <DeleteIcon sx={{ mr: 1, fontSize: 18 }} />
                 {(user as any)?.is_super_admin ? 'Delete User (Super Admin)' : 'Delete User'}

@@ -18,6 +18,7 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Close as CloseIcon,
   Delete as DeleteIcon,
@@ -64,6 +65,7 @@ export default function TaskDetailSheet({
   onSave,
   onDelete,
 }: TaskDetailSheetProps) {
+  const theme = useTheme();
   // Merge provided phase names with defaults
   const getPhaseName = (phaseNumber: number | null): string => {
     if (!phaseNumber) return 'Unassigned';
@@ -190,8 +192,8 @@ export default function TaskDetailSheet({
       PaperProps={{
         sx: {
           width: { xs: '100%', sm: '75%', md: '60%' },
-          backgroundColor: '#000',
-          borderLeft: '2px solid rgba(0, 229, 255, 0.2)',
+          backgroundColor: theme.palette.background.paper,
+          borderLeft: `1px solid ${theme.palette.divider}`,
         },
       }}
     >
@@ -202,30 +204,35 @@ export default function TaskDetailSheet({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            p: 2,
-            borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+            p: 3,
+            px: 4,
+            borderBottom: `1px solid ${theme.palette.divider}`,
+            backgroundColor: theme.palette.background.paper,
+            minHeight: '64px',
           }}
         >
           <Typography
             variant="h6"
             sx={{
-              color: '#00E5FF',
+              color: theme.palette.text.primary,
               fontWeight: 600,
+              marginBottom: 0,
+              lineHeight: 1.2,
             }}
           >
             {isNewTask ? 'New Task' : 'Edit Task'}
           </Typography>
-          <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             {!isNewTask && onDelete && (
               <IconButton
                 onClick={handleDelete}
-                sx={{ color: '#FF6B6B', mr: 1 }}
+                sx={{ color: theme.palette.text.primary, padding: '8px' }}
                 title="Delete task"
               >
                 <DeleteIcon />
               </IconButton>
             )}
-            <IconButton onClick={onClose} sx={{ color: '#00E5FF' }} title="Close">
+            <IconButton onClick={onClose} sx={{ color: theme.palette.text.primary, padding: '8px' }} title="Close">
               <CloseIcon />
             </IconButton>
           </Box>
@@ -234,7 +241,7 @@ export default function TaskDetailSheet({
         {/* Content */}
         <Box sx={{ flex: 1, overflow: 'auto', p: 3 }}>
           {error && (
-            <Alert severity="error" sx={{ mb: 2, backgroundColor: 'rgba(244, 67, 54, 0.1)', color: '#FF6B6B' }}>
+            <Alert severity="error" sx={{ mb: 2, backgroundColor: theme.palette.action.hover, color: theme.palette.text.primary, border: `1px solid ${theme.palette.divider}` }}>
               {error}
             </Alert>
           )}
@@ -272,23 +279,23 @@ export default function TaskDetailSheet({
                 sx={{
                   flex: 1,
                   '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    color: '#E0E0E0',
+                    backgroundColor: theme.palette.action.hover,
+                    color: theme.palette.text.primary,
                     '& fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused fieldset': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                   },
                   '& .MuiInputLabel-root': {
-                    color: '#B0B0B0',
+                    color: theme.palette.text.secondary,
                   },
                   '& .MuiInputLabel-root.Mui-focused': {
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
                   },
                 }}
               />
@@ -323,23 +330,23 @@ export default function TaskDetailSheet({
                 sx={{
                   flex: 1,
                   '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    color: '#E0E0E0',
+                    backgroundColor: theme.palette.action.hover,
+                    color: theme.palette.text.primary,
                     '& fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused fieldset': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                   },
                   '& .MuiInputLabel-root': {
-                    color: '#B0B0B0',
+                    color: theme.palette.text.secondary,
                   },
                   '& .MuiInputLabel-root.Mui-focused': {
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
                   },
                 }}
               />
@@ -369,23 +376,23 @@ export default function TaskDetailSheet({
                     sx={{
                       flex: 1,
                       '& .MuiOutlinedInput-root': {
-                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                        color: '#E0E0E0',
+                        backgroundColor: theme.palette.action.hover,
+                        color: theme.palette.text.primary,
                         '& fieldset': {
-                          borderColor: 'rgba(0, 229, 255, 0.3)',
+                          borderColor: theme.palette.divider,
                         },
                         '&:hover fieldset': {
-                          borderColor: 'rgba(0, 229, 255, 0.5)',
+                          borderColor: theme.palette.text.secondary,
                         },
                         '&.Mui-focused fieldset': {
-                          borderColor: '#00E5FF',
+                          borderColor: theme.palette.text.primary,
                         },
                       },
                       '& .MuiInputLabel-root': {
-                        color: '#B0B0B0',
+                        color: theme.palette.text.secondary,
                       },
                       '& .MuiInputLabel-root.Mui-focused': {
-                        color: '#00E5FF',
+                        color: theme.palette.text.primary,
                       },
                     }}
                   />
@@ -404,13 +411,13 @@ export default function TaskDetailSheet({
                           label={option}
                           size="small"
                           sx={{
-                            backgroundColor: 'rgba(0, 229, 255, 0.15)',
-                            color: '#00E5FF',
-                            border: '1px solid rgba(0, 229, 255, 0.3)',
+                            backgroundColor: theme.palette.action.hover,
+                            color: theme.palette.text.primary,
+                            border: `1px solid ${theme.palette.divider}`,
                             '& .MuiChip-deleteIcon': {
-                              color: '#00E5FF',
+                              color: theme.palette.text.primary,
                               '&:hover': {
-                                color: '#00B2CC',
+                                color: theme.palette.text.secondary,
                               },
                             },
                           }}
@@ -421,12 +428,12 @@ export default function TaskDetailSheet({
                           label={`+${remainingCount}`}
                           size="small"
                           sx={{
-                            backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                            color: '#00E5FF',
-                            border: '2px solid rgba(0, 229, 255, 0.2)',
+                            backgroundColor: theme.palette.action.hover,
+                            color: theme.palette.text.primary,
+                            border: `1px solid ${theme.palette.divider}`,
                             cursor: 'default',
                             '&:hover': {
-                              backgroundColor: 'rgba(0, 229, 255, 0.15)',
+                              backgroundColor: theme.palette.action.hover,
                             },
                           }}
                         />
@@ -442,13 +449,14 @@ export default function TaskDetailSheet({
                       key={option}
                       style={{
                         ...props.style,
-                        backgroundColor: isSelected ? 'rgba(0, 229, 255, 0.1)' : 'transparent',
+                        backgroundColor: isSelected ? theme.palette.action.hover : 'transparent',
                         fontWeight: isSelected ? 600 : 400,
+                        color: theme.palette.text.primary,
                       }}
                     >
                       {option}
                       {isSelected && (
-                        <span style={{ marginLeft: '8px', color: '#00E5FF' }}>✓</span>
+                        <span style={{ marginLeft: '8px', color: theme.palette.text.primary }}>✓</span>
                       )}
                     </li>
                   );
@@ -479,10 +487,10 @@ export default function TaskDetailSheet({
                 sx={{
                   width: '100%',
                   '& .MuiAutocomplete-popupIndicator': {
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
                   },
                   '& .MuiAutocomplete-clearIndicator': {
-                    color: '#B0B0B0',
+                    color: theme.palette.text.secondary,
                   },
                 }}
               />
@@ -497,23 +505,23 @@ export default function TaskDetailSheet({
               fullWidth
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#E0E0E0',
+                  backgroundColor: theme.palette.action.hover,
+                  color: theme.palette.text.primary,
                   '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                 },
                 '& .MuiInputLabel-root': {
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                 },
                 '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                 },
               }}
             />
@@ -528,23 +536,23 @@ export default function TaskDetailSheet({
               fullWidth
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#E0E0E0',
+                  backgroundColor: theme.palette.action.hover,
+                  color: theme.palette.text.primary,
                   '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                 },
                 '& .MuiInputLabel-root': {
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                 },
                 '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                 },
               }}
             />
@@ -556,31 +564,31 @@ export default function TaskDetailSheet({
                 gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
                 gap: 2,
                 p: 2,
-                backgroundColor: 'rgba(0, 229, 255, 0.03)',
+                backgroundColor: theme.palette.action.hover,
                 borderRadius: 2,
-                border: '1px solid rgba(0, 229, 255, 0.1)',
+                border: `1px solid ${theme.palette.divider}`,
               }}
             >
               <FormControl>
-                <InputLabel sx={{ color: '#B0B0B0' }}>Status</InputLabel>
+                <InputLabel sx={{ color: theme.palette.text.secondary }}>Status</InputLabel>
                 <Select
                   value={formData.status}
                   onChange={(e) => setFormData({ ...formData, status: e.target.value as TaskStatus })}
                   label="Status"
                   sx={{
-                    color: '#E0E0E0',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
                     '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                     '& .MuiSvgIcon-root': {
-                      color: '#00E5FF',
+                      color: theme.palette.text.primary,
                     },
                   }}
                 >
@@ -592,25 +600,25 @@ export default function TaskDetailSheet({
               </FormControl>
 
               <FormControl>
-                <InputLabel sx={{ color: '#B0B0B0' }}>Priority</InputLabel>
+                <InputLabel sx={{ color: theme.palette.text.secondary }}>Priority</InputLabel>
                 <Select
                   value={formData.priority}
                   onChange={(e) => setFormData({ ...formData, priority: e.target.value as TaskPriority })}
                   label="Priority"
                   sx={{
-                    color: '#E0E0E0',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
                     '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                     '& .MuiSvgIcon-root': {
-                      color: '#00E5FF',
+                      color: theme.palette.text.primary,
                     },
                   }}
                 >
@@ -622,7 +630,7 @@ export default function TaskDetailSheet({
               </FormControl>
 
               <FormControl>
-                <InputLabel sx={{ color: '#B0B0B0' }}>Phase</InputLabel>
+                <InputLabel sx={{ color: theme.palette.text.secondary }}>Phase</InputLabel>
                 <Select
                   value={formData.phase_number || ''}
                   onChange={(e) =>
@@ -633,19 +641,19 @@ export default function TaskDetailSheet({
                   }
                   label="Phase"
                   sx={{
-                    color: '#E0E0E0',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
                     '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                     '& .MuiSvgIcon-root': {
-                      color: '#00E5FF',
+                      color: theme.palette.text.primary,
                     },
                   }}
                 >
@@ -659,25 +667,25 @@ export default function TaskDetailSheet({
               </FormControl>
 
               <FormControl>
-                <InputLabel sx={{ color: '#B0B0B0' }}>Assignee</InputLabel>
+                <InputLabel sx={{ color: theme.palette.text.secondary }}>Assignee</InputLabel>
                 <Select
                   value={formData.assignee_id || ''}
                   onChange={(e) => setFormData({ ...formData, assignee_id: e.target.value || null })}
                   label="Assignee"
                   sx={{
-                    color: '#E0E0E0',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
                     '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                     '& .MuiSvgIcon-root': {
-                      color: '#00E5FF',
+                      color: theme.palette.text.primary,
                     },
                   }}
                 >
@@ -698,11 +706,11 @@ export default function TaskDetailSheet({
                     onClick={() => handleNavigateToPhase(formData.phase_number!)}
                     fullWidth
                     sx={{
-                      borderColor: '#00E5FF',
-                      color: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
+                      color: theme.palette.text.primary,
                       '&:hover': {
-                        borderColor: '#00E5FF',
-                        backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                        borderColor: theme.palette.text.primary,
+                        backgroundColor: theme.palette.action.hover,
                       },
                     }}
                   >
@@ -732,23 +740,23 @@ export default function TaskDetailSheet({
                   placeholder="Select dependent tasks..."
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                      color: '#E0E0E0',
+                      backgroundColor: theme.palette.action.hover,
+                      color: theme.palette.text.primary,
                       '& fieldset': {
-                        borderColor: 'rgba(0, 229, 255, 0.3)',
+                        borderColor: theme.palette.divider,
                       },
                       '&:hover fieldset': {
-                        borderColor: 'rgba(0, 229, 255, 0.5)',
+                        borderColor: theme.palette.text.secondary,
                       },
                       '&.Mui-focused fieldset': {
-                        borderColor: '#00E5FF',
+                        borderColor: theme.palette.text.primary,
                       },
                     },
                     '& .MuiInputLabel-root': {
-                      color: '#B0B0B0',
+                      color: theme.palette.text.secondary,
                     },
                     '& .MuiInputLabel-root.Mui-focused': {
-                      color: '#00E5FF',
+                      color: theme.palette.text.primary,
                     },
                   }}
                 />
@@ -761,23 +769,23 @@ export default function TaskDetailSheet({
                     label={option.title}
                     size="small"
                     sx={{
-                      backgroundColor: 'rgba(233, 30, 99, 0.15)',
-                      color: '#E91E63',
-                      border: '1px solid rgba(233, 30, 99, 0.3)',
+                      backgroundColor: theme.palette.action.hover,
+                      color: theme.palette.text.primary,
+                      border: `1px solid ${theme.palette.divider}`,
                     }}
                   />
                 ))
               }
             />
 
-            <Divider sx={{ borderColor: 'rgba(0, 229, 255, 0.2)' }} />
+            <Divider sx={{ borderColor: theme.palette.divider }} />
 
             {/* Notes - Rich Text Editor */}
             <Box>
               <Typography
                 variant="subtitle2"
                 sx={{
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                   fontWeight: 600,
                   mb: 1.5,
                   textTransform: 'uppercase',
@@ -794,7 +802,7 @@ export default function TaskDetailSheet({
               />
             </Box>
 
-            <Divider sx={{ borderColor: 'rgba(0, 229, 255, 0.2)', my: 2 }} />
+            <Divider sx={{ borderColor: theme.palette.divider, my: 2 }} />
 
             {/* Comments */}
             {task?.id && (
@@ -815,26 +823,41 @@ export default function TaskDetailSheet({
             justifyContent: 'flex-end',
             gap: 2,
             p: 2,
-            borderTop: '2px solid rgba(0, 229, 255, 0.2)',
+            borderTop: `1px solid ${theme.palette.divider}`,
           }}
         >
-          <Button onClick={onClose} sx={{ color: '#B0B0B0' }}>
+          <Button 
+            onClick={onClose} 
+            variant="outlined"
+            sx={{ 
+              borderColor: theme.palette.text.primary,
+              color: theme.palette.text.primary,
+              flex: 1,
+              '&:hover': {
+                borderColor: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
+              },
+            }}
+          >
             Cancel
           </Button>
           <Button
-            variant="contained"
+            variant="outlined"
             startIcon={saving ? <CircularProgress size={16} /> : <SaveIcon />}
             onClick={handleSave}
             disabled={saving || !formData.title?.trim()}
             sx={{
-              backgroundColor: '#00E5FF',
-              color: '#000',
+              borderColor: theme.palette.text.primary,
+              color: theme.palette.text.primary,
               fontWeight: 600,
+              flex: 1,
               '&:hover': {
-                backgroundColor: '#00B2CC',
+                borderColor: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
               },
               '&:disabled': {
-                backgroundColor: 'rgba(0, 229, 255, 0.3)',
+                borderColor: theme.palette.divider,
+                color: theme.palette.text.secondary,
               },
             }}
           >

@@ -1,6 +1,7 @@
 'use client';
 
 import { ToggleButton, ToggleButtonGroup, Tooltip, Box } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   TableChart as TableChartIcon,
   Timeline as TimelineIcon,
@@ -17,35 +18,36 @@ interface ViewToggleProps {
 }
 
 export default function ViewToggle({ view, onChange }: ViewToggleProps) {
+  const theme = useTheme();
   const commonButtonStyles = {
     height: '32px',
     minHeight: '32px',
     width: '32px',
     minWidth: '32px',
     padding: 0,
-    color: '#B0B0B0',
-    borderColor: 'rgba(0, 229, 255, 0.3)',
+    color: theme.palette.text.secondary,
+    borderColor: theme.palette.divider,
     backgroundColor: 'transparent',
     '&:hover': {
-      backgroundColor: 'rgba(0, 229, 255, 0.05)',
-      color: '#00E5FF',
-      borderColor: '#00E5FF',
-      borderLeft: '1px solid #00E5FF !important',
-      borderRight: '1px solid #00E5FF !important',
-      borderTop: '1px solid #00E5FF !important',
-      borderBottom: '1px solid #00E5FF !important',
+      backgroundColor: theme.palette.action.hover,
+      color: theme.palette.text.primary,
+      borderColor: theme.palette.text.primary,
+      borderLeft: `1px solid ${theme.palette.text.primary} !important`,
+      borderRight: `1px solid ${theme.palette.text.primary} !important`,
+      borderTop: `1px solid ${theme.palette.text.primary} !important`,
+      borderBottom: `1px solid ${theme.palette.text.primary} !important`,
     },
     '&:focus': {
-      borderLeft: '1px solid #00E5FF !important',
-      borderRight: '1px solid #00E5FF !important',
-      borderTop: '1px solid #00E5FF !important',
-      borderBottom: '1px solid #00E5FF !important',
+      borderLeft: `1px solid ${theme.palette.text.primary} !important`,
+      borderRight: `1px solid ${theme.palette.text.primary} !important`,
+      borderTop: `1px solid ${theme.palette.text.primary} !important`,
+      borderBottom: `1px solid ${theme.palette.text.primary} !important`,
     },
     '&:active': {
-      borderLeft: '1px solid #00E5FF !important',
-      borderRight: '1px solid #00E5FF !important',
-      borderTop: '1px solid #00E5FF !important',
-      borderBottom: '1px solid #00E5FF !important',
+      borderLeft: `1px solid ${theme.palette.text.primary} !important`,
+      borderRight: `1px solid ${theme.palette.text.primary} !important`,
+      borderTop: `1px solid ${theme.palette.text.primary} !important`,
+      borderBottom: `1px solid ${theme.palette.text.primary} !important`,
     },
   };
 
@@ -72,20 +74,20 @@ export default function ViewToggle({ view, onChange }: ViewToggleProps) {
               borderRadius: '0 4px 4px 0',
             },
             '&.Mui-selected': {
-              backgroundColor: 'rgba(0, 229, 255, 0.1)',
-              color: '#00E5FF',
-              borderColor: '#00E5FF',
-              borderLeft: '1px solid #00E5FF',
-              borderRight: '1px solid #00E5FF',
-              borderTop: '1px solid #00E5FF',
-              borderBottom: '1px solid #00E5FF',
+              backgroundColor: theme.palette.action.hover,
+              color: theme.palette.text.primary,
+              borderColor: theme.palette.text.primary,
+              borderLeft: `1px solid ${theme.palette.text.primary}`,
+              borderRight: `1px solid ${theme.palette.text.primary}`,
+              borderTop: `1px solid ${theme.palette.text.primary}`,
+              borderBottom: `1px solid ${theme.palette.text.primary}`,
               '&:hover': {
-                backgroundColor: 'rgba(0, 229, 255, 0.15)',
-                borderColor: '#00E5FF',
-                borderLeft: '1px solid #00E5FF',
-                borderRight: '1px solid #00E5FF',
-                borderTop: '1px solid #00E5FF',
-                borderBottom: '1px solid #00E5FF',
+                backgroundColor: theme.palette.action.hover,
+                borderColor: theme.palette.text.primary,
+                borderLeft: `1px solid ${theme.palette.text.primary}`,
+                borderRight: `1px solid ${theme.palette.text.primary}`,
+                borderTop: `1px solid ${theme.palette.text.primary}`,
+                borderBottom: `1px solid ${theme.palette.text.primary}`,
               },
             },
           },
@@ -111,7 +113,7 @@ export default function ViewToggle({ view, onChange }: ViewToggleProps) {
             <DescriptionIcon fontSize="small" />
           </Tooltip>
         </ToggleButton>
-        <ToggleButton value="generate-report" sx={{ borderRight: '1px solid rgba(0, 229, 255, 0.3)' }}>
+        <ToggleButton value="generate-report" sx={{ borderRight: `1px solid ${theme.palette.divider}` }}>
           <Tooltip title="Generate Report">
             <AssessmentIcon fontSize="small" />
           </Tooltip>

@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useRef, useCallback } from 'react';
 import { Box, Typography, Paper, Autocomplete, TextField, Checkbox, IconButton, Dialog, DialogTitle } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { ZoomIn, ZoomOut, FitScreen, Fullscreen, FullscreenExit } from '@mui/icons-material';
 import { format, parseISO, startOfDay, eachDayOfInterval, isAfter, isBefore } from 'date-fns';
 import type { Project } from '@/types/project';
@@ -38,25 +39,28 @@ interface LineConfig {
   defaultVisible: boolean;
 }
 
-const LINE_CONFIGS: LineConfig[] = [
-  { key: 'tasksCreated', label: 'Tasks Created', color: '#00E5FF', defaultVisible: true },
-  { key: 'tasksCompleted', label: 'Tasks Completed', color: '#00FF88', defaultVisible: true },
-  { key: 'tasksInProgress', label: 'Tasks In Progress', color: '#E91E63', defaultVisible: true },
-  { key: 'tasksTodo', label: 'Tasks To Do', color: '#B0B0B0', defaultVisible: false },
-  { key: 'tasksOverdue', label: 'Tasks Overdue', color: '#FF1744', defaultVisible: false },
-  { key: 'tasksDueSoon', label: 'Tasks Due Soon', color: '#FF6B35', defaultVisible: false },
-  { key: 'tasksHighPriority', label: 'High Priority Tasks', color: '#E91E63', defaultVisible: false },
-  { key: 'tasksMediumPriority', label: 'Medium Priority Tasks', color: '#00E5FF', defaultVisible: false },
-  { key: 'tasksLowPriority', label: 'Low Priority Tasks', color: '#9C27B0', defaultVisible: false },
-  { key: 'tasksCriticalPriority', label: 'Critical Priority Tasks', color: '#FF1744', defaultVisible: false },
-  { key: 'projectsCreated', label: 'Projects Created', color: '#9C27B0', defaultVisible: false },
-  { key: 'projectsInProgress', label: 'Projects In Progress', color: '#2196F3', defaultVisible: false },
-  { key: 'projectsBlueprintReady', label: 'Blueprint Ready Projects', color: '#00FF88', defaultVisible: false },
-  { key: 'tasksAssigned', label: 'Assigned Tasks', color: '#5DFFFF', defaultVisible: false },
-  { key: 'tasksUnassigned', label: 'Unassigned Tasks', color: '#666666', defaultVisible: false },
+// Line configs will be created dynamically with theme colors
+const getLineConfigs = (theme: any): LineConfig[] => [
+  { key: 'tasksCreated', label: 'Tasks Created', color: theme.palette.text.primary, defaultVisible: true },
+  { key: 'tasksCompleted', label: 'Tasks Completed', color: '#4CAF50', defaultVisible: true },
+  { key: 'tasksInProgress', label: 'Tasks In Progress', color: theme.palette.text.secondary, defaultVisible: true },
+  { key: 'tasksTodo', label: 'Tasks To Do', color: theme.palette.text.secondary, defaultVisible: false },
+  { key: 'tasksOverdue', label: 'Tasks Overdue', color: theme.palette.text.secondary, defaultVisible: false },
+  { key: 'tasksDueSoon', label: 'Tasks Due Soon', color: theme.palette.text.secondary, defaultVisible: false },
+  { key: 'tasksHighPriority', label: 'High Priority Tasks', color: theme.palette.text.primary, defaultVisible: false },
+  { key: 'tasksMediumPriority', label: 'Medium Priority Tasks', color: theme.palette.text.secondary, defaultVisible: false },
+  { key: 'tasksLowPriority', label: 'Low Priority Tasks', color: theme.palette.text.secondary, defaultVisible: false },
+  { key: 'tasksCriticalPriority', label: 'Critical Priority Tasks', color: theme.palette.text.primary, defaultVisible: false },
+  { key: 'projectsCreated', label: 'Projects Created', color: theme.palette.text.secondary, defaultVisible: false },
+  { key: 'projectsInProgress', label: 'Projects In Progress', color: theme.palette.text.primary, defaultVisible: false },
+  { key: 'projectsBlueprintReady', label: 'Blueprint Ready Projects', color: '#4CAF50', defaultVisible: false },
+  { key: 'tasksAssigned', label: 'Assigned Tasks', color: theme.palette.text.primary, defaultVisible: false },
+  { key: 'tasksUnassigned', label: 'Unassigned Tasks', color: theme.palette.text.secondary, defaultVisible: false },
 ];
 
 export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMultiLineChartProps) {
+  const theme = useTheme();
+  const LINE_CONFIGS = useMemo(() => getLineConfigs(theme), [theme]);
   const [visibleLines, setVisibleLines] = useState<Set<keyof DataPoint>>(
     new Set(LINE_CONFIGS.filter(config => config.defaultVisible).map(config => config.key))
   );
@@ -413,7 +417,7 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
         return Math.max(...values, 0);
       });
     return Math.max(...maxValues, 10);
-  }, [visibleChartData, visibleLines]);
+  }, [visibleChartData, visibleLines, LINE_CONFIGS]);
 
   // Generate path strings for lines (using visible data)
   const generatePath = (dataKey: keyof DataPoint, color: string) => {
@@ -483,7 +487,7 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
           <Typography
             variant="h6"
             sx={{
-              color: '#00E5FF',
+              color: theme.palette.text.primary,
               fontWeight: 600,
             }}
           >
@@ -508,26 +512,26 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
                 sx={{
                   minWidth: 250,
                   '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    color: '#E0E0E0',
+                    backgroundColor: theme.palette.action.hover,
+                    color: theme.palette.text.primary,
                     '& fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused fieldset': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                   },
                   '& .MuiInputLabel-root': {
-                    color: '#B0B0B0',
+                    color: theme.palette.text.secondary,
                   },
                   '& .MuiInputLabel-root.Mui-focused': {
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
                   },
                   '& .MuiInputBase-input': {
-                    color: '#E0E0E0',
+                    color: theme.palette.text.primary,
                   },
                 }}
               />
@@ -543,18 +547,18 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
                     alignItems: 'center',
                     gap: 1,
                     py: 0.5,
-                    backgroundColor: selected ? 'rgba(0, 229, 255, 0.1)' : 'transparent',
+                    backgroundColor: selected ? theme.palette.action.hover : 'transparent',
                     '&:hover': {
-                      backgroundColor: selected ? 'rgba(0, 229, 255, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                      backgroundColor: theme.palette.action.hover,
                     },
                   }}
                 >
                   <Checkbox
                     checked={selected}
                     sx={{
-                      color: '#00E5FF',
+                      color: theme.palette.text.primary,
                       '&.Mui-checked': {
-                        color: '#00E5FF',
+                        color: theme.palette.text.primary,
                       },
                     }}
                   />
@@ -579,7 +583,7 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
                       }}
                     />
                   )}
-                  <Typography variant="body2" sx={{ color: '#E0E0E0', flex: 1 }}>
+                  <Typography variant="body2" sx={{ color: theme.palette.text.primary, flex: 1 }}>
                     {option.label}
                   </Typography>
                 </Box>
@@ -602,14 +606,14 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
                       gap: 0.5,
                       px: 1,
                       py: 0.25,
-                      backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                      backgroundColor: theme.palette.action.hover,
                       borderRadius: 1,
-                      border: '1px solid rgba(0, 229, 255, 0.3)',
+                      border: `1px solid ${theme.palette.divider}`,
                       fontSize: '0.75rem',
-                      color: '#E0E0E0',
+                      color: theme.palette.text.primary,
                       cursor: 'pointer',
                       '&:hover': {
-                        backgroundColor: 'rgba(0, 229, 255, 0.2)',
+                        backgroundColor: theme.palette.action.hover,
                       },
                     }}
                   >
@@ -649,11 +653,11 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
                     gap: 0.5,
                     px: 1,
                     py: 0.25,
-                    backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                    backgroundColor: theme.palette.action.hover,
                     borderRadius: 1,
-                    border: '1px solid rgba(0, 229, 255, 0.3)',
+                    border: `1px solid ${theme.palette.divider}`,
                     fontSize: '0.75rem',
-                    color: '#E0E0E0',
+                    color: theme.palette.text.primary,
                   }}
                 >
                   <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
@@ -669,7 +673,7 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
                   sx={{
                     px: 1.5,
                     py: 0.5,
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
                     fontWeight: 600,
                     fontSize: '0.7rem',
                     textTransform: 'uppercase',
@@ -683,10 +687,10 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
             )}
             sx={{
               '& .MuiAutocomplete-popupIndicator': {
-                color: '#00E5FF',
+                color: theme.palette.text.primary,
               },
               '& .MuiAutocomplete-clearIndicator': {
-                color: '#B0B0B0',
+                color: theme.palette.text.secondary,
               },
             }}
           />
@@ -699,9 +703,9 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
             onClick={handleZoomIn}
             disabled={zoomLevel >= chartData.length / 10}
             sx={{
-              color: '#00E5FF',
-              '&:hover': { backgroundColor: 'rgba(0, 229, 255, 0.1)' },
-              '&.Mui-disabled': { color: '#666' },
+              color: theme.palette.text.primary,
+              '&:hover': { backgroundColor: theme.palette.action.hover },
+              '&.Mui-disabled': { color: theme.palette.text.secondary },
             }}
           >
             <ZoomIn fontSize="small" />
@@ -711,9 +715,9 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
             onClick={handleZoomOut}
             disabled={zoomLevel <= 1}
             sx={{
-              color: '#00E5FF',
-              '&:hover': { backgroundColor: 'rgba(0, 229, 255, 0.1)' },
-              '&.Mui-disabled': { color: '#666' },
+              color: theme.palette.text.primary,
+              '&:hover': { backgroundColor: theme.palette.action.hover },
+              '&.Mui-disabled': { color: theme.palette.text.secondary },
             }}
           >
             <ZoomOut fontSize="small" />
@@ -723,15 +727,15 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
             onClick={handleResetZoom}
             disabled={zoomLevel === 1 && panOffset === 0}
             sx={{
-              color: '#00E5FF',
-              '&:hover': { backgroundColor: 'rgba(0, 229, 255, 0.1)' },
-              '&.Mui-disabled': { color: '#666' },
+              color: theme.palette.text.primary,
+              '&:hover': { backgroundColor: theme.palette.action.hover },
+              '&.Mui-disabled': { color: theme.palette.text.secondary },
             }}
           >
             <FitScreen fontSize="small" />
           </IconButton>
           {zoomLevel > 1 && (
-            <Typography variant="caption" sx={{ color: '#B0B0B0', ml: 1 }}>
+            <Typography variant="caption" sx={{ color: theme.palette.text.secondary, ml: 1 }}>
               {Math.round(zoomLevel * 100)}% zoom
             </Typography>
           )}
@@ -740,8 +744,8 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
               size="small"
               onClick={() => setIsFullscreen(true)}
               sx={{
-                color: '#00E5FF',
-                '&:hover': { backgroundColor: 'rgba(0, 229, 255, 0.1)' },
+                color: theme.palette.text.primary,
+                '&:hover': { backgroundColor: theme.palette.action.hover },
                 ml: 1,
               }}
             >
@@ -782,7 +786,7 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
                     y1={y}
                     x2={padding.left + currentPlotWidth}
                     y2={y}
-                    stroke="rgba(0, 229, 255, 0.1)"
+                    stroke={theme.palette.divider}
                     strokeWidth="1"
                   />
                 );
@@ -797,7 +801,7 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
                     key={`y-label-${i}`}
                     x={padding.left - 10}
                     y={y + 4}
-                    fill="#B0B0B0"
+                    fill={theme.palette.text.secondary}
                     fontSize="12"
                     textAnchor="end"
                   >
@@ -836,7 +840,7 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
                     key={`x-label-${index}`}
                     x={x}
                     y={currentChartHeight - padding.bottom + 20}
-                    fill="#B0B0B0"
+                    fill={theme.palette.text.secondary}
                     fontSize="11"
                     textAnchor="middle"
                   >
@@ -964,8 +968,8 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
                       width={tooltipWidth}
                       height={tooltipHeight}
                       rx={4}
-                      fill="#000"
-                      stroke="#00E5FF"
+                      fill={theme.palette.background.paper}
+                      stroke={theme.palette.divider}
                       strokeWidth={1}
                       opacity={0.98}
                       filter="url(#tooltip-shadow)"
@@ -973,7 +977,7 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
                     <text
                       x={tooltipX + tooltipWidth / 2}
                       y={tooltipY + 20}
-                      fill="#00E5FF"
+                      fill={theme.palette.text.primary}
                       fontSize="12"
                       fontWeight="600"
                       textAnchor="middle"
@@ -998,7 +1002,7 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
                           <text
                             x={tooltipX + 45}
                             y={rowY + 4}
-                            fill="#E0E0E0"
+                            fill={theme.palette.text.secondary}
                             fontSize="11"
                             textAnchor="start"
                           >
@@ -1007,7 +1011,7 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
                           <text
                             x={tooltipX + tooltipWidth - 15}
                             y={rowY + 4}
-                            fill="#FFFFFF"
+                            fill={theme.palette.text.primary}
                             fontSize="11"
                             fontWeight="600"
                             textAnchor="end"
@@ -1027,7 +1031,7 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
                 y1={padding.top}
                 x2={padding.left}
                 y2={padding.top + currentPlotHeight}
-                stroke="rgba(0, 229, 255, 0.3)"
+                stroke={theme.palette.divider}
                 strokeWidth="1"
               />
               <line
@@ -1035,7 +1039,7 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
                 y1={padding.top + currentPlotHeight}
                 x2={padding.left + currentPlotWidth}
                 y2={padding.top + currentPlotHeight}
-                stroke="rgba(0, 229, 255, 0.3)"
+                stroke={theme.palette.divider}
                 strokeWidth="1"
               />
             </svg>
@@ -1047,16 +1051,9 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
 
   return (
     <>
-      <Paper
-        sx={{
-          backgroundColor: '#000',
-          border: '2px solid rgba(0, 229, 255, 0.2)',
-          borderRadius: 2,
-          p: 3,
-        }}
-      >
+      <Box>
         {renderChartContent(false)}
-      </Paper>
+      </Box>
 
       {/* Fullscreen Dialog */}
       <Dialog
@@ -1071,13 +1068,13 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
             maxHeight: '100vh',
             m: 0,
             borderRadius: 0,
-            backgroundColor: '#000 !important',
+            backgroundColor: `${theme.palette.background.default} !important`,
             border: 'none',
           },
         }}
         sx={{
           '& .MuiDialog-container': {
-            backgroundColor: '#000',
+            backgroundColor: theme.palette.background.default,
           },
         }}
       >
@@ -1086,19 +1083,19 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+            borderBottom: `1px solid ${theme.palette.divider}`,
             pb: 2,
-            backgroundColor: '#000',
+            backgroundColor: theme.palette.background.paper,
           }}
         >
-          <Typography variant="h6" sx={{ color: '#00E5FF', fontWeight: 600 }}>
+          <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
             Projects & Tasks Activity Over Time
           </Typography>
           <IconButton
             onClick={() => setIsFullscreen(false)}
             sx={{
-              color: '#00E5FF',
-              '&:hover': { backgroundColor: 'rgba(0, 229, 255, 0.1)' },
+              color: theme.palette.text.primary,
+              '&:hover': { backgroundColor: theme.palette.action.hover },
             }}
           >
             <FullscreenExit />

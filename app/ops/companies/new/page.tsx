@@ -8,8 +8,7 @@ import {
   TextField,
   Button,
   Typography,
-  Card,
-  CardContent,
+  Paper,
   MenuItem,
   FormControl,
   InputLabel,
@@ -17,11 +16,13 @@ import {
   Alert,
   IconButton,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import type { CompanyStatus, CompanySize, RevenueBand } from '@/types/ops';
 
 export default function NewCompanyPage() {
+  const theme = useTheme();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { showSuccess, showError } = useNotification();
@@ -101,9 +102,11 @@ export default function NewCompanyPage() {
         <IconButton
           onClick={() => router.push('/ops/companies')}
           sx={{
-            color: '#00E5FF',
-            border: '1px solid',
-            borderColor: '#00E5FF',
+            color: theme.palette.text.primary,
+            border: `1px solid ${theme.palette.divider}`,
+            '&:hover': {
+              backgroundColor: theme.palette.action.hover,
+            },
           }}
         >
           <ArrowBackIcon />
@@ -112,473 +115,480 @@ export default function NewCompanyPage() {
           variant="h4"
           component="h1"
           sx={{
-            fontWeight: 700,
-            background: '#00E5FF',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
+            fontSize: '1.5rem',
+            fontWeight: 600,
+            color: theme.palette.text.primary,
           }}
         >
           Create New Company
         </Typography>
       </Box>
 
-      <Card
+      <Paper
         sx={{
-          backgroundColor: '#000',
-          border: '2px solid rgba(0, 229, 255, 0.2)',
+          p: 3,
+          backgroundColor: theme.palette.background.paper,
+          border: `1px solid ${theme.palette.divider}`,
           borderRadius: 2,
         }}
       >
-        <CardContent>
-          {error && (
-            <Alert
-              severity="error"
+        {error && (
+          <Alert
+            severity="error"
+            sx={{
+              mb: 2,
+              backgroundColor: theme.palette.action.hover,
+              border: `1px solid ${theme.palette.divider}`,
+              color: theme.palette.text.primary,
+            }}
+          >
+            {error}
+          </Alert>
+        )}
+        <Box component="form" onSubmit={handleSubmit}>
+          <TextField
+            fullWidth
+            label="Company Name"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              if (validationErrors.name) {
+                setValidationErrors({ ...validationErrors, name: '' });
+              }
+            }}
+            required
+            margin="normal"
+            error={!!validationErrors.name}
+            helperText={validationErrors.name}
+            disabled={loading}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
+                '& fieldset': {
+                  borderColor: theme.palette.divider,
+                },
+                '&:hover fieldset': {
+                  borderColor: theme.palette.text.secondary,
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: theme.palette.text.primary,
+                },
+              },
+              '& .MuiInputLabel-root': {
+                color: theme.palette.text.secondary,
+              },
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: theme.palette.text.primary,
+              },
+            }}
+          />
+          <FormControl fullWidth margin="normal">
+            <InputLabel sx={{ color: theme.palette.text.secondary }}>Status</InputLabel>
+            <Select
+              value={status}
+              label="Status"
+              onChange={(e) => setStatus(e.target.value as CompanyStatus)}
+              disabled={loading}
               sx={{
-                mb: 2,
-                backgroundColor: 'rgba(255, 23, 68, 0.1)',
-                border: '1px solid rgba(255, 23, 68, 0.3)',
-                color: '#FF1744',
+                color: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.divider,
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.text.secondary,
+                },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.text.primary,
+                },
+                '& .MuiSvgIcon-root': {
+                  color: theme.palette.text.primary,
+                },
               }}
             >
-              {error}
-            </Alert>
-          )}
-          <Box component="form" onSubmit={handleSubmit}>
-            <TextField
-              fullWidth
-              label="Company Name"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (validationErrors.name) {
-                  setValidationErrors({ ...validationErrors, name: '' });
-                }
-              }}
-              required
-              margin="normal"
-              error={!!validationErrors.name}
-              helperText={validationErrors.name}
+              <MenuItem value="active">Active</MenuItem>
+              <MenuItem value="inactive">Inactive</MenuItem>
+              <MenuItem value="prospect">Prospect</MenuItem>
+              <MenuItem value="client">Client</MenuItem>
+              <MenuItem value="archived">Archived</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl fullWidth margin="normal">
+            <InputLabel sx={{ color: theme.palette.text.secondary }}>Company Size</InputLabel>
+            <Select
+              value={company_size}
+              label="Company Size"
+              onChange={(e) => setCompanySize(e.target.value as CompanySize)}
               disabled={loading}
               sx={{
-                '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#E0E0E0',
-                  '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
-                  },
-                  '&:hover fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#00E5FF',
-                  },
+                color: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.divider,
                 },
-                '& .MuiInputLabel-root': {
-                  color: '#B0B0B0',
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.text.secondary,
                 },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#00E5FF',
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.text.primary,
+                },
+                '& .MuiSvgIcon-root': {
+                  color: theme.palette.text.primary,
                 },
               }}
-            />
-            <FormControl fullWidth margin="normal">
-              <InputLabel sx={{ color: '#B0B0B0' }}>Status</InputLabel>
-              <Select
-                value={status}
-                label="Status"
-                onChange={(e) => setStatus(e.target.value as CompanyStatus)}
-                disabled={loading}
-                sx={{
-                  color: '#E0E0E0',
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#00E5FF',
-                  },
-                  '& .MuiSvgIcon-root': {
-                    color: '#00E5FF',
-                  },
-                }}
-              >
-                <MenuItem value="active">Active</MenuItem>
-                <MenuItem value="inactive">Inactive</MenuItem>
-                <MenuItem value="prospect">Prospect</MenuItem>
-                <MenuItem value="client">Client</MenuItem>
-                <MenuItem value="archived">Archived</MenuItem>
-              </Select>
-            </FormControl>
-            <FormControl fullWidth margin="normal">
-              <InputLabel sx={{ color: '#B0B0B0' }}>Company Size</InputLabel>
-              <Select
-                value={company_size}
-                label="Company Size"
-                onChange={(e) => setCompanySize(e.target.value as CompanySize)}
-                disabled={loading}
-                sx={{
-                  color: '#E0E0E0',
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#00E5FF',
-                  },
-                  '& .MuiSvgIcon-root': {
-                    color: '#00E5FF',
-                  },
-                }}
-              >
-                <MenuItem value="">None</MenuItem>
-                <MenuItem value="1-10">1-10</MenuItem>
-                <MenuItem value="11-50">11-50</MenuItem>
-                <MenuItem value="51-200">51-200</MenuItem>
-                <MenuItem value="201-500">201-500</MenuItem>
-                <MenuItem value="501-1000">501-1000</MenuItem>
-                <MenuItem value="1000+">1000+</MenuItem>
-              </Select>
-            </FormControl>
-            <TextField
-              fullWidth
-              label="Industry"
-              value={industry}
-              onChange={(e) => setIndustry(e.target.value)}
-              margin="normal"
+            >
+              <MenuItem value="">None</MenuItem>
+              <MenuItem value="1-10">1-10</MenuItem>
+              <MenuItem value="11-50">11-50</MenuItem>
+              <MenuItem value="51-200">51-200</MenuItem>
+              <MenuItem value="201-500">201-500</MenuItem>
+              <MenuItem value="501-1000">501-1000</MenuItem>
+              <MenuItem value="1000+">1000+</MenuItem>
+            </Select>
+          </FormControl>
+          <TextField
+            fullWidth
+            label="Industry"
+            value={industry}
+            onChange={(e) => setIndustry(e.target.value)}
+            margin="normal"
+            disabled={loading}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
+                '& fieldset': {
+                  borderColor: theme.palette.divider,
+                },
+                '&:hover fieldset': {
+                  borderColor: theme.palette.text.secondary,
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: theme.palette.text.primary,
+                },
+              },
+              '& .MuiInputLabel-root': {
+                color: theme.palette.text.secondary,
+              },
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: theme.palette.text.primary,
+              },
+            }}
+          />
+          <FormControl fullWidth margin="normal">
+            <InputLabel sx={{ color: theme.palette.text.secondary }}>Revenue Band</InputLabel>
+            <Select
+              value={revenue_band}
+              label="Revenue Band"
+              onChange={(e) => setRevenueBand(e.target.value as RevenueBand)}
               disabled={loading}
               sx={{
-                '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#E0E0E0',
-                  '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
-                  },
-                  '&:hover fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#00E5FF',
-                  },
+                color: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.divider,
                 },
-                '& .MuiInputLabel-root': {
-                  color: '#B0B0B0',
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.text.secondary,
                 },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#00E5FF',
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.text.primary,
+                },
+                '& .MuiSvgIcon-root': {
+                  color: theme.palette.text.primary,
                 },
               }}
-            />
-            <FormControl fullWidth margin="normal">
-              <InputLabel sx={{ color: '#B0B0B0' }}>Revenue Band</InputLabel>
-              <Select
-                value={revenue_band}
-                label="Revenue Band"
-                onChange={(e) => setRevenueBand(e.target.value as RevenueBand)}
-                disabled={loading}
-                sx={{
-                  color: '#E0E0E0',
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#00E5FF',
-                  },
-                  '& .MuiSvgIcon-root': {
-                    color: '#00E5FF',
-                  },
-                }}
-              >
-                <MenuItem value="">None</MenuItem>
-                <MenuItem value="<$1M">&lt;$1M</MenuItem>
-                <MenuItem value="$1M-$10M">$1M-$10M</MenuItem>
-                <MenuItem value="$10M-$50M">$10M-$50M</MenuItem>
-                <MenuItem value="$50M-$100M">$50M-$100M</MenuItem>
-                <MenuItem value="$100M+">$100M+</MenuItem>
-              </Select>
-            </FormControl>
+            >
+              <MenuItem value="">None</MenuItem>
+              <MenuItem value="<$1M">&lt;$1M</MenuItem>
+              <MenuItem value="$1M-$10M">$1M-$10M</MenuItem>
+              <MenuItem value="$10M-$50M">$10M-$50M</MenuItem>
+              <MenuItem value="$50M-$100M">$50M-$100M</MenuItem>
+              <MenuItem value="$100M+">$100M+</MenuItem>
+            </Select>
+          </FormControl>
+          <TextField
+            fullWidth
+            label="Website"
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+            margin="normal"
+            disabled={loading}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
+                '& fieldset': {
+                  borderColor: theme.palette.divider,
+                },
+                '&:hover fieldset': {
+                  borderColor: theme.palette.text.secondary,
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: theme.palette.text.primary,
+                },
+              },
+              '& .MuiInputLabel-root': {
+                color: theme.palette.text.secondary,
+              },
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: theme.palette.text.primary,
+              },
+            }}
+          />
+          <TextField
+            fullWidth
+            label="Street Address"
+            value={address_street}
+            onChange={(e) => setAddressStreet(e.target.value)}
+            margin="normal"
+            disabled={loading}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
+                '& fieldset': {
+                  borderColor: theme.palette.divider,
+                },
+                '&:hover fieldset': {
+                  borderColor: theme.palette.text.secondary,
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: theme.palette.text.primary,
+                },
+              },
+              '& .MuiInputLabel-root': {
+                color: theme.palette.text.secondary,
+              },
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: theme.palette.text.primary,
+              },
+            }}
+          />
+          <Box sx={{ display: 'flex', gap: 2 }}>
             <TextField
               fullWidth
-              label="Website"
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
+              label="City"
+              value={address_city}
+              onChange={(e) => setAddressCity(e.target.value)}
               margin="normal"
               disabled={loading}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#E0E0E0',
+                  backgroundColor: theme.palette.action.hover,
+                  color: theme.palette.text.primary,
                   '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                 },
                 '& .MuiInputLabel-root': {
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                 },
                 '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                 },
               }}
             />
             <TextField
               fullWidth
-              label="Street Address"
-              value={address_street}
-              onChange={(e) => setAddressStreet(e.target.value)}
+              label="State"
+              value={address_state}
+              onChange={(e) => setAddressState(e.target.value)}
               margin="normal"
               disabled={loading}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#E0E0E0',
+                  backgroundColor: theme.palette.action.hover,
+                  color: theme.palette.text.primary,
                   '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                 },
                 '& .MuiInputLabel-root': {
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                 },
                 '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#00E5FF',
-                },
-              }}
-            />
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                fullWidth
-                label="City"
-                value={address_city}
-                onChange={(e) => setAddressCity(e.target.value)}
-                margin="normal"
-                disabled={loading}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    color: '#E0E0E0',
-                    '& fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
-                    },
-                    '&:hover fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#00E5FF',
-                    },
-                  },
-                  '& .MuiInputLabel-root': {
-                    color: '#B0B0B0',
-                  },
-                  '& .MuiInputLabel-root.Mui-focused': {
-                    color: '#00E5FF',
-                  },
-                }}
-              />
-              <TextField
-                fullWidth
-                label="State"
-                value={address_state}
-                onChange={(e) => setAddressState(e.target.value)}
-                margin="normal"
-                disabled={loading}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    color: '#E0E0E0',
-                    '& fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
-                    },
-                    '&:hover fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#00E5FF',
-                    },
-                  },
-                  '& .MuiInputLabel-root': {
-                    color: '#B0B0B0',
-                  },
-                  '& .MuiInputLabel-root.Mui-focused': {
-                    color: '#00E5FF',
-                  },
-                }}
-              />
-              <TextField
-                fullWidth
-                label="ZIP Code"
-                value={address_zip}
-                onChange={(e) => setAddressZip(e.target.value)}
-                margin="normal"
-                disabled={loading}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    color: '#E0E0E0',
-                    '& fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
-                    },
-                    '&:hover fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#00E5FF',
-                    },
-                  },
-                  '& .MuiInputLabel-root': {
-                    color: '#B0B0B0',
-                  },
-                  '& .MuiInputLabel-root.Mui-focused': {
-                    color: '#00E5FF',
-                  },
-                }}
-              />
-            </Box>
-            <TextField
-              fullWidth
-              label="Country"
-              value={address_country}
-              onChange={(e) => setAddressCountry(e.target.value)}
-              margin="normal"
-              disabled={loading}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#E0E0E0',
-                  '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
-                  },
-                  '&:hover fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#00E5FF',
-                  },
-                },
-                '& .MuiInputLabel-root': {
-                  color: '#B0B0B0',
-                },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                 },
               }}
             />
             <TextField
               fullWidth
-              label="Notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              multiline
-              rows={3}
+              label="ZIP Code"
+              value={address_zip}
+              onChange={(e) => setAddressZip(e.target.value)}
               margin="normal"
               disabled={loading}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#E0E0E0',
+                  backgroundColor: theme.palette.action.hover,
+                  color: theme.palette.text.primary,
                   '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                 },
                 '& .MuiInputLabel-root': {
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                 },
                 '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                 },
               }}
             />
-            <TextField
-              fullWidth
-              label="Account Notes"
-              value={account_notes}
-              onChange={(e) => setAccountNotes(e.target.value)}
-              multiline
-              rows={3}
-              margin="normal"
-              disabled={loading}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#E0E0E0',
-                  '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
-                  },
-                  '&:hover fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#00E5FF',
-                  },
-                },
-                '& .MuiInputLabel-root': {
-                  color: '#B0B0B0',
-                },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#00E5FF',
-                },
-              }}
-            />
-            <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
-              <Button
-                variant="outlined"
-                onClick={() => router.push('/ops/companies')}
-                disabled={loading}
-                sx={{
-                  borderColor: 'rgba(0, 229, 255, 0.3)',
-                  color: '#00E5FF',
-                  '&:hover': {
-                    borderColor: '#00E5FF',
-                    backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                  },
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                variant="contained"
-                disabled={loading}
-                sx={{
-                  backgroundColor: '#00E5FF',
-                  color: '#000',
-                  fontWeight: 600,
-                  '&:hover': {
-                    backgroundColor: '#00B2CC',
-                  },
-                }}
-              >
-                {loading ? 'Creating...' : 'Create Company'}
-              </Button>
-            </Box>
           </Box>
-        </CardContent>
-      </Card>
+          <TextField
+            fullWidth
+            label="Country"
+            value={address_country}
+            onChange={(e) => setAddressCountry(e.target.value)}
+            margin="normal"
+            disabled={loading}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
+                '& fieldset': {
+                  borderColor: theme.palette.divider,
+                },
+                '&:hover fieldset': {
+                  borderColor: theme.palette.text.secondary,
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: theme.palette.text.primary,
+                },
+              },
+              '& .MuiInputLabel-root': {
+                color: theme.palette.text.secondary,
+              },
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: theme.palette.text.primary,
+              },
+            }}
+          />
+          <TextField
+            fullWidth
+            label="Notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            multiline
+            rows={3}
+            margin="normal"
+            disabled={loading}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
+                '& fieldset': {
+                  borderColor: theme.palette.divider,
+                },
+                '&:hover fieldset': {
+                  borderColor: theme.palette.text.secondary,
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: theme.palette.text.primary,
+                },
+              },
+              '& .MuiInputLabel-root': {
+                color: theme.palette.text.secondary,
+              },
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: theme.palette.text.primary,
+              },
+            }}
+          />
+          <TextField
+            fullWidth
+            label="Account Notes"
+            value={account_notes}
+            onChange={(e) => setAccountNotes(e.target.value)}
+            multiline
+            rows={3}
+            margin="normal"
+            disabled={loading}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
+                '& fieldset': {
+                  borderColor: theme.palette.divider,
+                },
+                '&:hover fieldset': {
+                  borderColor: theme.palette.text.secondary,
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: theme.palette.text.primary,
+                },
+              },
+              '& .MuiInputLabel-root': {
+                color: theme.palette.text.secondary,
+              },
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: theme.palette.text.primary,
+              },
+            }}
+          />
+          <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
+            <Button
+              variant="outlined"
+              onClick={() => router.push('/ops/companies')}
+              disabled={loading}
+              sx={{
+                borderColor: theme.palette.text.primary,
+                color: theme.palette.text.primary,
+                '&:hover': {
+                  borderColor: theme.palette.text.primary,
+                  backgroundColor: theme.palette.action.hover,
+                },
+                '&.Mui-disabled': {
+                  borderColor: theme.palette.divider,
+                  color: theme.palette.text.secondary,
+                },
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="outlined"
+              disabled={loading}
+              sx={{
+                borderColor: theme.palette.text.primary,
+                color: theme.palette.text.primary,
+                fontWeight: 600,
+                '&:hover': {
+                  borderColor: theme.palette.text.primary,
+                  backgroundColor: theme.palette.action.hover,
+                },
+                '&.Mui-disabled': {
+                  borderColor: theme.palette.divider,
+                  color: theme.palette.text.secondary,
+                },
+              }}
+            >
+              {loading ? 'Creating...' : 'Create Company'}
+            </Button>
+          </Box>
+        </Box>
+      </Paper>
     </Container>
   );
 }

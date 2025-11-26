@@ -14,6 +14,7 @@ import {
   Alert,
   IconButton,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Close as CloseIcon,
   Download as DownloadIcon,
@@ -51,6 +52,7 @@ export default function ReportDetailModal({
   projectId,
   onClose,
 }: ReportDetailModalProps) {
+  const theme = useTheme();
   const { showSuccess, showError } = useNotification();
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [loadingPdf, setLoadingPdf] = useState(false);
@@ -194,24 +196,25 @@ export default function ReportDetailModal({
       fullWidth
       PaperProps={{
         sx: {
-          backgroundColor: '#000',
-          border: '1px solid rgba(0, 229, 255, 0.3)',
+          backgroundColor: theme.palette.background.paper,
+          border: `1px solid ${theme.palette.divider}`,
         },
       }}
     >
       <DialogTitle
         sx={{
-          color: '#00E5FF',
+          color: theme.palette.text.primary,
           fontWeight: 600,
-          borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+          borderBottom: `1px solid ${theme.palette.divider}`,
           pb: 2,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          backgroundColor: theme.palette.background.paper,
         }}
       >
         <Box>
-          <Typography variant="h6" component="span">
+          <Typography variant="h6" component="span" sx={{ color: theme.palette.text.primary }}>
             Report Details
           </Typography>
           <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
@@ -219,19 +222,18 @@ export default function ReportDetailModal({
               label={getReportTypeLabel(report.report_type)}
               size="small"
               sx={{
-                backgroundColor: 'rgba(0, 229, 255, 0.2)',
-                color: '#00E5FF',
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
+                border: `1px solid ${theme.palette.divider}`,
               }}
             />
             <Chip
               label={report.format.toUpperCase()}
               size="small"
               sx={{
-                backgroundColor:
-                  report.format === 'pdf'
-                    ? 'rgba(233, 30, 99, 0.2)'
-                    : 'rgba(156, 39, 176, 0.2)',
-                color: report.format === 'pdf' ? '#E91E63' : '#9C27B0',
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
+                border: `1px solid ${theme.palette.divider}`,
               }}
             />
           </Box>
@@ -239,9 +241,10 @@ export default function ReportDetailModal({
         <IconButton
           onClick={onClose}
           sx={{
-            color: '#00E5FF',
+            color: theme.palette.text.primary,
+            padding: '8px',
             '&:hover': {
-              backgroundColor: 'rgba(0, 229, 255, 0.1)',
+              backgroundColor: theme.palette.action.hover,
             },
           }}
         >
@@ -252,26 +255,26 @@ export default function ReportDetailModal({
       <DialogContent sx={{ mt: 2 }}>
         {/* Report Info */}
         <Box sx={{ mb: 3 }}>
-          <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 1 }}>
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
             Date Range
           </Typography>
-          <Typography variant="body1" sx={{ color: '#E0E0E0', mb: 2 }}>
+          <Typography variant="body1" sx={{ color: theme.palette.text.primary, mb: 2 }}>
             {report.date_range}
           </Typography>
 
-          <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 1 }}>
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
             Created
           </Typography>
-          <Typography variant="body1" sx={{ color: '#E0E0E0', mb: 2 }}>
+          <Typography variant="body1" sx={{ color: theme.palette.text.primary, mb: 2 }}>
             {format(new Date(report.created_at), 'PPpp')}
           </Typography>
 
           {report.user && (
             <>
-              <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 1 }}>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
                 Created By
               </Typography>
-              <Typography variant="body1" sx={{ color: '#E0E0E0', mb: 2 }}>
+              <Typography variant="body1" sx={{ color: theme.palette.text.primary, mb: 2 }}>
                 {report.user.name || report.user.email || 'Unknown'}
               </Typography>
             </>
@@ -279,10 +282,10 @@ export default function ReportDetailModal({
 
           {report.report_type === 'forecast' && report.forecast_days && (
             <>
-              <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 1 }}>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
                 Forecast Period
               </Typography>
-              <Typography variant="body1" sx={{ color: '#E0E0E0', mb: 2 }}>
+              <Typography variant="body1" sx={{ color: theme.palette.text.primary, mb: 2 }}>
                 {report.forecast_days} days
               </Typography>
             </>
@@ -294,8 +297,8 @@ export default function ReportDetailModal({
           <Box>
             {loadingPdf ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                <CircularProgress sx={{ color: '#00E5FF' }} />
-                <Typography variant="body2" sx={{ color: '#B0B0B0', ml: 2, alignSelf: 'center' }}>
+                <CircularProgress sx={{ color: theme.palette.text.primary }} />
+                <Typography variant="body2" sx={{ color: theme.palette.text.secondary, ml: 2, alignSelf: 'center' }}>
                   Generating PDF...
                 </Typography>
               </Box>
@@ -306,13 +309,13 @@ export default function ReportDetailModal({
                 sx={{
                   width: '100%',
                   height: '600px',
-                  border: '2px solid rgba(0, 229, 255, 0.2)',
+                  border: `1px solid ${theme.palette.divider}`,
                   borderRadius: 1,
                   backgroundColor: '#FFFFFF',
                 }}
               />
             ) : (
-              <Alert severity="info">
+              <Alert severity="info" sx={{ backgroundColor: theme.palette.action.hover, color: theme.palette.text.primary, border: `1px solid ${theme.palette.divider}` }}>
                 Click &quot;View PDF&quot; to generate and display the PDF report.
               </Alert>
             )}
@@ -321,7 +324,7 @@ export default function ReportDetailModal({
 
         {/* Slideshow Info */}
         {report.format === 'slideshow' && (
-          <Alert severity="info">
+          <Alert severity="info" sx={{ backgroundColor: theme.palette.action.hover, color: theme.palette.text.primary, border: `1px solid ${theme.palette.divider}` }}>
             This is an AI-generated slideshow report. You can view it in a new tab or download it as an HTML file.
           </Alert>
         )}
@@ -330,15 +333,18 @@ export default function ReportDetailModal({
       <DialogActions
         sx={{
           p: 2,
-          borderTop: '2px solid rgba(0, 229, 255, 0.2)',
+          borderTop: `1px solid ${theme.palette.divider}`,
         }}
       >
         <Button
           onClick={onClose}
+          variant="outlined"
           sx={{
-            color: '#B0B0B0',
+            borderColor: theme.palette.text.primary,
+            color: theme.palette.text.primary,
             '&:hover': {
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              borderColor: theme.palette.text.primary,
+              backgroundColor: theme.palette.action.hover,
             },
           }}
         >
@@ -352,11 +358,11 @@ export default function ReportDetailModal({
                 variant="outlined"
                 startIcon={<VisibilityIcon />}
                 sx={{
-                  borderColor: '#00E5FF',
-                  color: '#00E5FF',
+                  borderColor: theme.palette.text.primary,
+                  color: theme.palette.text.primary,
                   '&:hover': {
-                    borderColor: '#00E5FF',
-                    backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                    borderColor: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
                   },
                 }}
               >
@@ -365,14 +371,15 @@ export default function ReportDetailModal({
             )}
             <Button
               onClick={handleDownloadPDF}
-              variant="contained"
+              variant="outlined"
               startIcon={<DownloadIcon />}
               sx={{
-                backgroundColor: '#00E5FF',
-                color: '#000',
+                borderColor: theme.palette.text.primary,
+                color: theme.palette.text.primary,
                 fontWeight: 600,
                 '&:hover': {
-                  backgroundColor: '#00B8D4',
+                  borderColor: theme.palette.text.primary,
+                  backgroundColor: theme.palette.action.hover,
                 },
               }}
             >
@@ -386,11 +393,11 @@ export default function ReportDetailModal({
               variant="outlined"
               startIcon={<OpenInNewIcon />}
               sx={{
-                borderColor: '#00E5FF',
-                color: '#00E5FF',
+                borderColor: theme.palette.text.primary,
+                color: theme.palette.text.primary,
                 '&:hover': {
-                  borderColor: '#00E5FF',
-                  backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                  borderColor: theme.palette.text.primary,
+                  backgroundColor: theme.palette.action.hover,
                 },
               }}
             >
@@ -398,14 +405,15 @@ export default function ReportDetailModal({
             </Button>
             <Button
               onClick={handleDownloadSlideshow}
-              variant="contained"
+              variant="outlined"
               startIcon={<DownloadIcon />}
               sx={{
-                backgroundColor: '#00E5FF',
-                color: '#000',
+                borderColor: theme.palette.text.primary,
+                color: theme.palette.text.primary,
                 fontWeight: 600,
                 '&:hover': {
-                  backgroundColor: '#00B8D4',
+                  borderColor: theme.palette.text.primary,
+                  backgroundColor: theme.palette.action.hover,
                 },
               }}
             >

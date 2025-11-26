@@ -17,6 +17,7 @@ import {
   Select,
   MenuItem,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   History as HistoryIcon,
   PersonAdd as PersonAddIcon,
@@ -43,6 +44,7 @@ interface CompanyActivityTabProps {
 
 export default function CompanyActivityTab({ companyId }: CompanyActivityTabProps) {
   const router = useRouter();
+  const theme = useTheme();
   const [activities, setActivities] = useState<ActivityFeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,13 +62,6 @@ export default function CompanyActivityTab({ companyId }: CompanyActivityTabProp
       }
 
       const data = await response.json();
-      console.log('Activity feed data:', data);
-      console.log('Activities with details:', data.filter((a: any) => a.interaction_details || a.tag_details || a.attachment_details));
-      console.log('Event types:', data.map((a: any) => a.event_type));
-      console.log('Sample activity:', data[0]);
-      console.log('Has interaction_details?', !!(data[0] as any)?.interaction_details);
-      console.log('Has tag_details?', !!(data[0] as any)?.tag_details);
-      console.log('Has attachment_details?', !!(data[0] as any)?.attachment_details);
       setActivities(data);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load activity feed';
@@ -200,11 +195,11 @@ export default function CompanyActivityTab({ companyId }: CompanyActivityTabProp
   if (activities.length === 0) {
     return (
       <Box sx={{ textAlign: 'center', py: 4 }}>
-        <HistoryIcon sx={{ fontSize: 64, color: '#00E5FF', mb: 2, opacity: 0.5 }} />
-        <Typography variant="h6" sx={{ color: '#B0B0B0', mb: 1 }}>
+        <HistoryIcon sx={{ fontSize: 64, color: theme.palette.text.secondary, mb: 2, opacity: 0.5 }} />
+        <Typography variant="h6" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
           No Activity Yet
         </Typography>
-        <Typography variant="body2" sx={{ color: '#808080' }}>
+        <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
           Activity will appear here as you work with this company
         </Typography>
       </Box>
@@ -217,32 +212,32 @@ export default function CompanyActivityTab({ companyId }: CompanyActivityTabProp
         <Typography
           variant="h6"
           sx={{
-            color: '#00E5FF',
+            color: theme.palette.text.primary,
             fontWeight: 600,
           }}
         >
           Activity Feed
         </Typography>
         <FormControl size="small" sx={{ minWidth: 200 }}>
-          <InputLabel sx={{ color: '#B0B0B0' }}>Filter by Type</InputLabel>
+          <InputLabel sx={{ color: theme.palette.text.secondary }}>Filter by Type</InputLabel>
           <Select
             value={eventTypeFilter}
             label="Filter by Type"
             onChange={(e) => setEventTypeFilter(e.target.value)}
             sx={{
-              color: '#E0E0E0',
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              color: theme.palette.text.primary,
+              backgroundColor: theme.palette.background.paper,
               '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'rgba(0, 229, 255, 0.3)',
+                borderColor: theme.palette.divider,
               },
               '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'rgba(0, 229, 255, 0.5)',
+                borderColor: theme.palette.text.secondary,
               },
               '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: '#00E5FF',
+                borderColor: theme.palette.text.primary,
               },
               '& .MuiSvgIcon-root': {
-                color: '#00E5FF',
+                color: theme.palette.text.primary,
               },
             }}
           >
@@ -261,9 +256,9 @@ export default function CompanyActivityTab({ companyId }: CompanyActivityTabProp
           severity="info" 
           sx={{ 
             mb: 2,
-            backgroundColor: 'rgba(0, 229, 255, 0.1)',
-            border: '1px solid rgba(0, 229, 255, 0.3)',
-            color: '#00E5FF',
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
+            color: theme.palette.text.secondary,
           }}
         >
           No activities match the selected filter.
@@ -283,14 +278,14 @@ export default function CompanyActivityTab({ companyId }: CompanyActivityTabProp
               key={activity.id}
               sx={{
                 p: 2,
-                backgroundColor: '#000',
-                border: '2px solid rgba(0, 229, 255, 0.2)',
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
                 borderRadius: 2,
                 cursor: isClickable ? 'pointer' : 'default',
                 transition: 'all 0.2s',
                 '&:hover': isClickable ? {
-                  borderColor: '#00E5FF',
-                  backgroundColor: 'rgba(0, 229, 255, 0.05)',
+                  borderColor: theme.palette.text.secondary,
+                  backgroundColor: theme.palette.action.hover,
                 } : {},
               }}
               onClick={() => isClickable && handleEntityClick(activity)}
@@ -298,7 +293,7 @@ export default function CompanyActivityTab({ companyId }: CompanyActivityTabProp
               <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
                 <Box
                   sx={{
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
                     display: 'flex',
                     alignItems: 'center',
                     mt: 0.5,
@@ -314,16 +309,16 @@ export default function CompanyActivityTab({ companyId }: CompanyActivityTabProp
                       size="small"
                       icon={getEventTypeIcon(activity.event_type)}
                     />
-                    <Typography variant="caption" sx={{ color: '#808080' }}>
+                    <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
                       {formatDate(activity.created_at)}
                     </Typography>
                   </Box>
                   <Typography 
                     sx={{ 
-                      color: '#E0E0E0',
+                      color: theme.palette.text.primary,
                       ...(isClickable && {
                         '&:hover': {
-                          color: '#00E5FF',
+                          color: theme.palette.text.secondary,
                         },
                       }),
                     }}
@@ -332,28 +327,28 @@ export default function CompanyActivityTab({ companyId }: CompanyActivityTabProp
                     
                     {/* Show interaction details if available */}
                     {(activity as any).interaction_details && (
-                      <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '2px solid rgba(0, 229, 255, 0.2)', backgroundColor: 'rgba(0, 229, 255, 0.05)', borderRadius: 1, p: 1.5 }}>
+                      <Box sx={{ mt: 1.5, pt: 1.5, borderTop: `1px solid ${theme.palette.divider}`, backgroundColor: theme.palette.background.default, borderRadius: 1, p: 1.5 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                          <PhoneIcon sx={{ fontSize: 16, color: '#00E5FF' }} />
-                          <Typography variant="body2" sx={{ color: '#00E5FF', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>
+                          <PhoneIcon sx={{ fontSize: 16, color: theme.palette.text.primary }} />
+                          <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>
                             {(activity as any).interaction_details.interaction_type}
                           </Typography>
                           {(activity as any).interaction_details.created_user && (
-                            <Typography variant="caption" sx={{ color: '#808080', ml: 'auto' }}>
+                            <Typography variant="caption" sx={{ color: theme.palette.text.secondary, ml: 'auto' }}>
                               by {(activity as any).interaction_details.created_user.name || (activity as any).interaction_details.created_user.email}
                             </Typography>
                           )}
                         </Box>
                         {(activity as any).interaction_details.subject && (
-                          <Typography variant="body2" sx={{ color: '#00E5FF', fontWeight: 600, mb: 0.5 }}>
+                          <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontWeight: 600, mb: 0.5 }}>
                             {(activity as any).interaction_details.subject}
                           </Typography>
                         )}
-                        <Typography variant="body2" sx={{ color: '#E0E0E0', whiteSpace: 'pre-wrap', mb: 0.5 }}>
+                        <Typography variant="body2" sx={{ color: theme.palette.text.primary, whiteSpace: 'pre-wrap', mb: 0.5 }}>
                           {(activity as any).interaction_details.notes}
                         </Typography>
                         {(activity as any).interaction_details.interaction_date && (
-                          <Typography variant="caption" sx={{ color: '#808080' }}>
+                          <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
                             Interaction date: {new Date((activity as any).interaction_details.interaction_date).toLocaleString()}
                           </Typography>
                         )}
@@ -362,19 +357,19 @@ export default function CompanyActivityTab({ companyId }: CompanyActivityTabProp
 
                     {/* Show tag details if available */}
                     {(activity as any).tag_details && (
-                      <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '2px solid rgba(0, 229, 255, 0.2)', backgroundColor: 'rgba(0, 229, 255, 0.05)', borderRadius: 1, p: 1.5 }}>
+                      <Box sx={{ mt: 1.5, pt: 1.5, borderTop: `1px solid ${theme.palette.divider}`, backgroundColor: theme.palette.background.default, borderRadius: 1, p: 1.5 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <LabelIcon sx={{ fontSize: 16, color: '#00E5FF' }} />
+                          <LabelIcon sx={{ fontSize: 16, color: theme.palette.text.primary }} />
                           <Chip
                             label={(activity as any).tag_details.tag_name}
                             size="small"
                             sx={{
-                              backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                              color: '#00E5FF',
-                              border: '1px solid rgba(0, 229, 255, 0.3)',
+                              backgroundColor: theme.palette.background.paper,
+                              color: theme.palette.text.primary,
+                              border: `1px solid ${theme.palette.divider}`,
                             }}
                           />
-                          <Typography variant="caption" sx={{ color: '#808080', ml: 'auto' }}>
+                          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, ml: 'auto' }}>
                             Added {new Date((activity as any).tag_details.created_at).toLocaleString()}
                           </Typography>
                         </Box>
@@ -383,20 +378,20 @@ export default function CompanyActivityTab({ companyId }: CompanyActivityTabProp
 
                     {/* Show attachment details if available */}
                     {(activity as any).attachment_details && (
-                      <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '2px solid rgba(0, 229, 255, 0.2)', backgroundColor: 'rgba(0, 229, 255, 0.05)', borderRadius: 1, p: 1.5 }}>
+                      <Box sx={{ mt: 1.5, pt: 1.5, borderTop: `1px solid ${theme.palette.divider}`, backgroundColor: theme.palette.background.default, borderRadius: 1, p: 1.5 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                          <AttachFileIcon sx={{ fontSize: 16, color: '#00E5FF' }} />
-                          <Typography variant="body2" sx={{ color: '#E0E0E0', fontWeight: 500, flex: 1 }}>
+                          <AttachFileIcon sx={{ fontSize: 16, color: theme.palette.text.primary }} />
+                          <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontWeight: 500, flex: 1 }}>
                             {(activity as any).attachment_details.file_name}
                           </Typography>
                           {(activity as any).attachment_details.uploaded_user && (
-                            <Typography variant="caption" sx={{ color: '#808080' }}>
+                            <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
                               by {(activity as any).attachment_details.uploaded_user.name || (activity as any).attachment_details.uploaded_user.email}
                             </Typography>
                           )}
                         </Box>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                          <Typography variant="caption" sx={{ color: '#808080' }}>
+                          <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
                             {formatFileSize((activity as any).attachment_details.file_size)}
                             {(activity as any).attachment_details.file_type && ` • ${(activity as any).attachment_details.file_type}`}
                             {' • '}
@@ -413,11 +408,11 @@ export default function CompanyActivityTab({ companyId }: CompanyActivityTabProp
                               window.open((activity as any).attachment_details.file_path, '_blank');
                             }}
                             sx={{
-                              borderColor: '#00E5FF',
-                              color: '#00E5FF',
+                              borderColor: theme.palette.text.primary,
+                              color: theme.palette.text.primary,
                               '&:hover': {
-                                borderColor: '#00B2CC',
-                                backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                                borderColor: theme.palette.text.secondary,
+                                backgroundColor: theme.palette.action.hover,
                               },
                             }}
                           >
@@ -435,11 +430,11 @@ export default function CompanyActivityTab({ companyId }: CompanyActivityTabProp
                               link.click();
                             }}
                             sx={{
-                              borderColor: '#00E5FF',
-                              color: '#00E5FF',
+                              borderColor: theme.palette.text.primary,
+                              color: theme.palette.text.primary,
                               '&:hover': {
-                                borderColor: '#00B2CC',
-                                backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                                borderColor: theme.palette.text.secondary,
+                                backgroundColor: theme.palette.action.hover,
                               },
                             }}
                           >
@@ -454,10 +449,11 @@ export default function CompanyActivityTab({ companyId }: CompanyActivityTabProp
                         component="span"
                         sx={{
                           ml: 1,
-                          color: '#00E5FF',
+                          color: theme.palette.text.primary,
                           textDecoration: 'none',
                           '&:hover': {
                             textDecoration: 'underline',
+                            color: theme.palette.text.secondary,
                           },
                         }}
                         onClick={(e) => {

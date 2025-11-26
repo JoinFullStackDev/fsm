@@ -23,7 +23,9 @@ import {
   Chip,
   IconButton,
   Fab,
+  Tooltip,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Save as SaveIcon,
   Description as DescriptionIcon,
@@ -31,6 +33,7 @@ import {
   ArrowBack as ArrowBackIcon,
   FileDownload as FileDownloadIcon,
   ArrowForward as ArrowForwardIcon,
+  Replay as ReplayIcon,
 } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useRole } from '@/lib/hooks/useRole';
@@ -68,6 +71,7 @@ import type {
 } from '@/types/phases';
 
 export default function PhasePage() {
+  const theme = useTheme();
   const router = useRouter();
   const params = useParams();
   const projectId = params.id as string;
@@ -1002,7 +1006,7 @@ Generate the complete ${documentType} document now:`;
 
   return (
     <ErrorBoundary>
-      <Box sx={{ backgroundColor: '#000', minHeight: '100vh', pb: 12 }}>
+      <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', pb: 12 }}>
         <Container maxWidth="xl" sx={{ pt: 4, pb: 4 }}>
           <Breadcrumbs
             items={[
@@ -1015,23 +1019,21 @@ Generate the complete ${documentType} document now:`;
             <IconButton
               onClick={() => router.push(`/project/${projectId}`)}
               sx={{
-                color: 'primary.main',
-                border: '1px solid',
-                borderColor: 'primary.main',
+                color: theme.palette.text.primary,
+                border: `1px solid ${theme.palette.divider}`,
                 '&:hover': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                  transform: 'translateX(-4px)',
+                  backgroundColor: theme.palette.action.hover,
                 },
-                transition: 'all 0.3s ease',
+                transition: 'all 0.2s ease',
               }}
             >
               <ArrowBackIcon />
             </IconButton>
             <Box sx={{ flex: 1 }}>
-              <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main', mb: 0.5 }}>
+              <Typography variant="h4" sx={{ fontWeight: 600, color: theme.palette.text.primary, mb: 0.5, fontSize: '1.5rem' }}>
                 Phase {phaseNumber}: {currentPhaseName || `Phase ${phaseNumber}`}
               </Typography>
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
                 {projectId}
               </Typography>
             </Box>
@@ -1048,16 +1050,16 @@ Generate the complete ${documentType} document now:`;
               
               return (
                 <Button
-                  variant="contained"
+                  variant="outlined"
                   endIcon={<ArrowForwardIcon />}
                   onClick={() => router.push(`/project/${projectId}/phase/${nextPhase.phase_number}`)}
                   sx={{
-                    backgroundColor: 'primary.main',
-                    color: 'primary.contrastText',
+                    borderColor: theme.palette.text.primary,
+                    color: theme.palette.text.primary,
                     fontWeight: 600,
                     '&:hover': {
-                      backgroundColor: 'primary.dark',
-                      boxShadow: '0 4px 20px rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.text.primary,
+                      backgroundColor: theme.palette.action.hover,
                     },
                   }}
                 >
@@ -1074,39 +1076,36 @@ Generate the complete ${documentType} document now:`;
               sx={{
                 mb: 3,
                 width: '100%',
-                backgroundColor: 'rgba(255, 107, 53, 0.1)',
-                border: '1px solid',
-                borderColor: 'warning.main',
+                backgroundColor: theme.palette.action.hover,
+                border: `1px solid ${theme.palette.divider}`,
                 '& .MuiAlert-icon': {
-                  color: 'warning.main',
+                  color: theme.palette.text.primary,
                 },
               }}
             >
-              <Typography variant="body2" sx={{ color: 'warning.main' }}>
+              <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
                 {dependencyMessage}
               </Typography>
             </Alert>
           )}
 
           {/* Phase Progress Bar */}
-          <Paper
+          <Box
             sx={{
               p: 2,
               mb: 3,
-              backgroundColor: 'background.paper',
-              border: '1px solid',
-              borderColor: 'primary.main',
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2,
-              boxShadow: '0 4px 20px rgba(0, 229, 255, 0.1)',
             }}
           >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-              <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontWeight: 500 }}>
                 {fieldConfigs.length > 0 
                   ? `Phase Progress: ${phaseProgress}% complete (${completedFieldsCount}/${fieldConfigs.length} fields)`
                   : `Overall Progress: Phase ${phaseNumber} of ${totalPhases}`}
               </Typography>
-              <Typography variant="body2" sx={{ color: 'primary.main', fontWeight: 600 }}>
+              <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
                 {phaseProgress}%
               </Typography>
             </Box>
@@ -1116,23 +1115,21 @@ Generate the complete ${documentType} document now:`;
               sx={{
                 height: 8,
                 borderRadius: 4,
-                backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                backgroundColor: theme.palette.action.hover,
                 '& .MuiLinearProgress-bar': {
-                  backgroundColor: 'primary.main',
-                  boxShadow: '0 0 10px rgba(0, 229, 255, 0.5)',
+                  backgroundColor: '#4CAF50',
                 },
               }}
             />
-          </Paper>
+          </Box>
 
           {/* Action Buttons - Sticky */}
-          <Paper
+          <Box
             sx={{
               p: 2,
               mb: 3,
-              backgroundColor: 'background.paper',
-              border: '1px solid',
-              borderColor: 'primary.main',
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2,
               display: 'flex',
               gap: 2,
@@ -1141,7 +1138,6 @@ Generate the complete ${documentType} document now:`;
               position: 'sticky',
               top: 80,
               zIndex: 10,
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
@@ -1169,91 +1165,103 @@ Generate the complete ${documentType} document now:`;
                   />
                 }
                 label={
-                  <Typography sx={{ color: 'text.primary', fontWeight: 500 }}>
+                  <Typography sx={{ color: theme.palette.text.primary, fontWeight: 500 }}>
                     Mark as Completed
                   </Typography>
                 }
               />
               <Chip
-                icon={completed ? <CheckCircleIcon /> : undefined}
+                icon={completed ? <CheckCircleIcon sx={{ fontSize: 16 }} /> : undefined}
                 label={completed ? 'Completed' : 'In Progress'}
-                color={completed ? 'success' : 'primary'}
                 sx={{
-                  fontWeight: 600,
-                  fontSize: '0.9rem',
-                  height: 36,
+                  fontWeight: 500,
+                  fontSize: '0.75rem',
+                  height: 28,
                   px: 1,
+                  backgroundColor: completed ? '#4CAF50' : theme.palette.action.hover,
+                  color: completed ? '#FFFFFF' : theme.palette.text.primary,
+                  border: `1px solid ${completed ? '#4CAF50' : theme.palette.divider}`,
+                  '& .MuiChip-icon': {
+                    color: completed ? '#FFFFFF' : undefined,
+                    fontSize: '16px',
+                  },
                 }}
               />
             </Box>
-            <Box sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ display: 'flex', gap: 1 }}>
               {phaseData && (phaseData as any).generated_document && (
-                <Button
-                  variant="outlined"
-                  startIcon={<DescriptionIcon />}
-                  onClick={() => {
-                    setSummary((phaseData as any).generated_document);
-                    setShowSummary(true);
-                  }}
+                <Tooltip title="View Document">
+                  <IconButton
+                    onClick={() => {
+                      setSummary((phaseData as any).generated_document);
+                      setShowSummary(true);
+                    }}
+                    sx={{
+                      color: theme.palette.text.primary,
+                      '&:hover': {
+                        backgroundColor: theme.palette.action.hover,
+                      },
+                    }}
+                  >
+                    <DescriptionIcon />
+                  </IconButton>
+                </Tooltip>
+              )}
+              <Tooltip title={generatingSummary 
+                ? 'Generating...' 
+                : (phaseData && (phaseData as any).generated_document) 
+                  ? 'Regenerate Document' 
+                  : 'Generate Document'}>
+                <IconButton
+                  onClick={handleGenerateSummary}
+                  disabled={!phaseData || generatingSummary}
                   sx={{
-                    borderColor: 'success.main',
-                    color: 'success.main',
+                    color: theme.palette.text.primary,
                     '&:hover': {
-                      borderColor: 'success.light',
-                      backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                    '&.Mui-disabled': {
+                      color: theme.palette.text.secondary,
                     },
                   }}
                 >
-                  View Document
-                </Button>
-              )}
-              <Button
-                variant="outlined"
-                startIcon={generatingSummary ? <CircularProgress size={16} /> : <DescriptionIcon />}
-                onClick={handleGenerateSummary}
-                disabled={!phaseData || generatingSummary}
-                sx={{
-                  borderColor: 'info.main',
-                  color: 'info.main',
-                  '&:hover': {
-                    borderColor: 'info.light',
-                    backgroundColor: 'rgba(33, 150, 243, 0.1)',
-                  },
-                }}
-              >
-                {generatingSummary 
-                  ? 'Generating...' 
-                  : (phaseData && (phaseData as any).generated_document) 
-                    ? 'Regenerate Document' 
-                    : 'Generate Document'}
-              </Button>
-              <Button
-                variant="contained"
-                startIcon={<SaveIcon />}
-                onClick={handleSave}
-                disabled={saving || !canEdit}
-                sx={{
-                  backgroundColor: 'primary.main',
-                  color: 'primary.contrastText',
-                  '&:hover': {
-                    backgroundColor: 'primary.dark',
-                  },
-                }}
-              >
-                {saving ? 'Saving...' : 'Save'}
-              </Button>
+                  {generatingSummary ? (
+                    <CircularProgress size={24} sx={{ color: 'inherit' }} />
+                  ) : (phaseData && (phaseData as any).generated_document) ? (
+                    <ReplayIcon />
+                  ) : (
+                    <DescriptionIcon />
+                  )}
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={saving ? 'Saving...' : 'Save'}>
+                <IconButton
+                  onClick={handleSave}
+                  disabled={saving || !canEdit}
+                  sx={{
+                    color: '#4CAF50',
+                    '&:hover': {
+                      backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                    },
+                    '&.Mui-disabled': {
+                      color: 'rgba(76, 175, 80, 0.3)',
+                    },
+                  }}
+                >
+                  {saving ? <CircularProgress size={24} sx={{ color: 'inherit' }} /> : <SaveIcon />}
+                </IconButton>
+              </Tooltip>
             </Box>
-          </Paper>
+          </Box>
 
           {error && (
             <Alert
               severity="error"
               sx={{
                 mb: 3,
-                backgroundColor: 'rgba(255, 23, 68, 0.1)',
-                border: '1px solid',
-                borderColor: 'error.main',
-                color: 'error.main',
+                backgroundColor: theme.palette.action.hover,
+                border: `1px solid ${theme.palette.divider}`,
+                color: theme.palette.text.primary,
               }}
             >
               {error}
@@ -1265,10 +1273,9 @@ Generate the complete ${documentType} document now:`;
               severity="warning"
               sx={{
                 mb: 3,
-                backgroundColor: 'rgba(255, 107, 53, 0.1)',
-                border: '1px solid',
-                borderColor: 'warning.main',
-                color: 'warning.main',
+                backgroundColor: theme.palette.action.hover,
+                border: `1px solid ${theme.palette.divider}`,
+                color: theme.palette.text.primary,
               }}
             >
                 You don&apos;t have permission to edit this phase based on your role.
@@ -1276,22 +1283,20 @@ Generate the complete ${documentType} document now:`;
           )}
 
           {/* Phase Form */}
-          <Card
+          <Box
             sx={{
-              backgroundColor: '#000',
-              border: '2px solid rgba(0, 229, 255, 0.2)',
-              borderRadius: 3,
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
+              p: 3,
             }}
           >
-            <CardContent sx={{ p: 3 }}>
-              {phaseData && (
-                <Box sx={{ opacity: canEdit ? 1 : 0.6 }}>
-                  {renderPhaseForm()}
-                </Box>
-              )}
-            </CardContent>
-          </Card>
+            {phaseData && (
+              <Box sx={{ opacity: canEdit ? 1 : 0.6 }}>
+                {renderPhaseForm()}
+              </Box>
+            )}
+          </Box>
         </Container>
 
         {/* Sticky Action Buttons */}
@@ -1307,37 +1312,39 @@ Generate the complete ${documentType} document now:`;
           }}
         >
           <Fab
-            color="primary"
             onClick={handleGenerateSummary}
             disabled={!phaseData || generatingSummary}
             sx={{
-              backgroundColor: '#2196F3',
+              backgroundColor: theme.palette.text.primary,
+              color: theme.palette.background.default,
               '&:hover': {
-                backgroundColor: '#1976D2',
-                boxShadow: '0 8px 25px rgba(33, 150, 243, 0.5)',
+                backgroundColor: theme.palette.text.secondary,
+              },
+              '&.Mui-disabled': {
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.secondary,
               },
             }}
             title="Generate Client Document"
           >
-            {generatingSummary ? <CircularProgress size={24} sx={{ color: 'white' }} /> : <DescriptionIcon />}
+            {generatingSummary ? <CircularProgress size={24} sx={{ color: theme.palette.background.default }} /> : <DescriptionIcon />}
           </Fab>
           <Fab
-            color="primary"
             onClick={handleSave}
             disabled={saving || !canEdit}
             sx={{
-              backgroundColor: '#00E5FF',
-              color: '#000',
+              backgroundColor: '#4CAF50',
+              color: '#FFFFFF',
               '&:hover': {
-                backgroundColor: '#00B2CC',
-                boxShadow: '0 8px 25px rgba(0, 229, 255, 0.5)',
+                backgroundColor: '#45A049',
               },
               '&.Mui-disabled': {
-                backgroundColor: 'rgba(0, 229, 255, 0.3)',
+                backgroundColor: 'rgba(76, 175, 80, 0.3)',
+                color: 'rgba(255, 255, 255, 0.5)',
               },
             }}
           >
-            {saving ? <CircularProgress size={24} sx={{ color: '#000' }} /> : <SaveIcon />}
+            {saving ? <CircularProgress size={24} sx={{ color: '#FFFFFF' }} /> : <SaveIcon />}
           </Fab>
         </Box>
 
@@ -1348,19 +1355,17 @@ Generate the complete ${documentType} document now:`;
           fullWidth
           PaperProps={{
             sx: {
-              backgroundColor: 'background.paper',
-              border: '2px solid',
-              borderColor: 'primary.main',
-              borderRadius: 3,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
             },
           }}
         >
           <DialogTitle
             sx={{
-              backgroundColor: 'rgba(0, 229, 255, 0.1)',
-              borderBottom: '1px solid',
-              borderColor: 'primary.main',
-              color: 'primary.main',
+              backgroundColor: theme.palette.action.hover,
+              borderBottom: `1px solid ${theme.palette.divider}`,
+              color: theme.palette.text.primary,
               fontWeight: 600,
               display: 'flex',
               justifyContent: 'space-between',
@@ -1370,7 +1375,7 @@ Generate the complete ${documentType} document now:`;
             <Box>
               {getDocumentTypeForPhase(phaseNumber)}
               {phaseData && (phaseData as any).document_generated_at && (
-                <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontWeight: 400, mt: 0.5 }}>
+                <Typography variant="caption" sx={{ display: 'block', color: theme.palette.text.secondary, fontWeight: 400, mt: 0.5 }}>
                   Generated: {new Date((phaseData as any).document_generated_at).toLocaleString()}
                 </Typography>
               )}
@@ -1386,11 +1391,10 @@ Generate the complete ${documentType} document now:`;
                 maxHeight: '60vh',
                 overflow: 'auto',
                 p: 3,
-                backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                backgroundColor: theme.palette.background.default,
                 borderRadius: 2,
-                border: '1px solid',
-                borderColor: 'divider',
-                color: 'text.primary',
+                border: `1px solid ${theme.palette.divider}`,
+                color: theme.palette.text.primary,
                 fontFamily: 'inherit',
                 margin: 0,
               }}
@@ -1398,14 +1402,14 @@ Generate the complete ${documentType} document now:`;
               {summary}
             </Box>
           </DialogContent>
-          <DialogActions sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+          <DialogActions sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
             <Button
               onClick={handleDownloadDocument}
               startIcon={<FileDownloadIcon />}
               sx={{
-                color: 'primary.main',
+                color: theme.palette.text.primary,
                 '&:hover': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                  backgroundColor: theme.palette.action.hover,
                 },
               }}
             >
@@ -1419,9 +1423,9 @@ Generate the complete ${documentType} document now:`;
                 }
               }}
               sx={{
-                color: 'primary.main',
+                color: theme.palette.text.primary,
                 '&:hover': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                  backgroundColor: theme.palette.action.hover,
                 },
               }}
             >
@@ -1429,12 +1433,13 @@ Generate the complete ${documentType} document now:`;
             </Button>
             <Button
               onClick={() => setShowSummary(false)}
-              variant="contained"
+              variant="outlined"
               sx={{
-                backgroundColor: 'primary.main',
-                color: 'primary.contrastText',
+                borderColor: theme.palette.text.primary,
+                color: theme.palette.text.primary,
                 '&:hover': {
-                  backgroundColor: 'primary.dark',
+                  borderColor: theme.palette.text.primary,
+                  backgroundColor: theme.palette.action.hover,
                 },
               }}
             >

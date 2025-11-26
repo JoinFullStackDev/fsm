@@ -19,6 +19,7 @@ import {
   Grid,
   IconButton,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { Add as AddIcon, Search as SearchIcon, Delete as DeleteIcon, Visibility as VisibilityIcon } from '@mui/icons-material';
 import LoadingSkeleton from '@/components/ui/LoadingSkeleton';
 import EmptyState from '@/components/ui/EmptyState';
@@ -30,6 +31,7 @@ import ContactDetailSlideout from '@/components/ops/ContactDetailSlideout';
 
 export default function ContactsPage() {
   const router = useRouter();
+  const theme = useTheme();
   const { showSuccess, showError } = useNotification();
   const [contacts, setContacts] = useState<CompanyContactWithCompany[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,118 +115,108 @@ export default function ContactsPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'success';
-      case 'inactive':
-        return 'default';
-      case 'archived':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-
-  const getLeadStatusColor = (status: string | null | undefined) => {
-    if (!status) return 'default';
-    switch (status.toLowerCase()) {
-      case 'new':
-      case 'active':
-        return 'info';
-      case 'qualified':
-      case 'meeting set':
-        return 'success';
-      case 'closed won':
-        return 'success';
-      case 'closed lost':
-      case 'unqualified':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-
-  const getPipelineStageColor = (stage: string | null | undefined) => {
-    if (!stage) return 'default';
-    switch (stage.toLowerCase()) {
-      case 'lead':
-      case 'mql':
-        return 'info';
-      case 'sql':
-      case 'meeting':
-        return 'warning';
-      case 'proposal':
-      case 'negotiation':
-        return 'success';
-      case 'closed':
-        return 'default';
-      default:
-        return 'default';
-    }
-  };
-
   const columns = [
     {
       key: 'name',
       label: 'Name',
       sortable: true,
-      render: (_: any, row: CompanyContactWithCompany) => `${row.first_name} ${row.last_name}`,
+      render: (_: any, row: CompanyContactWithCompany) => (
+        <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
+          {`${row.first_name} ${row.last_name}`}
+        </Typography>
+      ),
     },
     {
       key: 'company',
       label: 'Company',
       sortable: false,
-      render: (value: any) => value?.name || '-',
+      render: (value: any) => {
+        if (!value?.name) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
+        return (
+          <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
+            {value.name}
+          </Typography>
+        );
+      },
     },
     {
       key: 'email',
       label: 'Email',
       sortable: true,
-      render: (value: string | null) => value || '-',
+      render: (value: string | null) => {
+        if (!value) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
+        return (
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+            {value}
+          </Typography>
+        );
+      },
     },
     {
       key: 'phone',
       label: 'Phone',
       sortable: true,
-      render: (value: string | null) => value || '-',
+      render: (value: string | null) => {
+        if (!value) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
+        return (
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+            {value}
+          </Typography>
+        );
+      },
     },
     {
       key: 'lead_status',
       label: 'Lead Status',
       sortable: true,
-      render: (value: string | null) =>
-        value ? (
+      render: (value: string | null) => {
+        if (!value) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
+        return (
           <Chip
             label={value}
-            color={getLeadStatusColor(value) as any}
             size="small"
+            sx={{
+              backgroundColor: theme.palette.action.hover,
+              color: theme.palette.text.primary,
+              border: `1px solid ${theme.palette.divider}`,
+              fontWeight: 500,
+            }}
           />
-        ) : (
-          '-'
-        ),
+        );
+      },
     },
     {
       key: 'pipeline_stage',
       label: 'Pipeline Stage',
       sortable: true,
-      render: (value: string | null) =>
-        value ? (
+      render: (value: string | null) => {
+        if (!value) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
+        return (
           <Chip
             label={value}
-            color={getPipelineStageColor(value) as any}
             size="small"
+            sx={{
+              backgroundColor: theme.palette.action.hover,
+              color: theme.palette.text.primary,
+              border: `1px solid ${theme.palette.divider}`,
+              fontWeight: 500,
+            }}
           />
-        ) : (
-          '-'
-        ),
+        );
+      },
     },
     {
       key: 'next_follow_up_date',
       label: 'Next Follow-Up',
       sortable: true,
-      render: (value: string | null) =>
-        value ? new Date(value).toLocaleDateString() : '-',
+      render: (value: string | null) => {
+        if (!value) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
+        return (
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+            {new Date(value).toLocaleDateString()}
+          </Typography>
+        );
+      },
     },
     {
       key: 'status',
@@ -233,8 +225,13 @@ export default function ContactsPage() {
       render: (value: string) => (
         <Chip
           label={value.charAt(0).toUpperCase() + value.slice(1)}
-          color={getStatusColor(value) as any}
           size="small"
+          sx={{
+            backgroundColor: theme.palette.action.hover,
+            color: theme.palette.text.primary,
+            border: `1px solid ${theme.palette.divider}`,
+            fontWeight: 500,
+          }}
         />
       ),
     },
@@ -248,7 +245,7 @@ export default function ContactsPage() {
           <IconButton
             size="small"
             onClick={(e) => handleViewContact(row, e)}
-            sx={{ color: '#00E5FF' }}
+            sx={{ color: theme.palette.text.primary }}
             title="View Details"
           >
             <VisibilityIcon fontSize="small" />
@@ -256,7 +253,7 @@ export default function ContactsPage() {
           <IconButton
             size="small"
             onClick={(e) => handleDeleteContact(row, e)}
-            sx={{ color: '#FF1744' }}
+            sx={{ color: theme.palette.text.primary }}
             title="Delete"
           >
             <DeleteIcon fontSize="small" />
@@ -288,26 +285,24 @@ export default function ContactsPage() {
           variant="h4"
           component="h1"
           sx={{
-            fontWeight: 700,
-            background: '#00E5FF',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
+            fontSize: '1.5rem',
+            fontWeight: 600,
+            color: theme.palette.text.primary,
           }}
         >
           Contacts
         </Typography>
         <Button
-          variant="contained"
+          variant="outlined"
           startIcon={<AddIcon />}
           onClick={handleCreateContact}
           sx={{
-            backgroundColor: '#00E5FF',
-            color: '#000',
+            borderColor: theme.palette.text.primary,
+            color: theme.palette.text.primary,
             fontWeight: 600,
             '&:hover': {
-              backgroundColor: '#00B2CC',
-              boxShadow: '0 6px 25px rgba(0, 229, 255, 0.5)',
-              transform: 'translateY(-2px)',
+              borderColor: theme.palette.text.primary,
+              backgroundColor: theme.palette.action.hover,
             },
           }}
         >
@@ -320,9 +315,9 @@ export default function ContactsPage() {
           severity="error"
           sx={{
             mb: 3,
-            backgroundColor: 'rgba(255, 23, 68, 0.1)',
-            border: '1px solid rgba(255, 23, 68, 0.3)',
-            color: '#FF1744',
+            backgroundColor: theme.palette.action.hover,
+            border: `1px solid ${theme.palette.divider}`,
+            color: theme.palette.text.primary,
           }}
           onClose={() => setError(null)}
         >
@@ -331,12 +326,12 @@ export default function ContactsPage() {
       )}
 
       {contacts.length > 0 && (
-        <Paper
+        <Box
           sx={{
             p: 2,
             mb: 3,
-            backgroundColor: '#000',
-            border: '2px solid rgba(0, 229, 255, 0.2)',
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
             borderRadius: 2,
           }}
         >
@@ -351,22 +346,22 @@ export default function ContactsPage() {
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <SearchIcon sx={{ color: '#00E5FF' }} />
+                      <SearchIcon sx={{ color: theme.palette.text.primary }} />
                     </InputAdornment>
                   ),
                 }}
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    color: '#E0E0E0',
+                    backgroundColor: theme.palette.action.hover,
+                    color: theme.palette.text.primary,
                     '& fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused fieldset': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                   },
                 }}
@@ -374,25 +369,25 @@ export default function ContactsPage() {
             </Grid>
             <Grid item xs={12} sm={6} md={2}>
               <FormControl fullWidth size="small">
-                <InputLabel sx={{ color: '#B0B0B0' }}>Status</InputLabel>
+                <InputLabel sx={{ color: theme.palette.text.secondary }}>Status</InputLabel>
                 <Select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                   label="Status"
                   sx={{
-                    color: '#E0E0E0',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
                     '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                     '& .MuiSvgIcon-root': {
-                      color: '#00E5FF',
+                      color: theme.palette.text.primary,
                     },
                   }}
                 >
@@ -405,25 +400,25 @@ export default function ContactsPage() {
             </Grid>
             <Grid item xs={12} sm={6} md={2}>
               <FormControl fullWidth size="small">
-                <InputLabel sx={{ color: '#B0B0B0' }}>Lead Status</InputLabel>
+                <InputLabel sx={{ color: theme.palette.text.secondary }}>Lead Status</InputLabel>
                 <Select
                   value={leadStatusFilter}
                   onChange={(e) => setLeadStatusFilter(e.target.value)}
                   label="Lead Status"
                   sx={{
-                    color: '#E0E0E0',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
                     '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                     '& .MuiSvgIcon-root': {
-                      color: '#00E5FF',
+                      color: theme.palette.text.primary,
                     },
                   }}
                 >
@@ -440,25 +435,25 @@ export default function ContactsPage() {
             </Grid>
             <Grid item xs={12} sm={6} md={2}>
               <FormControl fullWidth size="small">
-                <InputLabel sx={{ color: '#B0B0B0' }}>Pipeline Stage</InputLabel>
+                <InputLabel sx={{ color: theme.palette.text.secondary }}>Pipeline Stage</InputLabel>
                 <Select
                   value={pipelineStageFilter}
                   onChange={(e) => setPipelineStageFilter(e.target.value)}
                   label="Pipeline Stage"
                   sx={{
-                    color: '#E0E0E0',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
                     '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                     '& .MuiSvgIcon-root': {
-                      color: '#00E5FF',
+                      color: theme.palette.text.primary,
                     },
                   }}
                 >
@@ -475,25 +470,25 @@ export default function ContactsPage() {
             </Grid>
             <Grid item xs={12} sm={6} md={2}>
               <FormControl fullWidth size="small">
-                <InputLabel sx={{ color: '#B0B0B0' }}>Lead Source</InputLabel>
+                <InputLabel sx={{ color: theme.palette.text.secondary }}>Lead Source</InputLabel>
                 <Select
                   value={leadSourceFilter}
                   onChange={(e) => setLeadSourceFilter(e.target.value)}
                   label="Lead Source"
                   sx={{
-                    color: '#E0E0E0',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
                     '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                     '& .MuiSvgIcon-root': {
-                      color: '#00E5FF',
+                      color: theme.palette.text.primary,
                     },
                   }}
                 >
@@ -512,7 +507,7 @@ export default function ContactsPage() {
               <Typography
                 variant="body2"
                 sx={{
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                   textAlign: { xs: 'left', md: 'right' },
                 }}
               >
@@ -520,12 +515,12 @@ export default function ContactsPage() {
               </Typography>
             </Grid>
           </Grid>
-        </Paper>
+        </Box>
       )}
 
       {contacts.length === 0 && !loading ? (
         <EmptyState
-          icon={<ContactsIcon sx={{ fontSize: 64, color: '#00E5FF' }} />}
+          icon={<ContactsIcon sx={{ fontSize: 64 }} />}
           title="No Contacts"
           description="Get started by creating your first contact"
           actionLabel="Add Contact"

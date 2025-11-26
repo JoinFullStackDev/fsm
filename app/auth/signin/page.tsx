@@ -10,20 +10,19 @@ import {
   Typography,
   Link,
   Alert,
-  Card,
-  CardContent,
-  Collapse,
+  Paper,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 
 export default function SignInPage() {
+  const theme = useTheme();
   const router = useRouter();
   const supabase = createSupabaseClient();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showDebug, setShowDebug] = useState(false);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,154 +171,193 @@ export default function SignInPage() {
   };
 
   return (
-    <Container maxWidth="sm">
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100vh',
-        }}
-      >
-        <Card
+    <Box
+      sx={{
+        minHeight: '100vh',
+        backgroundColor: theme.palette.background.default,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        p: 3,
+      }}
+    >
+      <Container maxWidth="sm">
+        <Paper
           sx={{
             width: '100%',
-            border: '2px solid',
-            borderColor: 'primary.main',
-            backgroundColor: 'background.paper',
-            boxShadow: '0 8px 32px rgba(0, 229, 255, 0.2)',
+            p: 4,
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
+            borderRadius: 2,
           }}
         >
-          <CardContent>
-            <Typography
-              variant="h4"
-              component="h1"
-              gutterBottom
-              align="center"
+          <Typography
+            variant="h4"
+            component="h1"
+            gutterBottom
+            align="center"
+            sx={{
+              fontSize: '1.5rem',
+              fontWeight: 600,
+              color: theme.palette.text.primary,
+              mb: 1,
+            }}
+          >
+            Sign In
+          </Typography>
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary, textAlign: 'center', mb: 3 }}>
+            FullStack Method™ App
+          </Typography>
+
+          {error && (
+            <Alert
+              severity="error"
               sx={{
-                fontWeight: 700,
-                background: '#00E5FF',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                mb: 1,
+                mb: 2,
+                backgroundColor: theme.palette.action.hover,
+                border: `1px solid ${theme.palette.divider}`,
+                color: theme.palette.text.primary,
               }}
             >
-              Sign In
-            </Typography>
-            <Typography variant="body2" sx={{ color: 'text.secondary', align: 'center', mb: 3 }}>
-              FullStack Method™ App
-            </Typography>
+              {error}
+              {error.includes('confirm your email') && (
+                <Box sx={{ mt: 1 }}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={async () => {
+                      const { error: resendError } = await supabase.auth.resend({
+                        type: 'signup',
+                        email: email,
+                      });
+                      if (resendError) {
+                        setError('Failed to resend confirmation email: ' + resendError.message);
+                      } else {
+                        setError('Confirmation email sent! Please check your inbox.');
+                      }
+                    }}
+                    sx={{
+                      borderColor: theme.palette.text.primary,
+                      color: theme.palette.text.primary,
+                      '&:hover': {
+                        borderColor: theme.palette.text.primary,
+                        backgroundColor: theme.palette.action.hover,
+                      },
+                    }}
+                  >
+                    Resend Confirmation Email
+                  </Button>
+                </Box>
+              )}
+            </Alert>
+          )}
 
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error}
-                {error.includes('confirm your email') && (
-                  <Box sx={{ mt: 1 }}>
-                    <Button
-                      size="small"
-                      onClick={async () => {
-                        const { error: resendError } = await supabase.auth.resend({
-                          type: 'signup',
-                          email: email,
-                        });
-                        if (resendError) {
-                          setError('Failed to resend confirmation email: ' + resendError.message);
-                        } else {
-                          setError('Confirmation email sent! Please check your inbox.');
-                        }
-                      }}
-                    >
-                      Resend Confirmation Email
-                    </Button>
-                  </Box>
-                )}
-              </Alert>
-            )}
-
-            <Box component="form" onSubmit={handleSignIn}>
-              <TextField
-                fullWidth
-                label="Email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                margin="normal"
-                autoComplete="email"
-              />
-              <TextField
-                fullWidth
-                label="Password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                margin="normal"
-                autoComplete="current-password"
-              />
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
+          <Box component="form" onSubmit={handleSignIn}>
+            <TextField
+              fullWidth
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              margin="normal"
+              autoComplete="email"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: theme.palette.action.hover,
+                  color: theme.palette.text.primary,
+                  '& fieldset': {
+                    borderColor: theme.palette.divider,
+                  },
+                  '&:hover fieldset': {
+                    borderColor: theme.palette.text.secondary,
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: theme.palette.text.primary,
+                  },
+                },
+                '& .MuiInputLabel-root': {
+                  color: theme.palette.text.secondary,
+                },
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: theme.palette.text.primary,
+                },
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              margin="normal"
+              autoComplete="current-password"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  backgroundColor: theme.palette.action.hover,
+                  color: theme.palette.text.primary,
+                  '& fieldset': {
+                    borderColor: theme.palette.divider,
+                  },
+                  '&:hover fieldset': {
+                    borderColor: theme.palette.text.secondary,
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: theme.palette.text.primary,
+                  },
+                },
+                '& .MuiInputLabel-root': {
+                  color: theme.palette.text.secondary,
+                },
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: theme.palette.text.primary,
+                },
+              }}
+            />
+            <Button
+              type="submit"
+              fullWidth
+              variant="outlined"
+              sx={{
+                mt: 3,
+                mb: 2,
+                borderColor: theme.palette.text.primary,
+                color: theme.palette.text.primary,
+                fontWeight: 600,
+                py: 1.5,
+                fontSize: '1.1rem',
+                '&:hover': {
+                  borderColor: theme.palette.text.primary,
+                  backgroundColor: theme.palette.action.hover,
+                },
+                '&.Mui-disabled': {
+                  borderColor: theme.palette.divider,
+                  color: theme.palette.text.secondary,
+                },
+              }}
+              disabled={loading}
+            >
+              {loading ? 'Signing in...' : 'Sign In'}
+            </Button>
+            <Typography variant="body2" align="center" sx={{ mt: 2, color: theme.palette.text.secondary }}>
+              <Link
+                href="/auth/forgot-password"
+                underline="hover"
                 sx={{
-                  mt: 3,
-                  mb: 2,
-                  backgroundColor: 'primary.main',
-                  color: 'primary.contrastText',
-                  fontWeight: 600,
-                  py: 1.5,
-                  fontSize: '1.1rem',
+                  color: theme.palette.text.primary,
                   '&:hover': {
-                    backgroundColor: 'primary.dark',
-                    boxShadow: '0 6px 25px rgba(0, 229, 255, 0.5)',
-                    transform: 'translateY(-2px)',
+                    color: theme.palette.text.secondary,
                   },
                 }}
-                disabled={loading}
               >
-                {loading ? 'Signing in...' : 'Sign In'}
-              </Button>
-              <Typography variant="body2" align="center" sx={{ mb: 1 }}>
-                <Link href="/auth/forgot-password" underline="hover">
-                  Forgot password?
-                </Link>
-              </Typography>
-              <Typography variant="body2" align="center">
-                Don&apos;t have an account?{' '}
-                <Link href="/auth/signup" underline="hover">
-                  Sign up
-                </Link>
-              </Typography>
-              <Box sx={{ mt: 2, textAlign: 'center' }}>
-                <Button
-                  size="small"
-                  onClick={() => setShowDebug(!showDebug)}
-                  sx={{ textTransform: 'none' }}
-                >
-                  {showDebug ? 'Hide' : 'Show'} Debug Info
-                </Button>
-              </Box>
-              <Collapse in={showDebug}>
-                <Alert severity="info" sx={{ mt: 2 }}>
-                  <Typography variant="caption" component="div">
-                    <strong>Debug Information:</strong>
-                    <br />
-                    • Check Supabase Dashboard → Authentication → Settings
-                    <br />
-                    • Ensure &quot;Enable email confirmations&quot; matches your setup
-                    <br />
-                    • Verify the `create_user_record` function exists in your database
-                    <br />
-                    • Check browser console for detailed error messages
-                  </Typography>
-                </Alert>
-              </Collapse>
-            </Box>
-          </CardContent>
-        </Card>
-      </Box>
-    </Container>
+                Forgot password?
+              </Link>
+            </Typography>
+          </Box>
+        </Paper>
+      </Container>
+    </Box>
   );
 }
 

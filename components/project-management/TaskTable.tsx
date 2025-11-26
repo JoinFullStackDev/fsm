@@ -27,6 +27,7 @@ import {
   Button,
   CircularProgress,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { format, parseISO } from 'date-fns';
 import {
   MoreVert as MoreVertIcon,
@@ -62,6 +63,7 @@ export default function TaskTable({
   projectMembers = [],
   phaseNames = {},
 }: TaskTableProps) {
+  const theme = useTheme();
   // Merge provided phase names with defaults
   const getPhaseName = (phaseNumber: number | null): string => {
     if (!phaseNumber) return 'Unassigned';
@@ -181,13 +183,14 @@ export default function TaskTable({
     return (
       <TableCell
         sx={{
-          backgroundColor: '#000',
-          color: '#00E5FF',
+          backgroundColor: theme.palette.background.paper,
+          color: theme.palette.text.primary,
           fontWeight: 600,
           cursor: 'pointer',
           userSelect: 'none',
+          borderBottom: `1px solid ${theme.palette.divider}`,
           '&:hover': {
-            backgroundColor: 'rgba(0, 229, 255, 0.1)',
+            backgroundColor: theme.palette.action.hover,
           },
         }}
         onClick={() => handleSort(field)}
@@ -198,14 +201,14 @@ export default function TaskTable({
             <ArrowUpwardIcon
               sx={{
                 fontSize: 14,
-                color: isActive && direction === 'asc' ? '#00E5FF' : 'rgba(176, 176, 176, 0.3)',
+                color: isActive && direction === 'asc' ? theme.palette.text.primary : theme.palette.text.secondary,
                 opacity: isActive && direction === 'asc' ? 1 : 0.5,
               }}
             />
             <ArrowDownwardIcon
               sx={{
                 fontSize: 14,
-                color: isActive && direction === 'desc' ? '#00E5FF' : 'rgba(176, 176, 176, 0.3)',
+                color: isActive && direction === 'desc' ? theme.palette.text.primary : theme.palette.text.secondary,
                 opacity: isActive && direction === 'desc' ? 1 : 0.5,
                 mt: -0.5,
               }}
@@ -321,47 +324,47 @@ export default function TaskTable({
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon sx={{ color: '#00E5FF' }} />
+                  <SearchIcon sx={{ color: theme.palette.text.primary }} />
                 </InputAdornment>
               ),
             }}
             sx={{
               flex: { xs: '1 1 100%', sm: '0 0 300px' },
               '& .MuiOutlinedInput-root': {
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                color: '#E0E0E0',
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
                 '& fieldset': {
-                  borderColor: 'rgba(0, 229, 255, 0.3)',
+                  borderColor: theme.palette.divider,
                 },
                 '&:hover fieldset': {
-                  borderColor: 'rgba(0, 229, 255, 0.5)',
+                  borderColor: theme.palette.text.secondary,
                 },
                 '&.Mui-focused fieldset': {
-                  borderColor: '#00E5FF',
+                  borderColor: theme.palette.text.primary,
                 },
               },
             }}
           />
           <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel sx={{ color: '#B0B0B0' }}>Status</InputLabel>
+            <InputLabel sx={{ color: theme.palette.text.secondary }}>Status</InputLabel>
             <Select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as TaskStatus | 'all')}
               label="Status"
               sx={{
-                color: '#E0E0E0',
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                color: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
                 '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'rgba(0, 229, 255, 0.3)',
+                  borderColor: theme.palette.divider,
                 },
                 '&:hover .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'rgba(0, 229, 255, 0.5)',
+                  borderColor: theme.palette.text.secondary,
                 },
                 '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#00E5FF',
+                  borderColor: theme.palette.text.primary,
                 },
                 '& .MuiSvgIcon-root': {
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                 },
               }}
             >
@@ -373,25 +376,25 @@ export default function TaskTable({
             </Select>
           </FormControl>
           <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel sx={{ color: '#B0B0B0' }}>Phase</InputLabel>
+            <InputLabel sx={{ color: theme.palette.text.secondary }}>Phase</InputLabel>
             <Select
               value={phaseFilter}
               onChange={(e) => setPhaseFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
               label="Phase"
               sx={{
-                color: '#E0E0E0',
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                color: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
                 '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'rgba(0, 229, 255, 0.3)',
+                  borderColor: theme.palette.divider,
                 },
                 '&:hover .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'rgba(0, 229, 255, 0.5)',
+                  borderColor: theme.palette.text.secondary,
                 },
                 '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#00E5FF',
+                  borderColor: theme.palette.text.primary,
                 },
                 '& .MuiSvgIcon-root': {
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                 },
               }}
             >
@@ -406,25 +409,25 @@ export default function TaskTable({
             </Select>
           </FormControl>
           <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel sx={{ color: '#B0B0B0' }}>Priority</InputLabel>
+            <InputLabel sx={{ color: theme.palette.text.secondary }}>Priority</InputLabel>
             <Select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value as TaskPriority | 'all')}
               label="Priority"
               sx={{
-                color: '#E0E0E0',
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                color: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
                 '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'rgba(0, 229, 255, 0.3)',
+                  borderColor: theme.palette.divider,
                 },
                 '&:hover .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'rgba(0, 229, 255, 0.5)',
+                  borderColor: theme.palette.text.secondary,
                 },
                 '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#00E5FF',
+                  borderColor: theme.palette.text.primary,
                 },
                 '& .MuiSvgIcon-root': {
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                 },
               }}
             >
@@ -440,22 +443,23 @@ export default function TaskTable({
           <Tooltip title="Column visibility">
             <IconButton
               onClick={(e) => setColumnMenuAnchor(e.currentTarget)}
-              sx={{ color: '#00E5FF' }}
+              sx={{ color: theme.palette.text.primary }}
               aria-label="Toggle column visibility"
             >
               <ViewColumnIcon />
             </IconButton>
           </Tooltip>
           <Button
-            variant="contained"
+            variant="outlined"
             startIcon={<AddIcon />}
             onClick={() => onTaskClick({} as ProjectTask)}
             sx={{
-              backgroundColor: '#00E5FF',
-              color: '#000',
+              borderColor: theme.palette.text.primary,
+              color: theme.palette.text.primary,
               fontWeight: 600,
               '&:hover': {
-                backgroundColor: '#00B2CC',
+                borderColor: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
               },
             }}
           >
@@ -488,8 +492,8 @@ export default function TaskTable({
         onClose={handleActionMenuClose}
         PaperProps={{
           sx: {
-            backgroundColor: '#000',
-            border: '2px solid rgba(0, 229, 255, 0.2)',
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
           },
         }}
       >
@@ -501,9 +505,9 @@ export default function TaskTable({
             handleActionMenuClose();
           }}
           sx={{
-            color: '#E0E0E0',
+            color: theme.palette.text.primary,
             '&:hover': {
-              backgroundColor: 'rgba(0, 229, 255, 0.1)',
+              backgroundColor: theme.palette.action.hover,
             },
           }}
         >
@@ -513,9 +517,9 @@ export default function TaskTable({
           <MenuItem
             onClick={handleDeleteTask}
             sx={{
-              color: '#FF6B6B',
+              color: theme.palette.text.primary,
               '&:hover': {
-                backgroundColor: 'rgba(255, 107, 107, 0.1)',
+                backgroundColor: theme.palette.action.hover,
               },
             }}
           >
@@ -529,21 +533,21 @@ export default function TaskTable({
       <TableContainer
         component={Paper}
         sx={{
-          backgroundColor: '#000',
-          border: '2px solid rgba(0, 229, 255, 0.2)',
+          backgroundColor: theme.palette.background.paper,
+          border: `1px solid ${theme.palette.divider}`,
           borderRadius: 2,
           maxHeight: 'calc(100vh - 300px)',
           overflow: 'auto',
         }}
       >
         <Table stickyHeader size="small">
-          <TableHead sx={{ backgroundColor: '#000' }}>
+          <TableHead sx={{ backgroundColor: theme.palette.background.paper }}>
             <TableRow>
               {visibleColumns.status && (
                 <SortableHeader field="status" label="Status" />
               )}
               {visibleColumns.title && (
-                <TableCell sx={{ backgroundColor: '#000', color: '#00E5FF', fontWeight: 600, minWidth: 300 }}>
+                <TableCell sx={{ backgroundColor: theme.palette.background.paper, color: theme.palette.text.primary, fontWeight: 600, minWidth: 300, borderBottom: `1px solid ${theme.palette.divider}` }}>
                   Title
                 </TableCell>
               )}
@@ -562,7 +566,7 @@ export default function TaskTable({
               {visibleColumns.dueDate && (
                 <SortableHeader field="due_date" label="Due Date" />
               )}
-              <TableCell sx={{ backgroundColor: '#000', color: '#00E5FF', fontWeight: 600, width: 50 }}>
+              <TableCell sx={{ backgroundColor: theme.palette.background.paper, color: theme.palette.text.primary, fontWeight: 600, width: 50, borderBottom: `1px solid ${theme.palette.divider}` }}>
                 Actions
               </TableCell>
             </TableRow>
@@ -596,8 +600,9 @@ export default function TaskTable({
                   onClick={() => onTaskClick(task)}
                   sx={{
                     cursor: 'pointer',
+                    borderBottom: `1px solid ${theme.palette.divider}`,
                     '&:hover': {
-                      backgroundColor: 'rgba(0, 229, 255, 0.05)',
+                      backgroundColor: theme.palette.action.hover,
                     },
                   }}
                 >
@@ -611,13 +616,13 @@ export default function TaskTable({
                             onBlur={() => setEditingField(null)}
                             autoFocus
                             sx={{
-                              color: '#E0E0E0',
-                              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                              color: theme.palette.text.primary,
+                              backgroundColor: theme.palette.action.hover,
                               '& .MuiOutlinedInput-notchedOutline': {
-                                borderColor: '#00E5FF',
+                                borderColor: theme.palette.divider,
                               },
                               '& .MuiSvgIcon-root': {
-                                color: '#00E5FF',
+                                color: theme.palette.text.primary,
                               },
                             }}
                           >
@@ -652,11 +657,11 @@ export default function TaskTable({
                   )}
                   {visibleColumns.title && (
                     <TableCell>
-                      <Typography variant="body2" sx={{ color: '#E0E0E0', fontWeight: 500 }}>
+                      <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontWeight: 500 }}>
                         {task.title}
                       </Typography>
                       {task.description && (
-                        <Typography variant="caption" sx={{ color: '#B0B0B0', display: 'block', mt: 0.5 }}>
+                        <Typography variant="caption" sx={{ color: theme.palette.text.secondary, display: 'block', mt: 0.5 }}>
                           {task.description.substring(0, 60)}
                           {task.description.length > 60 ? '...' : ''}
                         </Typography>
@@ -670,13 +675,13 @@ export default function TaskTable({
                           label={getPhaseName(task.phase_number)}
                           size="small"
                           sx={{
-                            backgroundColor: 'rgba(0, 229, 255, 0.15)',
-                            color: '#00E5FF',
-                            border: '1px solid rgba(0, 229, 255, 0.3)',
+                            backgroundColor: theme.palette.action.hover,
+                            color: theme.palette.text.primary,
+                            border: `1px solid ${theme.palette.divider}`,
                           }}
                         />
                       ) : (
-                        <Typography variant="body2" sx={{ color: '#B0B0B0' }}>
+                        <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
                           -
                         </Typography>
                       )}
@@ -692,13 +697,13 @@ export default function TaskTable({
                             onBlur={() => setEditingField(null)}
                             autoFocus
                             sx={{
-                              color: '#E0E0E0',
-                              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                              color: theme.palette.text.primary,
+                              backgroundColor: theme.palette.action.hover,
                               '& .MuiOutlinedInput-notchedOutline': {
-                                borderColor: '#00E5FF',
+                                borderColor: theme.palette.divider,
                               },
                               '& .MuiSvgIcon-root': {
-                                color: '#00E5FF',
+                                color: theme.palette.text.primary,
                               },
                             }}
                           >
@@ -738,13 +743,13 @@ export default function TaskTable({
                             autoFocus
                             displayEmpty
                             sx={{
-                              color: '#E0E0E0',
-                              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                              color: theme.palette.text.primary,
+                              backgroundColor: theme.palette.action.hover,
                               '& .MuiOutlinedInput-notchedOutline': {
-                                borderColor: '#00E5FF',
+                                borderColor: theme.palette.divider,
                               },
                               '& .MuiSvgIcon-root': {
-                                color: '#00E5FF',
+                                color: theme.palette.text.primary,
                               },
                             }}
                           >
@@ -792,16 +797,16 @@ export default function TaskTable({
                               >
                                 {((task as ProjectTaskExtended).assignee?.name || (task as ProjectTaskExtended).assignee?.email || 'U').substring(0, 2).toUpperCase()}
                               </Avatar>
-                              <Typography variant="body2" sx={{ color: '#E0E0E0' }}>
+                              <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
                                 {(task as ProjectTaskExtended).assignee?.name || (task as ProjectTaskExtended).assignee?.email || 'Unknown'}
                               </Typography>
                             </>
                           ) : task.assignee_id ? (
-                            <Avatar sx={{ width: 24, height: 24, fontSize: '0.75rem' }}>
+                            <Avatar sx={{ width: 24, height: 24, fontSize: '0.75rem', bgcolor: theme.palette.text.primary, color: theme.palette.background.default }}>
                               {task.assignee_id.substring(0, 2).toUpperCase()}
                             </Avatar>
                           ) : (
-                            <Typography variant="body2" sx={{ color: '#B0B0B0' }}>
+                            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
                               Unassigned
                             </Typography>
                           )}
@@ -832,16 +837,16 @@ export default function TaskTable({
                           }}
                           sx={{
                             '& .MuiOutlinedInput-root': {
-                              color: '#E0E0E0',
-                              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                              color: theme.palette.text.primary,
+                              backgroundColor: theme.palette.action.hover,
                               '& fieldset': {
-                                borderColor: '#00E5FF',
+                                borderColor: theme.palette.divider,
                               },
                               '&:hover fieldset': {
-                                borderColor: '#00E5FF',
+                                borderColor: theme.palette.text.secondary,
                               },
                               '&.Mui-focused fieldset': {
-                                borderColor: '#00E5FF',
+                                borderColor: theme.palette.text.primary,
                               },
                             },
                           }}
@@ -850,7 +855,7 @@ export default function TaskTable({
                         <Typography
                           variant="body2"
                           sx={{
-                            color: task.start_date && new Date(task.start_date) > new Date() ? '#FFA726' : '#E0E0E0',
+                            color: theme.palette.text.primary,
                             cursor: 'pointer',
                             '&:hover': {
                               opacity: 0.8,
@@ -889,16 +894,16 @@ export default function TaskTable({
                           }}
                           sx={{
                             '& .MuiOutlinedInput-root': {
-                              color: '#E0E0E0',
-                              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                              color: theme.palette.text.primary,
+                              backgroundColor: theme.palette.action.hover,
                               '& fieldset': {
-                                borderColor: '#00E5FF',
+                                borderColor: theme.palette.divider,
                               },
                               '&:hover fieldset': {
-                                borderColor: '#00E5FF',
+                                borderColor: theme.palette.text.secondary,
                               },
                               '&.Mui-focused fieldset': {
-                                borderColor: '#00E5FF',
+                                borderColor: theme.palette.text.primary,
                               },
                             },
                           }}
@@ -907,7 +912,7 @@ export default function TaskTable({
                         <Typography
                           variant="body2"
                           sx={{
-                            color: task.due_date && new Date(task.due_date) < new Date() ? '#FF6B6B' : '#E0E0E0',
+                            color: theme.palette.text.primary,
                             cursor: 'pointer',
                             '&:hover': {
                               opacity: 0.8,
@@ -927,7 +932,7 @@ export default function TaskTable({
                     <IconButton
                       size="small"
                       onClick={(e) => handleActionMenuOpen(e, task)}
-                      sx={{ color: '#00E5FF' }}
+                      sx={{ color: theme.palette.text.primary }}
                       aria-label={`Actions menu for task ${task.title}`}
                     >
                       <MoreVertIcon fontSize="small" />
@@ -942,17 +947,17 @@ export default function TaskTable({
 
       {/* Task Count */}
       <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="body2" sx={{ color: '#B0B0B0' }}>
+        <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
           Showing {filteredAndSortedTasks.length} of {tasks.length} tasks
         </Typography>
         <Box sx={{ display: 'flex', gap: 2 }}>
-          <Typography variant="body2" sx={{ color: '#B0B0B0' }}>
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
             To Do: {tasks.filter((t) => t.status === 'todo').length}
           </Typography>
-          <Typography variant="body2" sx={{ color: '#B0B0B0' }}>
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
             In Progress: {tasks.filter((t) => t.status === 'in_progress').length}
           </Typography>
-          <Typography variant="body2" sx={{ color: '#B0B0B0' }}>
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
             Done: {tasks.filter((t) => t.status === 'done').length}
           </Typography>
         </Box>

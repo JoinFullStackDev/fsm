@@ -6,8 +6,7 @@ import {
   Box,
   Typography,
   Button,
-  Card,
-  CardContent,
+  Paper,
   Grid,
   Chip,
   Alert,
@@ -242,9 +241,7 @@ export default function DashboardPage() {
             component="h1"
             sx={{
               fontWeight: 700,
-              background: '#00E5FF',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
+              color: theme.palette.text.primary,
             }}
           >
             Dashboard
@@ -254,12 +251,11 @@ export default function DashboardPage() {
             startIcon={<AddIcon />}
             onClick={handleCreateProject}
             sx={{
-              backgroundColor: '#00E5FF',
-              color: '#000',
+              backgroundColor: theme.palette.text.primary,
+              color: theme.palette.background.default,
               fontWeight: 600,
               '&:hover': {
-                backgroundColor: '#00B2CC',
-                boxShadow: '0 6px 25px rgba(0, 229, 255, 0.5)',
+                backgroundColor: theme.palette.action.hover,
                 transform: 'translateY(-2px)',
               },
             }}
@@ -273,9 +269,9 @@ export default function DashboardPage() {
             severity="error"
             sx={{
               mb: 3,
-              backgroundColor: 'rgba(255, 23, 68, 0.1)',
-              border: '1px solid rgba(255, 23, 68, 0.3)',
-              color: '#FF1744',
+              backgroundColor: theme.palette.action.hover,
+              border: `1px solid ${theme.palette.divider}`,
+              color: theme.palette.text.primary,
             }}
           >
             {error}
@@ -285,217 +281,145 @@ export default function DashboardPage() {
         {/* Stats Cards */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={12} sm={6} md={3}>
-            <Card
+            <Paper
               sx={{
-                backgroundColor: '#000',
-                border: '2px solid rgba(0, 229, 255, 0.2)',
-                borderRadius: 2,
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
+                p: 2,
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
               }}
             >
-              <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
-                  <Box>
-                    <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 1 }}>
-                      Total Projects
-                    </Typography>
-                    <Typography variant="h4" sx={{ color: '#00E5FF', fontWeight: 700 }}>
-                      {stats.total}
-                    </Typography>
-                  </Box>
-                  <FolderIcon sx={{ fontSize: 40, color: '#00E5FF', opacity: 0.5 }} />
-                </Box>
-              </CardContent>
-            </Card>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+                Total Projects
+              </Typography>
+              <Typography variant="h4" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+                {stats.total}
+              </Typography>
+            </Paper>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card
+            <Paper
               sx={{
-                backgroundColor: '#000',
-                border: '2px solid rgba(0, 229, 255, 0.2)',
-                borderRadius: 2,
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
+                p: 2,
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
               }}
             >
-              <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
-                  <Box>
-                    <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 1 }}>
-                      Total Tasks
-                    </Typography>
-                    <Typography variant="h4" sx={{ color: '#00E5FF', fontWeight: 700 }}>
-                      {stats.totalTasks}
-                    </Typography>
-                  </Box>
-                  <AssignmentIcon sx={{ fontSize: 40, color: '#00E5FF', opacity: 0.5 }} />
-                </Box>
-              </CardContent>
-            </Card>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+                Total Tasks
+              </Typography>
+              <Typography variant="h4" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+                {stats.totalTasks}
+              </Typography>
+            </Paper>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card
+            <Paper
               sx={{
-                backgroundColor: '#000',
-                border: '2px solid rgba(0, 229, 255, 0.2)',
-                borderRadius: 2,
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
+                p: 2,
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
               }}
             >
-              <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
-                  <Box>
-                    <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 1 }}>
-                      Completion Rate
-                    </Typography>
-                    <Typography variant="h4" sx={{ color: '#00FF88', fontWeight: 700 }}>
-                      {completionRate}%
-                    </Typography>
-                  </Box>
-                  <CheckCircleIcon sx={{ fontSize: 40, color: '#00FF88', opacity: 0.5 }} />
-                </Box>
-              </CardContent>
-            </Card>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+                Completion Rate
+              </Typography>
+              <Typography variant="h5" sx={{ color: '#4CAF50', fontWeight: 600 }}>
+                {completionRate}%
+              </Typography>
+            </Paper>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card
+            <Paper
               sx={{
-                backgroundColor: '#000',
-                border: '2px solid rgba(0, 229, 255, 0.2)',
-                borderRadius: 2,
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
+                p: 2,
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
               }}
             >
-              <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
-                  <Box>
-                    <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 1 }}>
-                      Team Members
-                    </Typography>
-                    <Typography variant="h4" sx={{ color: '#00E5FF', fontWeight: 700 }}>
-                      {stats.teamMembers}
-                    </Typography>
-                  </Box>
-                  <PeopleIcon sx={{ fontSize: 40, color: '#00E5FF', opacity: 0.5 }} />
-                </Box>
-              </CardContent>
-            </Card>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+                Team Members
+              </Typography>
+              <Typography variant="h4" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+                {stats.teamMembers}
+              </Typography>
+            </Paper>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card
+            <Paper
               sx={{
-                backgroundColor: '#000',
-                border: '2px solid rgba(0, 229, 255, 0.2)',
-                borderRadius: 2,
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
+                p: 2,
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
               }}
             >
-              <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
-                  <Box>
-                    <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 1 }}>
-                      In Progress Tasks
-                    </Typography>
-                    <Typography variant="h4" sx={{ color: '#00E5FF', fontWeight: 700 }}>
-                      {stats.inProgressTasks}
-                    </Typography>
-                  </Box>
-                  <TrendingUpIcon sx={{ fontSize: 40, color: '#00E5FF', opacity: 0.5 }} />
-                </Box>
-              </CardContent>
-            </Card>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+                In Progress Tasks
+              </Typography>
+              <Typography variant="h4" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+                {stats.inProgressTasks}
+              </Typography>
+            </Paper>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card
+            <Paper
               sx={{
-                backgroundColor: '#000',
-                border: '2px solid rgba(0, 229, 255, 0.2)',
-                borderRadius: 2,
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
+                p: 2,
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
               }}
             >
-              <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
-                  <Box>
-                    <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 1 }}>
-                      Completed Tasks
-                    </Typography>
-                    <Typography variant="h4" sx={{ color: '#00FF88', fontWeight: 700 }}>
-                      {stats.completedTasks}
-                    </Typography>
-                  </Box>
-                  <CheckCircleIcon sx={{ fontSize: 40, color: '#00FF88', opacity: 0.5 }} />
-                </Box>
-              </CardContent>
-            </Card>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+                Completed Tasks
+              </Typography>
+              <Typography variant="h5" sx={{ color: '#4CAF50', fontWeight: 600 }}>
+                {stats.completedTasks}
+              </Typography>
+            </Paper>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card
+            <Paper
               sx={{
-                backgroundColor: '#000',
-                border: '2px solid rgba(0, 229, 255, 0.2)',
-                borderRadius: 2,
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
+                p: 2,
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
               }}
             >
-              <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
-                  <Box>
-                    <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 1 }}>
-                      To Do Tasks
-                    </Typography>
-                    <Typography variant="h4" sx={{ color: '#B0B0B0', fontWeight: 700 }}>
-                      {stats.todoTasks}
-                    </Typography>
-                  </Box>
-                  <ScheduleIcon sx={{ fontSize: 40, color: '#B0B0B0', opacity: 0.5 }} />
-                </Box>
-              </CardContent>
-            </Card>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+                To Do Tasks
+              </Typography>
+              <Typography variant="h4" sx={{ color: theme.palette.text.secondary, fontWeight: 600 }}>
+                {stats.todoTasks}
+              </Typography>
+            </Paper>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Card
+            <Paper
               sx={{
-                backgroundColor: '#000',
-                border: '2px solid rgba(0, 229, 255, 0.2)',
-                borderRadius: 2,
-                height: '100%',
+                p: 2,
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
                 display: 'flex',
-                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  onClick={handleViewProjects}
-                  sx={{
-                    borderColor: '#00E5FF',
-                    color: '#00E5FF',
-                    py: 2,
-                    '&:hover': {
-                      borderColor: '#00E5FF',
-                      backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                    },
-                  }}
-                >
-                  View All Projects
-                </Button>
-              </CardContent>
-            </Card>
+              <Button
+                fullWidth
+                variant="outlined"
+                onClick={handleViewProjects}
+                sx={{
+                  borderColor: theme.palette.text.primary,
+                  color: theme.palette.text.primary,
+                  py: 1.5,
+                  '&:hover': {
+                    borderColor: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+              >
+                View All Projects
+              </Button>
+            </Paper>
           </Grid>
         </Grid>
 
@@ -504,7 +428,7 @@ export default function DashboardPage() {
           <Typography
             variant="h6"
             sx={{
-              color: '#00E5FF',
+              color: theme.palette.text.primary,
               fontWeight: 600,
               mb: 2,
             }}
@@ -513,97 +437,88 @@ export default function DashboardPage() {
           </Typography>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6} md={4}>
-              <Card
+              <Paper
                 sx={{
-                  backgroundColor: '#000',
-                  border: '2px solid rgba(0, 229, 255, 0.2)',
-                  borderRadius: 2,
+                  p: 2,
+                  backgroundColor: theme.palette.background.paper,
+                  border: `1px solid ${theme.palette.divider}`,
                   cursor: 'pointer',
                   transition: 'all 0.3s',
                   '&:hover': {
-                    borderColor: '#00E5FF',
-                    transform: 'translateY(-2px)',
-                    boxShadow: '0 4px 20px rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
                   },
                 }}
                 onClick={() => router.push('/ops/companies')}
               >
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <BusinessIcon sx={{ fontSize: 32, color: '#00E5FF' }} />
-                    <Box>
-                      <Typography variant="h6" sx={{ color: '#E0E0E0', fontWeight: 600 }}>
-                        Companies
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: '#B0B0B0' }}>
-                        Manage companies and clients
-                      </Typography>
-                    </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <BusinessIcon sx={{ fontSize: 32, color: theme.palette.text.primary }} />
+                  <Box>
+                    <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+                      Companies
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                      Manage companies and clients
+                    </Typography>
                   </Box>
-                </CardContent>
-              </Card>
+                </Box>
+              </Paper>
             </Grid>
             <Grid item xs={12} sm={6} md={4}>
-              <Card
+              <Paper
                 sx={{
-                  backgroundColor: '#000',
-                  border: '2px solid rgba(0, 229, 255, 0.2)',
-                  borderRadius: 2,
+                  p: 2,
+                  backgroundColor: theme.palette.background.paper,
+                  border: `1px solid ${theme.palette.divider}`,
                   cursor: 'pointer',
                   transition: 'all 0.3s',
                   '&:hover': {
-                    borderColor: '#00E5FF',
-                    transform: 'translateY(-2px)',
-                    boxShadow: '0 4px 20px rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
                   },
                 }}
                 onClick={() => router.push('/ops/opportunities')}
               >
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <WorkIcon sx={{ fontSize: 32, color: '#00E5FF' }} />
-                    <Box>
-                      <Typography variant="h6" sx={{ color: '#E0E0E0', fontWeight: 600 }}>
-                        Opportunities
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: '#B0B0B0' }}>
-                        Track sales opportunities
-                      </Typography>
-                    </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <WorkIcon sx={{ fontSize: 32, color: theme.palette.text.primary }} />
+                  <Box>
+                    <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+                      Opportunities
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                      Track sales opportunities
+                    </Typography>
                   </Box>
-                </CardContent>
-              </Card>
+                </Box>
+              </Paper>
             </Grid>
             <Grid item xs={12} sm={6} md={4}>
-              <Card
+              <Paper
                 sx={{
-                  backgroundColor: '#000',
-                  border: '2px solid rgba(0, 229, 255, 0.2)',
-                  borderRadius: 2,
+                  p: 2,
+                  backgroundColor: theme.palette.background.paper,
+                  border: `1px solid ${theme.palette.divider}`,
                   cursor: 'pointer',
                   transition: 'all 0.3s',
                   '&:hover': {
-                    borderColor: '#00E5FF',
-                    transform: 'translateY(-2px)',
-                    boxShadow: '0 4px 20px rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
                   },
                 }}
                 onClick={() => router.push('/ops/contacts')}
               >
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <ContactsIcon sx={{ fontSize: 32, color: '#00E5FF' }} />
-                    <Box>
-                      <Typography variant="h6" sx={{ color: '#E0E0E0', fontWeight: 600 }}>
-                        Contacts
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: '#B0B0B0' }}>
-                        Manage company contacts
-                      </Typography>
-                    </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <ContactsIcon sx={{ fontSize: 32, color: theme.palette.text.primary }} />
+                  <Box>
+                    <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+                      Contacts
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                      Manage company contacts
+                    </Typography>
                   </Box>
-                </CardContent>
-              </Card>
+                </Box>
+              </Paper>
             </Grid>
           </Grid>
         </Box>
@@ -633,13 +548,13 @@ export default function DashboardPage() {
         {stats.recent.length > 0 && (
           <Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6" sx={{ color: '#E0E0E0', fontWeight: 600 }}>
+              <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
                 Recent Projects
               </Typography>
               <Button
                 size="small"
                 onClick={handleViewProjects}
-                sx={{ color: '#00E5FF' }}
+                sx={{ color: theme.palette.text.primary }}
               >
                 View All
               </Button>
@@ -654,7 +569,7 @@ export default function DashboardPage() {
                   render: (value, row) => (
                     <Typography
                       sx={{
-                        color: '#00E5FF',
+                        color: theme.palette.text.primary,
                         fontWeight: 600,
                         cursor: 'pointer',
                         '&:hover': {
@@ -678,7 +593,7 @@ export default function DashboardPage() {
                     <Typography
                       variant="body2"
                       sx={{
-                        color: '#B0B0B0',
+                        color: theme.palette.text.secondary,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         display: '-webkit-box',
@@ -700,25 +615,9 @@ export default function DashboardPage() {
                       label={String(value).replace('_', ' ')}
                       size="small"
                       sx={{
-                        backgroundColor:
-                          value === 'blueprint_ready'
-                            ? 'rgba(0, 255, 136, 0.15)'
-                            : value === 'in_progress'
-                            ? 'rgba(0, 229, 255, 0.15)'
-                            : 'rgba(176, 176, 176, 0.15)',
-                        color:
-                          value === 'blueprint_ready'
-                            ? '#00FF88'
-                            : value === 'in_progress'
-                            ? '#00E5FF'
-                            : '#B0B0B0',
-                        border: `1px solid ${
-                          value === 'blueprint_ready'
-                            ? 'rgba(0, 255, 136, 0.3)'
-                            : value === 'in_progress'
-                            ? 'rgba(0, 229, 255, 0.3)'
-                            : 'rgba(176, 176, 176, 0.3)'
-                        }`,
+                        backgroundColor: theme.palette.action.hover,
+                        color: theme.palette.text.primary,
+                        border: `1px solid ${theme.palette.divider}`,
                         fontWeight: 500,
                       }}
                     />
@@ -729,7 +628,7 @@ export default function DashboardPage() {
                   label: 'Last Updated',
                   sortable: true,
                   render: (value) => (
-                    <Typography variant="body2" sx={{ color: '#B0B0B0' }}>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
                       {value ? format(new Date(value), 'MMM d, yyyy') : 'Never'}
                     </Typography>
                   ),

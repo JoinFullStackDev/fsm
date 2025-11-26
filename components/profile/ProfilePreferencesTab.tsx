@@ -4,8 +4,6 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   Box,
   Typography,
-  Card,
-  CardContent,
   Button,
   Switch,
   FormControlLabel,
@@ -13,12 +11,14 @@ import {
   Alert,
   Grid,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { Save as SaveIcon } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import type { User, UserPreferences } from '@/types/project';
 
 export default function ProfilePreferencesTab() {
+  const theme = useTheme();
   const supabase = createSupabaseClient();
   const { showSuccess, showError } = useNotification();
   const [loading, setLoading] = useState(true);
@@ -129,7 +129,7 @@ export default function ProfilePreferencesTab() {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-        <CircularProgress />
+        <CircularProgress sx={{ color: theme.palette.text.primary }} />
       </Box>
     );
   }
@@ -137,17 +137,26 @@ export default function ProfilePreferencesTab() {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600 }}>
+        <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
           Preferences
         </Typography>
         <Button
           startIcon={<SaveIcon />}
           onClick={handleSave}
-          variant="contained"
+          variant="outlined"
           disabled={saving}
           sx={{
-            backgroundColor: 'primary.main',
-            color: 'primary.contrastText',
+            borderColor: theme.palette.text.primary,
+            color: theme.palette.text.primary,
+            fontWeight: 600,
+            '&:hover': {
+              borderColor: theme.palette.text.primary,
+              backgroundColor: theme.palette.action.hover,
+            },
+            '&.Mui-disabled': {
+              borderColor: theme.palette.divider,
+              color: theme.palette.text.secondary,
+            },
           }}
         >
           {saving ? 'Saving...' : 'Save Preferences'}
@@ -156,76 +165,104 @@ export default function ProfilePreferencesTab() {
 
       <Grid container spacing={3}>
         <Grid item xs={12}>
-          <Card sx={{ border: '2px solid', borderColor: 'primary.main' }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
-                Notifications
-              </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={preferences.notifications?.email ?? true}
-                      onChange={(e) =>
-                        setPreferences({
-                          ...preferences,
-                          notifications: {
-                            ...preferences.notifications,
-                            email: e.target.checked,
-                          },
-                        })
-                      }
-                    />
-                  }
-                  label="Email Notifications"
-                />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={preferences.notifications?.inApp ?? true}
-                      onChange={(e) =>
-                        setPreferences({
-                          ...preferences,
-                          notifications: {
-                            ...preferences.notifications,
-                            inApp: e.target.checked,
-                          },
-                        })
-                      }
-                    />
-                  }
-                  label="In-App Notifications"
-                />
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12}>
-          <Card sx={{ border: '2px solid', borderColor: 'info.main' }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2, color: 'info.main' }}>
-                AI Settings
-              </Typography>
+          <Box
+            sx={{
+              p: 3,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
+            }}
+          >
+            <Typography variant="h6" sx={{ mb: 2, color: theme.palette.text.primary, fontWeight: 600 }}>
+              Notifications
+            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <FormControlLabel
                 control={
                   <Switch
-                    checked={preferences.ai?.enabled ?? true}
+                    checked={preferences.notifications?.email ?? true}
                     onChange={(e) =>
                       setPreferences({
                         ...preferences,
-                        ai: {
-                          ...preferences.ai,
-                          enabled: e.target.checked,
+                        notifications: {
+                          ...preferences.notifications,
+                          email: e.target.checked,
                         },
                       })
                     }
+                    sx={{
+                      '& .MuiSwitch-switchBase.Mui-checked': {
+                        color: theme.palette.text.primary,
+                      },
+                    }}
                   />
                 }
-                label="Enable AI Suggestions"
+                label="Email Notifications"
+                sx={{ color: theme.palette.text.primary }}
               />
-            </CardContent>
-          </Card>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={preferences.notifications?.inApp ?? true}
+                    onChange={(e) =>
+                      setPreferences({
+                        ...preferences,
+                        notifications: {
+                          ...preferences.notifications,
+                          inApp: e.target.checked,
+                        },
+                      })
+                    }
+                    sx={{
+                      '& .MuiSwitch-switchBase.Mui-checked': {
+                        color: theme.palette.text.primary,
+                      },
+                    }}
+                  />
+                }
+                label="In-App Notifications"
+                sx={{ color: theme.palette.text.primary }}
+              />
+            </Box>
+          </Box>
+        </Grid>
+
+        <Grid item xs={12}>
+          <Box
+            sx={{
+              p: 3,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
+            }}
+          >
+            <Typography variant="h6" sx={{ mb: 2, color: theme.palette.text.primary, fontWeight: 600 }}>
+              AI Settings
+            </Typography>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={preferences.ai?.enabled ?? true}
+                  onChange={(e) =>
+                    setPreferences({
+                      ...preferences,
+                      ai: {
+                        ...preferences.ai,
+                        enabled: e.target.checked,
+                      },
+                    })
+                  }
+                  sx={{
+                    '& .MuiSwitch-switchBase.Mui-checked': {
+                      color: theme.palette.text.primary,
+                    },
+                  }}
+                />
+              }
+              label="Enable AI Suggestions"
+              sx={{ color: theme.palette.text.primary }}
+            />
+          </Box>
         </Grid>
       </Grid>
     </Box>

@@ -36,6 +36,7 @@ import {
   DialogContent,
   Skeleton,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   ArrowBack as ArrowBackIcon,
   Save as SaveIcon,
@@ -57,6 +58,7 @@ import type { TemplateFieldConfig } from '@/types/templates';
 import type { ProjectTemplate, TemplatePhase } from '@/types/project';
 
 export default function TemplateBuilderPage() {
+  const theme = useTheme();
   const router = useRouter();
   const params = useParams();
   const templateId = params.id as string;
@@ -856,170 +858,177 @@ export default function TemplateBuilderPage() {
 
   if (roleLoading) {
     return (
-      <>
-        <Container>
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-            <CircularProgress />
-          </Box>
-        </Container>
-      </>
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+        <CircularProgress sx={{ color: theme.palette.text.primary }} />
+      </Box>
     );
   }
 
   // Allow admins and PMs to access template builder
   if (role !== 'admin' && role !== 'pm') {
     return (
-      <>
-        <Container>
-          <Alert severity="error" sx={{ mt: 4 }}>
-            Access denied. Admin or PM role required.
-          </Alert>
-        </Container>
-      </>
+      <Box sx={{ mt: 4 }}>
+        <Alert 
+          severity="error" 
+          sx={{
+            backgroundColor: theme.palette.action.hover,
+            border: `1px solid ${theme.palette.divider}`,
+            color: theme.palette.text.primary,
+          }}
+        >
+          Access denied. Admin or PM role required.
+        </Alert>
+      </Box>
     );
   }
 
   if (loading) {
     return (
-      <>
-        <Container>
-          <Box sx={{ py: 4 }}>
-            <Skeleton variant="text" width="40%" height={48} sx={{ mb: 3 }} />
-            <Skeleton variant="text" width="60%" height={24} sx={{ mb: 4 }} />
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={8}>
-                <LoadingSkeleton variant="card" count={4} />
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <Paper sx={{ p: 3 }}>
-                  <Skeleton variant="text" width="60%" height={32} sx={{ mb: 2 }} />
-                  <Skeleton variant="rectangular" width="100%" height={200} sx={{ borderRadius: 1 }} />
-                </Paper>
-              </Grid>
-            </Grid>
-          </Box>
-        </Container>
-      </>
+      <Box sx={{ py: 4 }}>
+        <Skeleton variant="text" width="40%" height={48} sx={{ mb: 3 }} />
+        <Skeleton variant="text" width="60%" height={24} sx={{ mb: 4 }} />
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={8}>
+            <LoadingSkeleton variant="card" count={4} />
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Paper sx={{ p: 3, backgroundColor: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}` }}>
+              <Skeleton variant="text" width="60%" height={32} sx={{ mb: 2 }} />
+              <Skeleton variant="rectangular" width="100%" height={200} sx={{ borderRadius: 1 }} />
+            </Paper>
+          </Grid>
+        </Grid>
+      </Box>
     );
   }
 
   if (error || !template) {
     return (
-      <>
-        <Container>
-          <Alert severity="error" sx={{ mt: 4 }}>
-            {error || 'Template not found'}
-          </Alert>
-        </Container>
-      </>
+      <Box sx={{ mt: 4 }}>
+        <Alert 
+          severity="error"
+          sx={{
+            backgroundColor: theme.palette.action.hover,
+            border: `1px solid ${theme.palette.divider}`,
+            color: theme.palette.text.primary,
+          }}
+        >
+          {error || 'Template not found'}
+        </Alert>
+      </Box>
     );
   }
 
   return (
-    <>
-      <Box sx={{ backgroundColor: '#000', minHeight: '100vh', pb: 4 }}>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <Container maxWidth="xl" sx={{ pt: 4 }}>
-            {/* Header */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-              <IconButton
-                onClick={() => router.push('/admin/templates')}
-                sx={{
-                  color: '#00E5FF',
-                  border: '1px solid',
-                  borderColor: '#00E5FF',
-                }}
-              >
-                <ArrowBackIcon />
-              </IconButton>
-              <Typography
-                variant="h4"
-                sx={{
-                  flex: 1,
-                  fontWeight: 700,
-                  background: '#00E5FF',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                }}
-              >
-                Template Builder: {template.name}
-              </Typography>
-              <Button
-                variant="outlined"
-                startIcon={<PreviewIcon />}
-                onClick={() => router.push(`/admin/templates/${templateId}/preview`)}
-                sx={{
-                  borderColor: 'info.main',
-                  color: 'info.main',
-                  '&:hover': {
-                    borderColor: 'info.light',
-                    backgroundColor: 'rgba(33, 150, 243, 0.1)',
-                  },
-                }}
-              >
-                Preview
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<DownloadIcon />}
-                onClick={() => {
-                  window.open(`/admin/templates/${templateId}/export`, '_blank');
-                }}
-                sx={{
-                  borderColor: 'success.main',
-                  color: 'success.main',
-                  '&:hover': {
-                    borderColor: 'success.light',
-                    backgroundColor: 'rgba(76, 175, 80, 0.1)',
-                  },
-                }}
-              >
-                Export
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => setPhaseManagerOpen(true)}
-                sx={{
-                  borderColor: 'primary.main',
-                  color: 'primary.main',
-                  '&:hover': {
-                    borderColor: 'primary.dark',
-                    backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                  },
-                }}
-              >
-                Phase Settings
-              </Button>
-              <Button
-                variant="contained"
-                startIcon={saving ? <CircularProgress size={16} /> : <SaveIcon />}
-                onClick={handleSave}
-                disabled={saving}
-                sx={{
-                  backgroundColor: '#00E5FF',
-                  color: '#000',
-                  fontWeight: 600,
-                  '&:hover': {
-                    backgroundColor: '#00B2CC',
-                  },
-                }}
-              >
-                {saving ? 'Saving...' : 'Save'}
-              </Button>
-            </Box>
+    <Box sx={{ pb: 4 }}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <Container maxWidth="xl" sx={{ pt: 4 }}>
+          {/* Header */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+            <IconButton
+              onClick={() => router.push('/admin/templates')}
+              sx={{
+                color: theme.palette.text.primary,
+                border: `1px solid ${theme.palette.divider}`,
+                '&:hover': {
+                  backgroundColor: theme.palette.action.hover,
+                },
+              }}
+            >
+              <ArrowBackIcon />
+            </IconButton>
+            <Typography
+              variant="h4"
+              component="h1"
+              sx={{
+                flex: 1,
+                fontSize: '1.5rem',
+                fontWeight: 600,
+                color: theme.palette.text.primary,
+              }}
+            >
+              Template Builder: {template.name}
+            </Typography>
+            <Button
+              variant="outlined"
+              startIcon={<PreviewIcon />}
+              onClick={() => router.push(`/admin/templates/${templateId}/preview`)}
+              sx={{
+                borderColor: theme.palette.text.primary,
+                color: theme.palette.text.primary,
+                '&:hover': {
+                  borderColor: theme.palette.text.primary,
+                  backgroundColor: theme.palette.action.hover,
+                },
+              }}
+            >
+              Preview
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              onClick={() => {
+                window.open(`/admin/templates/${templateId}/export`, '_blank');
+              }}
+              sx={{
+                borderColor: theme.palette.text.primary,
+                color: theme.palette.text.primary,
+                '&:hover': {
+                  borderColor: theme.palette.text.primary,
+                  backgroundColor: theme.palette.action.hover,
+                },
+              }}
+            >
+              Export
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => setPhaseManagerOpen(true)}
+              sx={{
+                borderColor: theme.palette.text.primary,
+                color: theme.palette.text.primary,
+                '&:hover': {
+                  borderColor: theme.palette.text.primary,
+                  backgroundColor: theme.palette.action.hover,
+                },
+              }}
+            >
+              Phase Settings
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={saving ? <CircularProgress size={16} sx={{ color: theme.palette.text.primary }} /> : <SaveIcon />}
+              onClick={handleSave}
+              disabled={saving}
+              sx={{
+                borderColor: theme.palette.text.primary,
+                color: theme.palette.text.primary,
+                fontWeight: 600,
+                '&:hover': {
+                  borderColor: theme.palette.text.primary,
+                  backgroundColor: theme.palette.action.hover,
+                },
+                '&.Mui-disabled': {
+                  borderColor: theme.palette.divider,
+                  color: theme.palette.text.secondary,
+                },
+              }}
+            >
+              {saving ? 'Saving...' : 'Save'}
+            </Button>
+          </Box>
 
             {/* Phase Tabs */}
             <Paper
               sx={{
                 mb: 3,
-                backgroundColor: '#000',
-                border: '1px solid',
-                borderColor: 'primary.main',
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
               }}
             >
               <Tabs
@@ -1034,13 +1043,13 @@ export default function TemplateBuilderPage() {
                 scrollButtons="auto"
                 sx={{
                   '& .MuiTab-root': {
-                    color: '#B0B0B0',
+                    color: theme.palette.text.secondary,
                     '&.Mui-selected': {
-                      color: '#00E5FF',
+                      color: theme.palette.text.primary,
                     },
                   },
                   '& .MuiTabs-indicator': {
-                    backgroundColor: '#00E5FF',
+                    backgroundColor: theme.palette.text.primary,
                   },
                 }}
               >
@@ -1100,12 +1109,11 @@ export default function TemplateBuilderPage() {
               <Paper
                 sx={{
                   p: 2,
-                  backgroundColor: 'rgba(0, 229, 255, 0.2)',
-                  border: '2px solid',
-                  borderColor: 'primary.main',
+                  backgroundColor: theme.palette.action.hover,
+                  border: `1px solid ${theme.palette.divider}`,
                 }}
               >
-                <Typography>Dragging...</Typography>
+                <Typography sx={{ color: theme.palette.text.primary }}>Dragging...</Typography>
               </Paper>
             ) : null}
           </DragOverlay>
@@ -1117,8 +1125,16 @@ export default function TemplateBuilderPage() {
           onClose={() => setPhaseManagerOpen(false)}
           maxWidth="md"
           fullWidth
+          PaperProps={{
+            sx: {
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+            },
+          }}
         >
-          <DialogTitle>Phase Management</DialogTitle>
+          <DialogTitle sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+            Phase Management
+          </DialogTitle>
           <DialogContent>
             <PhaseManager
               templateId={templateId}
@@ -1143,8 +1159,7 @@ export default function TemplateBuilderPage() {
           cancelText="Cancel"
           severity="error"
         />
-      </Box>
-    </>
+    </Box>
   );
 }
 

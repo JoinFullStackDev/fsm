@@ -17,6 +17,7 @@ import {
   Alert,
   Paper,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Description as DescriptionIcon,
   Slideshow as SlideshowIcon,
@@ -38,6 +39,7 @@ export default function GenerateReportForm({
   projectName,
   onGenerate,
 }: GenerateReportFormProps) {
+  const theme = useTheme();
   const [reportType, setReportType] = useState<ReportType>('weekly');
   const [format, setFormat] = useState<ReportFormat>('pdf');
   const [forecastDays, setForecastDays] = useState<number>(30);
@@ -74,8 +76,8 @@ export default function GenerateReportForm({
   return (
     <Paper
       sx={{
-        backgroundColor: '#000',
-        border: '1px solid rgba(0, 229, 255, 0.3)',
+        backgroundColor: theme.palette.background.paper,
+        border: `1px solid ${theme.palette.divider}`,
         borderRadius: 2,
         p: 4,
       }}
@@ -83,7 +85,7 @@ export default function GenerateReportForm({
       <Typography
         variant="h5"
         sx={{
-          color: '#00E5FF',
+          color: theme.palette.text.primary,
           fontWeight: 600,
           mb: 4,
         }}
@@ -92,7 +94,7 @@ export default function GenerateReportForm({
       </Typography>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert severity="error" sx={{ mb: 3, backgroundColor: theme.palette.action.hover, color: theme.palette.text.primary, border: `1px solid ${theme.palette.divider}` }}>
           {error}
         </Alert>
       )}
@@ -101,7 +103,7 @@ export default function GenerateReportForm({
       <FormControl component="fieldset" sx={{ mb: 4, width: '100%' }}>
         <FormLabel
           component="legend"
-          sx={{ color: '#00E5FF', mb: 2, fontWeight: 500 }}
+          sx={{ color: theme.palette.text.primary, mb: 2, fontWeight: 500 }}
         >
           Report Type
         </FormLabel>
@@ -111,13 +113,13 @@ export default function GenerateReportForm({
         >
           <FormControlLabel
             value="weekly"
-            control={<Radio sx={{ color: '#00E5FF' }} />}
+            control={<Radio sx={{ color: theme.palette.text.primary, '&.Mui-checked': { color: theme.palette.text.primary } }} />}
             label={
               <Box>
-                <Typography sx={{ color: '#E0E0E0', fontWeight: 500 }}>
+                <Typography sx={{ color: theme.palette.text.primary, fontWeight: 500 }}>
                   Weekly Report
                 </Typography>
-                <Typography variant="caption" sx={{ color: '#B0B0B0' }}>
+                <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
                   Last week recap + This week preview
                 </Typography>
               </Box>
@@ -126,13 +128,13 @@ export default function GenerateReportForm({
           />
           <FormControlLabel
             value="monthly"
-            control={<Radio sx={{ color: '#00E5FF' }} />}
+            control={<Radio sx={{ color: theme.palette.text.primary, '&.Mui-checked': { color: theme.palette.text.primary } }} />}
             label={
               <Box>
-                <Typography sx={{ color: '#E0E0E0', fontWeight: 500 }}>
+                <Typography sx={{ color: theme.palette.text.primary, fontWeight: 500 }}>
                   Monthly Report
                 </Typography>
-                <Typography variant="caption" sx={{ color: '#B0B0B0' }}>
+                <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
                   Previous month summary
                 </Typography>
               </Box>
@@ -141,13 +143,13 @@ export default function GenerateReportForm({
           />
           <FormControlLabel
             value="forecast"
-            control={<Radio sx={{ color: '#00E5FF' }} />}
+            control={<Radio sx={{ color: theme.palette.text.primary, '&.Mui-checked': { color: theme.palette.text.primary } }} />}
             label={
               <Box>
-                <Typography sx={{ color: '#E0E0E0', fontWeight: 500 }}>
+                <Typography sx={{ color: theme.palette.text.primary, fontWeight: 500 }}>
                   Forecast Report
                 </Typography>
-                <Typography variant="caption" sx={{ color: '#B0B0B0' }}>
+                <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
                   Upcoming tasks and projections
                 </Typography>
               </Box>
@@ -159,21 +161,25 @@ export default function GenerateReportForm({
       {/* Forecast Period Selection */}
       {reportType === 'forecast' && (
         <FormControl fullWidth sx={{ mb: 4 }}>
-          <InputLabel sx={{ color: '#B0B0B0' }}>Forecast Period</InputLabel>
+          <InputLabel sx={{ color: theme.palette.text.secondary }}>Forecast Period</InputLabel>
           <Select
             value={forecastDays}
             onChange={(e) => setForecastDays(Number(e.target.value))}
             label="Forecast Period"
             sx={{
-              color: '#E0E0E0',
+              color: theme.palette.text.primary,
+              backgroundColor: theme.palette.action.hover,
               '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'rgba(0, 229, 255, 0.3)',
+                borderColor: theme.palette.divider,
               },
               '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'rgba(0, 229, 255, 0.5)',
+                borderColor: theme.palette.text.secondary,
               },
               '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: '#00E5FF',
+                borderColor: theme.palette.text.primary,
+              },
+              '& .MuiSvgIcon-root': {
+                color: theme.palette.text.primary,
               },
             }}
           >
@@ -191,7 +197,7 @@ export default function GenerateReportForm({
       <FormControl component="fieldset" sx={{ mb: 4, width: '100%' }}>
         <FormLabel
           component="legend"
-          sx={{ color: '#00E5FF', mb: 2, fontWeight: 500 }}
+          sx={{ color: theme.palette.text.primary, mb: 2, fontWeight: 500 }}
         >
           Format
         </FormLabel>
@@ -202,21 +208,21 @@ export default function GenerateReportForm({
         >
           <FormControlLabel
             value="pdf"
-            control={<Radio sx={{ color: '#00E5FF' }} />}
+            control={<Radio sx={{ color: theme.palette.text.primary, '&.Mui-checked': { color: theme.palette.text.primary } }} />}
             label={
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <DescriptionIcon sx={{ color: '#00E5FF', fontSize: 20 }} />
-                <Typography sx={{ color: '#E0E0E0' }}>PDF Download</Typography>
+                <DescriptionIcon sx={{ color: theme.palette.text.primary, fontSize: 20 }} />
+                <Typography sx={{ color: theme.palette.text.primary }}>PDF Download</Typography>
               </Box>
             }
           />
           <FormControlLabel
             value="slideshow"
-            control={<Radio sx={{ color: '#00E5FF' }} />}
+            control={<Radio sx={{ color: theme.palette.text.primary, '&.Mui-checked': { color: theme.palette.text.primary } }} />}
             label={
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <SlideshowIcon sx={{ color: '#00E5FF', fontSize: 20 }} />
-                <Typography sx={{ color: '#E0E0E0' }}>AI Slideshow</Typography>
+                <SlideshowIcon sx={{ color: theme.palette.text.primary, fontSize: 20 }} />
+                <Typography sx={{ color: theme.palette.text.primary }}>AI Slideshow</Typography>
               </Box>
             }
           />
@@ -226,22 +232,23 @@ export default function GenerateReportForm({
       <Button
         onClick={handleGenerate}
         disabled={generating}
-        variant="contained"
+        variant="outlined"
         fullWidth
         sx={{
-          backgroundColor: '#00E5FF',
-          color: '#000',
+          borderColor: theme.palette.text.primary,
+          color: theme.palette.text.primary,
           fontWeight: 600,
           py: 1.5,
           '&:hover': {
-            backgroundColor: '#00B8D4',
+            borderColor: theme.palette.text.primary,
+            backgroundColor: theme.palette.action.hover,
           },
           '&.Mui-disabled': {
-            backgroundColor: 'rgba(0, 229, 255, 0.3)',
-            color: 'rgba(255, 255, 255, 0.5)',
+            borderColor: theme.palette.divider,
+            color: theme.palette.text.secondary,
           },
         }}
-        startIcon={generating ? <CircularProgress size={16} /> : null}
+        startIcon={generating ? <CircularProgress size={16} sx={{ color: theme.palette.text.primary }} /> : null}
       >
         {generating ? 'Generating...' : 'Generate Report'}
       </Button>

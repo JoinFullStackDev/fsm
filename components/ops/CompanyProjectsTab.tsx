@@ -11,6 +11,7 @@ import {
   IconButton,
   Chip,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { Add as AddIcon, OpenInNew as OpenIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import type { Project } from '@/types/project';
@@ -22,6 +23,7 @@ interface CompanyProjectsTabProps {
 
 export default function CompanyProjectsTab({ companyId }: CompanyProjectsTabProps) {
   const router = useRouter();
+  const theme = useTheme();
   const { showSuccess, showError } = useNotification();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,19 +36,21 @@ export default function CompanyProjectsTab({ companyId }: CompanyProjectsTabProp
 
       const response = await fetch(`/api/projects?company_id=${companyId}`);
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to load projects');
+        const errorData = await response.json().catch(() => ({ error: 'Failed to load projects' }));
+        throw new Error(errorData.error || `Failed to load projects: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
-      setProjects(data);
+      setProjects(data || []);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load projects';
       setError(errorMessage);
+      showError(errorMessage);
+      console.error('Error loading projects:', err);
     } finally {
       setLoading(false);
     }
-  }, [companyId]);
+  }, [companyId, showError]);
 
   useEffect(() => {
     loadProjects();
@@ -153,14 +157,14 @@ export default function CompanyProjectsTab({ companyId }: CompanyProjectsTabProp
           <IconButton
             size="small"
             onClick={(e) => handleOpenProject(row, e)}
-            sx={{ color: '#00E5FF' }}
+            sx={{ color: theme.palette.text.primary }}
           >
             <OpenIcon fontSize="small" />
           </IconButton>
           <IconButton
             size="small"
             onClick={(e) => handleDeleteProject(row, e)}
-            sx={{ color: '#FF1744' }}
+            sx={{ color: theme.palette.text.primary }}
           >
             <DeleteIcon fontSize="small" />
           </IconButton>
@@ -191,22 +195,23 @@ export default function CompanyProjectsTab({ companyId }: CompanyProjectsTabProp
         <Typography
           variant="h6"
           sx={{
-            color: '#00E5FF',
+            color: theme.palette.text.primary,
             fontWeight: 600,
           }}
         >
           Projects
         </Typography>
         <Button
-          variant="contained"
+          variant="outlined"
           startIcon={<AddIcon />}
           onClick={handleCreateProject}
           sx={{
-            backgroundColor: '#00E5FF',
-            color: '#000',
+            borderColor: theme.palette.text.primary,
+            color: theme.palette.text.primary,
             fontWeight: 600,
             '&:hover': {
-              backgroundColor: '#00B2CC',
+              borderColor: theme.palette.text.secondary,
+              backgroundColor: theme.palette.action.hover,
             },
           }}
         >

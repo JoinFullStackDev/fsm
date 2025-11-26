@@ -27,6 +27,7 @@ import {
   Skeleton,
   Tooltip,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Download as DownloadIcon,
   Settings as SettingsIcon,
@@ -59,7 +60,60 @@ const PHASE_NAMES = [
   'QA & Hardening',
 ];
 
+// Helper function to check if a value has content
+const checkValue = (value: any): boolean => {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (typeof value === 'boolean') return true;
+  if (Array.isArray(value)) {
+    if (value.length === 0) return false;
+    // For arrays of objects, check if at least one object has meaningful content
+    if (value.length > 0 && typeof value[0] === 'object') {
+      return value.some(item => {
+        if (typeof item === 'object' && item !== null) {
+          return Object.keys(item).some(key => checkValue(item[key]));
+        }
+        return checkValue(item);
+      });
+    }
+    return true;
+  }
+  if (typeof value === 'object') {
+    // Check if object has any non-empty values
+    const keys = Object.keys(value);
+    if (keys.length === 0) return false;
+    // For nested objects, check if they have meaningful content
+    return keys.some(key => checkValue(value[key]));
+  }
+  return true;
+};
+
+// Calculate phase progress based on template field configs or fallback to hardcoded calculation
+const calculatePhaseProgressWithConfigs = (
+  phaseNumber: number,
+  phaseData: any,
+  fieldConfigs?: Array<{ field_key: string }>
+): number => {
+  if (!phaseData) return 0;
+
+  // If we have field configs (template-based form), calculate based on those fields
+  if (fieldConfigs && fieldConfigs.length > 0) {
+    const totalFields = fieldConfigs.length;
+    const completedFields = fieldConfigs.filter(config => {
+      const fieldKey = config.field_key;
+      const value = phaseData[fieldKey];
+      return checkValue(value);
+    }).length;
+
+    return totalFields > 0 ? Math.round((completedFields / totalFields) * 100) : 0;
+  }
+
+  // Fallback to old calculation for non-template forms
+  return calculatePhaseProgress(phaseNumber, phaseData);
+};
+
 export default function ProjectPage() {
+  const theme = useTheme();
   const router = useRouter();
   const params = useParams();
   const projectId = params.id as string;
@@ -68,6 +122,7 @@ export default function ProjectPage() {
   const { role, loading: roleLoading } = useRole();
   const [project, setProject] = useState<Project | null>(null);
   const [phases, setPhases] = useState<PhaseSummary[]>([]);
+  const [fieldConfigsByPhase, setFieldConfigsByPhase] = useState<Record<number, Array<{ field_key: string }>>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -155,6 +210,29 @@ export default function ProjectPage() {
           setError('Phases were not found after template change. Please refresh the page.');
         }
       }
+
+      // Load template field configs if project has a template_id
+      if (projectData.template_id && phasesData && phasesData.length > 0) {
+        const phaseNumbers = phasesData.map(p => p.phase_number);
+        const { data: configsData, error: configsError } = await supabase
+          .from('template_field_configs')
+          .select('phase_number, field_key')
+          .eq('template_id', projectData.template_id)
+          .in('phase_number', phaseNumbers);
+
+        if (!configsError && configsData) {
+          // Organize configs by phase number
+          const configsByPhase: Record<number, Array<{ field_key: string }>> = {};
+          configsData.forEach(config => {
+            if (!configsByPhase[config.phase_number]) {
+              configsByPhase[config.phase_number] = [];
+            }
+            configsByPhase[config.phase_number].push({ field_key: config.field_key });
+          });
+          setFieldConfigsByPhase(configsByPhase);
+        }
+      }
+
       setLoading(false);
     };
 
@@ -374,7 +452,7 @@ export default function ProjectPage() {
   if (loading) {
     return (
       <>
-        <Box sx={{ backgroundColor: '#000', minHeight: '100vh', pb: 4 }}>
+        <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', pb: 4 }}>
           <Container maxWidth="lg" sx={{ pt: 4, pb: 4 }}>
             <Skeleton variant="text" width="40%" height={48} sx={{ mb: 3 }} />
             <Skeleton variant="text" width="60%" height={24} sx={{ mb: 4 }} />
@@ -399,25 +477,24 @@ export default function ProjectPage() {
 
   return (
     <ErrorBoundary>
-      <Box sx={{ backgroundColor: '#000', minHeight: '100vh', pb: 4 }}>
+      <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', pb: 4 }}>
         <Container maxWidth="lg" sx={{ pt: 4, pb: 4 }}>
           <Breadcrumbs items={[{ label: project.name }]} />
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
             <Box>
               <Typography
-                variant="h3"
+                variant="h4"
                 component="h1"
                 sx={{
-                  fontWeight: 700,
-                  background: '#00E5FF',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
+                  fontWeight: 600,
+                  color: theme.palette.text.primary,
+                  fontSize: '1.5rem',
                   mb: 1,
                 }}
               >
                 {project.name}
               </Typography>
-              <Typography variant="body1" sx={{ color: '#B0B0B0', mt: 1 }}>
+              <Typography variant="body1" sx={{ color: theme.palette.text.secondary, mt: 1 }}>
                 {project.description || 'No description'}
               </Typography>
             </Box>
@@ -425,9 +502,9 @@ export default function ProjectPage() {
               <Chip
                 label={project.status.replace('_', ' ')}
                 sx={{
-                  backgroundColor: 'rgba(0, 255, 136, 0.15)',
-                  color: '#00FF88',
-                  border: '1px solid rgba(0, 255, 136, 0.3)',
+                  backgroundColor: theme.palette.action.hover,
+                  color: theme.palette.text.primary,
+                  border: `1px solid ${theme.palette.divider}`,
                   fontWeight: 500,
                 }}
               />
@@ -435,9 +512,9 @@ export default function ProjectPage() {
                 <Chip
                   label={project.primary_tool}
                   sx={{
-                    backgroundColor: 'rgba(233, 30, 99, 0.15)',
-                    color: '#E91E63',
-                    border: '1px solid rgba(233, 30, 99, 0.3)',
+                    backgroundColor: theme.palette.action.hover,
+                    color: theme.palette.text.primary,
+                    border: `1px solid ${theme.palette.divider}`,
                     fontWeight: 500,
                   }}
                 />
@@ -447,125 +524,148 @@ export default function ProjectPage() {
 
           {/* Phase Progress Indicator */}
           {(() => {
-            const completedPhases = phases.filter((p) => p.completed).length;
             const totalPhases = phases.length || 6; // Use actual phase count, fallback to 6 for backward compatibility
-            const progressPercentage = totalPhases > 0 ? (completedPhases / totalPhases) * 100 : 0;
+            
+            // Calculate progress based on actual phase progress, not just completed flag
+            let totalProgress = 0;
+            phases.forEach((phase) => {
+              const fieldConfigs = fieldConfigsByPhase[phase.phase_number];
+              const phaseProgress = calculatePhaseProgressWithConfigs(
+                phase.phase_number,
+                phase.data || null,
+                fieldConfigs
+              );
+              // Consider phase completed if either the database flag is set OR progress is 100%
+              const isCompleted = phase.completed || phaseProgress >= 100;
+              totalProgress += isCompleted ? 100 : phaseProgress;
+            });
+            
+            const progressPercentage = totalPhases > 0 ? totalProgress / totalPhases : 0;
+            const completedPhases = phases.filter((p) => {
+              const fieldConfigs = fieldConfigsByPhase[p.phase_number];
+              const phaseProgress = calculatePhaseProgressWithConfigs(
+                p.phase_number,
+                p.data || null,
+                fieldConfigs
+              );
+              return p.completed || phaseProgress >= 100;
+            }).length;
             
             return (
-              <Card
+              <Box
                 sx={{
-                  backgroundColor: '#000',
-                  border: '2px solid rgba(0, 229, 255, 0.2)',
-                  borderRadius: 3,
+                  backgroundColor: theme.palette.background.paper,
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: 2,
                   mb: 3,
+                  p: 3,
                 }}
               >
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography
-                      variant="h6"
-                      sx={{ color: 'primary.main', fontWeight: 600 }}
-                    >
-                      Project Progress
-                    </Typography>
-                    <Typography
-                      variant="body1"
-                      sx={{
-                        color: '#00E5FF',
-                        fontWeight: 600,
-                        fontSize: '1.1rem',
-                      }}
-                    >
-                      {completedPhases} of {totalPhases} phases complete
-                    </Typography>
-                  </Box>
-                  <LinearProgress
-                    variant="determinate"
-                    value={progressPercentage}
-                    sx={{
-                      height: 10,
-                      borderRadius: 5,
-                      backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                      '& .MuiLinearProgress-bar': {
-                        borderRadius: 5,
-                        background: 'linear-gradient(90deg, #00E5FF 0%, #00FF88 100%)',
-                      },
-                    }}
-                  />
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                   <Typography
-                    variant="body2"
+                    variant="h6"
+                    sx={{ color: theme.palette.text.primary, fontWeight: 600 }}
+                  >
+                    Project Progress
+                  </Typography>
+                  <Typography
+                    variant="body1"
                     sx={{
-                      color: '#B0B0B0',
-                      mt: 1,
-                      textAlign: 'right',
+                      color: theme.palette.text.primary,
+                      fontWeight: 600,
+                      fontSize: '1.1rem',
                     }}
                   >
-                    {Math.round(progressPercentage)}% complete
+                    {completedPhases} of {totalPhases} phases complete
                   </Typography>
-                </CardContent>
-              </Card>
+                </Box>
+                <LinearProgress
+                  variant="determinate"
+                  value={progressPercentage}
+                  sx={{
+                    height: 10,
+                    borderRadius: 5,
+                    backgroundColor: theme.palette.action.hover,
+                    '& .MuiLinearProgress-bar': {
+                      borderRadius: 5,
+                      backgroundColor: '#4CAF50',
+                    },
+                  }}
+                />
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: theme.palette.text.secondary,
+                    mt: 1,
+                    textAlign: 'right',
+                  }}
+                >
+                  {Math.round(progressPercentage)}% complete
+                </Typography>
+              </Box>
             );
           })()}
 
           <Grid container spacing={3}>
             <Grid item xs={12} md={8}>
-              <Card
+              <Box
                 sx={{
-                  backgroundColor: '#000',
-                  border: '2px solid rgba(0, 229, 255, 0.2)',
-                  borderRadius: 3,
+                  backgroundColor: theme.palette.background.paper,
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: 2,
+                  p: 3,
                 }}
               >
-                <CardContent>
-                  <Typography
-                    variant="h6"
-                    gutterBottom
-                    sx={{ color: 'primary.main', fontWeight: 600, mb: 3 }}
-                  >
-                    Phases
-                  </Typography>
+                <Typography
+                  variant="h6"
+                  gutterBottom
+                  sx={{ color: theme.palette.text.primary, fontWeight: 600, mb: 3 }}
+                >
+                  Phases
+                </Typography>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {phases.map((phase) => {
                       const phaseNumber = phase.phase_number;
                       const phaseName = phase.phase_name || `Phase ${phaseNumber}`;
-                      const completed = phase.completed || false;
-                      const progress = calculatePhaseProgress(phaseNumber, phase.data || null);
+                      const fieldConfigs = fieldConfigsByPhase[phaseNumber];
+                      const progress = calculatePhaseProgressWithConfigs(
+                        phaseNumber,
+                        phase.data || null,
+                        fieldConfigs
+                      );
+                      // Consider phase completed if either the database flag is set OR progress is 100%
+                      const completed = phase.completed || progress >= 100;
                       const hasStarted = progress > 0;
                       
                       return (
-                        <Card
+                        <Box
                           key={phaseNumber}
                           onClick={() => router.push(`/project/${projectId}/phase/${phaseNumber}`)}
                           sx={{
-                            border: '2px solid',
-                            borderColor: completed ? 'success.main' : 'primary.main',
-                            backgroundColor: completed ? 'rgba(0, 255, 136, 0.05)' : 'background.paper',
+                            border: `1px solid ${completed ? '#4CAF50' : theme.palette.divider}`,
+                            backgroundColor: completed ? theme.palette.action.hover : theme.palette.background.paper,
                             cursor: 'pointer',
-                            transition: 'all 0.3s ease',
+                            transition: 'all 0.2s ease',
                             position: 'relative',
                             overflow: 'visible',
+                            borderRadius: 2,
+                            p: 2,
+                            mb: 2,
                             '&:hover': {
-                              transform: 'translateY(-4px)',
-                              boxShadow: completed 
-                                ? '0 8px 30px rgba(0, 255, 136, 0.3)'
-                                : '0 8px 30px rgba(0, 229, 255, 0.3)',
-                              borderColor: completed ? 'success.light' : 'primary.light',
+                              borderColor: completed ? '#4CAF50' : theme.palette.text.primary,
+                              backgroundColor: theme.palette.action.hover,
                             },
                           }}
                         >
-                          <CardContent>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                               <Box>
                                 <Chip
                                   label={phaseName}
                                   size="small"
                                   sx={{
-                                    backgroundColor: completed 
-                                      ? 'rgba(0, 255, 136, 0.1)' 
-                                      : 'rgba(0, 229, 255, 0.1)',
-                                    color: completed ? 'success.main' : 'primary.main',
-                                    border: '1px solid',
-                                    borderColor: completed ? 'success.main' : 'primary.main',
+                                    backgroundColor: theme.palette.action.hover,
+                                    color: completed ? '#4CAF50' : theme.palette.text.primary,
+                                    border: `1px solid ${completed ? '#4CAF50' : theme.palette.divider}`,
                                     fontWeight: 600,
                                     mb: 1,
                                   }}
@@ -574,7 +674,7 @@ export default function ProjectPage() {
                                   variant="h6"
                                   sx={{
                                     fontWeight: 600,
-                                    color: completed ? 'success.main' : 'text.primary',
+                                    color: completed ? '#4CAF50' : theme.palette.text.primary,
                                     mt: 1,
                                   }}
                                 >
@@ -584,7 +684,7 @@ export default function ProjectPage() {
                               {completed && (
                                 <CheckCircleIcon
                                   sx={{
-                                    color: 'success.main',
+                                    color: '#4CAF50',
                                     fontSize: 28,
                                   }}
                                 />
@@ -597,7 +697,7 @@ export default function ProjectPage() {
                                 <Typography
                                   variant="body2"
                                   sx={{
-                                    color: 'text.secondary',
+                                    color: theme.palette.text.secondary,
                                     fontSize: '0.875rem',
                                     fontWeight: 500,
                                   }}
@@ -612,7 +712,7 @@ export default function ProjectPage() {
                                   <Typography
                                     variant="body2"
                                     sx={{
-                                      color: 'primary.main',
+                                      color: theme.palette.text.primary,
                                       fontSize: '0.875rem',
                                       fontWeight: 600,
                                     }}
@@ -627,56 +727,51 @@ export default function ProjectPage() {
                                 sx={{
                                   height: 8,
                                   borderRadius: 4,
-                                  backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                                  backgroundColor: theme.palette.action.hover,
                                   '& .MuiLinearProgress-bar': {
-                                    backgroundColor: completed ? 'success.main' : 'primary.main',
+                                    backgroundColor: completed ? '#4CAF50' : theme.palette.text.primary,
                                     borderRadius: 4,
-                                    boxShadow: completed 
-                                      ? '0 0 10px rgba(0, 255, 136, 0.5)'
-                                      : '0 0 10px rgba(0, 229, 255, 0.5)',
                                   },
                                 }}
                               />
                             </Box>
-                          </CardContent>
-                        </Card>
+                          </Box>
                       );
                     })}
                   </Box>
-                </CardContent>
-              </Card>
+              </Box>
             </Grid>
             <Grid item xs={12} md={4}>
-              <Card
+              <Box
                 sx={{
-                  backgroundColor: '#000',
-                  border: '2px solid rgba(0, 229, 255, 0.2)',
-                  borderRadius: 3,
+                  backgroundColor: theme.palette.background.paper,
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: 2,
+                  p: 3,
                 }}
               >
-                <CardContent>
-                  <Typography
-                    variant="h6"
-                    gutterBottom
-                    sx={{ color: '#00E5FF', fontWeight: 600 }}
-                  >
-                    Actions
-                  </Typography>
-                  <Divider sx={{ mb: 2, borderColor: 'rgba(0, 229, 255, 0.2)' }} />
+                <Typography
+                  variant="h6"
+                  gutterBottom
+                  sx={{ color: theme.palette.text.primary, fontWeight: 600 }}
+                >
+                  Actions
+                </Typography>
+                <Divider sx={{ mb: 2, borderColor: theme.palette.divider }} />
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <Button
-                      variant="contained"
+                      variant="outlined"
                       startIcon={<DownloadIcon />}
                       onClick={handleExportBlueprint}
                       disabled={exporting}
                       fullWidth
                       sx={{
-                        backgroundColor: '#00E5FF',
-                        color: '#000',
+                        borderColor: theme.palette.text.primary,
+                        color: theme.palette.text.primary,
                         fontWeight: 600,
                         '&:hover': {
-                          backgroundColor: '#00B2CC',
-                          boxShadow: '0 6px 25px rgba(0, 229, 255, 0.5)',
+                          borderColor: theme.palette.text.primary,
+                          backgroundColor: theme.palette.action.hover,
                         },
                       }}
                     >
@@ -700,15 +795,15 @@ export default function ProjectPage() {
                           disabled={exporting || !project || !canCreateBundle}
                           fullWidth
                           sx={{
-                            borderColor: '#E91E63',
-                            color: '#E91E63',
+                            borderColor: theme.palette.text.primary,
+                            color: theme.palette.text.primary,
                             '&:hover': {
-                              borderColor: canCreateBundle ? '#E91E63' : 'rgba(233, 30, 99, 0.3)',
-                              backgroundColor: canCreateBundle ? 'rgba(233, 30, 99, 0.1)' : 'transparent',
+                              borderColor: theme.palette.text.primary,
+                              backgroundColor: theme.palette.action.hover,
                             },
                             '&.Mui-disabled': {
-                              borderColor: 'rgba(233, 30, 99, 0.3)',
-                              color: 'rgba(233, 30, 99, 0.5)',
+                              borderColor: theme.palette.divider,
+                              color: theme.palette.text.secondary,
                             },
                           }}
                         >
@@ -736,21 +831,15 @@ export default function ProjectPage() {
                       disabled={initiating}
                       fullWidth
                       sx={{
-                        borderColor: project?.initiated_at ? '#00E5FF' : '#E91E63',
-                        color: project?.initiated_at ? '#00E5FF' : '#E91E63',
+                        borderColor: theme.palette.text.primary,
+                        color: theme.palette.text.primary,
                         '&:hover': {
-                          borderColor: project?.initiated_at ? '#00E5FF' : '#E91E63',
-                          backgroundColor: project?.initiated_at 
-                            ? 'rgba(0, 229, 255, 0.1)' 
-                            : 'rgba(233, 30, 99, 0.1)',
+                          borderColor: theme.palette.text.primary,
+                          backgroundColor: theme.palette.action.hover,
                         },
                         '&.Mui-disabled': {
-                          borderColor: project?.initiated_at 
-                            ? 'rgba(0, 229, 255, 0.3)' 
-                            : 'rgba(233, 30, 99, 0.3)',
-                          color: project?.initiated_at 
-                            ? 'rgba(0, 229, 255, 0.5)' 
-                            : 'rgba(233, 30, 99, 0.5)',
+                          borderColor: theme.palette.divider,
+                          color: theme.palette.text.secondary,
                         },
                       }}
                     >
@@ -766,11 +855,11 @@ export default function ProjectPage() {
                       onClick={() => router.push(`/project/${projectId}/exports`)}
                       fullWidth
                       sx={{
-                        borderColor: '#00E5FF',
-                        color: '#00E5FF',
+                        borderColor: theme.palette.text.primary,
+                        color: theme.palette.text.primary,
                         '&:hover': {
-                          borderColor: '#00E5FF',
-                          backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                          borderColor: theme.palette.text.primary,
+                          backgroundColor: theme.palette.action.hover,
                         },
                       }}
                     >
@@ -782,11 +871,11 @@ export default function ProjectPage() {
                       onClick={() => router.push(`/project/${projectId}/settings`)}
                       fullWidth
                       sx={{
-                        borderColor: '#00E5FF',
-                        color: '#00E5FF',
+                        borderColor: theme.palette.text.primary,
+                        color: theme.palette.text.primary,
                         '&:hover': {
-                          borderColor: '#00E5FF',
-                          backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                          borderColor: theme.palette.text.primary,
+                          backgroundColor: theme.palette.action.hover,
                         },
                       }}
                     >
@@ -798,11 +887,11 @@ export default function ProjectPage() {
                       onClick={() => router.push(`/project/${projectId}/members`)}
                       fullWidth
                       sx={{
-                        borderColor: '#E91E63',
-                        color: '#E91E63',
+                        borderColor: theme.palette.text.primary,
+                        color: theme.palette.text.primary,
                         '&:hover': {
-                          borderColor: '#E91E63',
-                          backgroundColor: 'rgba(233, 30, 99, 0.1)',
+                          borderColor: theme.palette.text.primary,
+                          backgroundColor: theme.palette.action.hover,
                         },
                       }}
                     >
@@ -810,20 +899,21 @@ export default function ProjectPage() {
                     </Button>
                     {role === 'admin' && (
                       <Button
-                        variant="contained"
+                        variant="outlined"
                         startIcon={<DeleteIcon />}
                         onClick={handleDeleteClick}
                         fullWidth
                         disabled={deleting}
                         sx={{
-                          backgroundColor: '#FF1744',
-                          color: '#fff',
+                          borderColor: theme.palette.text.primary,
+                          color: theme.palette.text.primary,
                           '&:hover': {
-                            backgroundColor: '#D50000',
+                            borderColor: theme.palette.text.primary,
+                            backgroundColor: theme.palette.action.hover,
                           },
                           '&.Mui-disabled': {
-                            backgroundColor: 'rgba(255, 23, 68, 0.3)',
-                            color: 'rgba(255, 255, 255, 0.5)',
+                            borderColor: theme.palette.divider,
+                            color: theme.palette.text.secondary,
                           },
                         }}
                       >
@@ -831,8 +921,7 @@ export default function ProjectPage() {
                       </Button>
                     )}
                   </Box>
-                </CardContent>
-              </Card>
+              </Box>
             </Grid>
           </Grid>
 
@@ -842,32 +931,32 @@ export default function ProjectPage() {
             maxWidth="sm"
             PaperProps={{
               sx: {
-                backgroundColor: '#000',
-                border: '1px solid rgba(255, 152, 0, 0.3)',
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
               },
             }}
           >
-            <DialogTitle sx={{ color: '#FF9800', fontWeight: 600 }}>
+            <DialogTitle sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
               Incomplete Phases Detected
             </DialogTitle>
             <DialogContent>
-              <Alert severity="warning" sx={{ mb: 2, backgroundColor: 'rgba(255, 152, 0, 0.1)', borderColor: '#FF9800' }}>
-                <Typography variant="body2" sx={{ color: 'text.primary' }}>
+              <Alert severity="warning" sx={{ mb: 2, backgroundColor: theme.palette.action.hover, borderColor: theme.palette.divider }}>
+                <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
                   For best results, we recommend completing all 6 phases before exporting the blueprint. 
                   The blueprint will include all available data, but incomplete phases may result in a less comprehensive output.
                 </Typography>
               </Alert>
-              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 2 }}>
                 You can still export now, but the blueprint may be missing information from incomplete phases.
               </Typography>
             </DialogContent>
-            <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(255, 152, 0, 0.2)' }}>
+            <DialogActions sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
               <Button
                 onClick={() => setShowBlueprintWarning(false)}
                 sx={{
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                   '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    backgroundColor: theme.palette.action.hover,
                   },
                 }}
               >
@@ -878,13 +967,14 @@ export default function ProjectPage() {
                   setShowBlueprintWarning(false);
                   await performBlueprintExport();
                 }}
-                variant="contained"
+                variant="outlined"
                 sx={{
-                  backgroundColor: '#FF9800',
-                  color: '#000',
+                  borderColor: theme.palette.text.primary,
+                  color: theme.palette.text.primary,
                   fontWeight: 600,
                   '&:hover': {
-                    backgroundColor: '#F57C00',
+                    borderColor: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
                   },
                 }}
               >
@@ -900,12 +990,12 @@ export default function ProjectPage() {
             fullWidth
             PaperProps={{
               sx: {
-                backgroundColor: '#000',
-                border: '2px solid rgba(0, 229, 255, 0.2)',
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
               },
             }}
           >
-            <DialogTitle sx={{ color: '#00E5FF', fontWeight: 600 }}>
+            <DialogTitle sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
               Cursor Master Prompt
             </DialogTitle>
             <DialogContent>
@@ -918,25 +1008,25 @@ export default function ProjectPage() {
                   maxHeight: '60vh',
                   overflow: 'auto',
                   p: 2,
-                  bgcolor: '#1A1F3A',
+                  bgcolor: theme.palette.background.default,
                   borderRadius: 1,
-                  color: '#E0E0E0',
-                  border: '2px solid rgba(0, 229, 255, 0.2)',
+                  color: theme.palette.text.primary,
+                  border: `1px solid ${theme.palette.divider}`,
                 }}
               >
                 {cursorPrompt}
               </Box>
             </DialogContent>
-            <DialogActions sx={{ p: 2, borderTop: '2px solid rgba(0, 229, 255, 0.2)' }}>
+            <DialogActions sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
               <Button
                 onClick={handleCopyCursorPrompt}
                 startIcon={copied ? <CheckIcon /> : <ContentCopyIcon />}
                 disabled={!cursorPrompt}
                 sx={{
-                  color: copied ? '#00FF88' : '#00E5FF',
-                  border: copied ? '1px solid #00FF88' : 'none',
+                  color: copied ? '#4CAF50' : theme.palette.text.primary,
+                  border: copied ? `1px solid #4CAF50` : 'none',
                   '&:hover': {
-                    backgroundColor: copied ? 'rgba(0, 255, 136, 0.1)' : 'rgba(0, 229, 255, 0.1)',
+                    backgroundColor: theme.palette.action.hover,
                   },
                   transition: 'all 0.3s ease',
                 }}
@@ -947,9 +1037,9 @@ export default function ProjectPage() {
                 onClick={handleDownloadCursorPrompt}
                 startIcon={<DownloadIcon />}
                 sx={{
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
                   '&:hover': {
-                    backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                    backgroundColor: theme.palette.action.hover,
                   },
                 }}
               >
@@ -958,9 +1048,9 @@ export default function ProjectPage() {
               <Button
                 onClick={() => setShowCursorDialog(false)}
                 sx={{
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                   '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    backgroundColor: theme.palette.action.hover,
                   },
                 }}
               >
@@ -975,27 +1065,27 @@ export default function ProjectPage() {
             onClose={handleDeleteCancel}
             PaperProps={{
               sx: {
-                backgroundColor: '#000',
-                border: '1px solid rgba(255, 23, 68, 0.3)',
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
               },
             }}
           >
-            <DialogTitle sx={{ color: '#FF1744', fontWeight: 600 }}>
+            <DialogTitle sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
               Delete Project
             </DialogTitle>
             <DialogContent>
-              <DialogContentText sx={{ color: '#B0B0B0' }}>
+              <DialogContentText sx={{ color: theme.palette.text.secondary }}>
                 Are you sure you want to delete &quot;{project?.name}&quot;? This action cannot be undone and will permanently delete the project and all associated data.
               </DialogContentText>
             </DialogContent>
-            <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(255, 23, 68, 0.2)' }}>
+            <DialogActions sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
               <Button
                 onClick={handleDeleteCancel}
                 disabled={deleting}
                 sx={{
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                   '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    backgroundColor: theme.palette.action.hover,
                   },
                 }}
               >
@@ -1004,17 +1094,18 @@ export default function ProjectPage() {
               <Button
                 onClick={handleDeleteConfirm}
                 disabled={deleting}
-                variant="contained"
+                variant="outlined"
                 sx={{
-                  backgroundColor: '#FF1744',
-                  color: '#fff',
+                  borderColor: theme.palette.text.primary,
+                  color: theme.palette.text.primary,
                   fontWeight: 600,
                   '&:hover': {
-                    backgroundColor: '#D50000',
+                    borderColor: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
                   },
                   '&.Mui-disabled': {
-                    backgroundColor: 'rgba(255, 23, 68, 0.3)',
-                    color: 'rgba(255, 255, 255, 0.5)',
+                    borderColor: theme.palette.divider,
+                    color: theme.palette.text.secondary,
                   },
                 }}
               >

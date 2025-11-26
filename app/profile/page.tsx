@@ -6,14 +6,13 @@ import {
   Container,
   Box,
   Typography,
-  Card,
-  CardContent,
   CircularProgress,
   Alert,
   Tabs,
   Tab,
   Paper,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Person as PersonIcon,
   GitHub as GitHubIcon,
@@ -49,6 +48,7 @@ function TabPanel(props: TabPanelProps) {
 }
 
 export default function ProfilePage() {
+  const theme = useTheme();
   const router = useRouter();
   const supabase = createSupabaseClient();
   const [loading, setLoading] = useState(true);
@@ -74,100 +74,97 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <>
-        <Container>
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-            <CircularProgress />
-          </Box>
-        </Container>
-      </>
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+        <CircularProgress sx={{ color: theme.palette.text.primary }} />
+      </Box>
     );
   }
 
   if (error) {
     return (
-      <>
-        <Container>
-          <Alert severity="error" sx={{ mt: 4 }}>
-            {error}
-          </Alert>
-        </Container>
-      </>
+      <Box sx={{ mt: 4 }}>
+        <Alert 
+          severity="error"
+          sx={{
+            backgroundColor: theme.palette.action.hover,
+            border: `1px solid ${theme.palette.divider}`,
+            color: theme.palette.text.primary,
+          }}
+        >
+          {error}
+        </Alert>
+      </Box>
     );
   }
 
   return (
-    <>
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Typography
-          variant="h4"
-          component="h1"
-          gutterBottom
-          sx={{
-            fontWeight: 700,
-            background: '#00E5FF',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            mb: 3,
-          }}
-        >
-          Profile
-        </Typography>
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Typography
+        variant="h4"
+        component="h1"
+        gutterBottom
+        sx={{
+          fontSize: '1.5rem',
+          fontWeight: 600,
+          color: theme.palette.text.primary,
+          mb: 3,
+        }}
+      >
+        Profile
+      </Typography>
 
-        <Paper
-          sx={{
-            backgroundColor: 'background.paper',
-            border: '2px solid',
-            borderColor: 'primary.main',
-            borderRadius: 3,
-          }}
-        >
-          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-            <Tabs
-              value={activeTab}
-              onChange={handleTabChange}
-              variant="scrollable"
-              scrollButtons="auto"
-              sx={{
-                '& .MuiTab-root': {
-                  color: '#B0B0B0',
-                  fontWeight: 500,
-                  textTransform: 'none',
-                  minHeight: 72,
-                  '&.Mui-selected': {
-                    color: '#00E5FF',
-                    fontWeight: 600,
-                  },
+      <Paper
+        sx={{
+          backgroundColor: theme.palette.background.paper,
+          border: `1px solid ${theme.palette.divider}`,
+          borderRadius: 2,
+        }}
+      >
+        <Box sx={{ borderBottom: 1, borderColor: theme.palette.divider }}>
+          <Tabs
+            value={activeTab}
+            onChange={handleTabChange}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{
+              '& .MuiTab-root': {
+                color: theme.palette.text.secondary,
+                fontWeight: 500,
+                textTransform: 'none',
+                minHeight: 72,
+                '&.Mui-selected': {
+                  color: theme.palette.text.primary,
+                  fontWeight: 600,
                 },
-                '& .MuiTabs-indicator': {
-                  backgroundColor: '#00E5FF',
-                  height: 3,
-                },
-              }}
-            >
-              <Tab icon={<PersonIcon />} iconPosition="start" label="Profile Information" />
-              <Tab icon={<GitHubIcon />} iconPosition="start" label="GitHub" />
-              <Tab icon={<SettingsIcon />} iconPosition="start" label="Preferences" />
-              <Tab icon={<HistoryIcon />} iconPosition="start" label="Activity" />
-            </Tabs>
-          </Box>
+              },
+              '& .MuiTabs-indicator': {
+                backgroundColor: theme.palette.text.primary,
+                height: 2,
+              },
+            }}
+          >
+            <Tab icon={<PersonIcon />} iconPosition="start" label="Profile Information" />
+            <Tab icon={<GitHubIcon />} iconPosition="start" label="GitHub" />
+            <Tab icon={<SettingsIcon />} iconPosition="start" label="Preferences" />
+            <Tab icon={<HistoryIcon />} iconPosition="start" label="Activity" />
+          </Tabs>
+        </Box>
 
-          <Box sx={{ p: 3 }}>
-            <TabPanel value={activeTab} index={0}>
-              <ProfileInfoTab />
-            </TabPanel>
-            <TabPanel value={activeTab} index={1}>
-              <ProfileGitHubTab />
-            </TabPanel>
-            <TabPanel value={activeTab} index={2}>
-              <ProfilePreferencesTab />
-            </TabPanel>
-            <TabPanel value={activeTab} index={3}>
-              <ProfileActivityTab />
-            </TabPanel>
-          </Box>
-        </Paper>
-      </Container>
-    </>
+        <Box sx={{ p: 3 }}>
+          <TabPanel value={activeTab} index={0}>
+            <ProfileInfoTab />
+          </TabPanel>
+          <TabPanel value={activeTab} index={1}>
+            <ProfileGitHubTab />
+          </TabPanel>
+          <TabPanel value={activeTab} index={2}>
+            <ProfilePreferencesTab />
+          </TabPanel>
+          <TabPanel value={activeTab} index={3}>
+            <ProfileActivityTab />
+          </TabPanel>
+        </Box>
+      </Paper>
+    </Container>
   );
 }
