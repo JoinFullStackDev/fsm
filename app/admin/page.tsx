@@ -30,6 +30,7 @@ import {
   Download as DownloadIcon,
   AutoAwesome as AIIcon,
   TrendingUp as TrendingUpIcon,
+  Analytics as AnalyticsIcon,
 } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useRole } from '@/lib/hooks/useRole';
@@ -204,7 +205,7 @@ export default function AdminPage() {
     ? Math.round((stats.activeUsers / stats.totalUsers) * 100) 
     : 0;
 
-  if (role !== 'admin') {
+  if (role !== 'admin' && role !== 'pm') {
     return (
       <Box sx={{ mt: 4 }}>
         <Alert 
@@ -215,18 +216,9 @@ export default function AdminPage() {
             color: theme.palette.text.primary,
           }}
         >
-          Access denied. Admin role required.
+          Access denied. Admin or PM role required.
         </Alert>
       </Box>
-  if (role !== 'admin' && role !== 'pm') {
-    return (
-      <>
-        <Container>
-          <Alert severity="error" sx={{ mt: 4 }}>
-            Access denied. Admin or PM role required.
-          </Alert>
-        </Container>
-      </>
     );
   }
 
@@ -686,30 +678,18 @@ export default function AdminPage() {
               },
             }}
           >
-            <Tab icon={<PeopleIcon />} iconPosition="start" label="Users" />
+            <Tab 
+              icon={<PeopleIcon />} 
+              iconPosition="start" 
+              label="Users"
+              disabled={role !== 'admin'}
+            />
             <Tab icon={<PaletteIcon />} iconPosition="start" label="Theme" />
             <Tab icon={<ApiIcon />} iconPosition="start" label="API Config" />
             <Tab icon={<SettingsIcon />} iconPosition="start" label="System" />
+            <Tab icon={<AnalyticsIcon />} iconPosition="start" label="Analytics" />
           </Tabs>
         </Box>
-                '& .MuiTabs-indicator': {
-                  backgroundColor: '#00E5FF',
-                  height: 3,
-                },
-              }}
-            >
-              <Tab 
-                icon={<PeopleIcon />} 
-                iconPosition="start" 
-                label="Users"
-                disabled={role !== 'admin'}
-              />
-              <Tab icon={<PaletteIcon />} iconPosition="start" label="Theme" />
-              <Tab icon={<ApiIcon />} iconPosition="start" label="API Config" />
-              <Tab icon={<SettingsIcon />} iconPosition="start" label="System" />
-              <Tab icon={<AnalyticsIcon />} iconPosition="start" label="Analytics" />
-            </Tabs>
-          </Box>
 
         <Box sx={{ p: 3 }}>
           <TabPanel value={activeTab} index={0}>

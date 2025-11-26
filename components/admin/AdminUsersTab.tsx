@@ -526,19 +526,6 @@ export default function AdminUsersTab() {
                       <TableCell sx={{ color: theme.palette.text.primary, borderBottom: `1px solid ${theme.palette.divider}` }}>{user.name || 'N/A'}</TableCell>
                       <TableCell sx={{ color: theme.palette.text.primary, borderBottom: `1px solid ${theme.palette.divider}` }}>{user.email}</TableCell>
                       <TableCell sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
-                        <Chip
-                          label={user.role.toUpperCase()}
-                          size="small"
-                          sx={{
-                            backgroundColor: theme.palette.action.hover,
-                            color: theme.palette.text.primary,
-                            border: `1px solid ${theme.palette.divider}`,
-                            fontWeight: 600,
-                          }}
-                        />
-                      <TableCell sx={{ color: 'text.primary' }}>{user.name || 'N/A'}</TableCell>
-                      <TableCell sx={{ color: 'text.primary' }}>{user.email}</TableCell>
-                      <TableCell>
                         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
                           <Chip
                             label={user.role.toUpperCase()}
@@ -702,14 +689,13 @@ export default function AdminUsersTab() {
                     handleDeleteClick(user);
                   }
                 }}
+                disabled={(user as any)?.is_super_admin === true}
                 sx={{
-                  color: theme.palette.text.primary,
+                  color: theme.palette.error.main,
                   '&:hover': {
                     backgroundColor: theme.palette.action.hover,
                   },
                 }}
-                disabled={(user as any)?.is_super_admin === true}
-                sx={{ color: 'error.main' }}
               >
                 <DeleteIcon sx={{ mr: 1, fontSize: 18 }} />
                 {(user as any)?.is_super_admin ? 'Delete User (Super Admin)' : 'Delete User'}

@@ -876,16 +876,9 @@ export default function TemplateBuilderPage() {
             color: theme.palette.text.primary,
           }}
         >
-          Access denied. Admin role required.
+          Access denied. Admin or PM role required.
         </Alert>
       </Box>
-      <>
-        <Container>
-          <Alert severity="error" sx={{ mt: 4 }}>
-            Access denied. Admin or PM role required.
-          </Alert>
-        </Container>
-      </>
     );
   }
 
