@@ -28,7 +28,9 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
+  Grid,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Close as CloseIcon,
   CheckCircle as CheckCircleIcon,
@@ -61,7 +63,7 @@ interface WelcomeTourProps {
 }
 
 // Animated mock components
-const MockDashboard = () => {
+const MockDashboard = ({ theme }: { theme: any }) => {
   const [pulse, setPulse] = useState(true);
   
   useEffect(() => {
@@ -72,12 +74,14 @@ const MockDashboard = () => {
   return (
     <Box
       sx={{
-        backgroundColor: '#000',
+        backgroundColor: theme.palette.background.paper,
         borderRadius: 2,
-        p: 2,
-        border: '1px solid rgba(0, 229, 255, 0.3)',
+        p: 3,
+        border: `2px solid ${theme.palette.divider}`,
         position: 'relative',
         overflow: 'hidden',
+        width: '100%',
+        maxWidth: '600px',
       }}
     >
       <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
@@ -85,9 +89,9 @@ const MockDashboard = () => {
           sx={{
             flex: 1,
             height: 60,
-            backgroundColor: 'rgba(0, 229, 255, 0.1)',
+            backgroundColor: theme.palette.action.hover,
             borderRadius: 1,
-            border: '1px solid rgba(0, 229, 255, 0.3)',
+            border: `1px solid ${theme.palette.divider}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -98,7 +102,7 @@ const MockDashboard = () => {
             },
           }}
         >
-          <Typography variant="caption" sx={{ color: '#00E5FF' }}>
+          <Typography variant="caption" sx={{ color: theme.palette.text.primary }}>
             Projects
           </Typography>
         </Box>
@@ -106,15 +110,15 @@ const MockDashboard = () => {
           sx={{
             flex: 1,
             height: 60,
-            backgroundColor: 'rgba(0, 255, 136, 0.1)',
+            backgroundColor: theme.palette.action.hover,
             borderRadius: 1,
-            border: '1px solid rgba(0, 255, 136, 0.3)',
+            border: `1px solid ${theme.palette.divider}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Typography variant="caption" sx={{ color: '#00FF88' }}>
+          <Typography variant="caption" sx={{ color: theme.palette.text.primary }}>
             Templates
           </Typography>
         </Box>
@@ -122,31 +126,31 @@ const MockDashboard = () => {
       <Box
         sx={{
           height: 40,
-          backgroundColor: 'rgba(233, 30, 99, 0.1)',
+          backgroundColor: theme.palette.action.hover,
           borderRadius: 1,
-          border: '1px solid rgba(233, 30, 99, 0.3)',
+          border: `1px solid ${theme.palette.divider}`,
           display: 'flex',
           alignItems: 'center',
           px: 2,
           mb: 1,
         }}
       >
-        <Typography variant="caption" sx={{ color: '#E91E63' }}>
+        <Typography variant="caption" sx={{ color: theme.palette.text.primary }}>
           My First Project
         </Typography>
       </Box>
       <Box
         sx={{
           height: 40,
-          backgroundColor: 'rgba(33, 150, 243, 0.1)',
+          backgroundColor: theme.palette.action.hover,
           borderRadius: 1,
-          border: '1px solid rgba(33, 150, 243, 0.3)',
+          border: `1px solid ${theme.palette.divider}`,
           display: 'flex',
           alignItems: 'center',
           px: 2,
         }}
       >
-        <Typography variant="caption" sx={{ color: '#2196F3' }}>
+        <Typography variant="caption" sx={{ color: theme.palette.text.primary }}>
           Product Launch
         </Typography>
       </Box>
@@ -154,7 +158,7 @@ const MockDashboard = () => {
   );
 };
 
-const MockTemplateBuilder = () => {
+const MockTemplateBuilder = ({ theme }: { theme: any }) => {
   const [typing, setTyping] = useState('Project Name');
   const [fieldIndex, setFieldIndex] = useState(0);
   
@@ -187,28 +191,30 @@ const MockTemplateBuilder = () => {
   return (
     <Box
       sx={{
-        backgroundColor: '#000',
+        backgroundColor: theme.palette.background.paper,
         borderRadius: 2,
-        p: 2,
-        border: '1px solid rgba(0, 255, 136, 0.3)',
+        p: 3,
+        border: `2px solid ${theme.palette.divider}`,
+        width: '100%',
+        maxWidth: '600px',
       }}
     >
       <Box sx={{ mb: 2 }}>
-        <Typography variant="caption" sx={{ color: '#00FF88', mb: 1, display: 'block' }}>
+        <Typography variant="caption" sx={{ color: theme.palette.text.primary, mb: 1, display: 'block', fontWeight: 600 }}>
           Template Builder
         </Typography>
         <Box
           sx={{
             height: 32,
-            backgroundColor: 'rgba(0, 255, 136, 0.1)',
+            backgroundColor: theme.palette.action.hover,
             borderRadius: 1,
-            border: '1px solid rgba(0, 255, 136, 0.3)',
+            border: `1px solid ${theme.palette.divider}`,
             display: 'flex',
             alignItems: 'center',
             px: 1,
           }}
         >
-          <Typography variant="caption" sx={{ color: '#00FF88' }}>
+          <Typography variant="caption" sx={{ color: theme.palette.text.primary }}>
             {typing || 'Project Name'}
             <Box
               component="span"
@@ -216,7 +222,7 @@ const MockTemplateBuilder = () => {
                 display: 'inline-block',
                 width: 2,
                 height: 14,
-                backgroundColor: '#00FF88',
+                backgroundColor: theme.palette.text.primary,
                 ml: 0.5,
                 animation: 'blink 1s infinite',
                 '@keyframes blink': {
@@ -229,15 +235,15 @@ const MockTemplateBuilder = () => {
         </Box>
       </Box>
       <Box sx={{ display: 'flex', gap: 1 }}>
-        <Chip label="Phase 1" size="small" sx={{ backgroundColor: 'rgba(0, 229, 255, 0.2)', color: '#00E5FF' }} />
-        <Chip label="Phase 2" size="small" sx={{ backgroundColor: 'rgba(233, 30, 99, 0.2)', color: '#E91E63' }} />
-        <Chip label="Phase 3" size="small" sx={{ backgroundColor: 'rgba(0, 255, 136, 0.2)', color: '#00FF88' }} />
+        <Chip label="Phase 1" size="small" sx={{ backgroundColor: theme.palette.action.hover, color: theme.palette.text.primary, border: `1px solid ${theme.palette.divider}` }} />
+        <Chip label="Phase 2" size="small" sx={{ backgroundColor: theme.palette.action.hover, color: theme.palette.text.primary, border: `1px solid ${theme.palette.divider}` }} />
+        <Chip label="Phase 3" size="small" sx={{ backgroundColor: theme.palette.action.hover, color: theme.palette.text.primary, border: `1px solid ${theme.palette.divider}` }} />
       </Box>
     </Box>
   );
 };
 
-const MockProjectForm = () => {
+const MockProjectForm = ({ theme }: { theme: any }) => {
   const [progress, setProgress] = useState(0);
   
   useEffect(() => {
@@ -250,62 +256,66 @@ const MockProjectForm = () => {
   return (
     <Box
       sx={{
-        backgroundColor: '#000',
+        backgroundColor: theme.palette.background.paper,
         borderRadius: 2,
         p: 2,
-        border: '1px solid rgba(233, 30, 99, 0.3)',
+        border: `2px solid ${theme.palette.divider}`,
       }}
     >
       <Box sx={{ mb: 2 }}>
-        <Typography variant="caption" sx={{ color: '#E91E63', mb: 1, display: 'block' }}>
+        <Typography variant="caption" sx={{ color: theme.palette.text.secondary, mb: 1, display: 'block' }}>
           Project Name
         </Typography>
         <Box
           sx={{
             height: 36,
-            backgroundColor: 'rgba(233, 30, 99, 0.1)',
+            backgroundColor: theme.palette.action.hover,
             borderRadius: 1,
-            border: '1px solid rgba(233, 30, 99, 0.3)',
+            border: `1px solid ${theme.palette.divider}`,
             display: 'flex',
             alignItems: 'center',
             px: 1.5,
           }}
         >
-          <Typography variant="caption" sx={{ color: '#E91E63' }}>
+          <Typography variant="caption" sx={{ color: theme.palette.text.primary }}>
             My New Project
           </Typography>
         </Box>
       </Box>
       <Box sx={{ mb: 2 }}>
-        <Typography variant="caption" sx={{ color: '#E91E63', mb: 1, display: 'block' }}>
+        <Typography variant="caption" sx={{ color: theme.palette.text.secondary, mb: 1, display: 'block' }}>
           Template
         </Typography>
         <Box
           sx={{
             height: 36,
-            backgroundColor: 'rgba(233, 30, 99, 0.1)',
+            backgroundColor: theme.palette.action.hover,
             borderRadius: 1,
-            border: '1px solid rgba(233, 30, 99, 0.3)',
+            border: `1px solid ${theme.palette.divider}`,
             display: 'flex',
             alignItems: 'center',
             px: 1.5,
             justifyContent: 'space-between',
           }}
         >
-          <Typography variant="caption" sx={{ color: '#E91E63' }}>
+          <Typography variant="caption" sx={{ color: theme.palette.text.primary }}>
             Select Template...
           </Typography>
-          <PlayArrowIcon sx={{ fontSize: 16, color: '#E91E63' }} />
+          <PlayArrowIcon sx={{ fontSize: 16, color: theme.palette.text.primary }} />
         </Box>
       </Box>
       <Button
         size="small"
         variant="contained"
         sx={{
-          backgroundColor: '#E91E63',
-          color: '#FFF',
+          backgroundColor: theme.palette.background.paper,
+          color: theme.palette.text.primary,
           width: '100%',
-          '&:hover': { backgroundColor: '#C2185B' },
+          border: `1px solid ${theme.palette.divider}`,
+          '&:hover': { 
+            backgroundColor: theme.palette.action.hover,
+            borderColor: theme.palette.text.primary,
+          },
         }}
       >
         Create Project
@@ -314,7 +324,7 @@ const MockProjectForm = () => {
   );
 };
 
-const MockProjectDashboard = () => {
+const MockProjectDashboard = ({ theme }: { theme: any }) => {
   const [activePhase, setActivePhase] = useState(0);
   
   useEffect(() => {
@@ -325,24 +335,26 @@ const MockProjectDashboard = () => {
   }, []);
 
   const phases = [
-    { name: 'Concept Framing', color: '#00E5FF', progress: 100 },
-    { name: 'Product Strategy', color: '#E91E63', progress: 80 },
-    { name: 'Rapid Prototype', color: '#00FF88', progress: 60 },
-    { name: 'Analysis', color: '#2196F3', progress: 40 },
-    { name: 'Build Accelerator', color: '#FF6B35', progress: 20 },
-    { name: 'QA & Hardening', color: '#FF1744', progress: 0 },
+    { name: 'Concept Framing', progress: 100 },
+    { name: 'Product Strategy', progress: 80 },
+    { name: 'Rapid Prototype', progress: 60 },
+    { name: 'Analysis', progress: 40 },
+    { name: 'Build Accelerator', progress: 20 },
+    { name: 'QA & Hardening', progress: 0 },
   ];
 
   return (
     <Box
       sx={{
-        backgroundColor: '#000',
+        backgroundColor: theme.palette.background.paper,
         borderRadius: 2,
-        p: 2,
-        border: '1px solid rgba(33, 150, 243, 0.3)',
+        p: 3,
+        border: `2px solid ${theme.palette.divider}`,
+        width: '100%',
+        maxWidth: '600px',
       }}
     >
-      <Typography variant="caption" sx={{ color: '#2196F3', mb: 2, display: 'block', fontWeight: 600 }}>
+      <Typography variant="caption" sx={{ color: theme.palette.text.primary, mb: 2, display: 'block', fontWeight: 600 }}>
         Project Phases
       </Typography>
       {phases.map((phase, index) => (
@@ -356,10 +368,10 @@ const MockProjectDashboard = () => {
           }}
         >
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-            <Typography variant="caption" sx={{ color: phase.color }}>
+            <Typography variant="caption" sx={{ color: theme.palette.text.primary }}>
               {phase.name}
             </Typography>
-            <Typography variant="caption" sx={{ color: '#B0B0B0' }}>
+            <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
               {phase.progress}%
             </Typography>
           </Box>
@@ -369,9 +381,9 @@ const MockProjectDashboard = () => {
             sx={{
               height: 6,
               borderRadius: 3,
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              backgroundColor: theme.palette.action.hover,
               '& .MuiLinearProgress-bar': {
-                backgroundColor: phase.color,
+                backgroundColor: theme.palette.text.primary,
               },
             }}
           />
@@ -381,7 +393,7 @@ const MockProjectDashboard = () => {
   );
 };
 
-const MockExportDialog = () => {
+const MockExportDialog = ({ theme }: { theme: any }) => {
   const [exporting, setExporting] = useState(false);
   
   useEffect(() => {
@@ -394,19 +406,21 @@ const MockExportDialog = () => {
   return (
     <Box
       sx={{
-        backgroundColor: '#000',
+        backgroundColor: theme.palette.background.paper,
         borderRadius: 2,
-        p: 2,
-        border: '1px solid rgba(255, 107, 53, 0.3)',
+        p: 3,
+        border: `2px solid ${theme.palette.divider}`,
+        width: '100%',
+        maxWidth: '600px',
       }}
     >
-      <Typography variant="caption" sx={{ color: '#FF6B35', mb: 2, display: 'block', fontWeight: 600 }}>
+      <Typography variant="caption" sx={{ color: theme.palette.text.primary, mb: 2, display: 'block', fontWeight: 600 }}>
         Export Blueprint Bundle
       </Typography>
       <Box sx={{ mb: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-          <FolderIcon sx={{ fontSize: 16, color: '#FF6B35' }} />
-          <Typography variant="caption" sx={{ color: '#E0E0E0' }}>
+          <FolderIcon sx={{ fontSize: 16, color: theme.palette.text.primary }} />
+          <Typography variant="caption" sx={{ color: theme.palette.text.primary }}>
             blueprint-bundle.zip
           </Typography>
           {exporting && (
@@ -416,7 +430,7 @@ const MockExportDialog = () => {
                 width: 12,
                 height: 12,
                 borderRadius: '50%',
-                backgroundColor: '#00FF88',
+                backgroundColor: theme.palette.text.primary,
                 animation: 'pulse 1s infinite',
                 '@keyframes pulse': {
                   '0%, 100%': { opacity: 1, transform: 'scale(1)' },
@@ -429,26 +443,26 @@ const MockExportDialog = () => {
         <List dense sx={{ pl: 2 }}>
           <ListItem sx={{ py: 0.25 }}>
             <ListItemIcon sx={{ minWidth: 24 }}>
-              <DescriptionIcon sx={{ fontSize: 14, color: '#B0B0B0' }} />
+              <DescriptionIcon sx={{ fontSize: 14, color: theme.palette.text.secondary }} />
             </ListItemIcon>
             <ListItemText
-              primary={<Typography variant="caption" sx={{ color: '#B0B0B0' }}>phase-1.json</Typography>}
+              primary={<Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>phase-1.json</Typography>}
             />
           </ListItem>
           <ListItem sx={{ py: 0.25 }}>
             <ListItemIcon sx={{ minWidth: 24 }}>
-              <DescriptionIcon sx={{ fontSize: 14, color: '#B0B0B0' }} />
+              <DescriptionIcon sx={{ fontSize: 14, color: theme.palette.text.secondary }} />
             </ListItemIcon>
             <ListItemText
-              primary={<Typography variant="caption" sx={{ color: '#B0B0B0' }}>phase-2.json</Typography>}
+              primary={<Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>phase-2.json</Typography>}
             />
           </ListItem>
           <ListItem sx={{ py: 0.25 }}>
             <ListItemIcon sx={{ minWidth: 24 }}>
-              <CodeIcon sx={{ fontSize: 14, color: '#B0B0B0' }} />
+              <CodeIcon sx={{ fontSize: 14, color: theme.palette.text.secondary }} />
             </ListItemIcon>
             <ListItemText
-              primary={<Typography variant="caption" sx={{ color: '#B0B0B0' }}>cursor-prompt.md</Typography>}
+              primary={<Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>cursor-prompt.md</Typography>}
             />
           </ListItem>
         </List>
@@ -458,10 +472,14 @@ const MockExportDialog = () => {
         variant="contained"
         startIcon={<DownloadIcon />}
         sx={{
-          backgroundColor: '#FF6B35',
-          color: '#FFF',
+          backgroundColor: theme.palette.background.paper,
+          color: theme.palette.text.primary,
           width: '100%',
-          '&:hover': { backgroundColor: '#E55A2B' },
+          border: `1px solid ${theme.palette.divider}`,
+          '&:hover': { 
+            backgroundColor: theme.palette.action.hover,
+            borderColor: theme.palette.text.primary,
+          },
         }}
       >
         {exporting ? 'Exporting...' : 'Download Bundle'}
@@ -470,7 +488,7 @@ const MockExportDialog = () => {
   );
 };
 
-const MockKeyboard = () => {
+const MockKeyboard = ({ theme }: { theme: any }) => {
   const [pressedKey, setPressedKey] = useState<string | null>(null);
   
   useEffect(() => {
@@ -487,13 +505,15 @@ const MockKeyboard = () => {
   return (
     <Box
       sx={{
-        backgroundColor: '#000',
+        backgroundColor: theme.palette.background.paper,
         borderRadius: 2,
-        p: 2,
-        border: '1px solid rgba(156, 39, 176, 0.3)',
+        p: 3,
+        border: `2px solid ${theme.palette.divider}`,
+        width: '100%',
+        maxWidth: '600px',
       }}
     >
-      <Typography variant="caption" sx={{ color: '#9C27B0', mb: 2, display: 'block', fontWeight: 600 }}>
+      <Typography variant="caption" sx={{ color: theme.palette.text.primary, mb: 2, display: 'block', fontWeight: 600 }}>
         Keyboard Shortcuts
       </Typography>
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -503,20 +523,20 @@ const MockKeyboard = () => {
             sx={{
               px: 2,
               py: 1,
-              backgroundColor: pressedKey === key ? '#9C27B0' : 'rgba(156, 39, 176, 0.2)',
+              backgroundColor: pressedKey === key ? theme.palette.text.primary : theme.palette.action.hover,
               borderRadius: 1,
-              border: '1px solid rgba(156, 39, 176, 0.3)',
+              border: `1px solid ${theme.palette.divider}`,
               transform: pressedKey === key ? 'scale(0.95)' : 'scale(1)',
               transition: 'all 0.1s ease',
             }}
           >
-            <Typography variant="caption" sx={{ color: pressedKey === key ? '#FFF' : '#9C27B0', fontWeight: 600 }}>
+            <Typography variant="caption" sx={{ color: pressedKey === key ? theme.palette.background.default : theme.palette.text.primary, fontWeight: 600 }}>
               {key}
             </Typography>
           </Box>
         ))}
         <Box sx={{ width: '100%', textAlign: 'center', mt: 1 }}>
-          <Typography variant="caption" sx={{ color: '#B0B0B0' }}>
+          <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
             Save phase data
           </Typography>
         </Box>
@@ -525,30 +545,30 @@ const MockKeyboard = () => {
   );
 };
 
-const TOUR_STEPS: TourStep[] = [
+const getTourSteps = (theme: any): TourStep[] => [
   {
     title: 'Welcome to The FullStack Method™ App',
     description: 'Get started',
     icon: <RocketLaunchIcon />,
-    mockComponent: <MockDashboard />,
+    mockComponent: <MockDashboard theme={theme} />,
     content: (
       <Box>
-        <Typography variant="h6" sx={{ color: '#00E5FF', mb: 2, textAlign: 'center', fontWeight: 600 }}>
+        <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 2, textAlign: 'center', fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif' }}>
           Welcome to The FullStack Method™ App
         </Typography>
-        <Typography variant="body1" sx={{ color: '#E0E0E0', mb: 2, textAlign: 'center' }}>
+        <Typography variant="body1" sx={{ color: theme.palette.text.primary, mb: 2, textAlign: 'center' }}>
           Transform how you build products with our AI-accelerated project management platform.
         </Typography>
-        <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 1 }}>
+        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
           • Work through 6 structured phases from concept to launch
         </Typography>
-        <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 1 }}>
+        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
           • Create reusable templates to accelerate future projects
         </Typography>
-        <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 1 }}>
+        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
           • Generate structured blueprints optimized for AI coding tools
         </Typography>
-        <Typography variant="body2" sx={{ color: '#B0B0B0' }}>
+        <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
           • Collaborate with your team using role-based access control
         </Typography>
       </Box>
@@ -558,25 +578,25 @@ const TOUR_STEPS: TourStep[] = [
     title: 'Create Your First Template',
     description: 'Build reusable workflows',
     icon: <BuildIcon />,
-    mockComponent: <MockTemplateBuilder />,
+    mockComponent: <MockTemplateBuilder theme={theme} />,
     content: (
       <Box>
-        <Typography variant="h6" sx={{ color: '#00FF88', mb: 2, textAlign: 'center', fontWeight: 600 }}>
+        <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 2, textAlign: 'center', fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif' }}>
           Create Your First Template
         </Typography>
-        <Typography variant="body1" sx={{ color: '#E0E0E0', mb: 2 }}>
+        <Typography variant="body1" sx={{ color: theme.palette.text.primary, mb: 2 }}>
           Templates let you standardize your workflow and reuse field configurations across projects.
         </Typography>
-        <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 1 }}>
+        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
           • Navigate to <strong>Admin → Templates</strong> (admin only)
         </Typography>
-        <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 1 }}>
+        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
           • Click &quot;Create Template&quot; or use the AI Template Generator
         </Typography>
-        <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 1 }}>
+        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
           • Build custom field configurations for each phase
         </Typography>
-        <Typography variant="body2" sx={{ color: '#B0B0B0' }}>
+        <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
           • Save templates as public or private for your team
         </Typography>
       </Box>
@@ -586,25 +606,25 @@ const TOUR_STEPS: TourStep[] = [
     title: 'Start Your First Project',
     description: 'Begin your journey',
     icon: <PlayArrowIcon />,
-    mockComponent: <MockProjectForm />,
+    mockComponent: <MockProjectForm theme={theme} />,
     content: (
       <Box>
-        <Typography variant="h6" sx={{ color: '#E91E63', mb: 2, textAlign: 'center', fontWeight: 600 }}>
+        <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 2, textAlign: 'center', fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif' }}>
           Start Your First Project
         </Typography>
-        <Typography variant="body1" sx={{ color: '#E0E0E0', mb: 2 }}>
+        <Typography variant="body1" sx={{ color: theme.palette.text.primary, mb: 2 }}>
           Create a new project to begin applying The FullStack Method™ to your product.
         </Typography>
-        <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 1 }}>
+        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
           • Click &quot;Create Project&quot; from your dashboard
         </Typography>
-        <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 1 }}>
+        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
           • Give your project a name and description
         </Typography>
-        <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 1 }}>
+        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
           • Optionally select a template to pre-fill phase data
         </Typography>
-        <Typography variant="body2" sx={{ color: '#B0B0B0' }}>
+        <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
           • Choose your primary development tool (Cursor, Replit, etc.)
         </Typography>
       </Box>
@@ -614,36 +634,36 @@ const TOUR_STEPS: TourStep[] = [
     title: 'Manage Your First Project',
     description: 'Navigate phases',
     icon: <SettingsIcon />,
-    mockComponent: <MockProjectDashboard />,
+    mockComponent: <MockProjectDashboard theme={theme} />,
     content: (
       <Box>
-        <Typography variant="h6" sx={{ color: '#2196F3', mb: 2, textAlign: 'center', fontWeight: 600 }}>
+        <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 2, textAlign: 'center', fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif' }}>
           Manage Your First Project
         </Typography>
-        <Typography variant="body1" sx={{ color: '#E0E0E0', mb: 2 }}>
+        <Typography variant="body1" sx={{ color: theme.palette.text.primary, mb: 2 }}>
           Work through the 6 phases systematically to build your product blueprint.
         </Typography>
         <Box sx={{ pl: 2, mb: 2 }}>
-          <Typography variant="body2" sx={{ color: '#00E5FF', mb: 0.5 }}>
+          <Typography variant="body2" sx={{ color: theme.palette.text.primary, mb: 0.5 }}>
             1. Concept Framing - Define the problem and value proposition
           </Typography>
-          <Typography variant="body2" sx={{ color: '#E91E63', mb: 0.5 }}>
+          <Typography variant="body2" sx={{ color: theme.palette.text.primary, mb: 0.5 }}>
             2. Product Strategy - Personas, outcomes, and features
           </Typography>
-          <Typography variant="body2" sx={{ color: '#00FF88', mb: 0.5 }}>
+          <Typography variant="body2" sx={{ color: theme.palette.text.primary, mb: 0.5 }}>
             3. Rapid Prototype Definition - Screens, flows, components
           </Typography>
-          <Typography variant="body2" sx={{ color: '#2196F3', mb: 0.5 }}>
+          <Typography variant="body2" sx={{ color: theme.palette.text.primary, mb: 0.5 }}>
             4. Analysis & User Stories - Entities, APIs, acceptance criteria
           </Typography>
-          <Typography variant="body2" sx={{ color: '#FF6B35', mb: 0.5 }}>
+          <Typography variant="body2" sx={{ color: theme.palette.text.primary, mb: 0.5 }}>
             5. Build Accelerator - Architecture and coding standards
           </Typography>
-          <Typography variant="body2" sx={{ color: '#FF1744' }}>
+          <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
             6. QA & Hardening - Testing and launch readiness
           </Typography>
         </Box>
-        <Typography variant="body2" sx={{ color: '#B0B0B0' }}>
+        <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
           Use AI Assist buttons (✨) throughout to generate content quickly!
         </Typography>
       </Box>
@@ -653,30 +673,30 @@ const TOUR_STEPS: TourStep[] = [
     title: 'Export Your Blueprints',
     description: 'Generate deliverables',
     icon: <DownloadIcon />,
-    mockComponent: <MockExportDialog />,
+    mockComponent: <MockExportDialog theme={theme} />,
     content: (
       <Box>
-        <Typography variant="h6" sx={{ color: '#FF6B35', mb: 2, textAlign: 'center', fontWeight: 600 }}>
+        <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 2, textAlign: 'center', fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif' }}>
           Export Your Blueprints
         </Typography>
-        <Typography variant="body1" sx={{ color: '#E0E0E0', mb: 2 }}>
+        <Typography variant="body1" sx={{ color: theme.palette.text.primary, mb: 2 }}>
           Once you&apos;ve completed your phases, export structured blueprints for your team and AI tools.
         </Typography>
-        <Box sx={{ backgroundColor: 'rgba(0, 229, 255, 0.1)', p: 2, borderRadius: 2, mb: 2 }}>
-          <Typography variant="body2" sx={{ color: '#00E5FF', mb: 1, fontWeight: 600 }}>
+        <Box sx={{ backgroundColor: theme.palette.action.hover, p: 2, borderRadius: 2, mb: 2, border: `1px solid ${theme.palette.divider}` }}>
+          <Typography variant="body2" sx={{ color: theme.palette.text.primary, mb: 1, fontWeight: 600 }}>
             📦 Blueprint Bundle
           </Typography>
-          <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 2 }}>
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 2 }}>
             Complete structured JSON/Markdown files with all phase data, organized by folder structure. Perfect for documentation and team handoffs.
           </Typography>
-          <Typography variant="body2" sx={{ color: '#00E5FF', mb: 1, fontWeight: 600 }}>
+          <Typography variant="body2" sx={{ color: theme.palette.text.primary, mb: 1, fontWeight: 600 }}>
             🤖 Cursor Bundle
           </Typography>
-          <Typography variant="body2" sx={{ color: '#B0B0B0' }}>
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
             Master prompt and specifications optimized for AI coding tools like Cursor, Replit, and Lovable. Includes all context needed for code generation.
           </Typography>
         </Box>
-        <Typography variant="body2" sx={{ color: '#B0B0B0' }}>
+        <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
           Both bundles are exported as ZIP files with organized folder structures ready to use.
         </Typography>
       </Box>
@@ -686,70 +706,73 @@ const TOUR_STEPS: TourStep[] = [
     title: 'Keyboard Shortcuts',
     description: 'Work faster',
     icon: <KeyboardIcon />,
-    mockComponent: <MockKeyboard />,
+    mockComponent: <MockKeyboard theme={theme} />,
     content: (
       <Box>
-        <Typography variant="h6" sx={{ color: '#9C27B0', mb: 2, textAlign: 'center', fontWeight: 600 }}>
+        <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 2, textAlign: 'center', fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif' }}>
           Keyboard Shortcuts
         </Typography>
-        <Typography variant="body1" sx={{ color: '#E0E0E0', mb: 2 }}>
+        <Typography variant="body1" sx={{ color: theme.palette.text.primary, mb: 2 }}>
           Master these shortcuts to work more efficiently:
         </Typography>
-        <Box sx={{ backgroundColor: 'rgba(0, 229, 255, 0.1)', p: 2, borderRadius: 2 }}>
+        <Box sx={{ backgroundColor: theme.palette.action.hover, p: 2, borderRadius: 2, border: `1px solid ${theme.palette.divider}` }}>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
             <Box
               sx={{
-                backgroundColor: 'rgba(0, 229, 255, 0.2)',
+                backgroundColor: theme.palette.background.paper,
                 px: 1.5,
                 py: 0.5,
                 borderRadius: 1,
                 mr: 2,
                 fontFamily: 'monospace',
                 fontSize: '0.875rem',
-                color: '#00E5FF',
+                color: theme.palette.text.primary,
+                border: `1px solid ${theme.palette.divider}`,
               }}
             >
               Ctrl/Cmd + S
             </Box>
-            <Typography variant="body2" sx={{ color: '#E0E0E0' }}>
+            <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
               Save phase data
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
             <Box
               sx={{
-                backgroundColor: 'rgba(0, 229, 255, 0.2)',
+                backgroundColor: theme.palette.background.paper,
                 px: 1.5,
                 py: 0.5,
                 borderRadius: 1,
                 mr: 2,
                 fontFamily: 'monospace',
                 fontSize: '0.875rem',
-                color: '#00E5FF',
+                color: theme.palette.text.primary,
+                border: `1px solid ${theme.palette.divider}`,
               }}
             >
               Ctrl/Cmd + K
             </Box>
-            <Typography variant="body2" sx={{ color: '#E0E0E0' }}>
+            <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
               Show all keyboard shortcuts
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <Box
               sx={{
-                backgroundColor: 'rgba(0, 229, 255, 0.2)',
+                backgroundColor: theme.palette.background.paper,
                 px: 1.5,
                 py: 0.5,
                 borderRadius: 1,
                 mr: 2,
                 fontFamily: 'monospace',
                 fontSize: '0.875rem',
-                color: '#00E5FF',
+                color: theme.palette.text.primary,
+                border: `1px solid ${theme.palette.divider}`,
               }}
             >
               Esc
             </Box>
-            <Typography variant="body2" sx={{ color: '#E0E0E0' }}>
+            <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
               Close dialogs and modals
             </Typography>
           </Box>
@@ -760,7 +783,9 @@ const TOUR_STEPS: TourStep[] = [
 ];
 
 export default function WelcomeTour({ open, onClose, onComplete }: WelcomeTourProps) {
+  const theme = useTheme();
   const [activeStep, setActiveStep] = useState(0);
+  const TOUR_STEPS = getTourSteps(theme);
 
   const handleNext = () => {
     if (activeStep === TOUR_STEPS.length - 1) {
@@ -792,9 +817,15 @@ export default function WelcomeTour({ open, onClose, onComplete }: WelcomeTourPr
       fullWidth
       PaperProps={{
         sx: {
-          backgroundColor: '#000',
-          border: '2px solid rgba(0, 229, 255, 0.2)',
+          backgroundColor: theme.palette.background.default,
+          border: '2px solid rgba(255, 255, 255, 0.2)',
           borderRadius: 3,
+        },
+      }}
+      BackdropProps={{
+        sx: {
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(4px)',
         },
       }}
     >
@@ -803,10 +834,11 @@ export default function WelcomeTour({ open, onClose, onComplete }: WelcomeTourPr
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          backgroundColor: 'rgba(0, 229, 255, 0.1)',
-          borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
-          color: '#00E5FF',
+          backgroundColor: theme.palette.background.paper,
+          borderBottom: `2px solid ${theme.palette.divider}`,
+          color: theme.palette.text.primary,
           fontWeight: 600,
+          fontFamily: 'var(--font-rubik), Rubik, sans-serif',
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -817,9 +849,10 @@ export default function WelcomeTour({ open, onClose, onComplete }: WelcomeTourPr
           onClick={handleSkip}
           size="small"
           sx={{
-            color: '#B0B0B0',
+            color: theme.palette.text.secondary,
             '&:hover': {
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              backgroundColor: theme.palette.action.hover,
+              color: theme.palette.text.primary,
             },
           }}
         >
@@ -839,17 +872,16 @@ export default function WelcomeTour({ open, onClose, onComplete }: WelcomeTourPr
                       borderRadius: '50%',
                       backgroundColor:
                         index === activeStep
-                          ? '#00E5FF'
+                          ? theme.palette.text.primary
                           : index < activeStep
-                          ? '#00FF88'
-                          : 'rgba(0, 229, 255, 0.2)',
+                          ? theme.palette.text.primary
+                          : theme.palette.action.hover,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: index <= activeStep ? '#000' : '#B0B0B0',
+                      color: index <= activeStep ? theme.palette.background.default : theme.palette.text.secondary,
                       fontWeight: 600,
-                      border: index === activeStep ? '2px solid #00E5FF' : 'none',
-                      boxShadow: index === activeStep ? '0 4px 12px rgba(0, 229, 255, 0.4)' : 'none',
+                      border: index === activeStep ? `2px solid ${theme.palette.text.primary}` : `1px solid ${theme.palette.divider}`,
                     }}
                   >
                     {index < activeStep ? (
@@ -863,7 +895,7 @@ export default function WelcomeTour({ open, onClose, onComplete }: WelcomeTourPr
                 )}
                 sx={{
                   '& .MuiStepLabel-label': {
-                    color: index === activeStep ? '#00E5FF' : index < activeStep ? '#00FF88' : '#B0B0B0',
+                    color: index === activeStep ? theme.palette.text.primary : index < activeStep ? theme.palette.text.primary : theme.palette.text.secondary,
                     fontWeight: index === activeStep ? 600 : 400,
                   },
                 }}
@@ -874,30 +906,43 @@ export default function WelcomeTour({ open, onClose, onComplete }: WelcomeTourPr
                 <Paper
                   sx={{
                     p: 2,
-                    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-                    border: '2px solid rgba(0, 229, 255, 0.2)',
+                    backgroundColor: theme.palette.background.paper,
+                    border: `2px solid ${theme.palette.divider}`,
                     borderRadius: 2,
                   }}
                 >
-                  {index === activeStep && step.mockComponent && (
-                    <Box sx={{ mb: 3, display: 'flex', justifyContent: 'center' }}>
-                      {step.mockComponent}
+                  {index === activeStep && step.mockComponent ? (
+                    <Grid container spacing={3} sx={{ alignItems: 'center' }}>
+                      <Grid item xs={12} md={7}>
+                        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
+                          {step.mockComponent}
+                        </Box>
+                      </Grid>
+                      <Grid item xs={12} md={5}>
+                        <Box sx={{ maxWidth: '400px', mx: { xs: 'auto', md: 0 } }}>
+                          {step.content}
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  ) : (
+                    <Box>
+                      {step.content}
                     </Box>
                   )}
-                  {step.content}
                 </Paper>
               </StepContent>
             </Step>
           ))}
         </Stepper>
       </DialogContent>
-      <DialogActions sx={{ p: 2, borderTop: '2px solid rgba(0, 229, 255, 0.2)' }}>
+      <DialogActions sx={{ p: 2, borderTop: `2px solid ${theme.palette.divider}` }}>
         <Button
           onClick={handleSkip}
           sx={{
-            color: '#B0B0B0',
+            color: theme.palette.text.secondary,
             '&:hover': {
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              backgroundColor: theme.palette.action.hover,
+              color: theme.palette.text.primary,
             },
           }}
         >
@@ -908,14 +953,18 @@ export default function WelcomeTour({ open, onClose, onComplete }: WelcomeTourPr
           onClick={handleBack}
           disabled={activeStep === 0}
           sx={{
-            color: '#00E5FF',
+            borderColor: theme.palette.divider,
+            color: theme.palette.text.primary,
             '&:hover': {
-              backgroundColor: 'rgba(0, 229, 255, 0.1)',
+              backgroundColor: theme.palette.action.hover,
+              borderColor: theme.palette.text.primary,
             },
             '&.Mui-disabled': {
-              color: '#666',
+              color: theme.palette.text.secondary,
+              borderColor: theme.palette.divider,
             },
           }}
+          variant="outlined"
         >
           Back
         </Button>
@@ -923,12 +972,13 @@ export default function WelcomeTour({ open, onClose, onComplete }: WelcomeTourPr
           onClick={handleNext}
           variant="contained"
           sx={{
-            backgroundColor: '#00E5FF',
-            color: '#000',
+            backgroundColor: theme.palette.background.paper,
+            color: theme.palette.text.primary,
             fontWeight: 600,
+            border: `1px solid ${theme.palette.divider}`,
             '&:hover': {
-              backgroundColor: '#00B2CC',
-              boxShadow: '0 6px 25px rgba(0, 229, 255, 0.5)',
+              backgroundColor: theme.palette.action.hover,
+              borderColor: theme.palette.text.primary,
             },
           }}
         >
