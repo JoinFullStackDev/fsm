@@ -62,12 +62,36 @@ const theme = createTheme({
       'Arial',
       'sans-serif',
     ].join(','),
-    h1: { fontWeight: 700, color: '#FFFFFF' },
-    h2: { fontWeight: 700, color: '#FFFFFF' },
-    h3: { fontWeight: 600, color: '#FFFFFF' },
-    h4: { fontWeight: 600, color: '#FFFFFF' },
-    h5: { fontWeight: 600, color: '#FFFFFF' },
-    h6: { fontWeight: 600, color: '#FFFFFF' },
+    h1: { 
+      fontFamily: 'var(--font-rubik), Rubik, sans-serif',
+      fontWeight: 700, 
+      color: '#FFFFFF' 
+    },
+    h2: { 
+      fontFamily: 'var(--font-rubik), Rubik, sans-serif',
+      fontWeight: 700, 
+      color: '#FFFFFF' 
+    },
+    h3: { 
+      fontFamily: 'var(--font-rubik), Rubik, sans-serif',
+      fontWeight: 600, 
+      color: '#FFFFFF' 
+    },
+    h4: { 
+      fontFamily: 'var(--font-rubik), Rubik, sans-serif',
+      fontWeight: 600, 
+      color: '#FFFFFF' 
+    },
+    h5: { 
+      fontFamily: 'var(--font-rubik), Rubik, sans-serif',
+      fontWeight: 600, 
+      color: '#FFFFFF' 
+    },
+    h6: { 
+      fontFamily: 'var(--font-rubik), Rubik, sans-serif',
+      fontWeight: 600, 
+      color: '#FFFFFF' 
+    },
   },
 
   components: {
