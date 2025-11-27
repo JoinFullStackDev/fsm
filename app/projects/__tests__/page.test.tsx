@@ -110,7 +110,7 @@ describe('ProjectsPage', () => {
       showSuccess: mockShowSuccess,
       showError: mockShowError,
     });
-    (useRole as jest.Mock).mockReturnValue({ role: 'admin', loading: false });
+    (useRole as jest.Mock).mockReturnValue({ role: 'admin', isSuperAdmin: false, loading: false });
 
     mockSupabaseClient.auth.getSession.mockResolvedValue({
       data: {
@@ -118,6 +118,17 @@ describe('ProjectsPage', () => {
           user: { id: 'user-1', email: 'test@example.com' },
         },
       },
+    });
+
+    // Mock fetch to return the new paginated response structure
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: mockProjects,
+        total: mockProjects.length,
+        limit: 10,
+        offset: 0,
+      }),
     });
 
     const userQueryBuilder = {
@@ -157,11 +168,16 @@ describe('ProjectsPage', () => {
     renderWithProviders(<ProjectsPage />);
 
     await waitFor(() => {
-      // Find the heading specifically (h1 or h4)
-      const heading = screen.getByRole('heading', { name: /Projects/i });
-      expect(heading).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Create Project/i })).toBeInTheDocument();
+      // Wait for projects to load (table should appear)
+      expect(screen.getByTestId('sortable-table')).toBeInTheDocument();
     });
+
+    // Find the heading specifically (h1)
+    const headings = screen.getAllByRole('heading', { name: /Projects/i });
+    // Should only have one main "Projects" heading (h1)
+    const mainHeading = headings.find(h => h.tagName === 'H1');
+    expect(mainHeading).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Create Project/i })).toBeInTheDocument();
   });
 
   it('should render SortableTable with projects data', async () => {
@@ -254,7 +270,7 @@ describe('ProjectsPage', () => {
   });
 
   it('should not show delete button for non-admin users', async () => {
-    (useRole as jest.Mock).mockReturnValue({ role: 'pm', loading: false });
+    (useRole as jest.Mock).mockReturnValue({ role: 'pm', isSuperAdmin: false, loading: false });
 
     renderWithProviders(<ProjectsPage />);
 

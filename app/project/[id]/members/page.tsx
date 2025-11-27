@@ -29,6 +29,7 @@ import {
   FormControl,
   InputLabel,
   Select,
+  useTheme,
 } from '@mui/material';
 import {
   Delete as DeleteIcon,
@@ -62,6 +63,7 @@ interface User {
 }
 
 export default function ProjectMembersPage() {
+  const theme = useTheme();
   const router = useRouter();
   const params = useParams();
   const projectId = params.id as string;
@@ -220,7 +222,7 @@ export default function ProjectMembersPage() {
       <>
         <Container>
           <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-            <CircularProgress />
+            <CircularProgress sx={{ color: theme.palette.text.primary }} />
           </Box>
         </Container>
       </>
@@ -229,7 +231,7 @@ export default function ProjectMembersPage() {
 
   return (
     <>
-      <Box sx={{ backgroundColor: 'background.default', minHeight: '100vh', pb: 4 }}>
+      <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', pb: 4 }}>
         <Container maxWidth="lg" sx={{ pt: 4, pb: 4 }}>
           <Breadcrumbs
             items={[
@@ -241,14 +243,11 @@ export default function ProjectMembersPage() {
             <IconButton
               onClick={() => router.push(`/project/${projectId}`)}
               sx={{
-                color: 'primary.main',
-                border: '1px solid',
-                borderColor: 'primary.main',
+                color: theme.palette.text.primary,
+                border: `1px solid ${theme.palette.divider}`,
                 '&:hover': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                  transform: 'translateX(-4px)',
+                  backgroundColor: theme.palette.action.hover,
                 },
-                transition: 'all 0.3s ease',
               }}
             >
               <ArrowBackIcon />
@@ -258,10 +257,9 @@ export default function ProjectMembersPage() {
               component="h1"
               sx={{
                 flex: 1,
-                fontWeight: 700,
-                background: '#00E5FF',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
+                fontWeight: 600,
+                fontFamily: 'var(--font-rubik), Rubik, sans-serif',
+                color: theme.palette.text.primary,
               }}
             >
               Project Members
@@ -269,21 +267,35 @@ export default function ProjectMembersPage() {
           </Box>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
+          <Alert 
+            severity="error" 
+            sx={{ 
+              mb: 2,
+              backgroundColor: theme.palette.action.hover,
+              border: `1px solid ${theme.palette.divider}`,
+              color: theme.palette.text.primary,
+            }}
+          >
             {error}
           </Alert>
         )}
 
         <Card
           sx={{
-            border: '2px solid',
-            borderColor: 'secondary.main',
-            backgroundColor: 'background.paper',
+            border: `1px solid ${theme.palette.divider}`,
+            backgroundColor: theme.palette.background.paper,
           }}
         >
           <CardContent>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3, alignItems: 'center' }}>
-              <Typography variant="h6" sx={{ color: 'secondary.main', fontWeight: 600 }}>
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  color: theme.palette.text.primary, 
+                  fontWeight: 600,
+                  fontFamily: 'var(--font-rubik), Rubik, sans-serif',
+                }}
+              >
                 Members
               </Typography>
               <Button
@@ -291,12 +303,12 @@ export default function ProjectMembersPage() {
                 startIcon={<AddIcon />}
                 onClick={() => setOpenDialog(true)}
                 sx={{
-                  backgroundColor: 'secondary.main',
-                  color: 'secondary.contrastText',
+                  backgroundColor: theme.palette.text.primary,
+                  color: theme.palette.background.default,
+                  fontWeight: 600,
                   '&:hover': {
-                    backgroundColor: 'secondary.dark',
-                    boxShadow: '0 6px 25px rgba(233, 30, 99, 0.5)',
-                    transform: 'translateY(-2px)',
+                    backgroundColor: theme.palette.action.hover,
+                    color: theme.palette.text.primary,
                   },
                 }}
               >
@@ -307,18 +319,17 @@ export default function ProjectMembersPage() {
             <TableContainer
               component={Paper}
               sx={{
-                backgroundColor: 'rgba(0, 0, 0, 0.2)',
-                border: '1px solid',
-                borderColor: 'divider',
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
               }}
             >
               <Table>
                 <TableHead>
-                  <TableRow sx={{ backgroundColor: 'rgba(233, 30, 99, 0.1)' }}>
-                    <TableCell sx={{ color: 'secondary.main', fontWeight: 600 }}>Name</TableCell>
-                    <TableCell sx={{ color: 'secondary.main', fontWeight: 600 }}>Email</TableCell>
-                    <TableCell sx={{ color: 'secondary.main', fontWeight: 600 }}>Role</TableCell>
-                    <TableCell align="right" sx={{ color: 'secondary.main', fontWeight: 600 }}>Actions</TableCell>
+                  <TableRow sx={{ backgroundColor: theme.palette.background.paper }}>
+                    <TableCell sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Name</TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Email</TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Role</TableCell>
+                    <TableCell align="right" sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -341,27 +352,32 @@ export default function ProjectMembersPage() {
                         key={member.id}
                         sx={{
                           '&:hover': {
-                            backgroundColor: 'rgba(233, 30, 99, 0.05)',
+                            backgroundColor: theme.palette.action.hover,
                           },
+                          borderBottom: `1px solid ${theme.palette.divider}`,
                         }}
                       >
-                        <TableCell sx={{ color: 'text.primary' }}>{member.user?.name || 'N/A'}</TableCell>
-                        <TableCell sx={{ color: 'text.primary' }}>{member.user?.email}</TableCell>
-                        <TableCell>
+                        <TableCell sx={{ color: theme.palette.text.primary, borderBottom: `1px solid ${theme.palette.divider}` }}>{member.user?.name || 'N/A'}</TableCell>
+                        <TableCell sx={{ color: theme.palette.text.primary, borderBottom: `1px solid ${theme.palette.divider}` }}>{member.user?.email}</TableCell>
+                        <TableCell sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
                           <Chip
                             label={member.role.toUpperCase()}
-                            color={getRoleColor(member.role) as any}
                             size="small"
-                            sx={{ fontWeight: 600 }}
+                            sx={{ 
+                              fontWeight: 600,
+                              backgroundColor: theme.palette.action.hover,
+                              color: theme.palette.text.primary,
+                              border: `1px solid ${theme.palette.divider}`,
+                            }}
                           />
                         </TableCell>
-                        <TableCell align="right">
+                        <TableCell align="right" sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
                           <IconButton
                             onClick={() => handleRemoveClick(member.id)}
                             sx={{
-                              color: 'error.main',
+                              color: theme.palette.text.primary,
                               '&:hover': {
-                                backgroundColor: 'rgba(255, 23, 68, 0.1)',
+                                backgroundColor: theme.palette.action.hover,
                               },
                             }}
                             size="small"
@@ -383,31 +399,65 @@ export default function ProjectMembersPage() {
           onClose={() => setOpenDialog(false)}
           PaperProps={{
             sx: {
-              backgroundColor: 'background.paper',
-              border: '2px solid',
-              borderColor: 'secondary.main',
-              borderRadius: 3,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
             },
           }}
         >
           <DialogTitle
             sx={{
-              backgroundColor: 'rgba(233, 30, 99, 0.1)',
-              borderBottom: '1px solid',
-              borderColor: 'secondary.main',
-              color: 'secondary.main',
+              backgroundColor: theme.palette.action.hover,
+              borderBottom: `1px solid ${theme.palette.divider}`,
+              color: theme.palette.text.primary,
               fontWeight: 600,
+              fontFamily: 'var(--font-rubik), Rubik, sans-serif',
             }}
           >
             Add Project Member
           </DialogTitle>
           <DialogContent sx={{ mt: 2 }}>
             <FormControl fullWidth sx={{ mt: 2, mb: 2 }}>
-              <InputLabel>User</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>User</InputLabel>
               <Select
                 value={selectedUserId}
                 label="User"
                 onChange={(e) => setSelectedUserId(e.target.value)}
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      backgroundColor: theme.palette.background.paper,
+                      border: `1px solid ${theme.palette.divider}`,
+                      '& .MuiMenuItem-root': {
+                        color: theme.palette.text.primary,
+                        '&:hover': {
+                          backgroundColor: theme.palette.action.hover,
+                        },
+                        '&.Mui-selected': {
+                          backgroundColor: theme.palette.action.hover,
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        },
+                      },
+                    },
+                  },
+                }}
+                sx={{
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.paper,
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: theme.palette.divider,
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: theme.palette.text.secondary,
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: theme.palette.text.primary,
+                  },
+                  '& .MuiSvgIcon-root': {
+                    color: theme.palette.text.secondary,
+                  },
+                }}
               >
                 {availableUsers.map((user) => (
                   <MenuItem key={user.id} value={user.id}>
@@ -417,11 +467,47 @@ export default function ProjectMembersPage() {
               </Select>
             </FormControl>
             <FormControl fullWidth>
-              <InputLabel>Role</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Role</InputLabel>
               <Select
                 value={selectedRole}
                 label="Role"
                 onChange={(e) => setSelectedRole(e.target.value as UserRole)}
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      backgroundColor: theme.palette.background.paper,
+                      border: `1px solid ${theme.palette.divider}`,
+                      '& .MuiMenuItem-root': {
+                        color: theme.palette.text.primary,
+                        '&:hover': {
+                          backgroundColor: theme.palette.action.hover,
+                        },
+                        '&.Mui-selected': {
+                          backgroundColor: theme.palette.action.hover,
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        },
+                      },
+                    },
+                  },
+                }}
+                sx={{
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.paper,
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: theme.palette.divider,
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: theme.palette.text.secondary,
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: theme.palette.text.primary,
+                  },
+                  '& .MuiSvgIcon-root': {
+                    color: theme.palette.text.secondary,
+                  },
+                }}
               >
                 <MenuItem value="pm">Product Manager</MenuItem>
                 <MenuItem value="designer">Designer</MenuItem>
@@ -430,13 +516,14 @@ export default function ProjectMembersPage() {
               </Select>
             </FormControl>
           </DialogContent>
-          <DialogActions sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+          <DialogActions sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
             <Button
               onClick={() => setOpenDialog(false)}
               sx={{
-                color: 'text.secondary',
+                color: theme.palette.text.secondary,
                 '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  backgroundColor: theme.palette.action.hover,
+                  color: theme.palette.text.primary,
                 },
               }}
             >
@@ -447,13 +534,16 @@ export default function ProjectMembersPage() {
               variant="contained"
               disabled={!selectedUserId}
               sx={{
-                backgroundColor: 'secondary.main',
-                color: 'secondary.contrastText',
+                backgroundColor: theme.palette.text.primary,
+                color: theme.palette.background.default,
+                fontWeight: 600,
                 '&:hover': {
-                  backgroundColor: 'secondary.dark',
+                  backgroundColor: theme.palette.action.hover,
+                  color: theme.palette.text.primary,
                 },
-                '&:disabled': {
-                  backgroundColor: 'rgba(233, 30, 99, 0.3)',
+                '&.Mui-disabled': {
+                  backgroundColor: theme.palette.divider,
+                  color: theme.palette.text.secondary,
                 },
               }}
             >

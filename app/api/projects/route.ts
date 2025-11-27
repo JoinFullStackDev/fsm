@@ -29,6 +29,8 @@ export async function GET(request: NextRequest) {
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const companyId = searchParams.get('company_id');
+    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const offset = parseInt(searchParams.get('offset') || '0', 10);
 
     // Build query with company join
     let query = supabase
@@ -36,14 +38,33 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         company:companies(id, name)
-      `);
+      `, { count: 'exact' });
 
     // If admin and filtering by company, show all projects for that company
     // Otherwise, filter by user ownership/membership
     if (userData.role === 'admin' && companyId) {
       query = query.eq('company_id', companyId);
     } else {
-      query = query.or(`owner_id.eq.${userData.id},id.in.(select project_id from project_members where user_id.eq.${userData.id})`);
+      // Get project IDs where user is a member
+      const { data: memberProjects, error: memberError } = await supabase
+        .from('project_members')
+        .select('project_id')
+        .eq('user_id', userData.id);
+
+      if (memberError) {
+        logger.error('Error loading project members:', memberError);
+        return internalError('Failed to load project members', { error: memberError.message });
+      }
+
+      const memberProjectIds = (memberProjects || []).map((mp: any) => mp.project_id);
+      
+      // Build OR condition: owner_id matches OR id is in member project IDs
+      if (memberProjectIds.length > 0) {
+        query = query.or(`owner_id.eq.${userData.id},id.in.(${memberProjectIds.join(',')})`);
+      } else {
+        // If user is not a member of any projects, only show owned projects
+        query = query.eq('owner_id', userData.id);
+      }
       
       // Filter by company_id if provided
       if (companyId) {
@@ -53,14 +74,22 @@ export async function GET(request: NextRequest) {
 
     query = query.order('updated_at', { ascending: false });
 
-    const { data: projects, error: projectsError } = await query;
+    // Apply pagination
+    query = query.range(offset, offset + limit - 1);
+
+    const { data: projects, error: projectsError, count } = await query;
 
     if (projectsError) {
       logger.error('Error loading projects:', projectsError);
       return internalError('Failed to load projects', { error: projectsError.message });
     }
 
-    return NextResponse.json(projects);
+    return NextResponse.json({
+      data: projects || [],
+      total: count || 0,
+      limit,
+      offset,
+    });
   } catch (error) {
     logger.error('Error in GET /api/projects:', error);
     return internalError('Failed to load projects', { error: error instanceof Error ? error.message : 'Unknown error' });

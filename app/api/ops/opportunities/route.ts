@@ -21,6 +21,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const status = searchParams.get('status');
     const companyId = searchParams.get('company_id');
+    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const offset = parseInt(searchParams.get('offset') || '0', 10);
 
     // Build query
     let query = supabase
@@ -28,7 +30,7 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         company:companies(id, name)
-      `)
+      `, { count: 'exact' })
       .order('created_at', { ascending: false });
 
     // Apply filters
@@ -42,7 +44,10 @@ export async function GET(request: NextRequest) {
       query = query.eq('company_id', companyId);
     }
 
-    const { data: opportunities, error: opportunitiesError } = await query;
+    // Apply pagination
+    query = query.range(offset, offset + limit - 1);
+
+    const { data: opportunities, error: opportunitiesError, count } = await query;
 
     if (opportunitiesError) {
       logger.error('Error loading opportunities:', opportunitiesError);
@@ -55,7 +60,12 @@ export async function GET(request: NextRequest) {
       company: opp.company || undefined,
     }));
 
-    return NextResponse.json(opportunitiesWithCompany);
+    return NextResponse.json({
+      data: opportunitiesWithCompany,
+      total: count || 0,
+      limit,
+      offset,
+    });
   } catch (error) {
     logger.error('Error in GET /api/ops/opportunities:', error);
     return internalError('Failed to load opportunities', { error: error instanceof Error ? error.message : 'Unknown error' });

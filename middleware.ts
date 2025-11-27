@@ -3,15 +3,9 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 
 export async function middleware(request: NextRequest) {
-  // Handle service worker requests - return 204 No Content to suppress 404 errors
+  // Let service worker requests pass through - Next.js will serve from public/sw.js
   if (request.nextUrl.pathname === '/sw.js') {
-    return new NextResponse(null, {
-      status: 204, // No Content
-      headers: {
-        'Content-Type': 'application/javascript',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-      },
-    });
+    return NextResponse.next();
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -109,10 +103,10 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/auth/signin', request.url));
     }
 
-    // Check if user is admin
+    // Check if user is admin and super admin
     const { data: userData, error: dbUserError } = await supabase
       .from('users')
-      .select('id, email, role, auth_id')
+      .select('id, email, role, auth_id, is_super_admin')
       .eq('auth_id', currentUserId)
       .single();
 
@@ -130,15 +124,15 @@ export async function middleware(request: NextRequest) {
         console.log('[Middleware] Trying fallback lookup by email:', userEmail);
         const { data: emailUserData, error: emailError } = await supabase
           .from('users')
-          .select('id, email, role, auth_id')
+          .select('id, email, role, auth_id, is_super_admin')
           .eq('email', userEmail)
           .single();
         
         console.log('[Middleware] Email lookup result:', { emailUserData, emailError: emailError?.message });
         
-        // Allow admins and PMs
-        if (emailUserData && (emailUserData.role === 'admin' || emailUserData.role === 'pm')) {
-          console.log('[Middleware] Found admin/PM user by email, allowing access');
+        // Only allow admins with super_admin flag
+        if (emailUserData && emailUserData.role === 'admin' && emailUserData.is_super_admin) {
+          console.log('[Middleware] Found super admin user by email, allowing access');
           return response; // Allow access
         }
       }
@@ -153,14 +147,14 @@ export async function middleware(request: NextRequest) {
       return response;
     }
 
-    // Allow admins and PMs to access admin routes
+    // Only allow admins with super_admin flag to access admin routes
     // Individual pages and API routes handle their own access control
-    if (userData.role !== 'admin' && userData.role !== 'pm') {
-      console.log('[Middleware] User is not admin or PM (role:', userData.role, '), redirecting to dashboard');
+    if (userData.role !== 'admin' || !userData.is_super_admin) {
+      console.log('[Middleware] User is not super admin (role:', userData.role, ', is_super_admin:', userData.is_super_admin, '), redirecting to dashboard');
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
 
-    console.log('[Middleware] Admin/PM access granted, role:', userData.role);
+    console.log('[Middleware] Super admin access granted, role:', userData.role);
     return response; // Explicitly allow access
   }
 

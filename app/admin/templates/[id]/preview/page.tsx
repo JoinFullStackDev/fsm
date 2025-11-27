@@ -228,6 +228,7 @@ export default function TemplatePreviewPage() {
               flex: 1,
               fontSize: '1.5rem',
               fontWeight: 600,
+              fontFamily: 'var(--font-rubik), Rubik, sans-serif',
               color: theme.palette.text.primary,
             }}
           >
@@ -273,7 +274,7 @@ export default function TemplatePreviewPage() {
           }}
         >
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+            <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif' }}>
               Phase {activePhase} Preview
             </Typography>
             <Button

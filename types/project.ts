@@ -33,6 +33,7 @@ export interface UserPreferences {
   notifications?: {
     email?: boolean;
     inApp?: boolean;
+    push?: boolean; // Browser push notifications
   };
   theme?: {
     mode?: 'light' | 'dark';

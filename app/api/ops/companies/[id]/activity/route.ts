@@ -21,6 +21,7 @@ export async function GET(
     const { id: companyId } = params;
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const offset = parseInt(searchParams.get('offset') || '0', 10);
 
     // Verify company exists
     const { data: company, error: companyError } = await supabase
@@ -38,7 +39,7 @@ export async function GET(
     }
 
     // Get activity feed
-    const activityFeed = await getActivityFeedForCompany(supabase, companyId, limit);
+    const activityFeed = await getActivityFeedForCompany(supabase, companyId, limit, offset);
 
     return NextResponse.json(activityFeed);
   } catch (error) {

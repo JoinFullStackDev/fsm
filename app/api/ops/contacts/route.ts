@@ -24,6 +24,8 @@ export async function GET(request: NextRequest) {
     const leadSource = searchParams.get('lead_source');
     const assignedTo = searchParams.get('assigned_to');
     const lifecycleStage = searchParams.get('lifecycle_stage');
+    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const offset = parseInt(searchParams.get('offset') || '0', 10);
 
     // Build query
     let query = supabase
@@ -31,7 +33,7 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         company:companies(id, name)
-      `)
+      `, { count: 'exact' })
       .order('created_at', { ascending: false });
 
     // Apply filters
@@ -60,7 +62,10 @@ export async function GET(request: NextRequest) {
       query = query.eq('lifecycle_stage', lifecycleStage);
     }
 
-    const { data: contacts, error: contactsError } = await query;
+    // Apply pagination
+    query = query.range(offset, offset + limit - 1);
+
+    const { data: contacts, error: contactsError, count } = await query;
 
     if (contactsError) {
       logger.error('Error loading contacts:', contactsError);
@@ -73,7 +78,12 @@ export async function GET(request: NextRequest) {
       company: contact.company || undefined,
     }));
 
-    return NextResponse.json(contactsWithCompany);
+    return NextResponse.json({
+      data: contactsWithCompany,
+      total: count || 0,
+      limit,
+      offset,
+    });
   } catch (error) {
     logger.error('Error in GET /api/ops/contacts:', error);
     return internalError('Failed to load contacts', { error: error instanceof Error ? error.message : 'Unknown error' });

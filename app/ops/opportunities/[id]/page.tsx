@@ -16,6 +16,16 @@ import {
   Tabs,
   Tab,
   Divider,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Checkbox,
+  ListItemText,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -35,7 +45,9 @@ import {
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useNotification } from '@/components/providers/NotificationProvider';
+import { createSupabaseClient } from '@/lib/supabaseClient';
 import type { OpportunityWithCompany, CompanyWithCounts } from '@/types/ops';
+import type { ProjectTemplate, User } from '@/types/project';
 import CompanyContactsTab from '@/components/ops/CompanyContactsTab';
 import CompanyTasksTab from '@/components/ops/CompanyTasksTab';
 import CompanyActivityTab from '@/components/ops/CompanyActivityTab';
@@ -78,6 +90,13 @@ export default function OpportunityDetailPage() {
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [converting, setConverting] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
+  const [templates, setTemplates] = useState<ProjectTemplate[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const supabase = createSupabaseClient();
 
   const loadOpportunity = useCallback(async () => {
     try {
@@ -125,6 +144,47 @@ export default function OpportunityDetailPage() {
     loadOpportunity();
   }, [loadOpportunity]);
 
+  const loadTemplates = useCallback(async () => {
+    setLoadingTemplates(true);
+    try {
+      const { data, error } = await supabase
+        .from('project_templates')
+        .select('*')
+        .eq('is_public', true)
+        .order('name', { ascending: true });
+      
+      if (!error && data) {
+        setTemplates(data);
+      }
+    } catch (err) {
+      // Silently fail
+    } finally {
+      setLoadingTemplates(false);
+    }
+  }, [supabase]);
+
+  const loadUsers = useCallback(async () => {
+    setLoadingUsers(true);
+    try {
+      const response = await fetch('/api/users');
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data || []);
+      }
+    } catch (err) {
+      // Silently fail
+    } finally {
+      setLoadingUsers(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (convertDialogOpen) {
+      loadTemplates();
+      loadUsers();
+    }
+  }, [convertDialogOpen, loadTemplates, loadUsers]);
+
   const handleEdit = () => {
     router.push(`/ops/opportunities/${opportunityId}/edit`);
   };
@@ -159,6 +219,8 @@ export default function OpportunityDetailPage() {
   };
 
   const handleConvert = () => {
+    setSelectedTemplate('');
+    setSelectedMembers([]);
     setConvertDialogOpen(true);
   };
 
@@ -169,6 +231,13 @@ export default function OpportunityDetailPage() {
       setConverting(true);
       const response = await fetch(`/api/ops/opportunities/${opportunityId}/convert`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          template_id: selectedTemplate || null,
+          member_ids: selectedMembers || [],
+        }),
       });
 
       if (!response.ok) {
@@ -947,68 +1016,212 @@ export default function OpportunityDetailPage() {
       )}
 
       {/* Convert Confirmation Dialog */}
-      {convertDialogOpen && (
-        <Box
+      <Dialog
+        open={convertDialogOpen}
+        onClose={() => !converting && setConvertDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
+          },
+        }}
+      >
+        <DialogTitle
           sx={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1300,
+            backgroundColor: theme.palette.action.hover,
+            color: theme.palette.text.primary,
+            fontWeight: 600,
+            fontFamily: 'var(--font-rubik), Rubik, sans-serif',
+            borderBottom: `1px solid ${theme.palette.divider}`,
           }}
-          onClick={() => setConvertDialogOpen(false)}
         >
-          <Paper
+          Convert to Project
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          <Typography sx={{ mb: 3, color: theme.palette.text.secondary }}>
+            Convert &quot;{opportunity.name}&quot; to a project. You can optionally select a template and add team members.
+          </Typography>
+
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel sx={{ color: theme.palette.text.secondary }}>Template (Optional)</InputLabel>
+            <Select
+              value={selectedTemplate}
+              label="Template (Optional)"
+              onChange={(e) => setSelectedTemplate(e.target.value)}
+              disabled={converting || loadingTemplates}
+              MenuProps={{
+                PaperProps: {
+                  sx: {
+                    backgroundColor: theme.palette.background.paper,
+                    border: `1px solid ${theme.palette.divider}`,
+                    '& .MuiMenuItem-root': {
+                      color: theme.palette.text.primary,
+                      '&:hover': {
+                        backgroundColor: theme.palette.action.hover,
+                      },
+                      '&.Mui-selected': {
+                        backgroundColor: theme.palette.action.hover,
+                        '&:hover': {
+                          backgroundColor: theme.palette.action.hover,
+                        },
+                      },
+                    },
+                  },
+                },
+              }}
+              sx={{
+                color: theme.palette.text.primary,
+                backgroundColor: theme.palette.background.paper,
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.divider,
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.text.secondary,
+                },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.text.primary,
+                },
+                '& .MuiSvgIcon-root': {
+                  color: theme.palette.text.secondary,
+                },
+              }}
+            >
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              {loadingTemplates ? (
+                <MenuItem disabled>
+                  <CircularProgress size={20} sx={{ color: theme.palette.text.primary }} />
+                </MenuItem>
+              ) : (
+                templates.map((template) => (
+                  <MenuItem key={template.id} value={template.id}>
+                    {template.name}
+                  </MenuItem>
+                ))
+              )}
+            </Select>
+          </FormControl>
+
+          <FormControl fullWidth>
+            <InputLabel sx={{ color: theme.palette.text.secondary }}>Project Members (Optional)</InputLabel>
+            <Select
+              multiple
+              value={selectedMembers}
+              label="Project Members (Optional)"
+              onChange={(e) => setSelectedMembers(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)}
+              disabled={converting || loadingUsers}
+              renderValue={(selected) => {
+                const selectedUsers = users.filter(u => selected.includes(u.id));
+                return selectedUsers.map(u => u.name || u.email).join(', ') || 'None selected';
+              }}
+              MenuProps={{
+                PaperProps: {
+                  sx: {
+                    backgroundColor: theme.palette.background.paper,
+                    border: `1px solid ${theme.palette.divider}`,
+                    '& .MuiMenuItem-root': {
+                      color: theme.palette.text.primary,
+                      '&:hover': {
+                        backgroundColor: theme.palette.action.hover,
+                      },
+                      '&.Mui-selected': {
+                        backgroundColor: theme.palette.action.hover,
+                        '&:hover': {
+                          backgroundColor: theme.palette.action.hover,
+                        },
+                      },
+                    },
+                  },
+                },
+              }}
+              sx={{
+                color: theme.palette.text.primary,
+                backgroundColor: theme.palette.background.paper,
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.divider,
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.text.secondary,
+                },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.text.primary,
+                },
+                '& .MuiSvgIcon-root': {
+                  color: theme.palette.text.secondary,
+                },
+              }}
+            >
+              {loadingUsers ? (
+                <MenuItem disabled>
+                  <CircularProgress size={20} sx={{ color: theme.palette.text.primary }} />
+                </MenuItem>
+              ) : (
+                users.map((user) => (
+                  <MenuItem key={user.id} value={user.id}>
+                    <Checkbox
+                      checked={selectedMembers.indexOf(user.id) > -1}
+                      sx={{
+                        color: theme.palette.text.secondary,
+                        '&.Mui-checked': {
+                          color: theme.palette.text.primary,
+                        },
+                      }}
+                    />
+                    <ListItemText
+                      primary={user.name || user.email}
+                      secondary={user.email !== user.name ? user.email : undefined}
+                      primaryTypographyProps={{
+                        sx: { color: theme.palette.text.primary },
+                      }}
+                      secondaryTypographyProps={{
+                        sx: { color: theme.palette.text.secondary },
+                      }}
+                    />
+                  </MenuItem>
+                ))
+              )}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
+          <Button
+            onClick={() => setConvertDialogOpen(false)}
+            disabled={converting}
             sx={{
-              p: 3,
-              maxWidth: 400,
-              backgroundColor: theme.palette.background.paper,
-              border: `1px solid ${theme.palette.divider}`,
+              color: theme.palette.text.secondary,
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
+              },
             }}
-            onClick={(e) => e.stopPropagation()}
           >
-            <Typography variant="h6" sx={{ mb: 2, color: '#4CAF50', fontWeight: 600 }}>
-              Convert to Project
-            </Typography>
-            <Typography sx={{ mb: 3, color: theme.palette.text.secondary }}>
-              Are you sure you want to convert &quot;{opportunity.name}&quot; to a project? This will create a new project and mark the opportunity as converted.
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-              <Button
-                onClick={() => setConvertDialogOpen(false)}
-                disabled={converting}
-                sx={{ color: theme.palette.text.secondary }}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={confirmConvert}
-                variant="contained"
-                disabled={converting}
-                sx={{
-                  backgroundColor: '#4CAF50',
-                  color: '#fff',
-                  fontWeight: 600,
-                  '&:hover': {
-                    backgroundColor: '#45A049',
-                  },
-                  '&.Mui-disabled': {
-                    backgroundColor: 'rgba(76, 175, 80, 0.3)',
-                    color: 'rgba(255, 255, 255, 0.5)',
-                  },
-                }}
-              >
-                {converting ? 'Converting...' : 'Convert'}
-              </Button>
-            </Box>
-          </Paper>
-        </Box>
-      )}
+            Cancel
+          </Button>
+          <Button
+            onClick={confirmConvert}
+            variant="contained"
+            disabled={converting}
+            sx={{
+              backgroundColor: theme.palette.text.primary,
+              color: theme.palette.background.default,
+              fontWeight: 600,
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
+              },
+              '&.Mui-disabled': {
+                backgroundColor: theme.palette.divider,
+                color: theme.palette.text.secondary,
+              },
+            }}
+          >
+            {converting ? 'Converting...' : 'Convert'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

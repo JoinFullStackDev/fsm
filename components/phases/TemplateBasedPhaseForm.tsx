@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Grid, Box, Typography, Alert, Paper } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { useSupabaseClient } from '@/lib/supabaseClient';
 import type { TemplateFieldConfig, TemplateFieldGroup } from '@/types/templates';
 import {
@@ -69,6 +70,7 @@ export default function TemplateBasedPhaseForm({
   data,
   onChange,
 }: TemplateBasedPhaseFormProps) {
+  const theme = useTheme();
   const [fieldConfigs, setFieldConfigs] = useState<TemplateFieldConfig[]>([]);
   const [fieldGroups, setFieldGroups] = useState<TemplateFieldGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -324,15 +326,13 @@ export default function TemplateBasedPhaseForm({
             width: '100%', // Take full width of Grid item
             display: 'flex',
             flexDirection: 'column',
-            backgroundColor: 'background.paper',
-            border: '1px solid',
-            borderColor: 'rgba(0, 229, 255, 0.2)',
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
             borderRadius: 2,
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
             transition: 'all 0.2s ease-in-out',
             '&:hover': {
-              borderColor: 'rgba(0, 229, 255, 0.4)',
-              boxShadow: '0 4px 12px rgba(0, 229, 255, 0.15)',
+              borderColor: theme.palette.text.primary,
+              backgroundColor: theme.palette.action.hover,
             },
           }}
         >
@@ -343,12 +343,13 @@ export default function TemplateBasedPhaseForm({
               sx={{
                 fontSize: '1.25rem',
                 fontWeight: 600,
-                color: 'text.primary',
+                fontFamily: 'var(--font-rubik), Rubik, sans-serif',
+                color: theme.palette.text.primary,
               }}
             >
               {field.field_config.label}
               {field.field_config.required && (
-                <Typography component="span" sx={{ color: 'error.main', fontSize: '1.25rem' }}>
+                <Typography component="span" sx={{ color: theme.palette.error.main, fontSize: '1.25rem' }}>
                   {' '}*
                 </Typography>
               )}
@@ -368,14 +369,22 @@ export default function TemplateBasedPhaseForm({
   if (loading) {
     return (
       <Box sx={{ p: 3, textAlign: 'center' }}>
-        <Typography>Loading form fields...</Typography>
+        <Typography sx={{ color: theme.palette.text.primary }}>Loading form fields...</Typography>
       </Box>
     );
   }
 
   if (error) {
     return (
-      <Alert severity="error" sx={{ m: 2 }}>
+      <Alert 
+        severity="error" 
+        sx={{ 
+          m: 2,
+          backgroundColor: theme.palette.action.hover,
+          border: `1px solid ${theme.palette.divider}`,
+          color: theme.palette.text.primary,
+        }}
+      >
         {error}
       </Alert>
     );
@@ -383,7 +392,15 @@ export default function TemplateBasedPhaseForm({
 
   if (fieldConfigs.length === 0) {
     return (
-      <Alert severity="info" sx={{ m: 2 }}>
+      <Alert 
+        severity="info" 
+        sx={{ 
+          m: 2,
+          backgroundColor: theme.palette.action.hover,
+          border: `1px solid ${theme.palette.divider}`,
+          color: theme.palette.text.primary,
+        }}
+      >
         No fields configured for this phase in the template. Using default form.
       </Alert>
     );

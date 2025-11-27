@@ -18,11 +18,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     const status = searchParams.get('status');
+    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const offset = parseInt(searchParams.get('offset') || '0', 10);
 
     // Build query
     let query = supabase
       .from('companies')
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false });
 
     // Apply filters
@@ -33,7 +35,10 @@ export async function GET(request: NextRequest) {
       query = query.eq('status', status);
     }
 
-    const { data: companies, error: companiesError } = await query;
+    // Apply pagination
+    query = query.range(offset, offset + limit - 1);
+
+    const { data: companies, error: companiesError, count } = await query;
 
     if (companiesError) {
       logger.error('Error loading companies:', companiesError);
@@ -67,7 +72,12 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    return NextResponse.json(companiesWithCounts);
+    return NextResponse.json({
+      data: companiesWithCounts,
+      total: count || 0,
+      limit,
+      offset,
+    });
   } catch (error) {
     logger.error('Error in GET /api/ops/companies:', error);
     return internalError('Failed to load companies', { error: error instanceof Error ? error.message : 'Unknown error' });

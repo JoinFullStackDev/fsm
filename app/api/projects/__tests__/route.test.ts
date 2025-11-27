@@ -69,30 +69,50 @@ describe('/api/projects', () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({
-          data: mockUser,
+          data: { id: mockUser.id, role: mockUser.role },
           error: null,
         }),
       };
 
-      const mockProjectsQuery = {
+      // Mock project_members query (for non-admin users)
+      const mockProjectMembersQueryBuilder = {
         select: jest.fn().mockReturnThis(),
-        or: jest.fn().mockReturnThis(),
-        order: jest.fn().mockResolvedValue({
+        eq: jest.fn().mockResolvedValue({
+          data: [],
+          error: null,
+        }),
+      };
+
+      // Create a chainable query builder for projects
+      // Use a function to ensure 'this' binding works correctly
+      const mockProjectsQueryBuilder: any = {
+        select: jest.fn(function() { return this; }),
+        eq: jest.fn(function() { return this; }),
+        or: jest.fn(function() { return this; }),
+        order: jest.fn(function() { return this; }),
+        range: jest.fn().mockResolvedValue({
           data: mockProjects,
           error: null,
+          count: mockProjects.length,
         }),
       };
 
       mockSupabaseClient.from
         .mockReturnValueOnce(mockUserQuery)
-        .mockReturnValueOnce(mockProjectsQuery);
+        .mockReturnValueOnce(mockProjectMembersQueryBuilder)
+        .mockReturnValueOnce(mockProjectsQueryBuilder);
 
       const request = new NextRequest('http://localhost:3000/api/projects');
       const response = await GET(request);
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data).toEqual(mockProjects);
+      expect(data).toEqual({
+        data: mockProjects,
+        total: mockProjects.length,
+        limit: 10,
+        offset: 0,
+      });
     });
 
     it('should return 401 for unauthenticated requests', async () => {

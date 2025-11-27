@@ -25,6 +25,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Pagination,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -70,59 +71,51 @@ export default function TemplatesPage() {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [publicFilter, setPublicFilter] = useState<string>('all');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
 
   const loadTemplates = useCallback(async () => {
     setLoading(true);
+    setError(null);
     
-    // Get current user ID
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('id')
-        .eq('auth_id', session.user.id)
-        .single();
-      if (userData) {
-        setCurrentUserId(userData.id);
-      }
-    }
-    
-    // Load templates with usage counts
-    const { data: templatesData, error: templatesError } = await supabase
-      .from('project_templates')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (templatesError) {
-      setError(templatesError.message);
-      showError('Failed to load templates');
-      setLoading(false);
-      return;
-    }
-
-    // Get usage counts for each template
-    const templatesWithUsage = await Promise.all(
-      (templatesData || []).map(async (template) => {
-        const { count, error: countError } = await supabase
-          .from('projects')
-          .select('*', { count: 'exact', head: true })
-          .eq('template_id', template.id);
-
-        if (countError) {
-          logger.error('Error counting template usage:', countError);
-          return { ...template, usage_count: 0 };
+    try {
+      // Get current user ID
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('id')
+          .eq('auth_id', session.user.id)
+          .single();
+        if (userData) {
+          setCurrentUserId(userData.id);
         }
+      }
 
-        const usageCount = count || 0;
-        logger.debug('[TemplatesPage] Template usage count:', { templateId: template.id, templateName: template.name, usageCount });
-        return { ...template, usage_count: usageCount };
-      })
-    );
+      const offset = (page - 1) * pageSize;
+      const params = new URLSearchParams({
+        limit: pageSize.toString(),
+        offset: offset.toString(),
+      });
 
-    logger.debug('[TemplatesPage] Loaded templates with usage:', templatesWithUsage.map(t => ({ id: t.id, name: t.name, usage_count: (t as any).usage_count })));
-    setTemplates(templatesWithUsage);
-    setLoading(false);
-  }, [supabase, showError]);
+      const response = await fetch(`/api/admin/templates?${params}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to load templates');
+      }
+
+      setTemplates(data.data || []);
+      setTotal(data.total || 0);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load templates';
+      setError(errorMessage);
+      showError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, [supabase, showError, page, pageSize]);
 
   useEffect(() => {
     logger.debug('[TemplatesPage] Role check:', { role, roleLoading });
@@ -141,7 +134,7 @@ export default function TemplatesPage() {
 
     logger.debug('[TemplatesPage] User is admin or PM, loading templates. Role:', role);
     loadTemplates();
-  }, [role, roleLoading, router, loadTemplates]);
+  }, [role, roleLoading, router, loadTemplates, page, pageSize]);
 
   const handleOpenDialog = (template?: ProjectTemplate) => {
     if (template) {
@@ -252,7 +245,12 @@ export default function TemplatesPage() {
       }
 
       showSuccess('Template deleted successfully');
-      loadTemplates();
+      // Reset to first page if current page would be empty
+      if (templates.length === 1 && page > 1) {
+        setPage(1);
+      } else {
+        loadTemplates();
+      }
     } catch (error) {
       showError(error instanceof Error ? error.message : 'Failed to delete template');
     }
@@ -261,6 +259,8 @@ export default function TemplatesPage() {
   };
 
   // Filter templates (sorting is handled by SortableTable)
+  // Note: For now, filtering is done client-side on paginated results
+  // In the future, this could be moved to server-side for better performance
   const filteredTemplates = templates.filter((template) => {
     // Search filter
     const matchesSearch =
@@ -276,6 +276,11 @@ export default function TemplatesPage() {
     
     return matchesSearch && matchesPublic;
   });
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, publicFilter]);
 
   const handleDuplicate = async (template: ProjectTemplate) => {
     try {
@@ -297,6 +302,7 @@ export default function TemplatesPage() {
       }
 
       showSuccess('Template duplicated successfully!');
+      setPage(1);
       loadTemplates();
     } catch (error) {
       logger.error('Error duplicating template:', error);
@@ -320,17 +326,32 @@ export default function TemplatesPage() {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Typography
-          variant="h4"
-          component="h1"
-          sx={{
-            fontSize: '1.5rem',
-            fontWeight: 600,
-            color: theme.palette.text.primary,
-          }}
-        >
-          Project Templates
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Typography
+            variant="h4"
+            component="h1"
+            sx={{
+              fontSize: '1.5rem',
+              fontWeight: 600,
+              color: theme.palette.text.primary,
+            }}
+          >
+            Project Templates
+          </Typography>
+          {!loading && (
+            <Chip
+              label={total}
+              size="small"
+              sx={{
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
+                border: `1px solid ${theme.palette.divider}`,
+                fontWeight: 500,
+                height: 24,
+              }}
+            />
+          )}
+        </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
           <Button
             variant="outlined"
@@ -452,17 +473,6 @@ export default function TemplatesPage() {
                       <MenuItem value="private">Private Only</MenuItem>
                     </Select>
                   </FormControl>
-                </Grid>
-                <Grid item xs={12} md={5}>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      color: theme.palette.text.secondary,
-                      textAlign: { xs: 'left', md: 'right' },
-                    }}
-                  >
-                    {filteredTemplates.length} of {templates.length} templates
-                  </Typography>
                 </Grid>
               </Grid>
             </Box>
@@ -633,23 +643,6 @@ export default function TemplatesPage() {
                       >
                         <ContentCopyIcon fontSize="small" />
                       </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(template.id);
-                        }}
-                        sx={{
-                          color: theme.palette.text.primary,
-                          '&:hover': {
-                            backgroundColor: theme.palette.action.hover,
-                          },
-                        }}
-                        title="Delete Template"
-                        aria-label={`Delete template ${template.name}`}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
                       {/* PMs can only delete templates they created */}
                       {(role === 'admin' || (role === 'pm' && template.created_by === currentUserId)) && (
                         <IconButton
@@ -659,9 +652,9 @@ export default function TemplatesPage() {
                             handleDelete(template.id);
                           }}
                           sx={{
-                            color: '#FF1744',
+                            color: theme.palette.error.main,
                             '&:hover': {
-                              backgroundColor: 'rgba(255, 23, 68, 0.1)',
+                              backgroundColor: theme.palette.action.hover,
                             },
                           }}
                           title="Delete Template"
@@ -679,6 +672,77 @@ export default function TemplatesPage() {
               }}
               emptyMessage="No templates found"
             />
+          )}
+
+          {/* Pagination */}
+          {total > 10 && (
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                mt: 3,
+                pt: 3,
+                borderTop: `1px solid ${theme.palette.divider}`,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                  Showing {Math.min((page - 1) * pageSize + 1, total)} - {Math.min(page * pageSize, total)} of {total}
+                </Typography>
+                <FormControl size="small" sx={{ minWidth: 120 }}>
+                  <InputLabel sx={{ color: theme.palette.text.secondary }}>Per Page</InputLabel>
+                  <Select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setPage(1);
+                    }}
+                    label="Per Page"
+                    sx={{
+                      color: theme.palette.text.primary,
+                      backgroundColor: theme.palette.action.hover,
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: theme.palette.divider,
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: theme.palette.text.secondary,
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: theme.palette.text.primary,
+                      },
+                      '& .MuiSvgIcon-root': {
+                        color: theme.palette.text.primary,
+                      },
+                    }}
+                  >
+                    <MenuItem value={10}>10</MenuItem>
+                    <MenuItem value={25}>25</MenuItem>
+                    <MenuItem value={50}>50</MenuItem>
+                    <MenuItem value={75}>75</MenuItem>
+                    <MenuItem value={100}>100</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+              <Pagination
+                count={Math.ceil(total / pageSize)}
+                page={page}
+                onChange={(_, value) => setPage(value)}
+                color="primary"
+                sx={{
+                  '& .MuiPaginationItem-root': {
+                    color: theme.palette.text.primary,
+                    '&.Mui-selected': {
+                      backgroundColor: theme.palette.action.hover,
+                      color: theme.palette.text.primary,
+                    },
+                    '&:hover': {
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                  },
+                }}
+              />
+            </Box>
           )}
 
           {/* Create/Edit Dialog */}

@@ -12,6 +12,11 @@ import {
   LinearProgress,
   IconButton,
   Tooltip,
+  Pagination,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -33,72 +38,41 @@ export default function ProjectManagementPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [initiating, setInitiating] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+
+  const loadProjects = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const offset = (page - 1) * pageSize;
+      const params = new URLSearchParams({
+        limit: pageSize.toString(),
+        offset: offset.toString(),
+      });
+
+      const response = await fetch(`/api/projects?${params}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to load projects');
+      }
+
+      setProjects(data.data || []);
+      setTotal(data.total || 0);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load projects';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadProjects = async () => {
-      setLoading(true);
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError) {
-        setError(sessionError.message);
-        setLoading(false);
-        return;
-      }
-
-      if (!session) {
-        setError('Session not found. Please try signing in again.');
-        setLoading(false);
-        return;
-      }
-
-      // Get user record
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id, role')
-        .eq('auth_id', session.user.id)
-        .single();
-
-      if (userError || !userData) {
-        setError('Failed to load user data');
-        setLoading(false);
-        return;
-      }
-
-      // Get projects where user is owner
-      const { data: ownedProjects, error: ownedError } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('owner_id', userData.id)
-        .order('updated_at', { ascending: false });
-
-      // Get projects where user is a member
-      const { data: memberProjects, error: memberError } = await supabase
-        .from('project_members')
-        .select('project_id, projects(*)')
-        .eq('user_id', userData.id);
-
-      if (ownedError || memberError) {
-        setError(ownedError?.message || memberError?.message || 'Failed to load projects');
-        setLoading(false);
-        return;
-      }
-
-      // Combine owned projects and member projects
-      const owned = ownedProjects || [];
-      const member = (memberProjects || []).map((mp: any) => mp.projects).filter(Boolean);
-      const allProjects = [...owned, ...member];
-
-      // Remove duplicates
-      const uniqueProjects = Array.from(
-        new Map(allProjects.map((p: any) => [p.id, p])).values()
-      ) as Project[];
-
-      setProjects(uniqueProjects);
-      setLoading(false);
-    };
-
     loadProjects();
-  }, [supabase]);
+  }, [page, pageSize]);
 
   const handleInitiateProject = async (projectId: string) => {
     setInitiating(projectId);
@@ -192,17 +166,32 @@ export default function ProjectManagementPage() {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Typography
-          variant="h4"
-          component="h1"
-          sx={{
-            fontWeight: 600,
-            color: theme.palette.text.primary,
-            fontSize: '1.5rem',
-          }}
-        >
-          Project Management
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Typography
+            variant="h4"
+            component="h1"
+            sx={{
+              fontWeight: 600,
+              color: theme.palette.text.primary,
+              fontSize: '1.5rem',
+            }}
+          >
+            Project Management
+          </Typography>
+          {!loading && (
+            <Chip
+              label={total}
+              size="small"
+              sx={{
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
+                border: `1px solid ${theme.palette.divider}`,
+                fontWeight: 500,
+                height: 24,
+              }}
+            />
+          )}
+        </Box>
       </Box>
 
       {error && (
@@ -354,6 +343,77 @@ export default function ProjectManagementPage() {
           }}
           emptyMessage="No projects found"
         />
+      )}
+
+      {/* Pagination */}
+      {total > 10 && (
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            mt: 3,
+            pt: 3,
+            borderTop: `1px solid ${theme.palette.divider}`,
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+              Showing {Math.min((page - 1) * pageSize + 1, total)} - {Math.min(page * pageSize, total)} of {total}
+            </Typography>
+            <FormControl size="small" sx={{ minWidth: 120 }}>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Per Page</InputLabel>
+              <Select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(1);
+                }}
+                label="Per Page"
+                sx={{
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.action.hover,
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: theme.palette.divider,
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: theme.palette.text.secondary,
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: theme.palette.text.primary,
+                  },
+                  '& .MuiSvgIcon-root': {
+                    color: theme.palette.text.primary,
+                  },
+                }}
+              >
+                <MenuItem value={10}>10</MenuItem>
+                <MenuItem value={25}>25</MenuItem>
+                <MenuItem value={50}>50</MenuItem>
+                <MenuItem value={75}>75</MenuItem>
+                <MenuItem value={100}>100</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+          <Pagination
+            count={Math.ceil(total / pageSize)}
+            page={page}
+            onChange={(_, value) => setPage(value)}
+            color="primary"
+            sx={{
+              '& .MuiPaginationItem-root': {
+                color: theme.palette.text.primary,
+                '&.Mui-selected': {
+                  backgroundColor: theme.palette.action.hover,
+                  color: theme.palette.text.primary,
+                },
+                '&:hover': {
+                  backgroundColor: theme.palette.action.hover,
+                },
+              },
+            }}
+          />
+        </Box>
       )}
     </Box>
   );

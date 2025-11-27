@@ -17,12 +17,14 @@ import {
   Alert,
   IconButton,
   CircularProgress,
+  useTheme,
 } from '@mui/material';
 import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import type { OpportunityStatus, OpportunitySource, Company } from '@/types/ops';
 
 export default function NewOpportunityPage() {
+  const theme = useTheme();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { showSuccess, showError } = useNotification();
@@ -127,9 +129,11 @@ export default function NewOpportunityPage() {
         <IconButton
           onClick={() => router.push('/ops/opportunities')}
           sx={{
-            color: '#00E5FF',
-            border: '1px solid',
-            borderColor: '#00E5FF',
+            color: theme.palette.text.primary,
+            border: `1px solid ${theme.palette.divider}`,
+            '&:hover': {
+              backgroundColor: theme.palette.action.hover,
+            },
           }}
         >
           <ArrowBackIcon />
@@ -138,10 +142,9 @@ export default function NewOpportunityPage() {
           variant="h4"
           component="h1"
           sx={{
-            fontWeight: 700,
-            background: '#00E5FF',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
+            fontWeight: 600,
+            fontFamily: 'var(--font-rubik), Rubik, sans-serif',
+            color: theme.palette.text.primary,
           }}
         >
           Create New Opportunity
@@ -150,8 +153,8 @@ export default function NewOpportunityPage() {
 
       <Card
         sx={{
-          backgroundColor: '#000',
-          border: '2px solid rgba(0, 229, 255, 0.2)',
+          backgroundColor: theme.palette.background.paper,
+          border: `1px solid ${theme.palette.divider}`,
           borderRadius: 2,
         }}
       >
@@ -161,9 +164,9 @@ export default function NewOpportunityPage() {
               severity="error"
               sx={{
                 mb: 2,
-                backgroundColor: 'rgba(255, 23, 68, 0.1)',
-                border: '1px solid rgba(255, 23, 68, 0.3)',
-                color: '#FF1744',
+                backgroundColor: theme.palette.action.hover,
+                border: `1px solid ${theme.palette.divider}`,
+                color: theme.palette.text.primary,
               }}
             >
               {error}
@@ -171,7 +174,7 @@ export default function NewOpportunityPage() {
           )}
           <Box component="form" onSubmit={handleSubmit}>
             <FormControl fullWidth margin="normal" required error={!!validationErrors.company_id}>
-              <InputLabel sx={{ color: '#B0B0B0' }}>Company</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Company</InputLabel>
               <Select
                 value={companyId}
                 label="Company"
@@ -182,26 +185,46 @@ export default function NewOpportunityPage() {
                   }
                 }}
                 disabled={loading || loadingCompanies}
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      backgroundColor: theme.palette.background.paper,
+                      border: `1px solid ${theme.palette.divider}`,
+                      '& .MuiMenuItem-root': {
+                        color: theme.palette.text.primary,
+                        '&:hover': {
+                          backgroundColor: theme.palette.action.hover,
+                        },
+                        '&.Mui-selected': {
+                          backgroundColor: theme.palette.action.hover,
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        },
+                      },
+                    },
+                  },
+                }}
                 sx={{
-                  color: '#E0E0E0',
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.paper,
                   '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: validationErrors.company_id ? theme.palette.error.main : theme.palette.divider,
                   },
                   '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: validationErrors.company_id ? theme.palette.error.main : theme.palette.text.secondary,
                   },
                   '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#00E5FF',
+                    borderColor: validationErrors.company_id ? theme.palette.error.main : theme.palette.text.primary,
                   },
                   '& .MuiSvgIcon-root': {
-                    color: '#00E5FF',
+                    color: theme.palette.text.secondary,
                   },
                 }}
               >
                 {loadingCompanies ? (
                   <MenuItem disabled>
-                    <CircularProgress size={20} />
+                    <CircularProgress size={20} sx={{ color: theme.palette.text.primary }} />
                   </MenuItem>
                 ) : (
                   companies.map((company) => (
@@ -212,7 +235,7 @@ export default function NewOpportunityPage() {
                 )}
               </Select>
               {validationErrors.company_id && (
-                <Box sx={{ color: '#FF1744', fontSize: '0.75rem', mt: 0.5, ml: 1.75 }}>
+                <Box sx={{ color: theme.palette.error.main, fontSize: '0.75rem', mt: 0.5, ml: 1.75 }}>
                   {validationErrors.company_id}
                 </Box>
               )}
@@ -234,23 +257,29 @@ export default function NewOpportunityPage() {
               disabled={loading}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#E0E0E0',
+                  backgroundColor: theme.palette.background.paper,
+                  color: theme.palette.text.primary,
                   '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: validationErrors.name ? theme.palette.error.main : theme.palette.divider,
                   },
                   '&:hover fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: validationErrors.name ? theme.palette.error.main : theme.palette.text.secondary,
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#00E5FF',
+                    borderColor: validationErrors.name ? theme.palette.error.main : theme.palette.text.primary,
                   },
                 },
                 '& .MuiInputLabel-root': {
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                 },
                 '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
+                },
+                '& .MuiInputBase-input': {
+                  color: theme.palette.text.primary,
+                },
+                '& .MuiFormHelperText-root': {
+                  color: validationErrors.name ? theme.palette.error.main : theme.palette.text.secondary,
                 },
               }}
             />
@@ -271,47 +300,73 @@ export default function NewOpportunityPage() {
               disabled={loading}
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#E0E0E0',
+                  backgroundColor: theme.palette.background.paper,
+                  color: theme.palette.text.primary,
                   '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: validationErrors.value ? theme.palette.error.main : theme.palette.divider,
                   },
                   '&:hover fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: validationErrors.value ? theme.palette.error.main : theme.palette.text.secondary,
                   },
                   '&.Mui-focused fieldset': {
-                    borderColor: '#00E5FF',
+                    borderColor: validationErrors.value ? theme.palette.error.main : theme.palette.text.primary,
                   },
                 },
                 '& .MuiInputLabel-root': {
-                  color: '#B0B0B0',
+                  color: theme.palette.text.secondary,
                 },
                 '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#00E5FF',
+                  color: theme.palette.text.primary,
+                },
+                '& .MuiInputBase-input': {
+                  color: theme.palette.text.primary,
+                },
+                '& .MuiFormHelperText-root': {
+                  color: validationErrors.value ? theme.palette.error.main : theme.palette.text.secondary,
                 },
               }}
             />
             <FormControl fullWidth margin="normal">
-              <InputLabel sx={{ color: '#B0B0B0' }}>Status</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Status</InputLabel>
               <Select
                 value={status}
                 label="Status"
                 onChange={(e) => setStatus(e.target.value as OpportunityStatus)}
                 disabled={loading}
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      backgroundColor: theme.palette.background.paper,
+                      border: `1px solid ${theme.palette.divider}`,
+                      '& .MuiMenuItem-root': {
+                        color: theme.palette.text.primary,
+                        '&:hover': {
+                          backgroundColor: theme.palette.action.hover,
+                        },
+                        '&.Mui-selected': {
+                          backgroundColor: theme.palette.action.hover,
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        },
+                      },
+                    },
+                  },
+                }}
                 sx={{
-                  color: '#E0E0E0',
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.paper,
                   '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                   '& .MuiSvgIcon-root': {
-                    color: '#00E5FF',
+                    color: theme.palette.text.secondary,
                   },
                 }}
               >
@@ -324,26 +379,46 @@ export default function NewOpportunityPage() {
               </Select>
             </FormControl>
             <FormControl fullWidth margin="normal">
-              <InputLabel sx={{ color: '#B0B0B0' }}>Source</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Source</InputLabel>
               <Select
                 value={source}
                 label="Source"
                 onChange={(e) => setSource(e.target.value as OpportunitySource)}
                 disabled={loading}
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      backgroundColor: theme.palette.background.paper,
+                      border: `1px solid ${theme.palette.divider}`,
+                      '& .MuiMenuItem-root': {
+                        color: theme.palette.text.primary,
+                        '&:hover': {
+                          backgroundColor: theme.palette.action.hover,
+                        },
+                        '&.Mui-selected': {
+                          backgroundColor: theme.palette.action.hover,
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        },
+                      },
+                    },
+                  },
+                }}
                 sx={{
-                  color: '#E0E0E0',
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.paper,
                   '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
                   },
                   '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.5)',
+                    borderColor: theme.palette.text.secondary,
                   },
                   '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#00E5FF',
+                    borderColor: theme.palette.text.primary,
                   },
                   '& .MuiSvgIcon-root': {
-                    color: '#00E5FF',
+                    color: theme.palette.text.secondary,
                   },
                 }}
               >
@@ -357,11 +432,15 @@ export default function NewOpportunityPage() {
                 onClick={() => router.push('/ops/opportunities')}
                 disabled={loading}
                 sx={{
-                  borderColor: 'rgba(0, 229, 255, 0.3)',
-                  color: '#00E5FF',
+                  borderColor: theme.palette.text.primary,
+                  color: theme.palette.text.primary,
                   '&:hover': {
-                    borderColor: '#00E5FF',
-                    backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                    borderColor: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                  '&.Mui-disabled': {
+                    borderColor: theme.palette.divider,
+                    color: theme.palette.text.secondary,
                   },
                 }}
               >
@@ -372,11 +451,16 @@ export default function NewOpportunityPage() {
                 variant="contained"
                 disabled={loading}
                 sx={{
-                  backgroundColor: '#00E5FF',
-                  color: '#000',
+                  backgroundColor: theme.palette.text.primary,
+                  color: theme.palette.background.default,
                   fontWeight: 600,
                   '&:hover': {
-                    backgroundColor: '#00B2CC',
+                    backgroundColor: theme.palette.action.hover,
+                    color: theme.palette.text.primary,
+                  },
+                  '&.Mui-disabled': {
+                    backgroundColor: theme.palette.divider,
+                    color: theme.palette.text.secondary,
                   },
                 }}
               >

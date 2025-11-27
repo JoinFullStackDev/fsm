@@ -8,6 +8,7 @@ import {
   IconButton,
   Card,
   CardContent,
+  useTheme,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
@@ -22,6 +23,7 @@ interface FieldGroupProps {
 }
 
 export default function FieldGroup({ group, children, defaultCollapsed }: FieldGroupProps) {
+  const theme = useTheme();
   const [collapsed, setCollapsed] = useState(
     group.collapsible ? (defaultCollapsed ?? group.defaultCollapsed ?? false) : false
   );
@@ -30,11 +32,11 @@ export default function FieldGroup({ group, children, defaultCollapsed }: FieldG
     return (
       <Box sx={{ mb: 3 }}>
         <Box sx={{ mb: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
+          <Typography variant="h6" sx={{ fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif', color: theme.palette.text.primary }}>
             {group.label}
           </Typography>
           {group.description && (
-            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
               {group.description}
             </Typography>
           )}
@@ -48,9 +50,8 @@ export default function FieldGroup({ group, children, defaultCollapsed }: FieldG
     <Card
       sx={{
         mb: 3,
-        backgroundColor: 'background.paper',
-        border: '1px solid',
-        borderColor: 'primary.main',
+        backgroundColor: theme.palette.background.paper,
+        border: `1px solid ${theme.palette.divider}`,
       }}
     >
       <Box
@@ -61,27 +62,35 @@ export default function FieldGroup({ group, children, defaultCollapsed }: FieldG
           p: 2,
           cursor: 'pointer',
           '&:hover': {
-            backgroundColor: 'rgba(0, 229, 255, 0.05)',
+            backgroundColor: theme.palette.action.hover,
           },
         }}
         onClick={() => setCollapsed(!collapsed)}
       >
         <Box>
-          <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
+          <Typography variant="h6" sx={{ fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif', color: theme.palette.text.primary }}>
             {group.label}
           </Typography>
           {group.description && (
-            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
               {group.description}
             </Typography>
           )}
         </Box>
-        <IconButton size="small">
+        <IconButton 
+          size="small"
+          sx={{
+            color: theme.palette.text.primary,
+            '&:hover': {
+              backgroundColor: theme.palette.action.hover,
+            },
+          }}
+        >
           {collapsed ? <ExpandMoreIcon /> : <ExpandLessIcon />}
         </IconButton>
       </Box>
       <Collapse in={!collapsed}>
-        <CardContent>{children}</CardContent>
+        <CardContent sx={{ backgroundColor: theme.palette.background.paper }}>{children}</CardContent>
       </Collapse>
     </Card>
   );
