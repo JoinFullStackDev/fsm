@@ -18,6 +18,8 @@ import {
   Settings as SettingsIcon,
   Api as ApiIcon,
   Analytics as AnalyticsIcon,
+  Business as BusinessIcon,
+  VpnKey as VpnKeyIcon,
 } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useRole } from '@/lib/hooks/useRole';
@@ -26,6 +28,8 @@ import AdminThemeTab from '@/components/admin/AdminThemeTab';
 import AdminApiConfigTab from '@/components/admin/AdminApiConfigTab';
 import AdminSystemTab from '@/components/admin/AdminSystemTab';
 import AdminAnalyticsTab from '@/components/admin/AdminAnalyticsTab';
+import AdminOrganizationsTab from '@/components/admin/AdminOrganizationsTab';
+import AdminApiKeysTab from '@/components/admin/AdminApiKeysTab';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -202,6 +206,8 @@ export default function AdminPage() {
               iconPosition="start" 
               label="Users"
             />
+            <Tab icon={<BusinessIcon />} iconPosition="start" label="Organizations" />
+            <Tab icon={<VpnKeyIcon />} iconPosition="start" label="API Keys" />
             <Tab icon={<PaletteIcon />} iconPosition="start" label="Theme" />
             <Tab icon={<ApiIcon />} iconPosition="start" label="API Config" />
             <Tab icon={<SettingsIcon />} iconPosition="start" label="System" />
@@ -214,15 +220,21 @@ export default function AdminPage() {
             <AdminUsersTab />
           </TabPanel>
           <TabPanel value={activeTab} index={1}>
-            <AdminThemeTab />
+            <AdminOrganizationsTab />
           </TabPanel>
           <TabPanel value={activeTab} index={2}>
-            <AdminApiConfigTab />
+            <AdminApiKeysTab />
           </TabPanel>
           <TabPanel value={activeTab} index={3}>
-            <AdminSystemTab />
+            <AdminThemeTab />
           </TabPanel>
           <TabPanel value={activeTab} index={4}>
+            <AdminApiConfigTab />
+          </TabPanel>
+          <TabPanel value={activeTab} index={5}>
+            <AdminSystemTab />
+          </TabPanel>
+          <TabPanel value={activeTab} index={6}>
             <AdminAnalyticsTab />
           </TabPanel>
         </Box>

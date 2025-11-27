@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { notifyProjectCreated } from '@/lib/notifications';
-import { unauthorized, notFound, internalError, badRequest } from '@/lib/utils/apiErrors';
+import { unauthorized, notFound, internalError, badRequest, forbidden } from '@/lib/utils/apiErrors';
+import { getUserOrganizationId, validateOrganizationAccess } from '@/lib/organizationContext';
+import { canCreateProject } from '@/lib/packageLimits';
 import logger from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
@@ -9,21 +12,52 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!authUser) {
       return unauthorized('You must be logged in to view projects');
     }
 
-    // Get user record with role
-    const { data: userData, error: userError } = await supabase
+    // Get user record with role and organization
+    // Try regular client first, fall back to admin client if RLS blocks
+    let userData;
+    let userError;
+    
+    const { data: regularUserData, error: regularUserError } = await supabase
       .from('users')
-      .select('id, role')
-      .eq('auth_id', session.user.id)
+      .select('id, role, organization_id, is_super_admin')
+      .eq('auth_id', authUser.id)
       .single();
 
-    if (userError || !userData) {
-      return notFound('User');
+    if (regularUserError || !regularUserData) {
+      // RLS might be blocking - try admin client
+      const adminClient = createAdminSupabaseClient();
+      const { data: adminUserData, error: adminUserError } = await adminClient
+        .from('users')
+        .select('id, role, organization_id, is_super_admin')
+        .eq('auth_id', authUser.id)
+        .single();
+
+      if (adminUserError || !adminUserData) {
+        logger.error('[Projects API] User record not found:', { 
+          authId: authUser.id, 
+          email: authUser.email,
+          regularError: regularUserError,
+          adminError: adminUserError 
+        });
+        return notFound('User record not found. Please try signing out and signing in again.');
+      }
+
+      userData = adminUserData;
+    } else {
+      userData = regularUserData;
+    }
+
+    // Get user's organization ID
+    const organizationId = userData.organization_id;
+    if (!organizationId) {
+      logger.warn('[Projects API] User missing organization_id:', { userId: userData.id, authId: authUser.id });
+      return badRequest('User is not assigned to an organization. Please contact support.');
     }
 
     // Get query parameters
@@ -40,12 +74,18 @@ export async function GET(request: NextRequest) {
         company:companies(id, name)
       `, { count: 'exact' });
 
-    // If admin and filtering by company, show all projects for that company
-    // Otherwise, filter by user ownership/membership
-    if (userData.role === 'admin' && companyId) {
-      query = query.eq('company_id', companyId);
+    // Super admins can see all projects, otherwise filter by organization
+    if (userData.role === 'admin' && userData.is_super_admin === true) {
+      // Super admin can see all projects
+      // Still filter by company_id if provided
+      if (companyId) {
+        query = query.eq('company_id', companyId);
+      }
     } else {
-      // Get project IDs where user is a member
+      // Regular users: filter by organization_id
+      query = query.eq('organization_id', organizationId);
+      
+      // Get project IDs where user is a member (within their organization)
       const { data: memberProjects, error: memberError } = await supabase
         .from('project_members')
         .select('project_id')
@@ -59,6 +99,7 @@ export async function GET(request: NextRequest) {
       const memberProjectIds = (memberProjects || []).map((mp: any) => mp.project_id);
       
       // Build OR condition: owner_id matches OR id is in member project IDs
+      // Note: organization_id filter already applied above
       if (memberProjectIds.length > 0) {
         query = query.or(`owner_id.eq.${userData.id},id.in.(${memberProjectIds.join(',')})`);
       } else {
@@ -66,7 +107,7 @@ export async function GET(request: NextRequest) {
         query = query.eq('owner_id', userData.id);
       }
       
-      // Filter by company_id if provided
+      // Filter by company_id if provided (within organization)
       if (companyId) {
         query = query.eq('company_id', companyId);
       }
@@ -99,9 +140,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!authUser) {
       return unauthorized('You must be logged in to create projects');
     }
 
@@ -112,22 +153,55 @@ export async function POST(request: NextRequest) {
       return badRequest('Project name is required');
     }
 
-    // Get user record
-    const { data: userData, error: userError } = await supabase
+    // Get user record with organization - try regular client first, fall back to admin client if RLS blocks
+    let userData;
+    
+    const { data: regularUserData, error: regularUserError } = await supabase
       .from('users')
-      .select('id')
-      .eq('auth_id', session.user.id)
+      .select('id, organization_id')
+      .eq('auth_id', authUser.id)
       .single();
 
-    if (userError || !userData) {
-      return notFound('User');
+    if (regularUserError || !regularUserData) {
+      // RLS might be blocking - try admin client
+      const adminClient = createAdminSupabaseClient();
+      const { data: adminUserData, error: adminUserError } = await adminClient
+        .from('users')
+        .select('id, organization_id')
+        .eq('auth_id', authUser.id)
+        .single();
+
+      if (adminUserError || !adminUserData) {
+        logger.error('[Projects API POST] User record not found:', { 
+          authId: authUser.id, 
+          email: authUser.email,
+          regularError: regularUserError,
+          adminError: adminUserError 
+        });
+        return notFound('User record not found. Please try signing out and signing in again.');
+      }
+
+      userData = adminUserData;
+    } else {
+      userData = regularUserData;
     }
 
-    // Verify company exists if company_id is provided
+    const organizationId = userData.organization_id;
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
+    }
+
+    // Check package limits before creating project
+    const limitCheck = await canCreateProject(supabase, organizationId);
+    if (!limitCheck.allowed) {
+      return forbidden(limitCheck.reason || 'Project limit reached');
+    }
+
+    // Verify company exists if company_id is provided (and belongs to organization)
     if (company_id) {
       const { data: company, error: companyError } = await supabase
         .from('companies')
-        .select('id')
+        .select('id, organization_id')
         .eq('id', company_id)
         .single();
 
@@ -138,13 +212,19 @@ export async function POST(request: NextRequest) {
         logger.error('Error checking company:', companyError);
         return internalError('Failed to check company', { error: companyError?.message });
       }
+
+      // Verify company belongs to user's organization
+      if (company.organization_id !== organizationId) {
+        return forbidden('Company does not belong to your organization');
+      }
     }
 
-    // Create project
+    // Create project with organization_id
     const { data: project, error: projectError } = await supabase
       .from('projects')
       .insert({
         owner_id: userData.id,
+        organization_id: organizationId,
         name,
         description,
         status: status || 'idea',

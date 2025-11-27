@@ -74,7 +74,7 @@ export default function SignInPage() {
         // Single attempt to avoid rate limiting
         const userResult = await supabase
           .from('users')
-          .select('id, role, invited_by_admin, last_active_at')
+          .select('id, role, invited_by_admin, last_active_at, organization_id')
           .eq('auth_id', data.user.id)
           .single();
         
@@ -84,38 +84,54 @@ export default function SignInPage() {
         console.log('User record lookup:', { userData, userError });
 
         if (userError || !userData) {
-          console.warn('User record not found after multiple attempts, attempting to create...');
-          // User record doesn't exist - try to create it
-          // Use ON CONFLICT to prevent duplicates if record exists but RLS hid it
-          const { error: createError } = await supabase.rpc('create_user_record', {
-            p_auth_id: data.user.id,
-            p_email: data.user.email || email,
-            p_name: data.user.user_metadata?.name || '',
-            p_role: data.user.user_metadata?.role || 'pm',
-          });
+          console.warn('User record not found, attempting to create via API...');
+          // User record doesn't exist - create it via API route (server-side, can use admin client)
+          try {
+            const createResponse = await fetch('/api/auth/create-user-record', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: data.user.email || email,
+                name: data.user.user_metadata?.name || '',
+                role: data.user.user_metadata?.role || 'pm',
+              }),
+            });
 
-          if (createError) {
-            console.error('Failed to create user record:', createError);
-            setError(`Account exists but user record is missing. Error: ${createError.message}. Please contact support.`);
+            if (!createResponse.ok) {
+              const errorData = await createResponse.json();
+              throw new Error(errorData.error || 'Failed to create user record');
+            }
+
+            const { user: createdUser } = await createResponse.json();
+            userData = createdUser;
+            console.log('User record created successfully:', userData);
+          } catch (createErr) {
+            console.error('Failed to create user record:', createErr);
+            setError(`Account exists but user record is missing. Error: ${createErr instanceof Error ? createErr.message : 'Unknown error'}. Please contact support.`);
             setLoading(false);
             return;
-          } else {
-            console.log('User record created successfully, fetching it...');
-            // Fetch the newly created record (single attempt)
-            const fetchResult = await supabase
-              .from('users')
-              .select('id, role, invited_by_admin, last_active_at')
-              .eq('auth_id', data.user.id)
-              .single();
-            
-            if (fetchResult.data) {
-              userData = fetchResult.data;
-            } else {
-              console.error('Failed to fetch created user record:', fetchResult.error);
-              setError('User record created but could not be retrieved. Please try signing in again.');
-              setLoading(false);
-              return;
+          }
+        } else if (userData && !userData.organization_id) {
+          // User exists but doesn't have an organization_id - assign them via API
+          console.log('User exists but missing organization_id, assigning via API...');
+          try {
+            const assignResponse = await fetch('/api/auth/create-user-record', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: data.user.email || email,
+                name: data.user.user_metadata?.name || '',
+                role: userData.role || 'pm',
+              }),
+            });
+
+            if (assignResponse.ok) {
+              const { user: updatedUser } = await assignResponse.json();
+              userData = updatedUser;
             }
+          } catch (assignErr) {
+            console.error('Failed to assign organization:', assignErr);
+            // Non-critical error - continue with signin
           }
         }
         

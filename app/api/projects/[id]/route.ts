@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
+import { getUserOrganizationId } from '@/lib/organizationContext';
 import { unauthorized, notFound, internalError, forbidden, badRequest } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 
@@ -29,6 +31,38 @@ export async function GET(
       return unauthorized('You must be logged in to view this project');
     }
 
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
+    }
+
+    // Get user record to check if super admin
+    let userData;
+    const { data: regularUserData, error: regularUserError } = await supabase
+      .from('users')
+      .select('id, role, organization_id, is_super_admin')
+      .eq('auth_id', session.user.id)
+      .single();
+
+    if (regularUserError || !regularUserData) {
+      // RLS might be blocking - try admin client
+      const adminClient = createAdminSupabaseClient();
+      const { data: adminUserData, error: adminUserError } = await adminClient
+        .from('users')
+        .select('id, role, organization_id, is_super_admin')
+        .eq('auth_id', session.user.id)
+        .single();
+
+      if (adminUserError || !adminUserData) {
+        return notFound('User not found');
+      }
+
+      userData = adminUserData;
+    } else {
+      userData = regularUserData;
+    }
+
     const { data: project, error: projectError } = await supabase
       .from('projects')
       .select(`
@@ -40,6 +74,13 @@ export async function GET(
 
     if (projectError || !project) {
       return notFound('Project not found');
+    }
+
+    // Validate organization access (super admins can see all projects)
+    if (userData.role !== 'admin' || userData.is_super_admin !== true) {
+      if (project.organization_id !== organizationId) {
+        return forbidden('You do not have access to this project');
+      }
     }
 
     // Get phases (ordered by display_order)
@@ -77,18 +118,57 @@ export async function PUT(
       return unauthorized('You must be logged in to update this project');
     }
 
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
+    }
+
+    // Get user record to check if super admin
+    let userData;
+    const { data: regularUserData, error: regularUserError } = await supabase
+      .from('users')
+      .select('id, role, organization_id, is_super_admin')
+      .eq('auth_id', session.user.id)
+      .single();
+
+    if (regularUserError || !regularUserData) {
+      // RLS might be blocking - try admin client
+      const adminClient = createAdminSupabaseClient();
+      const { data: adminUserData, error: adminUserError } = await adminClient
+        .from('users')
+        .select('id, role, organization_id, is_super_admin')
+        .eq('auth_id', session.user.id)
+        .single();
+
+      if (adminUserError || !adminUserData) {
+        return notFound('User not found');
+      }
+
+      userData = adminUserData;
+    } else {
+      userData = regularUserData;
+    }
+
     const body = await request.json();
     const { name, description, status, primary_tool, template_id, company_id } = body;
 
-    // Get current project to check if template_id is changing
+    // Get current project to check if template_id is changing and validate access
     const { data: currentProject, error: currentProjectError } = await supabase
       .from('projects')
-      .select('template_id')
+      .select('template_id, organization_id')
       .eq('id', params.id)
       .single();
 
     if (currentProjectError || !currentProject) {
       return notFound('Project not found');
+    }
+
+    // Validate organization access (super admins can update all projects)
+    if (userData.role !== 'admin' || userData.is_super_admin !== true) {
+      if (currentProject.organization_id !== organizationId) {
+        return forbidden('You do not have access to update this project');
+      }
     }
 
     const oldTemplateId = currentProject.template_id;
@@ -377,20 +457,59 @@ export async function DELETE(
       return unauthorized('You must be logged in to delete projects');
     }
 
-    // Get user record to check role
-    const { data: userData, error: userError } = await supabase
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
+    }
+
+    // Get user record to check role and if super admin
+    let userData;
+    const { data: regularUserData, error: regularUserError } = await supabase
       .from('users')
-      .select('role')
+      .select('id, role, organization_id, is_super_admin')
       .eq('auth_id', session.user.id)
       .single();
 
-    if (userError || !userData) {
-      return notFound('User not found');
+    if (regularUserError || !regularUserData) {
+      // RLS might be blocking - try admin client
+      const adminClient = createAdminSupabaseClient();
+      const { data: adminUserData, error: adminUserError } = await adminClient
+        .from('users')
+        .select('id, role, organization_id, is_super_admin')
+        .eq('auth_id', session.user.id)
+        .single();
+
+      if (adminUserError || !adminUserData) {
+        return notFound('User not found');
+      }
+
+      userData = adminUserData;
+    } else {
+      userData = regularUserData;
     }
 
     // Only admins can delete projects
     if (userData.role !== 'admin') {
       return forbidden('Admin role required to delete projects');
+    }
+
+    // Get project to validate organization access (super admins can delete all projects)
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('organization_id')
+      .eq('id', params.id)
+      .single();
+
+    if (projectError || !project) {
+      return notFound('Project not found');
+    }
+
+    // Validate organization access (super admins can delete all projects)
+    if (userData.is_super_admin !== true) {
+      if (project.organization_id !== organizationId) {
+        return forbidden('You do not have access to delete this project');
+      }
     }
 
     // Delete the project (cascade will handle related records)

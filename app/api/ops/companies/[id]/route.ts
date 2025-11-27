@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
-import { unauthorized, notFound, internalError, badRequest } from '@/lib/utils/apiErrors';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
+import { getUserOrganizationId } from '@/lib/organizationContext';
+import { hasOpsTool } from '@/lib/packageLimits';
+import { unauthorized, notFound, internalError, badRequest, forbidden } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 import type { Company, CompanyWithCounts } from '@/types/ops';
 
@@ -18,6 +21,44 @@ export async function GET(
       return unauthorized('You must be logged in to view companies');
     }
 
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
+    }
+
+    // Check if organization has ops tool access
+    const hasAccess = await hasOpsTool(supabase, organizationId);
+    if (!hasAccess) {
+      return forbidden('Ops Tool is not available for your subscription plan');
+    }
+
+    // Get user record to check if super admin
+    let userData;
+    const { data: regularUserData, error: regularUserError } = await supabase
+      .from('users')
+      .select('id, role, organization_id, is_super_admin')
+      .eq('auth_id', session.user.id)
+      .single();
+
+    if (regularUserError || !regularUserData) {
+      // RLS might be blocking - try admin client
+      const adminClient = createAdminSupabaseClient();
+      const { data: adminUserData, error: adminUserError } = await adminClient
+        .from('users')
+        .select('id, role, organization_id, is_super_admin')
+        .eq('auth_id', session.user.id)
+        .single();
+
+      if (adminUserError || !adminUserData) {
+        return notFound('User not found');
+      }
+
+      userData = adminUserData;
+    } else {
+      userData = regularUserData;
+    }
+
     const { id } = params;
 
     // Get company
@@ -33,6 +74,13 @@ export async function GET(
       }
       logger.error('Error loading company:', companyError);
       return internalError('Failed to load company', { error: companyError?.message });
+    }
+
+    // Validate organization access (super admins can see all companies)
+    if (userData.role !== 'admin' || userData.is_super_admin !== true) {
+      if (company.organization_id !== organizationId) {
+        return forbidden('You do not have access to this company');
+      }
     }
 
     // Get counts
@@ -77,6 +125,44 @@ export async function PUT(
       return unauthorized('You must be logged in to update companies');
     }
 
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
+    }
+
+    // Check if organization has ops tool access
+    const hasAccess = await hasOpsTool(supabase, organizationId);
+    if (!hasAccess) {
+      return forbidden('Ops Tool is not available for your subscription plan');
+    }
+
+    // Get user record to check if super admin
+    let userData;
+    const { data: regularUserData, error: regularUserError } = await supabase
+      .from('users')
+      .select('id, role, organization_id, is_super_admin')
+      .eq('auth_id', session.user.id)
+      .single();
+
+    if (regularUserError || !regularUserData) {
+      // RLS might be blocking - try admin client
+      const adminClient = createAdminSupabaseClient();
+      const { data: adminUserData, error: adminUserError } = await adminClient
+        .from('users')
+        .select('id, role, organization_id, is_super_admin')
+        .eq('auth_id', session.user.id)
+        .single();
+
+      if (adminUserError || !adminUserData) {
+        return notFound('User not found');
+      }
+
+      userData = adminUserData;
+    } else {
+      userData = regularUserData;
+    }
+
     const { id } = params;
     const body = await request.json();
     const {
@@ -85,6 +171,28 @@ export async function PUT(
       address_street, address_city, address_state, address_zip, address_country,
       account_notes
     } = body;
+
+    // Get existing company to validate organization access
+    const { data: existingCompany, error: existingError } = await supabase
+      .from('companies')
+      .select('organization_id')
+      .eq('id', id)
+      .single();
+
+    if (existingError || !existingCompany) {
+      if (existingError?.code === 'PGRST116') {
+        return notFound('Company not found');
+      }
+      logger.error('Error checking company:', existingError);
+      return internalError('Failed to check company', { error: existingError?.message });
+    }
+
+    // Validate organization access (super admins can update all companies)
+    if (userData.role !== 'admin' || userData.is_super_admin !== true) {
+      if (existingCompany.organization_id !== organizationId) {
+        return forbidden('You do not have access to update this company');
+      }
+    }
 
     // Validate
     if (name !== undefined && (typeof name !== 'string' || name.trim().length === 0)) {
@@ -142,12 +250,50 @@ export async function DELETE(
       return unauthorized('You must be logged in to delete companies');
     }
 
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
+    }
+
+    // Check if organization has ops tool access
+    const hasAccess = await hasOpsTool(supabase, organizationId);
+    if (!hasAccess) {
+      return forbidden('Ops Tool is not available for your subscription plan');
+    }
+
+    // Get user record to check if super admin
+    let userData;
+    const { data: regularUserData, error: regularUserError } = await supabase
+      .from('users')
+      .select('id, role, organization_id, is_super_admin')
+      .eq('auth_id', session.user.id)
+      .single();
+
+    if (regularUserError || !regularUserData) {
+      // RLS might be blocking - try admin client
+      const adminClient = createAdminSupabaseClient();
+      const { data: adminUserData, error: adminUserError } = await adminClient
+        .from('users')
+        .select('id, role, organization_id, is_super_admin')
+        .eq('auth_id', session.user.id)
+        .single();
+
+      if (adminUserError || !adminUserData) {
+        return notFound('User not found');
+      }
+
+      userData = adminUserData;
+    } else {
+      userData = regularUserData;
+    }
+
     const { id } = params;
 
-    // Check if company exists
+    // Check if company exists and validate organization access
     const { data: company, error: checkError } = await supabase
       .from('companies')
-      .select('id')
+      .select('id, organization_id')
       .eq('id', id)
       .single();
 
@@ -157,6 +303,13 @@ export async function DELETE(
       }
       logger.error('Error checking company:', checkError);
       return internalError('Failed to check company', { error: checkError?.message });
+    }
+
+    // Validate organization access (super admins can delete all companies)
+    if (userData.role !== 'admin' || userData.is_super_admin !== true) {
+      if (company.organization_id !== organizationId) {
+        return forbidden('You do not have access to delete this company');
+      }
     }
 
     // Delete company (cascade will handle related records)

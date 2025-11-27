@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
+import { getUserOrganizationId } from '@/lib/organizationContext';
+import { unauthorized, notFound, internalError, forbidden, badRequest } from '@/lib/utils/apiErrors';
+import logger from '@/lib/utils/logger';
 import type { ProjectPhase } from '@/types/phases';
 
 // GET - List all phases for a project (ordered by display_order)
@@ -12,29 +16,57 @@ export async function GET(
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return unauthorized('You must be logged in to view project phases');
+    }
+
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
+    }
+
+    // Get user record to check if super admin
+    let currentUser;
+    const { data: regularUserData, error: regularUserError } = await supabase
+      .from('users')
+      .select('id, role, organization_id, is_super_admin')
+      .eq('auth_id', session.user.id)
+      .single();
+
+    if (regularUserError || !regularUserData) {
+      // RLS might be blocking - try admin client
+      const adminClient = createAdminSupabaseClient();
+      const { data: adminUserData, error: adminUserError } = await adminClient
+        .from('users')
+        .select('id, role, organization_id, is_super_admin')
+        .eq('auth_id', session.user.id)
+        .single();
+
+      if (adminUserError || !adminUserData) {
+        return notFound('User not found');
+      }
+
+      currentUser = adminUserData;
+    } else {
+      currentUser = regularUserData;
     }
 
     // Verify user has access to the project
     const { data: project, error: projectError } = await supabase
       .from('projects')
-      .select('owner_id')
+      .select('owner_id, organization_id')
       .eq('id', params.id)
       .single();
 
     if (projectError || !project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      return notFound('Project not found');
     }
 
-    // Check if user is project owner or member
-    const { data: currentUser, error: userError } = await supabase
-      .from('users')
-      .select('id, role')
-      .eq('auth_id', session.user.id)
-      .single();
-
-    if (userError || !currentUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // Validate organization access (super admins can see all projects)
+    if (currentUser.role !== 'admin' || currentUser.is_super_admin !== true) {
+      if (project.organization_id !== organizationId) {
+        return forbidden('You do not have access to this project');
+      }
     }
 
     const isOwner = project.owner_id === currentUser.id;
@@ -50,7 +82,7 @@ export async function GET(
         .single();
 
       if (!member) {
-        return NextResponse.json({ error: 'Forbidden - Access denied' }, { status: 403 });
+        return forbidden('You do not have access to this project');
       }
     }
 
@@ -63,15 +95,16 @@ export async function GET(
       .order('display_order', { ascending: true });
 
     if (phasesError) {
-      return NextResponse.json({ error: phasesError.message }, { status: 500 });
+      logger.error('Error loading phases:', phasesError);
+      return internalError('Failed to load project phases', { error: phasesError.message });
     }
 
     return NextResponse.json({ phases: phases || [] });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
-    );
+    logger.error('Error in GET /api/projects/[id]/phases:', error);
+    return internalError('Failed to load project phases', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
 }
 
@@ -85,29 +118,57 @@ export async function POST(
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return unauthorized('You must be logged in to create project phases');
+    }
+
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
     }
 
     // Get current user
-    const { data: currentUser, error: userError } = await supabase
+    let currentUser;
+    const { data: regularUserData, error: regularUserError } = await supabase
       .from('users')
-      .select('id, role')
+      .select('id, role, organization_id, is_super_admin')
       .eq('auth_id', session.user.id)
       .single();
 
-    if (userError || !currentUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (regularUserError || !regularUserData) {
+      // RLS might be blocking - try admin client
+      const adminClient = createAdminSupabaseClient();
+      const { data: adminUserData, error: adminUserError } = await adminClient
+        .from('users')
+        .select('id, role, organization_id, is_super_admin')
+        .eq('auth_id', session.user.id)
+        .single();
+
+      if (adminUserError || !adminUserData) {
+        return notFound('User not found');
+      }
+
+      currentUser = adminUserData;
+    } else {
+      currentUser = regularUserData;
     }
 
     // Verify user is project owner, member, or admin
     const { data: project, error: projectError } = await supabase
       .from('projects')
-      .select('owner_id')
+      .select('owner_id, organization_id')
       .eq('id', params.id)
       .single();
 
     if (projectError || !project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      return notFound('Project not found');
+    }
+
+    // Validate organization access (super admins can access all projects)
+    if (currentUser.role !== 'admin' || currentUser.is_super_admin !== true) {
+      if (project.organization_id !== organizationId) {
+        return forbidden('You do not have access to this project');
+      }
     }
 
     const isOwner = project.owner_id === currentUser.id;
@@ -124,14 +185,14 @@ export async function POST(
     const isProjectMember = isOwner || !!projectMember || isAdmin;
 
     if (!isProjectMember) {
-      return NextResponse.json({ error: 'Forbidden - Project owner, member, or admin access required' }, { status: 403 });
+      return forbidden('Project owner, member, or admin access required');
     }
 
     const body = await request.json();
     const { phase_name, data, display_order } = body;
 
     if (!phase_name) {
-      return NextResponse.json({ error: 'phase_name is required' }, { status: 400 });
+      return badRequest('phase_name is required');
     }
 
     // Get the highest phase_number and display_order for this project
@@ -143,7 +204,8 @@ export async function POST(
       .limit(1);
 
     if (existingError) {
-      return NextResponse.json({ error: existingError.message }, { status: 500 });
+      logger.error('Error loading existing phases:', existingError);
+      return internalError('Failed to load existing phases', { error: existingError.message });
     }
 
     // Calculate next phase_number and display_order
@@ -173,15 +235,16 @@ export async function POST(
       .single();
 
     if (createError) {
-      return NextResponse.json({ error: createError.message }, { status: 500 });
+      logger.error('Error creating phase:', createError);
+      return internalError('Failed to create phase', { error: createError.message });
     }
 
     return NextResponse.json(newPhase, { status: 201 });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
-    );
+    logger.error('Error in POST /api/projects/[id]/phases:', error);
+    return internalError('Failed to create phase', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
 }
 
@@ -195,29 +258,57 @@ export async function PATCH(
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return unauthorized('You must be logged in to update project phases');
+    }
+
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
     }
 
     // Get current user
-    const { data: currentUser, error: userError } = await supabase
+    let currentUser;
+    const { data: regularUserData, error: regularUserError } = await supabase
       .from('users')
-      .select('id, role')
+      .select('id, role, organization_id, is_super_admin')
       .eq('auth_id', session.user.id)
       .single();
 
-    if (userError || !currentUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (regularUserError || !regularUserData) {
+      // RLS might be blocking - try admin client
+      const adminClient = createAdminSupabaseClient();
+      const { data: adminUserData, error: adminUserError } = await adminClient
+        .from('users')
+        .select('id, role, organization_id, is_super_admin')
+        .eq('auth_id', session.user.id)
+        .single();
+
+      if (adminUserError || !adminUserData) {
+        return notFound('User not found');
+      }
+
+      currentUser = adminUserData;
+    } else {
+      currentUser = regularUserData;
     }
 
     // Verify user is project owner, member, or admin
     const { data: project, error: projectError } = await supabase
       .from('projects')
-      .select('owner_id')
+      .select('owner_id, organization_id')
       .eq('id', params.id)
       .single();
 
     if (projectError || !project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      return notFound('Project not found');
+    }
+
+    // Validate organization access (super admins can access all projects)
+    if (currentUser.role !== 'admin' || currentUser.is_super_admin !== true) {
+      if (project.organization_id !== organizationId) {
+        return forbidden('You do not have access to this project');
+      }
     }
 
     const isOwner = project.owner_id === currentUser.id;
@@ -234,14 +325,14 @@ export async function PATCH(
     const isProjectMember = isOwner || !!projectMember || isAdmin;
 
     if (!isProjectMember) {
-      return NextResponse.json({ error: 'Forbidden - Project owner, member, or admin access required' }, { status: 403 });
+      return forbidden('Project owner, member, or admin access required');
     }
 
     const body = await request.json();
     const { phase_id, phase_name, display_order, data, is_active } = body;
 
     if (!phase_id) {
-      return NextResponse.json({ error: 'phase_id is required' }, { status: 400 });
+      return badRequest('phase_id is required');
     }
 
     // Build update object
@@ -252,7 +343,7 @@ export async function PATCH(
     if (is_active !== undefined) updateData.is_active = is_active;
 
     if (Object.keys(updateData).length === 0) {
-      return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
+      return badRequest('No fields to update');
     }
 
     // Update the phase
@@ -265,15 +356,16 @@ export async function PATCH(
       .single();
 
     if (updateError) {
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+      logger.error('Error updating phase:', updateError);
+      return internalError('Failed to update phase', { error: updateError.message });
     }
 
     return NextResponse.json(updatedPhase);
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
-    );
+    logger.error('Error in PATCH /api/projects/[id]/phases:', error);
+    return internalError('Failed to update phase', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
 }
 
@@ -287,42 +379,71 @@ export async function DELETE(
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return unauthorized('You must be logged in to delete project phases');
+    }
+
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
+    }
+
+    // Get current user
+    let currentUser;
+    const { data: regularUserData, error: regularUserError } = await supabase
+      .from('users')
+      .select('id, role, organization_id, is_super_admin')
+      .eq('auth_id', session.user.id)
+      .single();
+
+    if (regularUserError || !regularUserData) {
+      // RLS might be blocking - try admin client
+      const adminClient = createAdminSupabaseClient();
+      const { data: adminUserData, error: adminUserError } = await adminClient
+        .from('users')
+        .select('id, role, organization_id, is_super_admin')
+        .eq('auth_id', session.user.id)
+        .single();
+
+      if (adminUserError || !adminUserData) {
+        return notFound('User not found');
+      }
+
+      currentUser = adminUserData;
+    } else {
+      currentUser = regularUserData;
     }
 
     // Verify user is project owner or admin
     const { data: project, error: projectError } = await supabase
       .from('projects')
-      .select('owner_id')
+      .select('owner_id, organization_id')
       .eq('id', params.id)
       .single();
 
     if (projectError || !project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      return notFound('Project not found');
     }
 
-    const { data: currentUser, error: userError } = await supabase
-      .from('users')
-      .select('id, role')
-      .eq('auth_id', session.user.id)
-      .single();
-
-    if (userError || !currentUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // Validate organization access (super admins can access all projects)
+    if (currentUser.role !== 'admin' || currentUser.is_super_admin !== true) {
+      if (project.organization_id !== organizationId) {
+        return forbidden('You do not have access to this project');
+      }
     }
 
     const isOwner = project.owner_id === currentUser.id;
     const isAdmin = currentUser.role === 'admin';
 
     if (!isOwner && !isAdmin) {
-      return NextResponse.json({ error: 'Forbidden - Project owner or admin access required' }, { status: 403 });
+      return forbidden('Project owner or admin access required');
     }
 
     const { searchParams } = new URL(request.url);
     const phaseId = searchParams.get('phase_id');
 
     if (!phaseId) {
-      return NextResponse.json({ error: 'phase_id query parameter is required' }, { status: 400 });
+      return badRequest('phase_id query parameter is required');
     }
 
     // Check if phase has associated tasks
@@ -334,7 +455,7 @@ export async function DELETE(
       .single();
 
     if (phaseError || !phase) {
-      return NextResponse.json({ error: 'Phase not found' }, { status: 404 });
+      return notFound('Phase not found');
     }
 
     const { data: tasks, error: tasksError } = await supabase
@@ -345,7 +466,8 @@ export async function DELETE(
       .limit(1);
 
     if (tasksError) {
-      return NextResponse.json({ error: tasksError.message }, { status: 500 });
+      logger.error('Error checking phase tasks:', tasksError);
+      return internalError('Failed to check phase tasks', { error: tasksError.message });
     }
 
     // Warn if tasks exist, but still allow soft delete
@@ -360,7 +482,8 @@ export async function DELETE(
         .single();
 
       if (deleteError) {
-        return NextResponse.json({ error: deleteError.message }, { status: 500 });
+        logger.error('Error deleting phase:', deleteError);
+        return internalError('Failed to delete phase', { error: deleteError.message });
       }
 
       return NextResponse.json({ 
@@ -380,7 +503,8 @@ export async function DELETE(
       .single();
 
     if (deleteError) {
-      return NextResponse.json({ error: deleteError.message }, { status: 500 });
+      logger.error('Error deleting phase:', deleteError);
+      return internalError('Failed to delete phase', { error: deleteError.message });
     }
 
     return NextResponse.json({ 
@@ -388,10 +512,10 @@ export async function DELETE(
       phase: deletedPhase 
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
-    );
+    logger.error('Error in DELETE /api/projects/[id]/phases:', error);
+    return internalError('Failed to delete phase', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
 }
 

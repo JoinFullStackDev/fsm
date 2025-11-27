@@ -16,6 +16,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import {
   AdminPanelSettings as AdminIcon,
+  Security as SecurityIcon,
   Person as PersonIcon,
   Logout as LogoutIcon,
 } from '@mui/icons-material';
@@ -34,7 +35,7 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
   const router = useRouter();
   const theme = useTheme();
   const supabase = createSupabaseClient();
-  const { role, loading: roleLoading } = useRole();
+  const { role, isSuperAdmin, loading: roleLoading } = useRole();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -178,6 +179,20 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
             </Box>
           )}
           <Divider sx={{ borderColor: theme.palette.divider }} />
+          {!roleLoading && isSuperAdmin && (
+            <MenuItem
+              onClick={() => handleNavigate('/global/admin')}
+              sx={{
+                color: 'text.primary',
+                '&:hover': {
+                  backgroundColor: theme.palette.action.hover,
+                },
+              }}
+            >
+              <SecurityIcon fontSize="small" sx={{ mr: 1.5 }} />
+              Super Admin
+            </MenuItem>
+          )}
           {!roleLoading && role === 'admin' && (
             <MenuItem
               onClick={() => handleNavigate('/admin')}

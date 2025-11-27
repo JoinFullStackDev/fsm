@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
-import { unauthorized, internalError, badRequest, notFound } from '@/lib/utils/apiErrors';
+import { unauthorized, internalError, badRequest, notFound, forbidden } from '@/lib/utils/apiErrors';
+import { getUserOrganizationId } from '@/lib/organizationContext';
+import { hasOpsTool } from '@/lib/packageLimits';
 import logger from '@/lib/utils/logger';
 import { createActivityFeedItem } from '@/lib/ops/activityFeed';
 import { convertOpportunityToProject } from '@/lib/ops/opportunityConversion';
@@ -17,6 +19,25 @@ export async function GET(request: NextRequest) {
       return unauthorized('You must be logged in to view opportunities');
     }
 
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
+    }
+
+    // Check if organization has ops tool access
+    const hasAccess = await hasOpsTool(supabase, organizationId);
+    if (!hasAccess) {
+      return forbidden('Ops Tool is not available for your subscription plan');
+    }
+
+    // Get user record to check if super admin
+    const { data: userData } = await supabase
+      .from('users')
+      .select('role, is_super_admin')
+      .eq('auth_id', session.user.id)
+      .single();
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     const status = searchParams.get('status');
@@ -32,6 +53,13 @@ export async function GET(request: NextRequest) {
         company:companies(id, name)
       `, { count: 'exact' })
       .order('created_at', { ascending: false });
+
+    // Filter by organization (super admins can see all)
+    if (userData?.role === 'admin' && userData?.is_super_admin === true) {
+      // Super admin can see all opportunities
+    } else {
+      query = query.eq('organization_id', organizationId);
+    }
 
     // Apply filters
     if (search) {
@@ -81,6 +109,18 @@ export async function POST(request: NextRequest) {
       return unauthorized('You must be logged in to create opportunities');
     }
 
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
+    }
+
+    // Check if organization has ops tool access
+    const hasAccess = await hasOpsTool(supabase, organizationId);
+    if (!hasAccess) {
+      return forbidden('Ops Tool is not available for your subscription plan');
+    }
+
     const body = await request.json();
     const { company_id, name, value, status, source } = body;
 
@@ -92,10 +132,10 @@ export async function POST(request: NextRequest) {
       return badRequest('Opportunity name is required');
     }
 
-    // Verify company exists
+    // Verify company exists and belongs to user's organization
     const { data: company, error: companyError } = await supabase
       .from('companies')
-      .select('id')
+      .select('id, organization_id')
       .eq('id', company_id)
       .single();
 
@@ -107,10 +147,16 @@ export async function POST(request: NextRequest) {
       return internalError('Failed to check company', { error: companyError?.message });
     }
 
-    // Create opportunity
+    // Verify company belongs to user's organization
+    if (company.organization_id !== organizationId) {
+      return forbidden('Company does not belong to your organization');
+    }
+
+    // Create opportunity with organization_id
     const { data: opportunity, error: opportunityError } = await supabase
       .from('opportunities')
       .insert({
+        organization_id: organizationId,
         company_id,
         name: name.trim(),
         value: value ? parseFloat(value) : null,

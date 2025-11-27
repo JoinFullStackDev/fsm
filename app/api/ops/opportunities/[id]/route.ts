@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
-import { unauthorized, notFound, internalError, badRequest } from '@/lib/utils/apiErrors';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
+import { getUserOrganizationId } from '@/lib/organizationContext';
+import { hasOpsTool } from '@/lib/packageLimits';
+import { unauthorized, notFound, internalError, badRequest, forbidden } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 import { createActivityFeedItem } from '@/lib/ops/activityFeed';
 import type { Opportunity } from '@/types/ops';
@@ -17,6 +20,44 @@ export async function GET(
 
     if (!session) {
       return unauthorized('You must be logged in to view opportunities');
+    }
+
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
+    }
+
+    // Check if organization has ops tool access
+    const hasAccess = await hasOpsTool(supabase, organizationId);
+    if (!hasAccess) {
+      return forbidden('Ops Tool is not available for your subscription plan');
+    }
+
+    // Get user record to check if super admin
+    let userData;
+    const { data: regularUserData, error: regularUserError } = await supabase
+      .from('users')
+      .select('id, role, organization_id, is_super_admin')
+      .eq('auth_id', session.user.id)
+      .single();
+
+    if (regularUserError || !regularUserData) {
+      // RLS might be blocking - try admin client
+      const adminClient = createAdminSupabaseClient();
+      const { data: adminUserData, error: adminUserError } = await adminClient
+        .from('users')
+        .select('id, role, organization_id, is_super_admin')
+        .eq('auth_id', session.user.id)
+        .single();
+
+      if (adminUserError || !adminUserData) {
+        return notFound('User not found');
+      }
+
+      userData = adminUserData;
+    } else {
+      userData = regularUserData;
     }
 
     const { id } = params;
@@ -39,6 +80,13 @@ export async function GET(
       return internalError('Failed to load opportunity', { error: opportunityError?.message });
     }
 
+    // Validate organization access (super admins can see all opportunities)
+    if (userData.role !== 'admin' || userData.is_super_admin !== true) {
+      if (opportunity.organization_id !== organizationId) {
+        return forbidden('You do not have access to this opportunity');
+      }
+    }
+
     return NextResponse.json(opportunity);
   } catch (error) {
     logger.error('Error in GET /api/ops/opportunities/[id]:', error);
@@ -58,14 +106,52 @@ export async function PUT(
       return unauthorized('You must be logged in to update opportunities');
     }
 
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
+    }
+
+    // Check if organization has ops tool access
+    const hasAccess = await hasOpsTool(supabase, organizationId);
+    if (!hasAccess) {
+      return forbidden('Ops Tool is not available for your subscription plan');
+    }
+
+    // Get user record to check if super admin
+    let userData;
+    const { data: regularUserData, error: regularUserError } = await supabase
+      .from('users')
+      .select('id, role, organization_id, is_super_admin')
+      .eq('auth_id', session.user.id)
+      .single();
+
+    if (regularUserError || !regularUserData) {
+      // RLS might be blocking - try admin client
+      const adminClient = createAdminSupabaseClient();
+      const { data: adminUserData, error: adminUserError } = await adminClient
+        .from('users')
+        .select('id, role, organization_id, is_super_admin')
+        .eq('auth_id', session.user.id)
+        .single();
+
+      if (adminUserError || !adminUserData) {
+        return notFound('User not found');
+      }
+
+      userData = adminUserData;
+    } else {
+      userData = regularUserData;
+    }
+
     const { id } = params;
     const body = await request.json();
     const { name, value, status, source } = body;
 
-    // Get existing opportunity to check company_id and previous status
+    // Get existing opportunity to check company_id, organization_id, and previous status
     const { data: existingOpportunity, error: existingError } = await supabase
       .from('opportunities')
-      .select('company_id, status, name')
+      .select('company_id, organization_id, status, name')
       .eq('id', id)
       .single();
 
@@ -75,6 +161,13 @@ export async function PUT(
       }
       logger.error('Error checking opportunity:', existingError);
       return internalError('Failed to check opportunity', { error: existingError?.message });
+    }
+
+    // Validate organization access (super admins can update all opportunities)
+    if (userData.role !== 'admin' || userData.is_super_admin !== true) {
+      if (existingOpportunity.organization_id !== organizationId) {
+        return forbidden('You do not have access to update this opportunity');
+      }
     }
 
     // Validate
@@ -137,12 +230,50 @@ export async function DELETE(
       return unauthorized('You must be logged in to delete opportunities');
     }
 
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
+    }
+
+    // Check if organization has ops tool access
+    const hasAccess = await hasOpsTool(supabase, organizationId);
+    if (!hasAccess) {
+      return forbidden('Ops Tool is not available for your subscription plan');
+    }
+
+    // Get user record to check if super admin
+    let userData;
+    const { data: regularUserData, error: regularUserError } = await supabase
+      .from('users')
+      .select('id, role, organization_id, is_super_admin')
+      .eq('auth_id', session.user.id)
+      .single();
+
+    if (regularUserError || !regularUserData) {
+      // RLS might be blocking - try admin client
+      const adminClient = createAdminSupabaseClient();
+      const { data: adminUserData, error: adminUserError } = await adminClient
+        .from('users')
+        .select('id, role, organization_id, is_super_admin')
+        .eq('auth_id', session.user.id)
+        .single();
+
+      if (adminUserError || !adminUserData) {
+        return notFound('User not found');
+      }
+
+      userData = adminUserData;
+    } else {
+      userData = regularUserData;
+    }
+
     const { id } = params;
 
-    // Check if opportunity exists
+    // Check if opportunity exists and validate organization access
     const { data: opportunity, error: checkError } = await supabase
       .from('opportunities')
-      .select('id')
+      .select('id, organization_id')
       .eq('id', id)
       .single();
 
@@ -152,6 +283,13 @@ export async function DELETE(
       }
       logger.error('Error checking opportunity:', checkError);
       return internalError('Failed to check opportunity', { error: checkError?.message });
+    }
+
+    // Validate organization access (super admins can delete all opportunities)
+    if (userData.role !== 'admin' || userData.is_super_admin !== true) {
+      if (opportunity.organization_id !== organizationId) {
+        return forbidden('You do not have access to delete this opportunity');
+      }
     }
 
     // Delete opportunity

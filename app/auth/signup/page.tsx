@@ -26,6 +26,7 @@ export default function SignUpPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [organizationName, setOrganizationName] = useState('');
   const [role, setRole] = useState<UserRole>('pm');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -35,39 +36,115 @@ export default function SignUpPage() {
     setError(null);
     setLoading(true);
 
-    const { data: authData, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name,
-          role,
-        },
-      },
-    });
-
-    if (signUpError) {
-      setError(signUpError.message);
+    // Validate organization name
+    if (!organizationName || organizationName.trim().length === 0) {
+      setError('Organization name is required');
       setLoading(false);
       return;
     }
 
-    if (authData.user) {
-      // Call database function to create user record (bypasses RLS)
-      const { error: userError } = await supabase.rpc('create_user_record', {
-        p_auth_id: authData.user.id,
-        p_email: email,
-        p_name: name,
-        p_role: role,
-      });
+    try {
+      // Step 1: Create organization
+      const orgSlug = organizationName
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
 
-      if (userError) {
-        setError(userError.message);
+      const { data: orgData, error: orgError } = await supabase
+        .from('organizations')
+        .insert({
+          name: organizationName.trim(),
+          slug: orgSlug,
+          subscription_status: 'trial',
+        })
+        .select()
+        .single();
+
+      if (orgError) {
+        // Check if slug already exists
+        if (orgError.code === '23505') {
+          setError('An organization with this name already exists. Please choose a different name.');
+        } else {
+          setError(`Failed to create organization: ${orgError.message}`);
+        }
         setLoading(false);
         return;
       }
 
-      router.push('/dashboard');
+      // Step 2: Sign up user
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+            role,
+          },
+        },
+      });
+
+      if (signUpError) {
+        setError(signUpError.message);
+        setLoading(false);
+        return;
+      }
+
+      if (authData.user) {
+        // Step 3: Create user record with organization_id
+        const { error: userError } = await supabase.rpc('create_user_record', {
+          p_auth_id: authData.user.id,
+          p_email: email,
+          p_name: name,
+          p_role: role,
+        });
+
+        if (userError) {
+          setError(userError.message);
+          setLoading(false);
+          return;
+        }
+
+        // Step 4: Assign user to organization
+        const { error: assignError } = await supabase
+          .from('users')
+          .update({ organization_id: orgData.id })
+          .eq('auth_id', authData.user.id);
+
+        if (assignError) {
+          setError(`Failed to assign user to organization: ${assignError.message}`);
+          setLoading(false);
+          return;
+        }
+
+        // Step 5: Create default subscription (Starter package) via API
+        try {
+          const { data: starterPackage } = await supabase
+            .from('packages')
+            .select('id')
+            .eq('name', 'Starter')
+            .single();
+
+          if (starterPackage) {
+            await fetch('/api/organization/subscription', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                organization_id: orgData.id,
+                package_id: starterPackage.id,
+              }),
+            });
+          }
+        } catch (subError) {
+          // Non-critical error - subscription can be created later
+          console.warn('Failed to create default subscription:', subError);
+        }
+
+        router.push('/dashboard');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      setLoading(false);
     }
   };
 
@@ -120,7 +197,16 @@ export default function SignUpPage() {
             <Box component="form" onSubmit={handleSignUp}>
               <TextField
                 fullWidth
-                label="Name"
+                label="Organization Name"
+                value={organizationName}
+                onChange={(e) => setOrganizationName(e.target.value)}
+                required
+                margin="normal"
+                helperText="This will be your company or team name"
+              />
+              <TextField
+                fullWidth
+                label="Your Name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required

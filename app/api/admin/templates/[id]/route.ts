@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
-import { unauthorized, notFound, internalError, forbidden } from '@/lib/utils/apiErrors';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
+import { getUserOrganizationId } from '@/lib/organizationContext';
+import { unauthorized, notFound, internalError, forbidden, badRequest } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 
 /**
@@ -25,15 +27,36 @@ export async function DELETE(
       return unauthorized('You must be logged in to delete templates');
     }
 
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
+    }
+
     // Get current user and verify admin role
-    const { data: currentUser, error: userError } = await supabase
+    let currentUser;
+    const { data: regularUserData, error: regularUserError } = await supabase
       .from('users')
-      .select('id, role')
+      .select('id, role, organization_id, is_super_admin')
       .eq('auth_id', session.user.id)
       .single();
 
-    if (userError || !currentUser) {
-      return notFound('User');
+    if (regularUserError || !regularUserData) {
+      // RLS might be blocking - try admin client
+      const adminClient = createAdminSupabaseClient();
+      const { data: adminUserData, error: adminUserError } = await adminClient
+        .from('users')
+        .select('id, role, organization_id, is_super_admin')
+        .eq('auth_id', session.user.id)
+        .single();
+
+      if (adminUserError || !adminUserData) {
+        return notFound('User not found');
+      }
+
+      currentUser = adminUserData;
+    } else {
+      currentUser = regularUserData;
     }
 
     // Allow admins and PMs to delete templates
@@ -41,10 +64,10 @@ export async function DELETE(
       return forbidden('Admin or PM access required');
     }
 
-    // Verify template exists and get created_by
+    // Verify template exists and get created_by and organization_id
     const { data: template, error: templateError } = await supabase
       .from('project_templates')
-      .select('id, created_by')
+      .select('id, created_by, organization_id')
       .eq('id', params.id)
       .single();
 
@@ -52,7 +75,14 @@ export async function DELETE(
       return notFound('Template not found');
     }
 
-    // PMs can only delete templates they created
+    // Validate organization access (super admins can delete all templates)
+    if (currentUser.role !== 'admin' || currentUser.is_super_admin !== true) {
+      if (template.organization_id !== organizationId) {
+        return forbidden('You do not have access to delete this template');
+      }
+    }
+
+    // PMs can only delete templates they created (within their organization)
     if (currentUser.role === 'pm' && template.created_by !== currentUser.id) {
       return forbidden('You can only delete templates you created');
     }
