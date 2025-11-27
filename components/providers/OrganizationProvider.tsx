@@ -127,11 +127,23 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
  * Must be used within an OrganizationProvider component.
  *
  * @returns Organization context with organization, subscription, package, and features
- * @throws Error if used outside OrganizationProvider
+ * @throws Error if used outside OrganizationProvider (only in browser, not during SSR)
  */
 export function useOrganization() {
   const context = useContext(OrganizationContext);
   if (context === undefined) {
+    // During SSR/static generation, return a default context instead of throwing
+    if (typeof window === 'undefined') {
+      return {
+        organization: null,
+        subscription: null,
+        package: null,
+        features: null,
+        loading: true,
+        error: null,
+        refresh: async () => {},
+      };
+    }
     throw new Error('useOrganization must be used within an OrganizationProvider');
   }
   return context;
