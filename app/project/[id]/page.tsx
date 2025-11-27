@@ -14,11 +14,6 @@ import {
   CircularProgress,
   Alert,
   Divider,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemText,
-  Checkbox,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -26,19 +21,27 @@ import {
   DialogContentText,
   Skeleton,
   Tooltip,
+  Paper,
+  Avatar,
+  IconButton,
+  Stack,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
   Download as DownloadIcon,
   Settings as SettingsIcon,
   CheckCircle as CheckCircleIcon,
-  RadioButtonUnchecked as RadioButtonUncheckedIcon,
   ContentCopy as ContentCopyIcon,
   Check as CheckIcon,
   History as HistoryIcon,
   Assignment as AssignmentIcon,
   Delete as DeleteIcon,
   People as PeopleIcon,
+  Business as BusinessIcon,
+  CalendarToday as CalendarIcon,
+  TrendingUp as TrendingUpIcon,
+  FileDownload as FileDownloadIcon,
+  ArrowForward as ArrowForwardIcon,
 } from '@mui/icons-material';
 import { LinearProgress } from '@mui/material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
@@ -133,6 +136,12 @@ export default function ProjectPage() {
   const [initiating, setInitiating] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  
+  // Dashboard stats
+  const [memberCount, setMemberCount] = useState(0);
+  const [exportCount, setExportCount] = useState(0);
+  const [companyName, setCompanyName] = useState<string | null>(null);
+  const [members, setMembers] = useState<any[]>([]);
 
   useEffect(() => {
     const loadProject = async () => {
@@ -157,10 +166,13 @@ export default function ProjectPage() {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
 
-      // Load project
+      // Load project with company info
       const { data: projectData, error: projectError } = await supabase
         .from('projects')
-        .select('*')
+        .select(`
+          *,
+          company:companies(id, name)
+        `)
         .eq('id', projectId)
         .single();
 
@@ -171,9 +183,9 @@ export default function ProjectPage() {
       }
 
       setProject(projectData);
+      setCompanyName(projectData.company?.name || null);
 
       // Load phases with data for progress calculation (ordered by display_order)
-      // Add a small retry mechanism if refresh was needed
       let phasesData = null;
       let phasesError = null;
       let attempts = refreshNeeded ? 3 : 1;
@@ -190,11 +202,10 @@ export default function ProjectPage() {
         phasesError = result.error;
         
         if (!phasesError && phasesData && phasesData.length > 0) {
-          break; // Success, exit retry loop
+          break;
         }
         
         if (i < attempts - 1) {
-          // Wait before retrying
           await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
@@ -203,7 +214,6 @@ export default function ProjectPage() {
         console.error('Error loading phases:', phasesError);
         setError(phasesError.message);
       } else {
-        console.log('Loaded phases:', phasesData?.length || 0, 'phases');
         setPhases(phasesData || []);
         if (refreshNeeded && (!phasesData || phasesData.length === 0)) {
           console.warn('No phases found after template change');
@@ -221,7 +231,6 @@ export default function ProjectPage() {
           .in('phase_number', phaseNumbers);
 
         if (!configsError && configsData) {
-          // Organize configs by phase number
           const configsByPhase: Record<number, Array<{ field_key: string }>> = {};
           configsData.forEach(config => {
             if (!configsByPhase[config.phase_number]) {
@@ -233,6 +242,28 @@ export default function ProjectPage() {
         }
       }
 
+      // Load dashboard stats
+      // Member count
+      const { data: membersData } = await supabase
+        .from('project_members')
+        .select('user_id, user:users(id, name, email)')
+        .eq('project_id', projectId);
+      
+      if (membersData) {
+        setMemberCount(membersData.length);
+        setMembers(membersData.slice(0, 5)); // Show first 5 members
+      }
+
+      // Export count
+      const { count: exportCountData } = await supabase
+        .from('project_exports')
+        .select('*', { count: 'exact', head: true })
+        .eq('project_id', projectId);
+      
+      if (exportCountData !== null) {
+        setExportCount(exportCountData);
+      }
+
       setLoading(false);
     };
 
@@ -242,7 +273,6 @@ export default function ProjectPage() {
   }, [projectId, router, supabase, showSuccess]);
 
   const handleExportBlueprint = async () => {
-    // Check if all phases are completed
     const allPhasesCompleted = phases.length > 0 && phases.every(p => p.completed);
     
     if (!allPhasesCompleted) {
@@ -286,14 +316,11 @@ export default function ProjectPage() {
   const handleGenerateCursorPrompt = async () => {
     setExporting(true);
     try {
-      // Fetch the cursor prompt text
       const response = await fetch(`/api/projects/${projectId}/export/cursor`, {
         method: 'POST',
       });
       
       if (response.ok || true) {
-        // Generate it client-side from the project data
-        // Get all phases
         const { data: phasesData } = await supabase
           .from('project_phases')
           .select('*')
@@ -327,7 +354,6 @@ export default function ProjectPage() {
       setExporting(false);
     }
   };
-
 
   const handleCopyCursorPrompt = async () => {
     if (cursorPrompt) {
@@ -376,8 +402,6 @@ export default function ProjectPage() {
 
       showSuccess('Project deleted successfully');
       setDeleteDialogOpen(false);
-      
-      // Redirect to dashboard
       router.push('/dashboard');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete project';
@@ -392,14 +416,11 @@ export default function ProjectPage() {
   };
 
   const handleProjectManagement = async () => {
-    // Check if project is already initiated
     if (project?.initiated_at) {
-      // Navigate to project management page
       router.push(`/project-management/${projectId}`);
       return;
     }
 
-    // Initiate the project by triggering analysis
     setInitiating(true);
     try {
       const response = await fetch(`/api/projects/${projectId}/analyze`, {
@@ -414,7 +435,6 @@ export default function ProjectPage() {
       const result = await response.json();
       showSuccess('Project initiated successfully! Generating tasks...');
       
-      // Refresh project data to update initiated_at
       const { data: updatedProject, error: projectError } = await supabase
         .from('projects')
         .select('*')
@@ -425,7 +445,6 @@ export default function ProjectPage() {
         setProject(updatedProject);
       }
       
-      // Navigate to project management page after a short delay
       setTimeout(() => {
         router.push(`/project-management/${projectId}`);
       }, 1000);
@@ -436,159 +455,207 @@ export default function ProjectPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'blueprint_ready':
-        return 'success';
-      case 'in_progress':
-        return 'primary';
-      case 'archived':
-        return 'default';
-      default:
-        return 'warning';
-    }
-  };
-
   if (loading) {
     return (
-      <>
-        <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', pb: 4 }}>
-          <Container maxWidth="lg" sx={{ pt: 4, pb: 4 }}>
-            <Skeleton variant="text" width="40%" height={48} sx={{ mb: 3 }} />
-            <Skeleton variant="text" width="60%" height={24} sx={{ mb: 4 }} />
-            <LoadingSkeleton variant="card" count={6} />
-          </Container>
-        </Box>
-      </>
+      <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', pb: 4 }}>
+        <Container maxWidth="xl" sx={{ pt: 4, pb: 4 }}>
+          <Skeleton variant="text" width="40%" height={48} sx={{ mb: 3 }} />
+          <Skeleton variant="text" width="60%" height={24} sx={{ mb: 4 }} />
+          <LoadingSkeleton variant="card" count={6} />
+        </Container>
+      </Box>
     );
   }
 
   if (error || !project) {
     return (
-      <>
-        <Container>
-          <Alert severity="error" sx={{ mt: 4 }}>
-            {error || 'Project not found'}
-          </Alert>
-        </Container>
-      </>
+      <Container>
+        <Alert severity="error" sx={{ mt: 4 }}>
+          {error || 'Project not found'}
+        </Alert>
+      </Container>
     );
   }
 
+  // Calculate dashboard stats
+  const totalPhases = phases.length || 6;
+  let totalProgress = 0;
+  phases.forEach((phase) => {
+    const fieldConfigs = fieldConfigsByPhase[phase.phase_number];
+    const phaseProgress = calculatePhaseProgressWithConfigs(
+      phase.phase_number,
+      phase.data || null,
+      fieldConfigs
+    );
+    const isCompleted = phase.completed || phaseProgress >= 100;
+    totalProgress += isCompleted ? 100 : phaseProgress;
+  });
+  
+  const progressPercentage = totalPhases > 0 ? totalProgress / totalPhases : 0;
+  const completedPhases = phases.filter((p) => {
+    const fieldConfigs = fieldConfigsByPhase[p.phase_number];
+    const phaseProgress = calculatePhaseProgressWithConfigs(
+      p.phase_number,
+      p.data || null,
+      fieldConfigs
+    );
+    return p.completed || phaseProgress >= 100;
+  }).length;
+
   return (
     <ErrorBoundary>
-      <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', pb: 4 }}>
-        <Container maxWidth="lg" sx={{ pt: 4, pb: 4 }}>
+      <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', pb: 6 }}>
+        <Container maxWidth="xl" sx={{ pt: 4, pb: 4 }}>
           <Breadcrumbs items={[{ label: project.name }]} />
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-            <Box>
-              <Typography
-                variant="h4"
-                component="h1"
-                sx={{
-                  fontWeight: 600,
-                  color: theme.palette.text.primary,
-                  fontSize: '1.5rem',
-                  mb: 1,
-                }}
-              >
-                {project.name}
-              </Typography>
-              <Typography variant="body1" sx={{ color: theme.palette.text.secondary, mt: 1 }}>
-                {project.description || 'No description'}
-              </Typography>
-            </Box>
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <Chip
-                label={project.status.replace('_', ' ')}
-                sx={{
-                  backgroundColor: theme.palette.action.hover,
-                  color: theme.palette.text.primary,
-                  border: `1px solid ${theme.palette.divider}`,
-                  fontWeight: 500,
-                }}
-              />
-              {project.primary_tool && (
-                <Chip
-                  label={project.primary_tool}
-                  sx={{
-                    backgroundColor: theme.palette.action.hover,
-                    color: theme.palette.text.primary,
-                    border: `1px solid ${theme.palette.divider}`,
-                    fontWeight: 500,
-                  }}
-                />
-              )}
-            </Box>
-          </Box>
+          
+          {/* Hero Section */}
+          <Paper
+            elevation={0}
+            sx={{
+              background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.action.hover} 100%)`,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 3,
+              p: 4,
+              mb: 4,
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            <Box sx={{ position: 'relative', zIndex: 1 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+                <Box sx={{ flex: 1 }}>
+                  <Typography
+                    variant="h3"
+                    component="h1"
+                    sx={{
+                      fontWeight: 700,
+                      color: theme.palette.text.primary,
+                      fontSize: { xs: '1.75rem', md: '2.5rem' },
+                      mb: 1,
+                      fontFamily: 'var(--font-rubik), Rubik, sans-serif',
+                    }}
+                  >
+                    {project.name}
+                  </Typography>
+                  <Typography 
+                    variant="body1" 
+                    sx={{ 
+                      color: theme.palette.text.secondary, 
+                      fontSize: '1.1rem',
+                      mb: 2,
+                      maxWidth: '80%',
+                    }}
+                  >
+                    {project.description || 'No description provided'}
+                  </Typography>
+                  <Stack direction="row" spacing={2} flexWrap="wrap" gap={1}>
+                    <Chip
+                      label={project.status.replace('_', ' ')}
+                      sx={{
+                        backgroundColor: theme.palette.background.paper,
+                        color: theme.palette.text.primary,
+                        border: `1px solid ${theme.palette.divider}`,
+                        fontWeight: 600,
+                        fontSize: '0.875rem',
+                      }}
+                    />
+                    {project.primary_tool && (
+                      <Chip
+                        label={project.primary_tool}
+                        sx={{
+                          backgroundColor: theme.palette.background.paper,
+                          color: theme.palette.text.primary,
+                          border: `1px solid ${theme.palette.divider}`,
+                          fontWeight: 600,
+                          fontSize: '0.875rem',
+                        }}
+                      />
+                    )}
+                    {companyName && (
+                      <Chip
+                        icon={<BusinessIcon />}
+                        label={companyName}
+                        sx={{
+                          backgroundColor: theme.palette.background.paper,
+                          color: theme.palette.text.primary,
+                          border: `1px solid ${theme.palette.divider}`,
+                          fontWeight: 600,
+                          fontSize: '0.875rem',
+                        }}
+                      />
+                    )}
+                  </Stack>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Tooltip title="Settings">
+                    <IconButton
+                      onClick={() => router.push(`/project/${projectId}/settings`)}
+                      sx={{
+                        backgroundColor: theme.palette.background.paper,
+                        border: `1px solid ${theme.palette.divider}`,
+                        '&:hover': {
+                          backgroundColor: theme.palette.action.hover,
+                        },
+                      }}
+                    >
+                      <SettingsIcon />
+                    </IconButton>
+                  </Tooltip>
+                  {role === 'admin' && (
+                    <Tooltip title="Delete Project">
+                      <IconButton
+                        onClick={handleDeleteClick}
+                        sx={{
+                          backgroundColor: theme.palette.background.paper,
+                          border: `1px solid ${theme.palette.divider}`,
+                          color: theme.palette.error.main,
+                          '&:hover': {
+                            backgroundColor: theme.palette.error.main,
+                            color: theme.palette.background.paper,
+                          },
+                        }}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </Box>
+              </Box>
 
-          {/* Phase Progress Indicator */}
-          {(() => {
-            const totalPhases = phases.length || 6; // Use actual phase count, fallback to 6 for backward compatibility
-            
-            // Calculate progress based on actual phase progress, not just completed flag
-            let totalProgress = 0;
-            phases.forEach((phase) => {
-              const fieldConfigs = fieldConfigsByPhase[phase.phase_number];
-              const phaseProgress = calculatePhaseProgressWithConfigs(
-                phase.phase_number,
-                phase.data || null,
-                fieldConfigs
-              );
-              // Consider phase completed if either the database flag is set OR progress is 100%
-              const isCompleted = phase.completed || phaseProgress >= 100;
-              totalProgress += isCompleted ? 100 : phaseProgress;
-            });
-            
-            const progressPercentage = totalPhases > 0 ? totalProgress / totalPhases : 0;
-            const completedPhases = phases.filter((p) => {
-              const fieldConfigs = fieldConfigsByPhase[p.phase_number];
-              const phaseProgress = calculatePhaseProgressWithConfigs(
-                p.phase_number,
-                p.data || null,
-                fieldConfigs
-              );
-              return p.completed || phaseProgress >= 100;
-            }).length;
-            
-            return (
-              <Box
-                sx={{
-                  backgroundColor: theme.palette.background.paper,
-                  border: `1px solid ${theme.palette.divider}`,
-                  borderRadius: 2,
-                  mb: 3,
-                  p: 3,
-                }}
-              >
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              {/* Progress Bar */}
+              <Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
                   <Typography
                     variant="h6"
-                    sx={{ color: theme.palette.text.primary, fontWeight: 600 }}
-                  >
-                    Project Progress
-                  </Typography>
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      color: theme.palette.text.primary,
+                    sx={{ 
+                      color: theme.palette.text.primary, 
                       fontWeight: 600,
                       fontSize: '1.1rem',
                     }}
                   >
-                    {completedPhases} of {totalPhases} phases complete
+                    Overall Progress
+                  </Typography>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      color: theme.palette.text.primary,
+                      fontWeight: 700,
+                      fontSize: '1.5rem',
+                    }}
+                  >
+                    {Math.round(progressPercentage)}%
                   </Typography>
                 </Box>
                 <LinearProgress
                   variant="determinate"
                   value={progressPercentage}
                   sx={{
-                    height: 10,
-                    borderRadius: 5,
-                    backgroundColor: theme.palette.action.hover,
+                    height: 12,
+                    borderRadius: 6,
+                    backgroundColor: theme.palette.background.paper,
                     '& .MuiLinearProgress-bar': {
-                      borderRadius: 5,
-                      backgroundColor: '#4CAF50',
+                      borderRadius: 6,
+                      background: `linear-gradient(90deg, #4CAF50 0%, #66BB6A 100%)`,
                     },
                   }}
                 />
@@ -600,178 +667,503 @@ export default function ProjectPage() {
                     textAlign: 'right',
                   }}
                 >
-                  {Math.round(progressPercentage)}% complete
+                  {completedPhases} of {totalPhases} phases complete
                 </Typography>
               </Box>
-            );
-          })()}
+            </Box>
+          </Paper>
 
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={8}>
-              <Box
+          {/* Stats Cards */}
+          <Grid container spacing={3} sx={{ mb: 4 }}>
+            <Grid item xs={12} sm={6} md={3}>
+              <Paper
+                elevation={0}
                 sx={{
-                  backgroundColor: theme.palette.background.paper,
+                  p: 3,
                   border: `1px solid ${theme.palette.divider}`,
                   borderRadius: 2,
-                  p: 3,
+                  backgroundColor: theme.palette.background.paper,
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: `0 4px 12px ${theme.palette.divider}`,
+                  },
                 }}
               >
-                <Typography
-                  variant="h6"
-                  gutterBottom
-                  sx={{ color: theme.palette.text.primary, fontWeight: 600, mb: 3 }}
-                >
-                  Phases
-                </Typography>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    {phases.map((phase) => {
-                      const phaseNumber = phase.phase_number;
-                      const phaseName = phase.phase_name || `Phase ${phaseNumber}`;
-                      const fieldConfigs = fieldConfigsByPhase[phaseNumber];
-                      const progress = calculatePhaseProgressWithConfigs(
-                        phaseNumber,
-                        phase.data || null,
-                        fieldConfigs
-                      );
-                      // Consider phase completed if either the database flag is set OR progress is 100%
-                      const completed = phase.completed || progress >= 100;
-                      const hasStarted = progress > 0;
-                      
-                      return (
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box>
+                    <Typography
+                      variant="h4"
+                      sx={{
+                        fontWeight: 700,
+                        color: theme.palette.text.primary,
+                        mb: 0.5,
+                      }}
+                    >
+                      {completedPhases}/{totalPhases}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{ color: theme.palette.text.secondary }}
+                    >
+                      Phases Complete
+                    </Typography>
+                  </Box>
+                  <CheckCircleIcon
+                    sx={{
+                      fontSize: 40,
+                      color: '#4CAF50',
+                      opacity: 0.8,
+                    }}
+                  />
+                </Box>
+              </Paper>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: 2,
+                  backgroundColor: theme.palette.background.paper,
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: `0 4px 12px ${theme.palette.divider}`,
+                  },
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box>
+                    <Typography
+                      variant="h4"
+                      sx={{
+                        fontWeight: 700,
+                        color: theme.palette.text.primary,
+                        mb: 0.5,
+                      }}
+                    >
+                      {memberCount}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{ color: theme.palette.text.secondary }}
+                    >
+                      Team Members
+                    </Typography>
+                  </Box>
+                  <PeopleIcon
+                    sx={{
+                      fontSize: 40,
+                      color: theme.palette.text.primary,
+                      opacity: 0.6,
+                    }}
+                  />
+                </Box>
+              </Paper>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: 2,
+                  backgroundColor: theme.palette.background.paper,
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: `0 4px 12px ${theme.palette.divider}`,
+                  },
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box>
+                    <Typography
+                      variant="h4"
+                      sx={{
+                        fontWeight: 700,
+                        color: theme.palette.text.primary,
+                        mb: 0.5,
+                      }}
+                    >
+                      {exportCount}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{ color: theme.palette.text.secondary }}
+                    >
+                      Exports Generated
+                    </Typography>
+                  </Box>
+                  <FileDownloadIcon
+                    sx={{
+                      fontSize: 40,
+                      color: theme.palette.text.primary,
+                      opacity: 0.6,
+                    }}
+                  />
+                </Box>
+              </Paper>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: 2,
+                  backgroundColor: theme.palette.background.paper,
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: `0 4px 12px ${theme.palette.divider}`,
+                  },
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box>
+                    <Typography
+                      variant="h4"
+                      sx={{
+                        fontWeight: 700,
+                        color: theme.palette.text.primary,
+                        mb: 0.5,
+                      }}
+                    >
+                      {project.initiated_at ? 'Active' : 'Draft'}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{ color: theme.palette.text.secondary }}
+                    >
+                      Project Status
+                    </Typography>
+                  </Box>
+                  <TrendingUpIcon
+                    sx={{
+                      fontSize: 40,
+                      color: project.initiated_at ? '#4CAF50' : theme.palette.text.secondary,
+                      opacity: 0.6,
+                    }}
+                  />
+                </Box>
+              </Paper>
+            </Grid>
+          </Grid>
+
+          <Grid container spacing={3}>
+            {/* Phases Section */}
+            <Grid item xs={12} lg={8}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: 3,
+                  backgroundColor: theme.palette.background.paper,
+                }}
+              >
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      color: theme.palette.text.primary,
+                      fontWeight: 700,
+                      fontFamily: 'var(--font-rubik), Rubik, sans-serif',
+                    }}
+                  >
+                    Project Phases
+                  </Typography>
+                </Box>
+                
+                {/* Stacked Phase Cards */}
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  {phases.map((phase, index) => {
+                    const phaseNumber = phase.phase_number;
+                    const phaseName = phase.phase_name || `Phase ${phaseNumber}`;
+                    const fieldConfigs = fieldConfigsByPhase[phaseNumber];
+                    const progress = calculatePhaseProgressWithConfigs(
+                      phaseNumber,
+                      phase.data || null,
+                      fieldConfigs
+                    );
+                    const completed = phase.completed || progress >= 100;
+                    const hasStarted = progress > 0;
+                    
+                    // Find the first incomplete phase
+                    const firstIncompleteIndex = phases.findIndex(
+                      (p) => {
+                        const pn = p.phase_number;
+                        const pFieldConfigs = fieldConfigsByPhase[pn];
+                        const pProgress = calculatePhaseProgressWithConfigs(
+                          pn,
+                          p.data || null,
+                          pFieldConfigs
+                        );
+                        return !(p.completed || pProgress >= 100);
+                      }
+                    );
+                    const isFirstIncomplete = index === firstIncompleteIndex && !completed;
+                    
+                    return (
+                      <Paper
+                        key={phaseNumber}
+                        elevation={0}
+                        onClick={() => router.push(`/project/${projectId}/phase/${phaseNumber}`)}
+                        sx={{
+                          border: `2px solid ${completed ? '#4CAF50' : theme.palette.divider}`,
+                          backgroundColor: completed 
+                            ? `${theme.palette.action.hover}40` 
+                            : theme.palette.background.paper,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          borderRadius: 2,
+                          p: 2,
+                          position: 'relative',
+                          ...(isFirstIncomplete && {
+                            animation: 'flash 2s ease-in-out infinite',
+                            '@keyframes flash': {
+                              '0%, 100%': {
+                                borderColor: theme.palette.divider,
+                                boxShadow: 'none',
+                              },
+                              '50%': {
+                                borderColor: theme.palette.text.primary,
+                                boxShadow: `0 0 0 2px ${theme.palette.text.primary}40`,
+                              },
+                            },
+                          }),
+                          '&:hover': {
+                            borderColor: completed ? '#4CAF50' : theme.palette.text.primary,
+                            backgroundColor: theme.palette.action.hover,
+                            transform: 'translateX(4px)',
+                          },
+                        }}
+                      >
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+                            <Chip
+                              label={`Phase ${phaseNumber}`}
+                              size="small"
+                              sx={{
+                                backgroundColor: completed 
+                                  ? '#4CAF50' 
+                                  : theme.palette.action.hover,
+                                color: completed 
+                                  ? theme.palette.background.paper 
+                                  : theme.palette.text.primary,
+                                fontWeight: 700,
+                                fontSize: '0.7rem',
+                                height: 20,
+                              }}
+                            />
+                            {completed && (
+                              <CheckCircleIcon
+                                sx={{
+                                  color: '#4CAF50',
+                                  fontSize: 20,
+                                }}
+                              />
+                            )}
+                            <Typography
+                              variant="subtitle1"
+                              sx={{
+                                fontWeight: 600,
+                                color: completed ? '#4CAF50' : theme.palette.text.primary,
+                                fontSize: '0.95rem',
+                                flex: 1,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {phaseName}
+                            </Typography>
+                          </Box>
+                          
+                          <Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.75 }}>
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  color: theme.palette.text.secondary,
+                                  fontSize: '0.75rem',
+                                  fontWeight: 500,
+                                }}
+                              >
+                                {completed 
+                                  ? 'Completed' 
+                                  : hasStarted 
+                                    ? `In Progress` 
+                                    : 'Not Started'}
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  color: theme.palette.text.primary,
+                                  fontSize: '0.75rem',
+                                  fontWeight: 700,
+                                }}
+                              >
+                                {progress}%
+                              </Typography>
+                            </Box>
+                            <LinearProgress
+                              variant="determinate"
+                              value={completed ? 100 : progress}
+                              sx={{
+                                height: 6,
+                                borderRadius: 3,
+                                backgroundColor: theme.palette.action.hover,
+                                '& .MuiLinearProgress-bar': {
+                                  backgroundColor: completed ? '#4CAF50' : theme.palette.text.primary,
+                                  borderRadius: 3,
+                                },
+                              }}
+                            />
+                          </Box>
+                        </Box>
+                      </Paper>
+                    );
+                  })}
+                </Box>
+              </Paper>
+            </Grid>
+
+            {/* Sidebar */}
+            <Grid item xs={12} lg={4}>
+              <Stack spacing={3}>
+                {/* Team Members Preview */}
+                {memberCount > 0 && (
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 3,
+                      border: `1px solid ${theme.palette.divider}`,
+                      borderRadius: 3,
+                      backgroundColor: theme.palette.background.paper,
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          color: theme.palette.text.primary,
+                          fontWeight: 600,
+                        }}
+                      >
+                        Team Members
+                      </Typography>
+                      <Button
+                        size="small"
+                        endIcon={<ArrowForwardIcon />}
+                        onClick={() => router.push(`/project/${projectId}/members`)}
+                        sx={{
+                          color: theme.palette.text.primary,
+                          textTransform: 'none',
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        }}
+                      >
+                        View All
+                      </Button>
+                    </Box>
+                    <Stack spacing={1.5}>
+                      {members.map((member: any) => (
                         <Box
-                          key={phaseNumber}
-                          onClick={() => router.push(`/project/${projectId}/phase/${phaseNumber}`)}
+                          key={member.user_id}
                           sx={{
-                            border: `1px solid ${completed ? '#4CAF50' : theme.palette.divider}`,
-                            backgroundColor: completed ? theme.palette.action.hover : theme.palette.background.paper,
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease',
-                            position: 'relative',
-                            overflow: 'visible',
-                            borderRadius: 2,
-                            p: 2,
-                            mb: 2,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1.5,
+                            p: 1,
+                            borderRadius: 1,
                             '&:hover': {
-                              borderColor: completed ? '#4CAF50' : theme.palette.text.primary,
                               backgroundColor: theme.palette.action.hover,
                             },
                           }}
                         >
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                              <Box>
-                                <Chip
-                                  label={phaseName}
-                                  size="small"
-                                  sx={{
-                                    backgroundColor: theme.palette.action.hover,
-                                    color: completed ? '#4CAF50' : theme.palette.text.primary,
-                                    border: `1px solid ${completed ? '#4CAF50' : theme.palette.divider}`,
-                                    fontWeight: 600,
-                                    mb: 1,
-                                  }}
-                                />
-                                <Typography
-                                  variant="h6"
-                                  sx={{
-                                    fontWeight: 600,
-                                    color: completed ? '#4CAF50' : theme.palette.text.primary,
-                                    mt: 1,
-                                  }}
-                                >
-                                  {phaseName}
-                                </Typography>
-                              </Box>
-                              {completed && (
-                                <CheckCircleIcon
-                                  sx={{
-                                    color: '#4CAF50',
-                                    fontSize: 28,
-                                  }}
-                                />
-                              )}
-                            </Box>
-                            
-                            {/* Progress Bar */}
-                            <Box sx={{ mt: 2 }}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                                <Typography
-                                  variant="body2"
-                                  sx={{
-                                    color: theme.palette.text.secondary,
-                                    fontSize: '0.875rem',
-                                    fontWeight: 500,
-                                  }}
-                                >
-                                  {completed 
-                                    ? 'Completed' 
-                                    : hasStarted 
-                                      ? `In Progress - ${progress}%` 
-                                      : 'Not Started'}
-                                </Typography>
-                                {!completed && hasStarted && (
-                                  <Typography
-                                    variant="body2"
-                                    sx={{
-                                      color: theme.palette.text.primary,
-                                      fontSize: '0.875rem',
-                                      fontWeight: 600,
-                                    }}
-                                  >
-                                    {progress}%
-                                  </Typography>
-                                )}
-                              </Box>
-                              <LinearProgress
-                                variant="determinate"
-                                value={completed ? 100 : progress}
-                                sx={{
-                                  height: 8,
-                                  borderRadius: 4,
-                                  backgroundColor: theme.palette.action.hover,
-                                  '& .MuiLinearProgress-bar': {
-                                    backgroundColor: completed ? '#4CAF50' : theme.palette.text.primary,
-                                    borderRadius: 4,
-                                  },
-                                }}
-                              />
-                            </Box>
+                          <Avatar
+                            sx={{
+                              width: 32,
+                              height: 32,
+                              backgroundColor: theme.palette.text.primary,
+                              fontSize: '0.875rem',
+                            }}
+                          >
+                            {member.user?.name?.[0]?.toUpperCase() || member.user?.email?.[0]?.toUpperCase() || 'U'}
+                          </Avatar>
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontWeight: 500,
+                                color: theme.palette.text.primary,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {member.user?.name || member.user?.email || 'Unknown'}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                color: theme.palette.text.secondary,
+                                fontSize: '0.75rem',
+                              }}
+                            >
+                              {member.user?.email}
+                            </Typography>
                           </Box>
-                      );
-                    })}
-                  </Box>
-              </Box>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Box
-                sx={{
-                  backgroundColor: theme.palette.background.paper,
-                  border: `1px solid ${theme.palette.divider}`,
-                  borderRadius: 2,
-                  p: 3,
-                }}
-              >
-                <Typography
-                  variant="h6"
-                  gutterBottom
-                  sx={{ color: theme.palette.text.primary, fontWeight: 600 }}
+                        </Box>
+                      ))}
+                    </Stack>
+                  </Paper>
+                )}
+
+                {/* Quick Actions */}
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 3,
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 3,
+                    backgroundColor: theme.palette.background.paper,
+                  }}
                 >
-                  Actions
-                </Typography>
-                <Divider sx={{ mb: 2, borderColor: theme.palette.divider }} />
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      color: theme.palette.text.primary,
+                      fontWeight: 600,
+                      mb: 2,
+                    }}
+                  >
+                    Quick Actions
+                  </Typography>
+                  <Stack spacing={1.5}>
                     <Button
-                      variant="outlined"
+                      variant="contained"
                       startIcon={<DownloadIcon />}
                       onClick={handleExportBlueprint}
                       disabled={exporting}
                       fullWidth
                       sx={{
-                        borderColor: theme.palette.text.primary,
-                        color: theme.palette.text.primary,
+                        backgroundColor: theme.palette.text.primary,
+                        color: theme.palette.background.default,
                         fontWeight: 600,
+                        py: 1.5,
                         '&:hover': {
-                          borderColor: theme.palette.text.primary,
                           backgroundColor: theme.palette.action.hover,
+                          color: theme.palette.text.primary,
+                        },
+                        '&.Mui-disabled': {
+                          backgroundColor: theme.palette.action.disabledBackground,
+                          color: theme.palette.action.disabled,
                         },
                       }}
                     >
@@ -797,6 +1189,8 @@ export default function ProjectPage() {
                           sx={{
                             borderColor: theme.palette.text.primary,
                             color: theme.palette.text.primary,
+                            fontWeight: 600,
+                            py: 1.5,
                             '&:hover': {
                               borderColor: theme.palette.text.primary,
                               backgroundColor: theme.palette.action.hover,
@@ -833,6 +1227,8 @@ export default function ProjectPage() {
                       sx={{
                         borderColor: theme.palette.text.primary,
                         color: theme.palette.text.primary,
+                        fontWeight: 600,
+                        py: 1.5,
                         '&:hover': {
                           borderColor: theme.palette.text.primary,
                           backgroundColor: theme.palette.action.hover,
@@ -849,14 +1245,17 @@ export default function ProjectPage() {
                           ? 'Project Management' 
                           : 'Initiate Project Management'}
                     </Button>
+                    <Divider sx={{ my: 1 }} />
                     <Button
                       variant="outlined"
                       startIcon={<HistoryIcon />}
                       onClick={() => router.push(`/project/${projectId}/exports`)}
                       fullWidth
                       sx={{
-                        borderColor: theme.palette.text.primary,
+                        borderColor: theme.palette.divider,
                         color: theme.palette.text.primary,
+                        fontWeight: 500,
+                        py: 1.5,
                         '&:hover': {
                           borderColor: theme.palette.text.primary,
                           backgroundColor: theme.palette.action.hover,
@@ -867,28 +1266,14 @@ export default function ProjectPage() {
                     </Button>
                     <Button
                       variant="outlined"
-                      startIcon={<SettingsIcon />}
-                      onClick={() => router.push(`/project/${projectId}/settings`)}
-                      fullWidth
-                      sx={{
-                        borderColor: theme.palette.text.primary,
-                        color: theme.palette.text.primary,
-                        '&:hover': {
-                          borderColor: theme.palette.text.primary,
-                          backgroundColor: theme.palette.action.hover,
-                        },
-                      }}
-                    >
-                      Edit Settings
-                    </Button>
-                    <Button
-                      variant="outlined"
                       startIcon={<PeopleIcon />}
                       onClick={() => router.push(`/project/${projectId}/members`)}
                       fullWidth
                       sx={{
-                        borderColor: theme.palette.text.primary,
+                        borderColor: theme.palette.divider,
                         color: theme.palette.text.primary,
+                        fontWeight: 500,
+                        py: 1.5,
                         '&:hover': {
                           borderColor: theme.palette.text.primary,
                           backgroundColor: theme.palette.action.hover,
@@ -897,34 +1282,13 @@ export default function ProjectPage() {
                     >
                       Manage Members
                     </Button>
-                    {role === 'admin' && (
-                      <Button
-                        variant="outlined"
-                        startIcon={<DeleteIcon />}
-                        onClick={handleDeleteClick}
-                        fullWidth
-                        disabled={deleting}
-                        sx={{
-                          borderColor: theme.palette.text.primary,
-                          color: theme.palette.text.primary,
-                          '&:hover': {
-                            borderColor: theme.palette.text.primary,
-                            backgroundColor: theme.palette.action.hover,
-                          },
-                          '&.Mui-disabled': {
-                            borderColor: theme.palette.divider,
-                            color: theme.palette.text.secondary,
-                          },
-                        }}
-                      >
-                        {deleting ? 'Deleting...' : 'Delete Project'}
-                      </Button>
-                    )}
-                  </Box>
-              </Box>
+                  </Stack>
+                </Paper>
+              </Stack>
             </Grid>
           </Grid>
 
+          {/* Dialogs remain the same */}
           <Dialog
             open={showBlueprintWarning}
             onClose={() => setShowBlueprintWarning(false)}
@@ -1059,7 +1423,6 @@ export default function ProjectPage() {
             </DialogActions>
           </Dialog>
 
-          {/* Delete Confirmation Dialog */}
           <Dialog
             open={deleteDialogOpen}
             onClose={handleDeleteCancel}
@@ -1118,4 +1481,3 @@ export default function ProjectPage() {
     </ErrorBoundary>
   );
 }
-

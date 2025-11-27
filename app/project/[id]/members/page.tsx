@@ -79,6 +79,9 @@ export default function ProjectMembersPage() {
   const [selectedUserId, setSelectedUserId] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole>('pm');
   const [projectName, setProjectName] = useState<string>('');
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+  const [editingRole, setEditingRole] = useState<UserRole | null>(null);
+  const [updatingRole, setUpdatingRole] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -200,6 +203,55 @@ export default function ProjectMembersPage() {
     setMemberToRemove(null);
     // Reload data
     loadData();
+  };
+
+  const handleRoleChange = (memberId: string, newRole: UserRole) => {
+    setEditingMemberId(memberId);
+    setEditingRole(newRole);
+  };
+
+  const handleRoleUpdate = async (memberId: string, newRole: UserRole) => {
+    const member = members.find(m => m.id === memberId);
+    if (!member || newRole === member.role) {
+      handleRoleCancel();
+      return;
+    }
+
+    setUpdatingRole(true);
+    setEditingRole(newRole);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/members`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          member_id: memberId,
+          role: newRole,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        showError('Failed to update role: ' + (error.error || 'Unknown error'));
+        handleRoleCancel();
+        setUpdatingRole(false);
+        return;
+      }
+
+      showSuccess('Role updated successfully');
+      handleRoleCancel();
+      // Reload data
+      loadData();
+    } catch (error) {
+      showError('Failed to update role: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      handleRoleCancel();
+    } finally {
+      setUpdatingRole(false);
+    }
+  };
+
+  const handleRoleCancel = () => {
+    setEditingMemberId(null);
+    setEditingRole(null);
   };
 
   const getRoleColor = (role: UserRole) => {
@@ -360,16 +412,88 @@ export default function ProjectMembersPage() {
                         <TableCell sx={{ color: theme.palette.text.primary, borderBottom: `1px solid ${theme.palette.divider}` }}>{member.user?.name || 'N/A'}</TableCell>
                         <TableCell sx={{ color: theme.palette.text.primary, borderBottom: `1px solid ${theme.palette.divider}` }}>{member.user?.email}</TableCell>
                         <TableCell sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
-                          <Chip
-                            label={member.role.toUpperCase()}
-                            size="small"
-                            sx={{ 
-                              fontWeight: 600,
-                              backgroundColor: theme.palette.action.hover,
-                              color: theme.palette.text.primary,
-                              border: `1px solid ${theme.palette.divider}`,
-                            }}
-                          />
+                          {editingMemberId === member.id ? (
+                            <FormControl size="small" sx={{ minWidth: 120 }}>
+                              <Select
+                                value={editingRole || member.role}
+                                onChange={(e) => {
+                                  const newRole = e.target.value as UserRole;
+                                  // Auto-save when selection changes
+                                  handleRoleUpdate(member.id, newRole);
+                                }}
+                                disabled={updatingRole}
+                                onClose={() => {
+                                  // If role wasn't changed, cancel editing
+                                  if (editingRole === member.role) {
+                                    handleRoleCancel();
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Escape') {
+                                    handleRoleCancel();
+                                  }
+                                }}
+                                autoFocus
+                                MenuProps={{
+                                  PaperProps: {
+                                    sx: {
+                                      backgroundColor: theme.palette.background.paper,
+                                      border: `1px solid ${theme.palette.divider}`,
+                                      '& .MuiMenuItem-root': {
+                                        color: theme.palette.text.primary,
+                                        '&:hover': {
+                                          backgroundColor: theme.palette.action.hover,
+                                        },
+                                        '&.Mui-selected': {
+                                          backgroundColor: theme.palette.action.hover,
+                                          '&:hover': {
+                                            backgroundColor: theme.palette.action.hover,
+                                          },
+                                        },
+                                      },
+                                    },
+                                  },
+                                }}
+                                sx={{
+                                  color: theme.palette.text.primary,
+                                  backgroundColor: theme.palette.background.paper,
+                                  '& .MuiOutlinedInput-notchedOutline': {
+                                    borderColor: theme.palette.divider,
+                                  },
+                                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                                    borderColor: theme.palette.text.secondary,
+                                  },
+                                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                    borderColor: theme.palette.text.primary,
+                                  },
+                                  '& .MuiSvgIcon-root': {
+                                    color: theme.palette.text.secondary,
+                                  },
+                                }}
+                              >
+                                <MenuItem value="pm">Product Manager</MenuItem>
+                                <MenuItem value="designer">Designer</MenuItem>
+                                <MenuItem value="engineer">Engineer</MenuItem>
+                                <MenuItem value="admin">Admin</MenuItem>
+                              </Select>
+                            </FormControl>
+                          ) : (
+                            <Chip
+                              label={member.role.toUpperCase()}
+                              size="small"
+                              onClick={() => handleRoleChange(member.id, member.role)}
+                              sx={{ 
+                                fontWeight: 600,
+                                backgroundColor: theme.palette.action.hover,
+                                color: theme.palette.text.primary,
+                                border: `1px solid ${theme.palette.divider}`,
+                                cursor: 'pointer',
+                                '&:hover': {
+                                  backgroundColor: theme.palette.action.selected,
+                                },
+                              }}
+                            />
+                          )}
                         </TableCell>
                         <TableCell align="right" sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
                           <IconButton

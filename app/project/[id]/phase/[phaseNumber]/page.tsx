@@ -103,6 +103,8 @@ export default function PhasePage() {
   const [actualPhaseNumber, setActualPhaseNumber] = useState<number>(phaseNumber);
   const [phases, setPhases] = useState<Array<{ phase_number: number; phase_name: string }>>([]);
   const [fieldConfigs, setFieldConfigs] = useState<Array<{ field_key: string }>>([]);
+  const [hasInitialLoadCompleted, setHasInitialLoadCompleted] = useState(false);
+  const [hasUserMadeChanges, setHasUserMadeChanges] = useState(false);
 
   // Helper function to check if a value is meaningful (has content)
   const checkValue = useCallback((value: any): boolean => {
@@ -317,6 +319,8 @@ export default function PhasePage() {
       const phaseDataValue = data.data || {};
       setPhaseData(phaseDataValue as any);
       setCompleted(data.completed);
+      setHasInitialLoadCompleted(true);
+      setHasUserMadeChanges(false);
       
       logger.debug('[PhasePage] Phase data loaded:', {
         urlPhaseNumber: phaseNumber,
@@ -864,39 +868,40 @@ Generate the complete ${documentType} document now:`;
     showSuccess('Document downloaded!');
   };
 
-  // Auto-save with debounce
+  // Auto-save function (called on blur or manual save)
+  const handleAutoSave = useCallback(async () => {
+    if (!phaseData || !canEdit || saving || !hasInitialLoadCompleted || !hasUserMadeChanges) return;
+
+    setSaving(true);
+    setError(null);
+
+    const { error: updateError } = await supabase
+      .from('project_phases')
+      .update({
+        data: phaseData,
+        completed,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('project_id', projectId)
+      .eq('phase_number', phaseNumber);
+
+    if (updateError) {
+      setError(updateError.message);
+      showError('Failed to save: ' + updateError.message);
+    } else {
+      showSuccess('Changes saved automatically');
+      setHasUserMadeChanges(false); // Reset after successful save
+    }
+    setSaving(false);
+  }, [phaseData, completed, canEdit, saving, hasInitialLoadCompleted, hasUserMadeChanges, projectId, phaseNumber, supabase, showError, showSuccess]);
+
+  // Track when user makes changes (after initial load)
   useEffect(() => {
-    if (!phaseData || !canEdit || saving) return;
-
-    const timeoutId = setTimeout(() => {
-      const saveData = async () => {
-        setSaving(true);
-        setError(null);
-
-        const { error: updateError } = await supabase
-          .from('project_phases')
-          .update({
-            data: phaseData,
-            completed,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('project_id', projectId)
-          .eq('phase_number', phaseNumber);
-
-        if (updateError) {
-          setError(updateError.message);
-          showError('Failed to save: ' + updateError.message);
-        } else {
-          showSuccess('Changes saved automatically');
-        }
-        setSaving(false);
-      };
-      saveData();
-    }, 2000); // Auto-save after 2 seconds of inactivity
-
-    return () => clearTimeout(timeoutId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phaseData, completed]);
+    if (!hasInitialLoadCompleted) return;
+    
+    // Mark that user has made changes
+    setHasUserMadeChanges(true);
+  }, [phaseData, completed, hasInitialLoadCompleted]);
 
   const renderPhaseForm = () => {
     if (!phaseData) return null;
@@ -926,6 +931,7 @@ Generate the complete ${documentType} document now:`;
             phaseNumber={actualPhaseNumber}
             data={(phaseData as unknown as Record<string, unknown>) || {}}
             onChange={(data) => setPhaseData(data as unknown as typeof phaseData)}
+            onBlur={handleAutoSave}
           />
         </ErrorBoundary>
       );
@@ -1038,33 +1044,60 @@ Generate the complete ${documentType} document now:`;
               </Typography>
             </Box>
             {(() => {
-              // Find the next phase from the phases array (sorted by display_order)
               // Sort phases by phase_number to ensure correct order
               const sortedPhases = [...phases].sort((a, b) => a.phase_number - b.phase_number);
-              const currentPhaseIndex = sortedPhases.findIndex(p => p.phase_number === actualPhaseNumber);
-              const nextPhase = currentPhaseIndex >= 0 && currentPhaseIndex < sortedPhases.length - 1
-                ? sortedPhases[currentPhaseIndex + 1]
-                : null;
               
-              if (!nextPhase) return null;
+              if (sortedPhases.length === 0) return null;
               
               return (
-                <Button
-                  variant="outlined"
-                  endIcon={<ArrowForwardIcon />}
-                  onClick={() => router.push(`/project/${projectId}/phase/${nextPhase.phase_number}`)}
-                  sx={{
-                    borderColor: theme.palette.text.primary,
-                    color: theme.palette.text.primary,
-                    fontWeight: 600,
-                    '&:hover': {
-                      borderColor: theme.palette.text.primary,
-                      backgroundColor: theme.palette.action.hover,
-                    },
-                  }}
-                >
-                  Next Phase: {nextPhase.phase_name}
-                </Button>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: theme.palette.text.secondary,
+                      fontSize: '0.75rem',
+                      fontWeight: 500,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                    }}
+                  >
+                    Navigate Phases
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                    {sortedPhases.map((phase) => {
+                      const isCurrentPhase = phase.phase_number === actualPhaseNumber;
+                      return (
+                        <Tooltip
+                          key={phase.phase_number}
+                          title={phase.phase_name || `Phase ${phase.phase_number}`}
+                          arrow
+                        >
+                          <Button
+                            variant={isCurrentPhase ? "contained" : "outlined"}
+                            onClick={() => router.push(`/project/${projectId}/phase/${phase.phase_number}`)}
+                            sx={{
+                              minWidth: 32,
+                              width: 32,
+                              height: 32,
+                              padding: 0,
+                              borderColor: isCurrentPhase ? theme.palette.text.primary : theme.palette.divider,
+                              backgroundColor: isCurrentPhase ? theme.palette.text.primary : 'transparent',
+                              color: isCurrentPhase ? theme.palette.background.paper : theme.palette.text.primary,
+                              fontWeight: isCurrentPhase ? 700 : 600,
+                              fontSize: '0.75rem',
+                              '&:hover': {
+                                borderColor: theme.palette.text.primary,
+                                backgroundColor: isCurrentPhase ? theme.palette.text.primary : theme.palette.action.hover,
+                              },
+                            }}
+                          >
+                            {phase.phase_number}
+                          </Button>
+                        </Tooltip>
+                      );
+                    })}
+                  </Box>
+                </Box>
               );
             })()}
           </Box>
@@ -1239,16 +1272,16 @@ Generate the complete ${documentType} document now:`;
                   onClick={handleSave}
                   disabled={saving || !canEdit}
                   sx={{
-                    color: theme.palette.text.primary,
+                    color: '#4CAF50',
                     '&:hover': {
-                      backgroundColor: theme.palette.action.hover,
+                      backgroundColor: '#4CAF5020',
                     },
                     '&.Mui-disabled': {
                       color: theme.palette.text.secondary,
                     },
                   }}
                 >
-                  {saving ? <CircularProgress size={24} sx={{ color: 'inherit' }} /> : <SaveIcon />}
+                  {saving ? <CircularProgress size={24} sx={{ color: '#4CAF50' }} /> : <SaveIcon />}
                 </IconButton>
               </Tooltip>
             </Box>
@@ -1333,10 +1366,10 @@ Generate the complete ${documentType} document now:`;
             onClick={handleSave}
             disabled={saving || !canEdit}
             sx={{
-              backgroundColor: theme.palette.text.primary,
-              color: theme.palette.background.default,
+              backgroundColor: '#4CAF50',
+              color: theme.palette.background.paper,
               '&:hover': {
-                backgroundColor: theme.palette.action.hover,
+                backgroundColor: '#45a049',
               },
               '&.Mui-disabled': {
                 backgroundColor: theme.palette.divider,
@@ -1344,7 +1377,7 @@ Generate the complete ${documentType} document now:`;
               },
             }}
           >
-            {saving ? <CircularProgress size={24} sx={{ color: theme.palette.background.default }} /> : <SaveIcon />}
+            {saving ? <CircularProgress size={24} sx={{ color: theme.palette.background.paper }} /> : <SaveIcon />}
           </Fab>
         </Box>
 
