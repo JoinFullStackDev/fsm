@@ -13,8 +13,11 @@ export interface Organization {
   name: string;
   slug: string;
   stripe_customer_id: string | null;
-  subscription_status: 'trial' | 'active' | 'past_due' | 'canceled' | 'incomplete';
+  subscription_status: 'trial' | 'active' | 'past_due' | 'canceled' | 'incomplete'; // Note: organizations table uses 'trial', subscriptions table uses 'trialing'
   trial_ends_at: string | null;
+  logo_url: string | null;
+  icon_url: string | null;
+  module_overrides: Record<string, boolean> | null;
   created_at: string;
   updated_at: string;
 }
@@ -113,15 +116,37 @@ export async function getOrganizationContextById(
       return null;
     }
 
-    // Get active subscription
-    const { data: subscription, error: subError } = await supabase
+    // Get active or trialing subscription first (preferred)
+    let { data: subscription, error: subError } = await supabase
       .from('subscriptions')
       .select('*')
       .eq('organization_id', organizationId)
-      .eq('status', 'active')
+      .in('status', ['active', 'trialing'])
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
+
+    // If no active/trialing subscription found, get the most recent subscription regardless of status
+    // This ensures we can still load package features even if subscription is past_due or canceled
+    if (!subscription && subError?.code === 'PGRST116') {
+      logger.info('[OrganizationContext] No active/trialing subscription found, checking for any subscription');
+      const { data: anySubscription, error: anySubError } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (anySubscription) {
+        subscription = anySubscription;
+        subError = null;
+        logger.info('[OrganizationContext] Found subscription with status:', subscription.status);
+      } else if (anySubError && anySubError.code !== 'PGRST116') {
+        logger.error('[OrganizationContext] Error fetching any subscription:', anySubError);
+        subError = anySubError;
+      }
+    }
 
     if (subError && subError.code !== 'PGRST116') {
       logger.error('[OrganizationContext] Error fetching subscription:', subError);
@@ -130,6 +155,12 @@ export async function getOrganizationContextById(
     // Get package if subscription exists
     let packageData: Package | null = null;
     if (subscription?.package_id) {
+      logger.info('[OrganizationContext] Loading package for subscription:', {
+        subscriptionId: subscription.id,
+        packageId: subscription.package_id,
+        subscriptionStatus: subscription.status,
+      });
+      
       const { data: pkg, error: pkgError } = await supabase
         .from('packages')
         .select('*')
@@ -137,10 +168,32 @@ export async function getOrganizationContextById(
         .single();
 
       if (pkgError) {
-        logger.error('[OrganizationContext] Error fetching package:', pkgError);
-      } else {
+        logger.error('[OrganizationContext] Error fetching package:', {
+          packageId: subscription.package_id,
+          error: pkgError.message,
+          code: pkgError.code,
+        });
+      } else if (pkg) {
         packageData = pkg as Package;
+        logger.info('[OrganizationContext] Package loaded successfully:', {
+          packageId: pkg.id,
+          packageName: pkg.name,
+          hasFeatures: !!pkg.features,
+        });
+      } else {
+        logger.warn('[OrganizationContext] Package query returned no data:', {
+          packageId: subscription.package_id,
+        });
       }
+    } else if (subscription) {
+      logger.warn('[OrganizationContext] Subscription exists but has no package_id:', {
+        subscriptionId: subscription.id,
+        subscriptionStatus: subscription.status,
+      });
+    } else {
+      logger.warn('[OrganizationContext] No subscription found for organization:', {
+        organizationId,
+      });
     }
 
     return {
@@ -239,6 +292,7 @@ export async function getOrganizationPackageFeatures(
 
 /**
  * Check if organization has access to a specific feature
+ * Checks organization module_overrides first, then falls back to package features
  * @param supabase - Supabase client instance
  * @param organizationId - Organization ID
  * @param feature - Feature name to check
@@ -250,6 +304,22 @@ export async function hasFeatureAccess(
   feature: keyof PackageFeatures
 ): Promise<boolean> {
   try {
+    // First check organization module_overrides
+    const { data: organization } = await supabase
+      .from('organizations')
+      .select('module_overrides')
+      .eq('id', organizationId)
+      .single();
+
+    if (organization?.module_overrides) {
+      const overrides = organization.module_overrides as Record<string, boolean>;
+      if (feature in overrides) {
+        // Organization has an override for this feature
+        return overrides[feature] === true;
+      }
+    }
+
+    // Fall back to package features
     const features = await getOrganizationPackageFeatures(supabase, organizationId);
     if (!features) {
       return false;

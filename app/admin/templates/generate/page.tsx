@@ -28,10 +28,12 @@ import {
   CheckCircle as CheckCircleIcon,
   Refresh as RefreshIcon,
   ContentCopy as ContentCopyIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useRole } from '@/lib/hooks/useRole';
 import { useNotification } from '@/components/providers/NotificationProvider';
+import { useOrganization } from '@/components/providers/OrganizationProvider';
 
 interface GeneratedPhase {
   phase_number: number;
@@ -74,17 +76,20 @@ export default function GenerateTemplatePage() {
   const router = useRouter();
   const supabase = createSupabaseClient();
   const { role, loading: roleLoading } = useRole();
+  const { features, loading: orgLoading } = useOrganization();
   const { showSuccess, showError } = useNotification();
 
   const [step, setStep] = useState<'input' | 'preview'>('input');
   const [templateName, setTemplateName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
-  const [isPublic, setIsPublic] = useState(false);
+  const [isPublic, setIsPublic] = useState(false); // Visible to all organization members
+  const [isPubliclyAvailable, setIsPubliclyAvailable] = useState(false); // Available to public
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generatedTemplate, setGeneratedTemplate] = useState<GeneratedTemplate | null>(null);
+  const [removedFieldKeys, setRemovedFieldKeys] = useState<Set<string>>(new Set());
 
   const handleCopyPrompt = async () => {
     const prompt = `You are helping me create a detailed project template description for an AI-powered template generator.
@@ -148,7 +153,7 @@ Please help me craft this description based on my project needs, making sure to 
     }
   };
 
-  if (roleLoading) {
+  if (roleLoading || orgLoading) {
     return (
       <Container>
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
@@ -158,9 +163,11 @@ Please help me craft this description based on my project needs, making sure to 
     );
   }
 
-  // Allow admins and PMs to generate templates
-  if (role !== 'admin' && role !== 'pm') {
-    router.push('/dashboard');
+  // Check if organization has AI features enabled
+  // AI features: true means enabled, null also means enabled (unlimited)
+  const hasAIFeatures = features?.ai_features_enabled === true || features?.ai_features_enabled === null;
+  if (!hasAIFeatures) {
+    router.push('/admin/templates');
     return null;
   }
 
@@ -189,6 +196,7 @@ Please help me craft this description based on my project needs, making sure to 
           description: description.trim(),
           category: category.trim() || null,
           is_public: isPublic,
+          is_publicly_available: isPubliclyAvailable,
         }),
       });
 
@@ -214,6 +222,15 @@ Please help me craft this description based on my project needs, making sure to 
     setStep('input');
     setGeneratedTemplate(null);
     setError(null);
+    setRemovedFieldKeys(new Set());
+  };
+
+  const handleRemoveField = (fieldKey: string) => {
+    setRemovedFieldKeys((prev) => {
+      const newSet = new Set(prev);
+      newSet.add(fieldKey);
+      return newSet;
+    });
   };
 
   const handleConfirm = async () => {
@@ -225,13 +242,20 @@ Please help me craft this description based on my project needs, making sure to 
     setError(null);
 
     try {
-      // Include is_public from the original form
+      // Filter out removed fields
+      const filteredFieldConfigs = generatedTemplate.field_configs.filter(
+        (field) => !removedFieldKeys.has(field.field_key)
+      );
+
+      // Include is_public from the original form and filtered fields
       const templateToSave = {
         ...generatedTemplate,
         template: {
           ...generatedTemplate.template,
           is_public: isPublic,
+          is_publicly_available: isPubliclyAvailable,
         },
+        field_configs: filteredFieldConfigs,
       };
 
       const response = await fetch('/api/admin/templates/generate/save', {
@@ -347,7 +371,7 @@ Please help me craft this description based on my project needs, making sure to 
                   .sort((a, b) => a.display_order - b.display_order)
                   .map((phase) => {
                     const phaseFields = generatedTemplate.field_configs
-                      .filter((f) => f.phase_number === phase.phase_number)
+                      .filter((f) => f.phase_number === phase.phase_number && !removedFieldKeys.has(f.field_key))
                       .sort((a, b) => a.display_order - b.display_order);
 
                     return (
@@ -396,9 +420,38 @@ Please help me craft this description based on my project needs, making sure to 
                                       backgroundColor: theme.palette.background.paper,
                                       border: `1px solid ${theme.palette.divider}`,
                                       borderRadius: 1,
+                                      position: 'relative',
+                                      '&:hover .field-remove-button': {
+                                        opacity: 1,
+                                      },
                                     }}
                                   >
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                                    <IconButton
+                                      className="field-remove-button"
+                                      size="small"
+                                      onClick={() => handleRemoveField(field.field_key)}
+                                      sx={{
+                                        position: 'absolute',
+                                        top: 4,
+                                        right: 4,
+                                        opacity: 0,
+                                        transition: 'opacity 0.2s ease',
+                                        color: theme.palette.error.main,
+                                        backgroundColor: theme.palette.background.paper,
+                                        border: `1px solid ${theme.palette.divider}`,
+                                        width: 24,
+                                        height: 24,
+                                        '&:hover': {
+                                          backgroundColor: theme.palette.error.main,
+                                          color: theme.palette.background.default,
+                                          borderColor: theme.palette.error.main,
+                                        },
+                                      }}
+                                      aria-label={`Remove ${field.field_config.label}`}
+                                    >
+                                      <CloseIcon sx={{ fontSize: 16 }} />
+                                    </IconButton>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, pr: 3 }}>
                                       <Typography
                                         variant="body2"
                                         sx={{ color: theme.palette.text.primary, fontWeight: 600 }}
@@ -729,7 +782,25 @@ Please help me craft this description based on my project needs, making sure to 
                     }}
                   />
                 }
-                label="Make template public (visible to all users)"
+                label="Visible to all organization members"
+                sx={{ color: theme.palette.text.secondary }}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={isPubliclyAvailable}
+                    onChange={(e) => setIsPubliclyAvailable(e.target.checked)}
+                    sx={{
+                      '& .MuiSwitch-switchBase.Mui-checked': {
+                        color: theme.palette.text.primary,
+                      },
+                      '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                        backgroundColor: theme.palette.text.primary,
+                      },
+                    }}
+                  />
+                }
+                label="Available to public (outside organization)"
                 sx={{ color: theme.palette.text.secondary }}
               />
 

@@ -396,7 +396,7 @@ export default function TemplateBasedPhaseForm({
         </Paper>
       </Grid>
     );
-  }, [data, updateField, getFieldValue]);
+  }, [data, updateField, getFieldValue, onBlur, theme.palette.action.hover, theme.palette.background.paper, theme.palette.divider, theme.palette.error.main, theme.palette.text.primary]);
 
   if (loading) {
     return (

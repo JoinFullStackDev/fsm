@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -134,7 +134,7 @@ export default function EmployeeProjectMapping({
     return 'U';
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = useCallback((status: string) => {
     switch (status) {
       case 'done':
         return '#4CAF50';
@@ -145,7 +145,7 @@ export default function EmployeeProjectMapping({
       default:
         return theme.palette.text.secondary;
     }
-  };
+  }, [theme]);
 
   // Get current user's tasks
   const currentUserTasks = useMemo(() => {
@@ -234,7 +234,7 @@ export default function EmployeeProjectMapping({
         render: (value: string | null) => value ? format(parseISO(value), 'MMM d, yyyy') : '-',
       },
     ];
-  }, [currentUserTasks, selectedProjectId, projects, theme]);
+  }, [currentUserTasks, selectedProjectId, projects, theme, getStatusColor]);
 
   // Team view columns
   const teamColumns = useMemo(() => {

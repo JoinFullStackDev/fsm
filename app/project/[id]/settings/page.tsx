@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   Box,
@@ -93,7 +93,7 @@ export default function ProjectSettingsPage() {
     loadTemplates();
   }, [supabase]);
 
-  const loadMembers = async () => {
+  const loadMembers = useCallback(async () => {
     setLoadingMembers(true);
     try {
       // Load project members
@@ -118,11 +118,38 @@ export default function ProjectSettingsPage() {
 
       setMembers((membersData || []) as any);
 
-      // Load all users for adding
-      const { data: usersData } = await supabase
+      // Get current user's organization_id to filter users
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setLoadingMembers(false);
+        return;
+      }
+
+      const { data: currentUser } = await supabase
+        .from('users')
+        .select('organization_id, role, is_super_admin')
+        .eq('auth_id', session.user.id)
+        .single();
+
+      // Load users from the same organization (or all users if super admin)
+      let usersQuery = supabase
         .from('users')
         .select('id, name, email, role')
         .order('name');
+
+      // Filter by organization unless user is super admin
+      if (currentUser && !(currentUser.role === 'admin' && currentUser.is_super_admin === true)) {
+        if (currentUser.organization_id) {
+          usersQuery = usersQuery.eq('organization_id', currentUser.organization_id);
+        } else {
+          // User has no organization, show no users
+          setAvailableUsers([]);
+          setLoadingMembers(false);
+          return;
+        }
+      }
+
+      const { data: usersData } = await usersQuery;
 
       if (usersData) {
         // Filter out users who are already members
@@ -134,7 +161,7 @@ export default function ProjectSettingsPage() {
     } finally {
       setLoadingMembers(false);
     }
-  };
+  }, [projectId, supabase]);
 
   useEffect(() => {
     const loadProject = async () => {
@@ -173,7 +200,7 @@ export default function ProjectSettingsPage() {
     if (projectId) {
       loadProject();
     }
-  }, [projectId, router, supabase]);
+  }, [projectId, router, supabase, loadMembers]);
 
   const handleSave = async () => {
     // Check if template changed

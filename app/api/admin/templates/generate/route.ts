@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
+import { getUserOrganizationId } from '@/lib/organizationContext';
+import { hasAIFeatures } from '@/lib/packageLimits';
 import { generateStructuredAIResponse } from '@/lib/ai/geminiClient';
 
 interface GeneratedTemplate {
@@ -43,24 +46,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user record to check role
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('role')
-      .eq('auth_id', session.user.id)
-      .single();
-
-    if (userError || !userData) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    if (!organizationId) {
+      return NextResponse.json({ error: 'User is not assigned to an organization' }, { status: 400 });
     }
 
-    // Allow admins and PMs to generate templates
-    if (userData.role !== 'admin' && userData.role !== 'pm') {
-      return NextResponse.json({ error: 'Forbidden - Admin or PM access required' }, { status: 403 });
+    // Check if organization has AI features enabled
+    const hasAI = await hasAIFeatures(supabase, organizationId);
+    if (!hasAI) {
+      return NextResponse.json({ error: 'AI features are not available in your package' }, { status: 403 });
     }
 
     const body = await request.json();
-    const { name, description, category, is_public } = body;
+    const { name, description, category, is_public, is_publicly_available } = body;
 
     if (!name || !description) {
       return NextResponse.json(

@@ -47,8 +47,9 @@ export default function CompanyOpportunitiesTab({ companyId }: CompanyOpportunit
         throw new Error(errorData.error || 'Failed to load opportunities');
       }
 
-      const data = await response.json();
-      setOpportunities(data);
+      const result = await response.json();
+      // Ensure we always set an array, even if result.data is not an array
+      setOpportunities(Array.isArray(result.data) ? result.data : []);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load opportunities';
       setError(errorMessage);

@@ -37,6 +37,9 @@ import {
 } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useNotification } from '@/components/providers/NotificationProvider';
+import { useOrganization } from '@/components/providers/OrganizationProvider';
+import { useRole } from '@/lib/hooks/useRole';
+import logger from '@/lib/utils/logger';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import CreateUserDialog from '@/components/admin/CreateUserDialog';
@@ -48,9 +51,12 @@ export default function AdminUsersTab() {
   const theme = useTheme();
   const supabase = createSupabaseClient();
   const { showSuccess, showError } = useNotification();
+  const { organization, features } = useOrganization();
+  const { isSuperAdmin } = useRole();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userLimit, setUserLimit] = useState<{ current: number; limit: number | null; allowed: boolean } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [activeFilter, setActiveFilter] = useState<string>('all');
@@ -80,7 +86,23 @@ export default function AdminUsersTab() {
       }
       
       const data = await response.json();
-      setUsers((data.users as User[]) || []);
+      const fetchedUsers = (data.users as User[]) || [];
+      
+      // SAFETY CHECK: Filter out any users that don't belong to current organization
+      // This is a defensive measure in case the API route has a bug
+      if (organization?.id) {
+        const orgUsers = fetchedUsers.filter((user: any) => user.organization_id === organization.id);
+        if (orgUsers.length !== fetchedUsers.length) {
+          logger.warn('[AdminUsersTab] API returned users from other organizations, filtering them out', {
+            total: fetchedUsers.length,
+            filtered: orgUsers.length,
+            organizationId: organization.id
+          });
+        }
+        setUsers(orgUsers);
+      } else {
+        setUsers(fetchedUsers);
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load users';
       setError(errorMessage);
@@ -88,17 +110,64 @@ export default function AdminUsersTab() {
     } finally {
       setLoading(false);
     }
-  }, [showError]);
+  }, [showError, organization?.id]);
+
+  const loadUserLimit = useCallback(async () => {
+    if (isSuperAdmin) {
+      // Super admins have no limits
+      setUserLimit({ current: users.length, limit: null, allowed: true });
+      return;
+    }
+
+    if (!organization?.id) return;
+
+    try {
+      const response = await fetch('/api/organization/limits');
+      if (response.ok) {
+        const data = await response.json();
+        setUserLimit({
+          current: data.users?.current || users.length,
+          limit: data.users?.limit || null,
+          allowed: data.users?.allowed !== false,
+        });
+      } else {
+        // If limit check fails, use current user count
+        setUserLimit({ current: users.length, limit: null, allowed: true });
+      }
+    } catch (err) {
+      // If limit check fails, allow but don't show limit info
+      setUserLimit({ current: users.length, limit: null, allowed: true });
+    }
+  }, [organization, isSuperAdmin, users.length]);
 
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
 
+  useEffect(() => {
+    if (users.length > 0 || !loading) {
+      loadUserLimit();
+    }
+  }, [users.length, loading, loadUserLimit]);
+
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
+    // Verify user belongs to current organization before updating
+    const user = users.find(u => u.id === userId);
+    if (!user) {
+      showError('User not found');
+      return;
+    }
+    
+    if (organization?.id && (user as any).organization_id !== organization.id) {
+      showError('Cannot update user from another organization');
+      return;
+    }
+
     const { error: updateError } = await supabase
       .from('users')
       .update({ role: newRole })
-      .eq('id', userId);
+      .eq('id', userId)
+      .eq('organization_id', organization?.id || ''); // Additional safety check
 
     if (updateError) {
       showError('Failed to update role: ' + updateError.message);
@@ -114,6 +183,17 @@ export default function AdminUsersTab() {
   const handleToggleActive = async (userId: string, isActive: boolean) => {
     // Check if user was invited by admin and hasn't logged in yet
     const user = users.find(u => u.id === userId);
+    if (!user) {
+      showError('User not found');
+      return;
+    }
+    
+    // Verify user belongs to current organization
+    if (organization?.id && (user as any).organization_id !== organization.id) {
+      showError('Cannot update user from another organization');
+      return;
+    }
+    
     if (user?.invited_by_admin && !user.last_active_at) {
       showError('Cannot activate invited users. They must log in first to activate their account.');
       return;
@@ -122,7 +202,8 @@ export default function AdminUsersTab() {
     const { error: updateError } = await supabase
       .from('users')
       .update({ is_active: !isActive })
-      .eq('id', userId);
+      .eq('id', userId)
+      .eq('organization_id', organization?.id || ''); // Additional safety check
 
     if (updateError) {
       showError('Failed to update user status: ' + updateError.message);
@@ -150,6 +231,13 @@ export default function AdminUsersTab() {
   const handleDeleteConfirm = async () => {
     if (!userToDelete) return;
 
+    // Verify user belongs to current organization
+    if (organization?.id && (userToDelete as any).organization_id !== organization.id) {
+      showError('Cannot delete user from another organization');
+      setDeleteConfirmOpen(false);
+      return;
+    }
+
     // Prevent deletion of super admin users
     if ((userToDelete as any).is_super_admin) {
       showError('Cannot delete super admin user');
@@ -160,7 +248,8 @@ export default function AdminUsersTab() {
     const { error: deleteError } = await supabase
       .from('users')
       .delete()
-      .eq('id', userToDelete.id);
+      .eq('id', userToDelete.id)
+      .eq('organization_id', organization?.id || ''); // Additional safety check
 
     if (deleteError) {
       showError('Failed to delete user: ' + deleteError.message);
@@ -182,10 +271,19 @@ export default function AdminUsersTab() {
 
     const userIds = Array.from(selectedUsers);
     
+    // Verify all selected users belong to current organization
+    const usersToModify = users.filter(u => userIds.includes(u.id));
+    if (organization?.id) {
+      const invalidUsers = usersToModify.filter(u => (u as any).organization_id !== organization.id);
+      if (invalidUsers.length > 0) {
+        showError(`Cannot ${action} users from another organization`);
+        return;
+      }
+    }
+    
     if (action === 'delete') {
       // Check for super admin users before deleting
-      const usersToDelete = users.filter(u => userIds.includes(u.id));
-      const superAdmins = usersToDelete.filter(u => (u as any).is_super_admin);
+      const superAdmins = usersToModify.filter(u => (u as any).is_super_admin);
       
       if (superAdmins.length > 0) {
         showError(`Cannot delete super admin user(s): ${superAdmins.map(u => u.email).join(', ')}`);
@@ -195,7 +293,8 @@ export default function AdminUsersTab() {
       const { error } = await supabase
         .from('users')
         .delete()
-        .in('id', userIds);
+        .in('id', userIds)
+        .eq('organization_id', organization?.id || ''); // Additional safety check
       
       if (error) {
         showError('Failed to delete users: ' + error.message);
@@ -206,7 +305,8 @@ export default function AdminUsersTab() {
       const { error } = await supabase
         .from('users')
         .update({ is_active: action === 'activate' })
-        .in('id', userIds);
+        .in('id', userIds)
+        .eq('organization_id', organization?.id || ''); // Additional safety check
       
       if (error) {
         showError(`Failed to ${action} users: ` + error.message);
@@ -266,14 +366,24 @@ export default function AdminUsersTab() {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
-          User Management
-        </Typography>
+        <Box>
+          <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+            User Management
+          </Typography>
+          {userLimit && !isSuperAdmin && (
+            <Typography variant="caption" sx={{ color: theme.palette.text.secondary, mt: 0.5, display: 'block' }}>
+              {userLimit.limit !== null 
+                ? `${userLimit.current} / ${userLimit.limit} users`
+                : `${userLimit.current} users (unlimited)`}
+            </Typography>
+          )}
+        </Box>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
           <Button
             variant="outlined"
             startIcon={<AddIcon />}
             onClick={() => setCreateUserDialogOpen(true)}
+            disabled={userLimit !== null && !userLimit.allowed}
             sx={{
               borderColor: theme.palette.text.primary,
               color: theme.palette.text.primary,
@@ -281,6 +391,10 @@ export default function AdminUsersTab() {
               '&:hover': {
                 borderColor: theme.palette.text.primary,
                 backgroundColor: theme.palette.action.hover,
+              },
+              '&.Mui-disabled': {
+                borderColor: theme.palette.divider,
+                color: theme.palette.text.secondary,
               },
             }}
           >

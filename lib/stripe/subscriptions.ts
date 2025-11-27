@@ -15,13 +15,13 @@ export async function createStripeCustomer(
   email: string,
   name: string
 ): Promise<string | null> {
-  if (!isStripeConfigured()) {
+  if (!(await isStripeConfigured())) {
     logger.warn('[Stripe] Stripe is not configured, skipping customer creation');
     return null;
   }
 
   try {
-    const stripe = getStripeClient();
+    const stripe = await getStripeClient();
     const customer = await stripe.customers.create({
       email,
       name,
@@ -54,7 +54,7 @@ export async function createCheckoutSession(
   successUrl: string,
   cancelUrl: string
 ): Promise<string | null> {
-  if (!isStripeConfigured()) {
+  if (!(await isStripeConfigured())) {
     logger.warn('[Stripe] Stripe is not configured, skipping checkout session creation');
     return null;
   }
@@ -91,7 +91,7 @@ export async function createCheckoutSession(
       return null;
     }
 
-    const stripe = getStripeClient();
+    const stripe = await getStripeClient();
 
     // Create or get customer
     let customerId = organization.stripe_customer_id;
@@ -136,6 +136,12 @@ export async function createCheckoutSession(
         organization_id: organizationId,
         package_id: packageId,
       },
+      subscription_data: {
+        metadata: {
+          organization_id: organizationId,
+          package_id: packageId,
+        },
+      },
     });
 
     logger.debug('[Stripe] Created checkout session:', { sessionId: session.id, organizationId });
@@ -153,7 +159,7 @@ export async function createPortalSession(
   organizationId: string,
   returnUrl: string
 ): Promise<string | null> {
-  if (!isStripeConfigured()) {
+  if (!(await isStripeConfigured())) {
     logger.warn('[Stripe] Stripe is not configured, skipping portal session creation');
     return null;
   }
@@ -173,7 +179,7 @@ export async function createPortalSession(
       return null;
     }
 
-    const stripe = getStripeClient();
+    const stripe = await getStripeClient();
 
     const session = await stripe.billingPortal.sessions.create({
       customer: organization.stripe_customer_id,
@@ -211,19 +217,61 @@ export async function updateSubscriptionFromWebhook(
 
     // Update subscription
     const subscriptionData = stripeSubscription as any; // Type assertion for Stripe API compatibility
+    
+    // Get package_id from subscription metadata if available
+    const metadata = stripeSubscription.metadata;
+    const packageIdFromMetadata = metadata?.package_id;
+    
+    // Build update object - preserve package_id if it exists, or set from metadata
+    const updateData: any = {
+      status: stripeSubscription.status as 'active' | 'canceled' | 'past_due' | 'trialing',
+      current_period_start: subscriptionData.current_period_start 
+        ? new Date(subscriptionData.current_period_start * 1000).toISOString()
+        : null,
+      current_period_end: subscriptionData.current_period_end 
+        ? new Date(subscriptionData.current_period_end * 1000).toISOString()
+        : null,
+      cancel_at_period_end: subscriptionData.cancel_at_period_end || false,
+      updated_at: new Date().toISOString(),
+    };
+    
+    // Update package_id if provided in metadata and subscription doesn't have one
+    if (packageIdFromMetadata) {
+      // Verify package exists
+      const { data: packageData } = await supabase
+        .from('packages')
+        .select('id')
+        .eq('id', packageIdFromMetadata)
+        .maybeSingle();
+      
+      if (packageData) {
+        // Check current subscription to see if it has a package_id
+        const { data: currentSub } = await supabase
+          .from('subscriptions')
+          .select('package_id')
+          .eq('id', subscription.id)
+          .single();
+        
+        // Only update package_id if it's missing or different
+        if (!currentSub?.package_id || currentSub.package_id !== packageIdFromMetadata) {
+          updateData.package_id = packageIdFromMetadata;
+          logger.info('[Stripe] Updating subscription package_id from metadata:', {
+            subscriptionId: subscription.id,
+            packageId: packageIdFromMetadata,
+          });
+        }
+      }
+    }
+    
+    // Update stripe_price_id if available from subscription
+    const priceId = stripeSubscription.items.data[0]?.price.id;
+    if (priceId) {
+      updateData.stripe_price_id = priceId;
+    }
+    
     await supabase
       .from('subscriptions')
-      .update({
-        status: stripeSubscription.status as 'active' | 'canceled' | 'past_due' | 'trialing',
-        current_period_start: subscriptionData.current_period_start 
-          ? new Date(subscriptionData.current_period_start * 1000).toISOString()
-          : null,
-        current_period_end: subscriptionData.current_period_end 
-          ? new Date(subscriptionData.current_period_end * 1000).toISOString()
-          : null,
-        cancel_at_period_end: subscriptionData.cancel_at_period_end || false,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('id', subscription.id);
 
     // Update organization subscription status

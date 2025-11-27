@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { getUserOrganizationId } from '@/lib/organizationContext';
 import { unauthorized, notFound, internalError, badRequest, conflict } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 import { convertOpportunityToProject } from '@/lib/ops/opportunityConversion';
@@ -60,6 +61,12 @@ export async function POST(
       }
     }
 
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
+    }
+
     // Get request body for template_id and member_ids
     const body = await request.json().catch(() => ({}));
     const { template_id, member_ids } = body;
@@ -69,6 +76,7 @@ export async function POST(
       supabase,
       opportunity,
       userData.id,
+      organizationId,
       template_id || null,
       member_ids || []
     );

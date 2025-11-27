@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   Box,
   Typography,
-  TextField,
   Button,
   Grid,
   Paper,
@@ -12,108 +11,188 @@ import {
   Alert,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { Save as SaveIcon, Refresh as RefreshIcon } from '@mui/icons-material';
+import { Upload as UploadIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useNotification } from '@/components/providers/NotificationProvider';
-import type { AdminSetting } from '@/types/project';
-
-interface ThemeColors {
-  primary: { main: string; light: string; dark: string; contrastText?: string };
-  secondary: { main: string; light: string; dark: string; contrastText?: string };
-  background: { default: string; paper: string };
-}
+import { useOrganization } from '@/components/providers/OrganizationProvider';
 
 export default function AdminThemeTab() {
   const theme = useTheme();
   const supabase = createSupabaseClient();
   const { showSuccess, showError } = useNotification();
+  const { organization } = useOrganization();
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [themeColors, setThemeColors] = useState<ThemeColors>({
-    primary: { main: '#00E5FF', light: '#5DFFFF', dark: '#00B2CC' },
-    secondary: { main: '#E91E63', light: '#FF6090', dark: '#B0003A' },
-    background: { default: '#000', paper: '#000' },
-  });
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [iconUrl, setIconUrl] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingIcon, setUploadingIcon] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const iconInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    loadTheme();
+    loadBranding();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [organization]);
 
-  const loadTheme = async () => {
-    setLoading(true);
-    const { data, error: fetchError } = await supabase
-      .from('admin_settings')
-      .select('*')
-      .in('key', ['theme_primary', 'theme_secondary', 'theme_background']);
-
-    if (fetchError) {
-      setError(fetchError.message);
+  const loadBranding = async () => {
+    if (!organization?.id) {
       setLoading(false);
       return;
     }
 
-    const settings = data as AdminSetting[];
-    const primary = settings.find(s => s.key === 'theme_primary')?.value || themeColors.primary;
-    const secondary = settings.find(s => s.key === 'theme_secondary')?.value || themeColors.secondary;
-    const background = settings.find(s => s.key === 'theme_background')?.value || themeColors.background;
-
-    setThemeColors({ primary, secondary, background });
-    setLoading(false);
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/organization/${organization.id}/branding`);
+      if (response.ok) {
+        const data = await response.json();
+        setLogoUrl(data.logo_url || null);
+        setIconUrl(data.icon_url || null);
+      }
+    } catch (err) {
+      console.error('Error loading branding:', err);
+      setError('Failed to load branding');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      showError('Not authenticated');
-      setSaving(false);
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !organization?.id) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      showError('Please upload an image file');
       return;
     }
 
-    const { data: userData } = await supabase
-      .from('users')
-      .select('id')
-      .eq('auth_id', session.user.id)
-      .single();
-
-    const updates = [
-      { key: 'theme_primary', value: themeColors.primary, updated_by: userData?.id },
-      { key: 'theme_secondary', value: themeColors.secondary, updated_by: userData?.id },
-      { key: 'theme_background', value: themeColors.background, updated_by: userData?.id },
-    ];
-
-    for (const update of updates) {
-      const { error } = await supabase
-        .from('admin_settings')
-        .upsert({
-          key: update.key,
-          value: update.value,
-          category: 'theme',
-          updated_by: update.updated_by,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'key',
-        });
-
-      if (error) {
-        showError('Failed to save theme: ' + error.message);
-        setSaving(false);
-        return;
-      }
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      showError('Logo file size must be less than 2MB');
+      return;
     }
 
-    showSuccess('Theme saved successfully! Note: Page refresh required to see changes.');
-    setSaving(false);
+    setUploadingLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', 'logo');
+
+      const response = await fetch(`/api/organization/${organization.id}/branding/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to upload logo');
+      }
+
+      const data = await response.json();
+      setLogoUrl(data.url);
+      showSuccess('Logo uploaded successfully!');
+      await loadBranding();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to upload logo');
+    } finally {
+      setUploadingLogo(false);
+      if (logoInputRef.current) {
+        logoInputRef.current.value = '';
+      }
+    }
   };
 
-  const handleReset = () => {
-    setThemeColors({
-      primary: { main: '#00E5FF', light: '#5DFFFF', dark: '#00B2CC' },
-      secondary: { main: '#E91E63', light: '#FF6090', dark: '#B0003A' },
-      background: { default: '#000', paper: '#000' },
-    });
+  const handleIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !organization?.id) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      showError('Please upload an image file');
+      return;
+    }
+
+    // Validate file size (max 1MB)
+    if (file.size > 1 * 1024 * 1024) {
+      showError('Icon file size must be less than 1MB');
+      return;
+    }
+
+    setUploadingIcon(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', 'icon');
+
+      const response = await fetch(`/api/organization/${organization.id}/branding/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to upload icon');
+      }
+
+      const data = await response.json();
+      setIconUrl(data.url);
+      showSuccess('Icon uploaded successfully!');
+      await loadBranding();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to upload icon');
+    } finally {
+      setUploadingIcon(false);
+      if (iconInputRef.current) {
+        iconInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    if (!organization?.id) return;
+
+    try {
+      const response = await fetch(`/api/organization/${organization.id}/branding`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'logo' }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to remove logo');
+      }
+
+      setLogoUrl(null);
+      showSuccess('Logo removed successfully!');
+      await loadBranding();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to remove logo');
+    }
+  };
+
+  const handleRemoveIcon = async () => {
+    if (!organization?.id) return;
+
+    try {
+      const response = await fetch(`/api/organization/${organization.id}/branding`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'icon' }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to remove icon');
+      }
+
+      setIconUrl(null);
+      showSuccess('Icon removed successfully!');
+      await loadBranding();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to remove icon');
+    }
   };
 
   if (loading) {
@@ -128,46 +207,8 @@ export default function AdminThemeTab() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
-          Theme Customization
+          Company Branding
         </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button
-            startIcon={<RefreshIcon />}
-            onClick={handleReset}
-            variant="outlined"
-            sx={{
-              borderColor: theme.palette.text.primary,
-              color: theme.palette.text.primary,
-              '&:hover': {
-                borderColor: theme.palette.text.primary,
-                backgroundColor: theme.palette.action.hover,
-              },
-            }}
-          >
-            Reset
-          </Button>
-          <Button
-            startIcon={<SaveIcon />}
-            onClick={handleSave}
-            variant="outlined"
-            disabled={saving}
-            sx={{
-              borderColor: theme.palette.text.primary,
-              color: theme.palette.text.primary,
-              fontWeight: 600,
-              '&:hover': {
-                borderColor: theme.palette.text.primary,
-                backgroundColor: theme.palette.action.hover,
-              },
-              '&.Mui-disabled': {
-                borderColor: theme.palette.divider,
-                color: theme.palette.text.secondary,
-              },
-            }}
-          >
-            {saving ? 'Saving...' : 'Save Theme'}
-          </Button>
-        </Box>
       </Box>
 
       {error && (
@@ -195,97 +236,73 @@ export default function AdminThemeTab() {
             }}
           >
             <Typography variant="h6" sx={{ mb: 2, color: theme.palette.text.primary, fontWeight: 600 }}>
-              Primary Colors
+              Company Logo
             </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <TextField
-                  label="Primary Main"
-                  type="color"
-                  value={themeColors.primary.main}
-                  onChange={(e) => setThemeColors({ ...themeColors, primary: { ...themeColors.primary, main: e.target.value } })}
-                InputLabelProps={{ shrink: true }}
-                fullWidth
+            <Typography variant="caption" sx={{ mb: 2, color: theme.palette.text.secondary, display: 'block' }}>
+              Recommended: 280x40px, SVG or PNG (max 2MB)
+            </Typography>
+            {logoUrl && (
+              <Box sx={{ mb: 2 }}>
+                <Box
+                  component="img"
+                  src={logoUrl}
+                  alt="Company Logo"
+                  sx={{
+                    maxHeight: 60,
+                    maxWidth: '100%',
+                    objectFit: 'contain',
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 1,
+                    p: 1,
+                    backgroundColor: theme.palette.background.default,
+                  }}
+                />
+              </Box>
+            )}
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleLogoUpload}
+                style={{ display: 'none' }}
+              />
+              <Button
+                variant="outlined"
+                startIcon={<UploadIcon />}
+                onClick={() => logoInputRef.current?.click()}
+                disabled={uploadingLogo}
                 sx={{
-                  '& .MuiOutlinedInput-root': {
+                  borderColor: theme.palette.text.primary,
+                  color: theme.palette.text.primary,
+                  '&:hover': {
+                    borderColor: theme.palette.text.primary,
                     backgroundColor: theme.palette.action.hover,
-                    '& fieldset': {
-                      borderColor: theme.palette.divider,
-                    },
-                    '&:hover fieldset': {
-                      borderColor: theme.palette.text.secondary,
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: theme.palette.text.primary,
-                    },
-                  },
-                  '& .MuiInputLabel-root': {
-                    color: theme.palette.text.secondary,
-                  },
-                  '& .MuiInputLabel-root.Mui-focused': {
-                    color: theme.palette.text.primary,
                   },
                 }}
-              />
-              <TextField
-                label="Primary Light"
-                type="color"
-                  value={themeColors.primary.light}
-                  onChange={(e) => setThemeColors({ ...themeColors, primary: { ...themeColors.primary, light: e.target.value } })}
-                InputLabelProps={{ shrink: true }}
-                fullWidth
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    backgroundColor: theme.palette.action.hover,
-                    '& fieldset': {
-                      borderColor: theme.palette.divider,
+              >
+                {uploadingLogo ? 'Uploading...' : logoUrl ? 'Replace Logo' : 'Upload Logo'}
+              </Button>
+              {logoUrl && (
+                <Button
+                  variant="outlined"
+                  startIcon={<DeleteIcon />}
+                  onClick={handleRemoveLogo}
+                  sx={{
+                    borderColor: theme.palette.error.main,
+                    color: theme.palette.error.main,
+                    '&:hover': {
+                      borderColor: theme.palette.error.dark,
+                      backgroundColor: theme.palette.error.dark + '20',
                     },
-                    '&:hover fieldset': {
-                      borderColor: theme.palette.text.secondary,
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: theme.palette.text.primary,
-                    },
-                  },
-                  '& .MuiInputLabel-root': {
-                    color: theme.palette.text.secondary,
-                  },
-                  '& .MuiInputLabel-root.Mui-focused': {
-                    color: theme.palette.text.primary,
-                  },
-                }}
-              />
-              <TextField
-                label="Primary Dark"
-                type="color"
-                  value={themeColors.primary.dark}
-                  onChange={(e) => setThemeColors({ ...themeColors, primary: { ...themeColors.primary, dark: e.target.value } })}
-                InputLabelProps={{ shrink: true }}
-                fullWidth
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    backgroundColor: theme.palette.action.hover,
-                    '& fieldset': {
-                      borderColor: theme.palette.divider,
-                    },
-                    '&:hover fieldset': {
-                      borderColor: theme.palette.text.secondary,
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: theme.palette.text.primary,
-                    },
-                  },
-                  '& .MuiInputLabel-root': {
-                    color: theme.palette.text.secondary,
-                  },
-                  '& .MuiInputLabel-root.Mui-focused': {
-                    color: theme.palette.text.primary,
-                  },
-                }}
-              />
+                  }}
+                >
+                  Remove
+                </Button>
+              )}
             </Box>
           </Paper>
         </Grid>
-
         <Grid item xs={12} md={6}>
           <Paper
             sx={{
@@ -296,185 +313,42 @@ export default function AdminThemeTab() {
             }}
           >
             <Typography variant="h6" sx={{ mb: 2, color: theme.palette.text.primary, fontWeight: 600 }}>
-              Secondary Colors
+              Company Icon
             </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <TextField
-                label="Secondary Main"
-                type="color"
-                  value={themeColors.secondary.main}
-                  onChange={(e) => setThemeColors({ ...themeColors, secondary: { ...themeColors.secondary, main: e.target.value } })}
-                InputLabelProps={{ shrink: true }}
-                fullWidth
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    backgroundColor: theme.palette.action.hover,
-                    '& fieldset': {
-                      borderColor: theme.palette.divider,
-                    },
-                    '&:hover fieldset': {
-                      borderColor: theme.palette.text.secondary,
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: theme.palette.text.primary,
-                    },
-                  },
-                  '& .MuiInputLabel-root': {
-                    color: theme.palette.text.secondary,
-                  },
-                  '& .MuiInputLabel-root.Mui-focused': {
-                    color: theme.palette.text.primary,
-                  },
-                }}
-              />
-              <TextField
-                label="Secondary Light"
-                type="color"
-                  value={themeColors.secondary.light}
-                  onChange={(e) => setThemeColors({ ...themeColors, secondary: { ...themeColors.secondary, light: e.target.value } })}
-                InputLabelProps={{ shrink: true }}
-                fullWidth
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    backgroundColor: theme.palette.action.hover,
-                    '& fieldset': {
-                      borderColor: theme.palette.divider,
-                    },
-                    '&:hover fieldset': {
-                      borderColor: theme.palette.text.secondary,
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: theme.palette.text.primary,
-                    },
-                  },
-                  '& .MuiInputLabel-root': {
-                    color: theme.palette.text.secondary,
-                  },
-                  '& .MuiInputLabel-root.Mui-focused': {
-                    color: theme.palette.text.primary,
-                  },
-                }}
-              />
-              <TextField
-                label="Secondary Dark"
-                type="color"
-                  value={themeColors.secondary.dark}
-                  onChange={(e) => setThemeColors({ ...themeColors, secondary: { ...themeColors.secondary, dark: e.target.value } })}
-                InputLabelProps={{ shrink: true }}
-                fullWidth
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    backgroundColor: theme.palette.action.hover,
-                    '& fieldset': {
-                      borderColor: theme.palette.divider,
-                    },
-                    '&:hover fieldset': {
-                      borderColor: theme.palette.text.secondary,
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: theme.palette.text.primary,
-                    },
-                  },
-                  '& .MuiInputLabel-root': {
-                    color: theme.palette.text.secondary,
-                  },
-                  '& .MuiInputLabel-root.Mui-focused': {
-                    color: theme.palette.text.primary,
-                  },
-                }}
-              />
-            </Box>
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12}>
-          <Paper
-            sx={{
-              p: 3,
-              backgroundColor: theme.palette.background.paper,
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: 2,
-            }}
-          >
-            <Typography variant="h6" sx={{ mb: 2, color: theme.palette.text.primary, fontWeight: 600 }}>
-              Background Colors
+            <Typography variant="caption" sx={{ mb: 2, color: theme.palette.text.secondary, display: 'block' }}>
+              Recommended: 32x32px, SVG or PNG (max 1MB)
             </Typography>
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                label="Default Background"
-                type="color"
-                  value={themeColors.background.default}
-                  onChange={(e) => setThemeColors({ ...themeColors, background: { ...themeColors.background, default: e.target.value } })}
-                InputLabelProps={{ shrink: true }}
-                fullWidth
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    backgroundColor: theme.palette.action.hover,
-                    '& fieldset': {
-                      borderColor: theme.palette.divider,
-                    },
-                    '&:hover fieldset': {
-                      borderColor: theme.palette.text.secondary,
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: theme.palette.text.primary,
-                    },
-                  },
-                  '& .MuiInputLabel-root': {
-                    color: theme.palette.text.secondary,
-                  },
-                  '& .MuiInputLabel-root.Mui-focused': {
-                    color: theme.palette.text.primary,
-                  },
-                }}
+            {iconUrl && (
+              <Box sx={{ mb: 2 }}>
+                <Box
+                  component="img"
+                  src={iconUrl}
+                  alt="Company Icon"
+                  sx={{
+                    height: 40,
+                    width: 40,
+                    objectFit: 'contain',
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 1,
+                    p: 1,
+                    backgroundColor: theme.palette.background.default,
+                  }}
+                />
+              </Box>
+            )}
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <input
+                ref={iconInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleIconUpload}
+                style={{ display: 'none' }}
               />
-              <TextField
-                label="Paper Background"
-                type="color"
-                  value={themeColors.background.paper}
-                  onChange={(e) => setThemeColors({ ...themeColors, background: { ...themeColors.background, paper: e.target.value } })}
-                InputLabelProps={{ shrink: true }}
-                fullWidth
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    backgroundColor: theme.palette.action.hover,
-                    '& fieldset': {
-                      borderColor: theme.palette.divider,
-                    },
-                    '&:hover fieldset': {
-                      borderColor: theme.palette.text.secondary,
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: theme.palette.text.primary,
-                    },
-                  },
-                  '& .MuiInputLabel-root': {
-                    color: theme.palette.text.secondary,
-                  },
-                  '& .MuiInputLabel-root.Mui-focused': {
-                    color: theme.palette.text.primary,
-                  },
-                }}
-              />
-            </Box>
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12}>
-          <Paper
-            sx={{
-              p: 3,
-              backgroundColor: theme.palette.action.hover,
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: 2,
-            }}
-          >
-            <Typography variant="h6" sx={{ mb: 2, color: theme.palette.text.primary, fontWeight: 600 }}>
-              Preview
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
               <Button
                 variant="outlined"
+                startIcon={<UploadIcon />}
+                onClick={() => iconInputRef.current?.click()}
+                disabled={uploadingIcon}
                 sx={{
                   borderColor: theme.palette.text.primary,
                   color: theme.palette.text.primary,
@@ -484,21 +358,25 @@ export default function AdminThemeTab() {
                   },
                 }}
               >
-                Primary Button
+                {uploadingIcon ? 'Uploading...' : iconUrl ? 'Replace Icon' : 'Upload Icon'}
               </Button>
-              <Button
-                variant="outlined"
-                sx={{
-                  borderColor: theme.palette.text.primary,
-                  color: theme.palette.text.primary,
-                  '&:hover': {
-                    borderColor: theme.palette.text.primary,
-                    backgroundColor: theme.palette.action.hover,
-                  },
-                }}
-              >
-                Secondary Button
-              </Button>
+              {iconUrl && (
+                <Button
+                  variant="outlined"
+                  startIcon={<DeleteIcon />}
+                  onClick={handleRemoveIcon}
+                  sx={{
+                    borderColor: theme.palette.error.main,
+                    color: theme.palette.error.main,
+                    '&:hover': {
+                      borderColor: theme.palette.error.dark,
+                      backgroundColor: theme.palette.error.dark + '20',
+                    },
+                  }}
+                >
+                  Remove
+                </Button>
+              )}
             </Box>
           </Paper>
         </Grid>
@@ -506,4 +384,3 @@ export default function AdminThemeTab() {
     </Box>
   );
 }
-

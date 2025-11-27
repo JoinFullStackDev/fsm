@@ -31,13 +31,6 @@ export async function GET(request: NextRequest) {
       return forbidden('Ops Tool is not available for your subscription plan');
     }
 
-    // Get user record to check if super admin
-    const { data: userData } = await supabase
-      .from('users')
-      .select('role, is_super_admin')
-      .eq('auth_id', session.user.id)
-      .single();
-
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     const status = searchParams.get('status');
@@ -45,21 +38,16 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10', 10);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
-    // Build query
+    // Build query - always filter by organization
+    // Even super admins should only see their organization's opportunities in the ops tool
     let query = supabase
       .from('opportunities')
       .select(`
         *,
         company:companies(id, name)
       `, { count: 'exact' })
+      .eq('organization_id', organizationId)
       .order('created_at', { ascending: false });
-
-    // Filter by organization (super admins can see all)
-    if (userData?.role === 'admin' && userData?.is_super_admin === true) {
-      // Super admin can see all opportunities
-    } else {
-      query = query.eq('organization_id', organizationId);
-    }
 
     // Apply filters
     if (search) {
@@ -203,7 +191,8 @@ export async function POST(request: NextRequest) {
           const project = await convertOpportunityToProject(
             supabase,
             opportunity,
-            userData.id
+            userData.id,
+            organizationId
           );
 
           // Update opportunity status to 'converted'

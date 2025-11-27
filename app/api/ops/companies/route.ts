@@ -29,31 +29,19 @@ export async function GET(request: NextRequest) {
       return forbidden('Ops Tool is not available for your subscription plan');
     }
 
-    // Get user record to check if super admin
-    const { data: userData } = await supabase
-      .from('users')
-      .select('role, is_super_admin')
-      .eq('auth_id', session.user.id)
-      .single();
-
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     const status = searchParams.get('status');
     const limit = parseInt(searchParams.get('limit') || '10', 10);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
-    // Build query
+    // Build query - always filter by organization
+    // Even super admins should only see their organization's companies in the ops tool
     let query = supabase
       .from('companies')
       .select('*', { count: 'exact' })
+      .eq('organization_id', organizationId)
       .order('created_at', { ascending: false });
-
-    // Filter by organization (super admins can see all)
-    if (userData?.role === 'admin' && userData?.is_super_admin === true) {
-      // Super admin can see all companies
-    } else {
-      query = query.eq('organization_id', organizationId);
-    }
 
     // Apply filters
     if (search) {
@@ -73,22 +61,25 @@ export async function GET(request: NextRequest) {
       return internalError('Failed to load companies', { error: companiesError.message });
     }
 
-    // Get counts for each company
+    // Get counts for each company (scoped to organization)
     const companiesWithCounts: CompanyWithCounts[] = await Promise.all(
       (companies || []).map(async (company: Company) => {
         const [contactsResult, opportunitiesResult, projectsResult] = await Promise.all([
           supabase
             .from('company_contacts')
             .select('id', { count: 'exact', head: true })
-            .eq('company_id', company.id),
+            .eq('company_id', company.id)
+            .eq('organization_id', organizationId),
           supabase
             .from('opportunities')
             .select('id', { count: 'exact', head: true })
-            .eq('company_id', company.id),
+            .eq('company_id', company.id)
+            .eq('organization_id', organizationId),
           supabase
             .from('projects')
             .select('id', { count: 'exact', head: true })
-            .eq('company_id', company.id),
+            .eq('company_id', company.id)
+            .eq('organization_id', organizationId),
         ]);
 
         return {

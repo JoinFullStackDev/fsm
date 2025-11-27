@@ -63,20 +63,26 @@ export default function NewProjectPage() {
   const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [packageLimits, setPackageLimits] = useState<{ current: number; limit: number | null; allowed: boolean } | null>(null);
+  const [loadingLimits, setLoadingLimits] = useState(true);
 
   const loadTemplates = useCallback(async () => {
     setLoadingTemplates(true);
-    const { data, error: fetchError } = await supabase
-      .from('project_templates')
-      .select('*')
-      .eq('is_public', true)
-      .order('name', { ascending: true });
-
-    if (!fetchError && data) {
-      setTemplates(data);
+    try {
+      // Use API route to get templates (handles organization filtering)
+      const response = await fetch('/api/admin/templates?limit=100');
+      if (response.ok) {
+        const data = await response.json();
+        // Filter to only show public templates or templates from user's organization
+        const templatesData = (data.data || []).filter((t: ProjectTemplate) => t.is_public);
+        setTemplates(templatesData);
+      }
+    } catch (err) {
+      console.error('Error loading templates:', err);
+    } finally {
+      setLoadingTemplates(false);
     }
-    setLoadingTemplates(false);
-  }, [supabase]);
+  }, []);
 
   const loadCompanies = useCallback(async () => {
     try {
@@ -98,27 +104,88 @@ export default function NewProjectPage() {
   const loadUsers = useCallback(async () => {
     try {
       setLoadingUsers(true);
-      const { data: usersData, error: usersError } = await supabase
+      
+      // Get current user's organization_id to filter users
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setUsers([]);
+        return;
+      }
+
+      const { data: currentUser } = await supabase
+        .from('users')
+        .select('organization_id, role, is_super_admin')
+        .eq('auth_id', session.user.id)
+        .single();
+
+      // Load users from the same organization (or all users if super admin)
+      let usersQuery = supabase
         .from('users')
         .select('id, name, email, role')
         .order('name');
+
+      // Filter by organization unless user is super admin
+      if (currentUser && !(currentUser.role === 'admin' && currentUser.is_super_admin === true)) {
+        if (currentUser.organization_id) {
+          usersQuery = usersQuery.eq('organization_id', currentUser.organization_id);
+        } else {
+          // User has no organization, show no users
+          setUsers([]);
+          return;
+        }
+      }
+
+      const { data: usersData, error: usersError } = await usersQuery;
 
       if (!usersError && usersData) {
         setUsers(usersData);
       }
     } catch (err) {
-      // Ignore errors, just show form without user selection
+      console.error('Error loading users:', err);
+      setUsers([]);
     } finally {
       setLoadingUsers(false);
     }
   }, [supabase]);
+
+  const loadPackageLimits = useCallback(async () => {
+    try {
+      setLoadingLimits(true);
+      // Get package limits from API
+      const response = await fetch('/api/organization/limits');
+      if (response.ok) {
+        const limits = await response.json();
+        // getAllLimits returns { projects: { allowed, current, limit, reason }, ... }
+        if (limits.projects) {
+          setPackageLimits({
+            current: limits.projects.current ?? 0,
+            limit: limits.projects.limit ?? null,
+            allowed: limits.projects.allowed ?? true,
+          });
+        } else {
+          // Fallback if structure is different
+          setPackageLimits({ current: 0, limit: null, allowed: true });
+        }
+      } else {
+        // If API fails, allow creation (will be checked server-side)
+        setPackageLimits({ current: 0, limit: null, allowed: true });
+      }
+    } catch (err) {
+      console.error('Error loading package limits:', err);
+      // Set to unlimited if we can't check (server will enforce limits)
+      setPackageLimits({ current: 0, limit: null, allowed: true });
+    } finally {
+      setLoadingLimits(false);
+    }
+  }, []);
 
   // Load data on mount
   useEffect(() => {
     loadTemplates();
     loadCompanies();
     loadUsers();
-  }, [loadTemplates, loadCompanies, loadUsers]);
+    loadPackageLimits();
+  }, [loadTemplates, loadCompanies, loadUsers, loadPackageLimits]);
 
   // Read query parameters and populate form fields
   useEffect(() => {
@@ -154,6 +221,13 @@ export default function NewProjectPage() {
       return;
     }
 
+    // Check package limits before submitting
+    if (packageLimits && !packageLimits.allowed) {
+      const limitText = packageLimits.limit === null ? 'unlimited' : packageLimits.limit.toString();
+      setError(`Project limit reached. You have ${packageLimits.current} of ${limitText} projects. Please upgrade your plan to create more projects.`);
+      return;
+    }
+
     setLoading(true);
 
     const { data: { session } } = await supabase.auth.getSession();
@@ -162,74 +236,74 @@ export default function NewProjectPage() {
       return;
     }
 
-    // Get user record
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('auth_id', session.user.id)
-      .single();
+    // Create project via API route (handles organization_id and package limits)
+    try {
+      const response = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          description,
+          status,
+          primary_tool: primaryTool,
+          company_id: selectedCompanyId || null,
+        }),
+      });
 
-    if (userError || !userData) {
-      setError('Failed to load user data');
-      setLoading(false);
-      return;
-    }
-
-    // Create project
-    const { data: projectData, error: projectError } = await supabase
-      .from('projects')
-      .insert({
-        owner_id: userData.id,
-        name,
-        description,
-        status,
-        primary_tool: primaryTool,
-        template_id: selectedTemplate || null, // Set template_id if template was selected
-        company_id: selectedCompanyId || null, // Set company_id if company was selected
-        source: 'Manual', // Default for manually created projects
-      })
-      .select()
-      .single();
-
-    if (projectError || !projectData) {
-      setError(projectError?.message || 'Failed to create project');
-      setLoading(false);
-      return;
-    }
-
-    // Create phase entries - use template data if selected, otherwise use defaults
-    const phaseInserts = [];
-    
-    if (selectedTemplate) {
-      // Load template phases (ordered by display_order, only active)
-      const { data: templatePhases, error: templatePhasesError } = await supabase
-        .from('template_phases')
-        .select('*')
-        .eq('template_id', selectedTemplate)
-        .eq('is_active', true)
-        .order('display_order', { ascending: true });
-
-      if (templatePhasesError) {
-        setError('Failed to load template phases: ' + templatePhasesError.message);
-        setLoading(false);
-        return;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || errorData.error || 'Failed to create project');
       }
 
-      // Create phases from template (copying all metadata)
-      if (templatePhases && templatePhases.length > 0) {
-        templatePhases.forEach((templatePhase) => {
-          phaseInserts.push({
-            project_id: projectData.id,
-            phase_number: templatePhase.phase_number,
-            phase_name: templatePhase.phase_name,
-            display_order: templatePhase.display_order,
-            data: templatePhase.data || {},
-            completed: false,
-            is_active: true,
+      const projectData = await response.json();
+
+      // Create phase entries - use template data if selected, otherwise use defaults
+      const phaseInserts = [];
+      
+      if (selectedTemplate) {
+        // Load template phases (ordered by display_order, only active)
+        const { data: templatePhases, error: templatePhasesError } = await supabase
+          .from('template_phases')
+          .select('*')
+          .eq('template_id', selectedTemplate)
+          .eq('is_active', true)
+          .order('display_order', { ascending: true });
+
+        if (templatePhasesError) {
+          setError('Failed to load template phases: ' + templatePhasesError.message);
+          setLoading(false);
+          return;
+        }
+
+        // Create phases from template (copying all metadata)
+        if (templatePhases && templatePhases.length > 0) {
+          templatePhases.forEach((templatePhase) => {
+            phaseInserts.push({
+              project_id: projectData.id,
+              phase_number: templatePhase.phase_number,
+              phase_name: templatePhase.phase_name,
+              display_order: templatePhase.display_order,
+              data: templatePhase.data || {},
+              completed: false,
+              is_active: true,
+            });
           });
-        });
+        } else {
+          // Fallback: Create default 6 phases if template has none
+          for (let i = 1; i <= 6; i++) {
+            phaseInserts.push({
+              project_id: projectData.id,
+              phase_number: i,
+              phase_name: PHASE_NAMES[i - 1] || `Phase ${i}`,
+              display_order: i,
+              data: getDefaultPhaseData(i),
+              completed: false,
+              is_active: true,
+            });
+          }
+        }
       } else {
-        // Fallback: Create default 6 phases if template has none
+        // Create default phase entries (6 phases)
         for (let i = 1; i <= 6; i++) {
           phaseInserts.push({
             project_id: projectData.id,
@@ -242,56 +316,52 @@ export default function NewProjectPage() {
           });
         }
       }
-    } else {
-      // Create default phase entries (6 phases)
-      for (let i = 1; i <= 6; i++) {
-        phaseInserts.push({
-          project_id: projectData.id,
-          phase_number: i,
-          phase_name: PHASE_NAMES[i - 1] || `Phase ${i}`,
-          display_order: i,
-          data: getDefaultPhaseData(i),
-          completed: false,
-          is_active: true,
-        });
+
+      const { error: phasesError } = await supabase
+        .from('project_phases')
+        .insert(phaseInserts);
+
+      if (phasesError) {
+        setError(phasesError.message);
+        setLoading(false);
+        return;
       }
-    }
 
-    const { error: phasesError } = await supabase
-      .from('project_phases')
-      .insert(phaseInserts);
+      // Add project members if any were selected
+      if (selectedMemberIds.length > 0) {
+        // Use API route to add members (handles RLS and permissions)
+        const memberPromises = selectedMemberIds.map((userId) =>
+          fetch(`/api/projects/${projectData.id}/members`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user_id: userId,
+              role: 'engineer',
+            }),
+          })
+        );
 
-    if (phasesError) {
-      setError(phasesError.message);
+        const results = await Promise.allSettled(memberPromises);
+        const failures = results.filter((r) => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.ok));
+
+        if (failures.length > 0) {
+          console.error('Failed to add some project members:', failures);
+          showError(`Project created but failed to add ${failures.length} member(s)`);
+        }
+      }
+
+      // Refresh package limits after creating project
+      await loadPackageLimits();
+
+      showSuccess('Project created successfully!');
+      router.push(`/project/${projectData.id}`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create project';
+      setError(errorMessage);
+      showError(errorMessage);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // Add project members if any were selected
-    if (selectedMemberIds.length > 0) {
-      // Use API route to add members (handles RLS and permissions)
-      const memberPromises = selectedMemberIds.map((userId) =>
-        fetch(`/api/projects/${projectData.id}/members`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            user_id: userId,
-            role: 'engineer',
-          }),
-        })
-      );
-
-      const results = await Promise.allSettled(memberPromises);
-      const failures = results.filter((r) => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.ok));
-
-      if (failures.length > 0) {
-        console.error('Failed to add some project members:', failures);
-        showError(`Project created but failed to add ${failures.length} member(s)`);
-      }
-    }
-
-    showSuccess('Project created successfully!');
-    router.push(`/project/${projectData.id}`);
   };
 
   return (
@@ -328,6 +398,28 @@ export default function NewProjectPage() {
               }}
             >
               {error}
+            </Alert>
+          )}
+
+          {packageLimits && !loadingLimits && (
+            <Alert
+              severity={packageLimits.allowed ? 'info' : 'warning'}
+              sx={{
+                mb: 3,
+                backgroundColor: theme.palette.action.hover,
+                border: `1px solid ${theme.palette.divider}`,
+                color: theme.palette.text.primary,
+              }}
+            >
+              {packageLimits.allowed ? (
+                <>
+                  Project limit: {packageLimits.current} of {packageLimits.limit === null ? 'unlimited' : packageLimits.limit} projects used.
+                </>
+              ) : (
+                <>
+                  Project limit reached: {packageLimits.current} of {packageLimits.limit} projects. Please upgrade your plan to create more projects.
+                </>
+              )}
             </Alert>
           )}
 
@@ -525,7 +617,7 @@ export default function NewProjectPage() {
                   <Button
                     type="submit"
                     variant="contained"
-                    disabled={loading}
+                    disabled={!!(loading || loadingLimits || (packageLimits && !(packageLimits.allowed ?? false)))}
                     sx={{
                       backgroundColor: theme.palette.text.primary,
                       color: theme.palette.background.default,

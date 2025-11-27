@@ -98,6 +98,21 @@ export default function OpportunityDetailPage() {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const supabase = createSupabaseClient();
 
+  const loadCompany = useCallback(async (companyId: string) => {
+    try {
+      setCompanyLoading(true);
+      const response = await fetch(`/api/ops/companies/${companyId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setCompany(data);
+      }
+    } catch (err) {
+      // Silently fail - company details are optional
+    } finally {
+      setCompanyLoading(false);
+    }
+  }, []);
+
   const loadOpportunity = useCallback(async () => {
     try {
       setLoading(true);
@@ -123,22 +138,7 @@ export default function OpportunityDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [opportunityId, showError]);
-
-  const loadCompany = useCallback(async (companyId: string) => {
-    try {
-      setCompanyLoading(true);
-      const response = await fetch(`/api/ops/companies/${companyId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setCompany(data);
-      }
-    } catch (err) {
-      // Silently fail - company details are optional
-    } finally {
-      setCompanyLoading(false);
-    }
-  }, []);
+  }, [opportunityId, showError, loadCompany]);
 
   useEffect(() => {
     loadOpportunity();
@@ -147,32 +147,34 @@ export default function OpportunityDetailPage() {
   const loadTemplates = useCallback(async () => {
     setLoadingTemplates(true);
     try {
-      const { data, error } = await supabase
-        .from('project_templates')
-        .select('*')
-        .eq('is_public', true)
-        .order('name', { ascending: true });
-      
-      if (!error && data) {
-        setTemplates(data);
+      // Use the organization-scoped templates API endpoint
+      const response = await fetch('/api/admin/templates');
+      if (response.ok) {
+        const result = await response.json();
+        // Ensure we always set an array, even if result.data is not an array
+        setTemplates(Array.isArray(result.data) ? result.data : []);
       }
     } catch (err) {
       // Silently fail
+      setTemplates([]);
     } finally {
       setLoadingTemplates(false);
     }
-  }, [supabase]);
+  }, []);
 
   const loadUsers = useCallback(async () => {
     setLoadingUsers(true);
     try {
-      const response = await fetch('/api/users');
+      // Use the organization-scoped admin users API endpoint
+      const response = await fetch('/api/admin/users');
       if (response.ok) {
-        const data = await response.json();
-        setUsers(data || []);
+        const result = await response.json();
+        // The API returns { users: [...] }, so extract users array
+        setUsers(Array.isArray(result.users) ? result.users : []);
       }
     } catch (err) {
       // Silently fail
+      setUsers([]);
     } finally {
       setLoadingUsers(false);
     }

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
+import logger from '@/lib/utils/logger';
 
 export async function POST(
   request: NextRequest,
@@ -7,6 +9,7 @@ export async function POST(
 ) {
   try {
     const supabase = await createServerSupabaseClient();
+    const adminClient = createAdminSupabaseClient();
     const templateId = params.id;
     const body = await request.json();
     const newName = body.name || null;
@@ -17,30 +20,31 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user is admin
-    const { data: userData, error: userError } = await supabase
+    // Get user data with organization_id - use admin client
+    const { data: userData, error: userError } = await adminClient
       .from('users')
-      .select('id')
+      .select('id, role, organization_id')
       .eq('auth_id', user.id)
       .single();
 
     if (userError || !userData || !userData.id) {
+      logger.error('[Template Duplicate] User not found:', userError);
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const { data: roleData } = await supabase
-      .from('users')
-      .select('role')
-      .eq('auth_id', user.id)
-      .single();
-
     // Allow admins and PMs to duplicate templates
-    if (roleData?.role !== 'admin' && roleData?.role !== 'pm') {
+    if (userData.role !== 'admin' && userData.role !== 'pm') {
       return NextResponse.json({ error: 'Forbidden - Admin or PM access required' }, { status: 403 });
     }
 
+    // Get organization_id
+    const organizationId = userData.organization_id;
+    if (!organizationId) {
+      return NextResponse.json({ error: 'User is not assigned to an organization' }, { status: 400 });
+    }
+
     // Load original template
-    const { data: originalTemplate, error: templateError } = await supabase
+    const { data: originalTemplate, error: templateError } = await adminClient
       .from('project_templates')
       .select('*')
       .eq('id', templateId)
@@ -50,14 +54,15 @@ export async function POST(
       return NextResponse.json({ error: 'Template not found' }, { status: 404 });
     }
 
-    // Create new template
+    // Create new template with organization_id - use admin client
     const newTemplateName = newName || `${originalTemplate.name} (Copy)`;
-    const { data: newTemplate, error: createError } = await supabase
+    const { data: newTemplate, error: createError } = await adminClient
       .from('project_templates')
       .insert({
         name: newTemplateName,
         description: originalTemplate.description,
         created_by: userData.id,
+        organization_id: organizationId, // Preserve organization_id
         is_public: false, // Duplicates are private by default
         category: originalTemplate.category,
         version: originalTemplate.version || '1.0.0',
@@ -74,52 +79,55 @@ export async function POST(
     }
 
     // Load original template phases
-    const { data: originalPhases, error: phasesError } = await supabase
+    const { data: originalPhases, error: phasesError } = await adminClient
       .from('template_phases')
       .select('*')
       .eq('template_id', templateId);
 
     if (phasesError) {
-      console.error('Error loading template phases:', phasesError);
+      logger.error('[Template Duplicate] Error loading template phases:', phasesError);
       return NextResponse.json(
         { error: `Failed to load template phases: ${phasesError.message}` },
         { status: 500 }
       );
     }
 
-    // Duplicate template phases
+    // Duplicate template phases - use admin client
     if (originalPhases && originalPhases.length > 0) {
       const newPhases = originalPhases.map(phase => ({
         template_id: newTemplate.id,
         phase_number: phase.phase_number,
+        phase_name: phase.phase_name,
+        display_order: phase.display_order,
         data: phase.data,
+        is_active: phase.is_active,
       }));
 
-      const { error: insertPhasesError } = await supabase
+      const { error: insertPhasesError } = await adminClient
         .from('template_phases')
         .insert(newPhases);
 
       if (insertPhasesError) {
-        console.error('Error duplicating template phases:', insertPhasesError);
+        logger.error('[Template Duplicate] Error duplicating template phases:', insertPhasesError);
         // Continue anyway - phases are optional
       }
     }
 
     // Load original field configs
-    const { data: originalFieldConfigs, error: configsError } = await supabase
+    const { data: originalFieldConfigs, error: configsError } = await adminClient
       .from('template_field_configs')
       .select('*')
       .eq('template_id', templateId);
 
     if (configsError) {
-      console.error('Error loading field configs:', configsError);
+      logger.error('[Template Duplicate] Error loading field configs:', configsError);
       return NextResponse.json(
         { error: `Failed to load field configs: ${configsError.message}` },
         { status: 500 }
       );
     }
 
-    // Duplicate field configs
+    // Duplicate field configs - use admin client
     if (originalFieldConfigs && originalFieldConfigs.length > 0) {
       const newFieldConfigs = originalFieldConfigs.map(config => {
         // Explicitly exclude the original id and let the database generate a new one
@@ -137,12 +145,12 @@ export async function POST(
         };
       });
 
-      const { error: insertConfigsError } = await supabase
+      const { error: insertConfigsError } = await adminClient
         .from('template_field_configs')
         .insert(newFieldConfigs);
 
       if (insertConfigsError) {
-        console.error('Error duplicating field configs:', insertConfigsError);
+        logger.error('[Template Duplicate] Error duplicating field configs:', insertConfigsError);
         return NextResponse.json(
           { error: `Failed to duplicate field configs: ${insertConfigsError.message}` },
           { status: 500 }
@@ -151,17 +159,17 @@ export async function POST(
     }
 
     // Load original field groups
-    const { data: originalGroups, error: groupsError } = await supabase
+    const { data: originalGroups, error: groupsError } = await adminClient
       .from('template_field_groups')
       .select('*')
       .eq('template_id', templateId);
 
     if (groupsError) {
-      console.error('Error loading field groups:', groupsError);
+      logger.error('[Template Duplicate] Error loading field groups:', groupsError);
       // Continue anyway - groups are optional
     }
 
-    // Duplicate field groups
+    // Duplicate field groups - use admin client
     if (originalGroups && originalGroups.length > 0) {
       const newGroups = originalGroups.map(group => {
         // Explicitly exclude the original id and let the database generate a new one
@@ -179,12 +187,12 @@ export async function POST(
         };
       });
 
-      const { error: insertGroupsError } = await supabase
+      const { error: insertGroupsError } = await adminClient
         .from('template_field_groups')
         .insert(newGroups);
 
       if (insertGroupsError) {
-        console.error('Error duplicating field groups:', insertGroupsError);
+        logger.error('[Template Duplicate] Error duplicating field groups:', insertGroupsError);
         // Continue anyway - groups are optional
       }
     }
@@ -195,7 +203,7 @@ export async function POST(
       message: 'Template duplicated successfully',
     });
   } catch (error) {
-    console.error('Error duplicating template:', error);
+    logger.error('[Template Duplicate] Error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Paper,
@@ -23,11 +23,7 @@ export default function AIUsagePage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
 
-  useEffect(() => {
-    loadUsageStats();
-  }, []);
-
-  const loadUsageStats = async () => {
+  const loadUsageStats = useCallback(async () => {
     try {
       const response = await fetch('/api/global/admin/ai-usage');
       if (!response.ok) {
@@ -40,7 +36,11 @@ export default function AIUsagePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showError]);
+
+  useEffect(() => {
+    loadUsageStats();
+  }, [loadUsageStats]);
 
   if (loading) {
     return (

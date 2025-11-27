@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
+import { getUserOrganizationId } from '@/lib/organizationContext';
+import { canAddUser } from '@/lib/packageLimits';
 import { generateSecurePassword } from '@/lib/utils/passwordGenerator';
 import { unauthorized, notFound, forbidden, badRequest, internalError } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
@@ -18,9 +20,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Get current user and verify admin role
-    const { data: currentUser, error: userError } = await supabase
+    const adminClient = createAdminSupabaseClient();
+    const { data: currentUser, error: userError } = await adminClient
       .from('users')
-      .select('id, role')
+      .select('id, role, organization_id, is_super_admin')
       .eq('auth_id', session.user.id)
       .single();
 
@@ -32,18 +35,46 @@ export async function GET(request: NextRequest) {
       return forbidden('Admin access required');
     }
 
-    // Fetch all users
-    const { data: users, error: usersError } = await supabase
+    // Get user's organization - use organization_id from currentUser (already fetched with admin client)
+    const organizationId = currentUser.organization_id;
+    if (!organizationId) {
+      logger.warn('[Admin Users] User has no organization_id:', { userId: currentUser.id, authId: session.user.id });
+      return badRequest('User is not assigned to an organization');
+    }
+
+    // Build query - ALWAYS filter by organization (even super admins in /admin should only see their org's users)
+    // Super admins can use /global/admin for cross-organization access
+    const query = adminClient
       .from('users')
       .select('*')
+      .eq('organization_id', organizationId)
       .order('created_at', { ascending: false });
+
+    const { data: users, error: usersError } = await query;
 
     if (usersError) {
       logger.error('[Admin Users] Error fetching users:', usersError);
       return internalError('Failed to fetch users', { error: usersError.message });
     }
 
-    return NextResponse.json({ users: users || [] }, { status: 200 });
+    // SAFETY CHECK: Double-check that all returned users belong to the organization
+    const filteredUsers = (users || []).filter((user: any) => user.organization_id === organizationId);
+    if (filteredUsers.length !== (users || []).length) {
+      logger.error('[Admin Users] CRITICAL: Query returned users from other organizations!', {
+        organizationId,
+        expectedCount: users?.length || 0,
+        filteredCount: filteredUsers.length,
+        userId: currentUser.id
+      });
+    }
+
+    logger.info('[Admin Users] Returning users for organization', {
+      organizationId,
+      count: filteredUsers.length,
+      userId: currentUser.id
+    });
+
+    return NextResponse.json({ users: filteredUsers }, { status: 200 });
   } catch (error) {
     logger.error('[Admin Users] Unexpected error:', error);
     return internalError('Failed to fetch users', { error: error instanceof Error ? error.message : 'Unknown error' });
@@ -61,9 +92,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Get current user and verify admin role
-    const { data: currentUser, error: userError } = await supabase
+    const adminClient = createAdminSupabaseClient();
+    const { data: currentUser, error: userError } = await adminClient
       .from('users')
-      .select('id, role')
+      .select('id, role, organization_id, is_super_admin')
       .eq('auth_id', session.user.id)
       .single();
 
@@ -73,6 +105,18 @@ export async function POST(request: NextRequest) {
 
     if (currentUser.role !== 'admin') {
       return forbidden('Admin access required');
+    }
+
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
+    }
+
+    // Check subscription limits (super admins still need to respect limits in org dashboard)
+    const limitCheck = await canAddUser(supabase, organizationId);
+    if (!limitCheck.allowed) {
+      return forbidden(limitCheck.reason || 'User limit reached');
     }
 
     const body = await request.json();
@@ -107,9 +151,6 @@ export async function POST(request: NextRequest) {
 
     // Generate secure temporary password
     const temporaryPassword = generateSecurePassword(16);
-
-    // Create admin client for user creation
-    const adminClient = createAdminSupabaseClient();
 
     // Create auth user
     const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
@@ -146,6 +187,7 @@ export async function POST(request: NextRequest) {
         .update({
           name,
           role,
+          organization_id: organizationId, // Assign to current user's organization
           is_active: false, // Inactive until they log in
           invited_by_admin: true,
           invite_created_at: new Date().toISOString(),
@@ -171,6 +213,7 @@ export async function POST(request: NextRequest) {
           email,
           name,
           role,
+          organization_id: organizationId, // Assign to current user's organization
           is_active: false, // Inactive until they log in
           invited_by_admin: true,
           invite_created_at: new Date().toISOString(),

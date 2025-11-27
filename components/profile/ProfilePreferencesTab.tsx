@@ -23,6 +23,7 @@ export default function ProfilePreferencesTab() {
   const supabase = createSupabaseClient();
   const { showSuccess, showError } = useNotification();
   const pushNotifications = usePushNotifications();
+  const { checkSubscription, supported, subscribed, loading: pushLoading, error: pushError, permission } = pushNotifications;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<User | null>(null);
@@ -77,11 +78,6 @@ export default function ProfilePreferencesTab() {
         ...user.preferences,
       });
     }
-    
-    // Sync push subscription state with preference
-    if (pushNotifications.supported) {
-      pushNotifications.checkSubscription();
-    }
     setLoading(false);
   }, [supabase]);
 
@@ -89,8 +85,15 @@ export default function ProfilePreferencesTab() {
     loadProfile();
   }, [loadProfile]);
 
+  // Sync push subscription state with preference after profile loads
+  useEffect(() => {
+    if (profile && supported) {
+      checkSubscription();
+    }
+  }, [profile, supported, checkSubscription]);
+
   const handlePushToggle = async (enabled: boolean) => {
-    if (!pushNotifications.supported) {
+    if (!supported) {
       showError('Push notifications are not supported in this browser');
       return;
     }
@@ -108,7 +111,7 @@ export default function ProfilePreferencesTab() {
         });
         showSuccess('Push notifications enabled!');
       } else {
-        showError(pushNotifications.error || 'Failed to enable push notifications');
+        showError(pushError || 'Failed to enable push notifications');
       }
     } else {
       // Unsubscribe from push notifications
@@ -123,7 +126,7 @@ export default function ProfilePreferencesTab() {
         });
         showSuccess('Push notifications disabled');
       } else {
-        showError(pushNotifications.error || 'Failed to disable push notifications');
+        showError(pushError || 'Failed to disable push notifications');
       }
     }
   };
@@ -275,12 +278,12 @@ export default function ProfilePreferencesTab() {
                 control={
                   <Switch
                     checked={
-                      pushNotifications.supported
-                        ? (preferences.notifications?.push ?? false) && pushNotifications.subscribed
+                      supported
+                        ? (preferences.notifications?.push ?? false) && subscribed
                         : false
                     }
                     onChange={(e) => handlePushToggle(e.target.checked)}
-                    disabled={!pushNotifications.supported || pushNotifications.loading}
+                    disabled={!supported || pushLoading}
                     sx={{
                       '& .MuiSwitch-switchBase.Mui-checked': {
                         color: theme.palette.text.primary,
@@ -293,19 +296,19 @@ export default function ProfilePreferencesTab() {
                     <Typography sx={{ color: theme.palette.text.primary }}>
                       Browser Push Notifications
                     </Typography>
-                    {!pushNotifications.supported && (
+                    {!supported && (
                       <Typography variant="caption" sx={{ color: theme.palette.text.secondary, display: 'block' }}>
                         Not supported in this browser
                       </Typography>
                     )}
-                    {pushNotifications.supported && pushNotifications.permission === 'denied' && (
+                    {supported && permission === 'denied' && (
                       <Typography variant="caption" sx={{ color: theme.palette.error.main, display: 'block' }}>
                         Permission denied. Please enable in browser settings.
                       </Typography>
                     )}
-                    {pushNotifications.error && (
+                    {pushError && (
                       <Typography variant="caption" sx={{ color: theme.palette.error.main, display: 'block' }}>
-                        {pushNotifications.error}
+                        {pushError}
                       </Typography>
                     )}
                   </Box>

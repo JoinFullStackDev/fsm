@@ -46,6 +46,7 @@ import {
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useRole } from '@/lib/hooks/useRole';
 import { useNotification } from '@/components/providers/NotificationProvider';
+import { useOrganization } from '@/components/providers/OrganizationProvider';
 import ComponentPalette from '@/components/templates/ComponentPalette';
 import FieldCanvas from '@/components/templates/FieldCanvas';
 import FieldConfigPanel from '@/components/templates/FieldConfigPanel';
@@ -64,6 +65,7 @@ export default function TemplateBuilderPage() {
   const templateId = params.id as string;
   const supabase = createSupabaseClient();
   const { role, loading: roleLoading } = useRole();
+  const { features } = useOrganization();
   const { showSuccess, showError } = useNotification();
 
   const [template, setTemplate] = useState<ProjectTemplate | null>(null);
@@ -969,23 +971,25 @@ export default function TemplateBuilderPage() {
             >
               Preview
             </Button>
-            <Button
-              variant="outlined"
-              startIcon={<DownloadIcon />}
-              onClick={() => {
-                window.open(`/admin/templates/${templateId}/export`, '_blank');
-              }}
-              sx={{
-                borderColor: theme.palette.text.primary,
-                color: theme.palette.text.primary,
-                '&:hover': {
+            {(features?.export_features_enabled === true || features?.export_features_enabled === null) && (
+              <Button
+                variant="outlined"
+                startIcon={<DownloadIcon />}
+                onClick={() => {
+                  window.open(`/admin/templates/${templateId}/export`, '_blank');
+                }}
+                sx={{
                   borderColor: theme.palette.text.primary,
-                  backgroundColor: theme.palette.action.hover,
-                },
-              }}
-            >
-              Export
-            </Button>
+                  color: theme.palette.text.primary,
+                  '&:hover': {
+                    borderColor: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+              >
+                Export
+              </Button>
+            )}
             <Button
               variant="outlined"
               onClick={() => setPhaseManagerOpen(true)}

@@ -22,8 +22,8 @@ export interface OrganizationFullDetails {
   name: string;
   slug: string;
   stripe_customer_id: string | null;
-  subscription_status: 'trial' | 'active' | 'past_due' | 'canceled' | 'incomplete';
-  trial_ends_at: string | null;
+  subscription_status: 'trialing' | 'active' | 'past_due' | 'canceled' | 'incomplete';
+  trialing_ends_at: string | null;
   created_at: string;
   updated_at: string;
   subscription?: {

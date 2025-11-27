@@ -153,42 +153,42 @@ export async function POST(request: NextRequest) {
       return badRequest('Project name is required');
     }
 
-    // Get user record with organization - try regular client first, fall back to admin client if RLS blocks
-    let userData;
-    
-    const { data: regularUserData, error: regularUserError } = await supabase
+    // Get user record with organization - always use admin client to ensure we get the data
+    const adminClientForUser = createAdminSupabaseClient();
+    const { data: userData, error: userError } = await adminClientForUser
       .from('users')
-      .select('id, organization_id')
+      .select('id, organization_id, email, name')
       .eq('auth_id', authUser.id)
       .single();
 
-    if (regularUserError || !regularUserData) {
-      // RLS might be blocking - try admin client
-      const adminClient = createAdminSupabaseClient();
-      const { data: adminUserData, error: adminUserError } = await adminClient
-        .from('users')
-        .select('id, organization_id')
-        .eq('auth_id', authUser.id)
-        .single();
-
-      if (adminUserError || !adminUserData) {
-        logger.error('[Projects API POST] User record not found:', { 
-          authId: authUser.id, 
-          email: authUser.email,
-          regularError: regularUserError,
-          adminError: adminUserError 
-        });
-        return notFound('User record not found. Please try signing out and signing in again.');
-      }
-
-      userData = adminUserData;
-    } else {
-      userData = regularUserData;
+    if (userError || !userData) {
+      logger.error('[Projects API POST] User record not found:', { 
+        authId: authUser.id, 
+        email: authUser.email,
+        error: userError 
+      });
+      return notFound('User record not found. Please try signing out and signing in again.');
     }
 
     const organizationId = userData.organization_id;
     if (!organizationId) {
+      logger.error('[Projects API POST] User missing organization_id:', { 
+        userId: userData.id, 
+        authId: authUser.id,
+        email: authUser.email,
+        userData: JSON.stringify(userData)
+      });
       return badRequest('User is not assigned to an organization');
+    }
+
+    // Double-check organizationId is a valid UUID string
+    if (typeof organizationId !== 'string' || organizationId.trim() === '') {
+      logger.error('[Projects API POST] Invalid organization_id format:', { 
+        organizationId,
+        type: typeof organizationId,
+        userId: userData.id
+      });
+      return badRequest('Invalid organization assignment');
     }
 
     // Check package limits before creating project
@@ -219,24 +219,181 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create project with organization_id
-    const { data: project, error: projectError } = await supabase
-      .from('projects')
-      .insert({
-        owner_id: userData.id,
-        organization_id: organizationId,
-        name,
-        description,
-        status: status || 'idea',
-        primary_tool: primary_tool || null,
-        company_id: company_id || null,
-        source: 'Manual', // Default for manually created projects
-      })
-      .select()
-      .single();
+    // Always use admin client for inserts to bypass RLS and ensure organization_id is set
+    // RLS policies might interfere with organization_id being set correctly
+    // Reuse the same admin client we used for user lookup
+    
+    // Build insert data with explicit organization_id
+    const insertData: any = {
+      owner_id: userData.id,
+      organization_id: organizationId.trim(), // Ensure it's trimmed
+      name: name.trim(),
+      description: description ? description.trim() : null,
+      status: status || 'idea',
+      primary_tool: primary_tool || null,
+      company_id: company_id || null,
+      source: 'Manual', // Default for manually created projects
+    };
+
+    // Final validation before insert
+    if (!insertData.organization_id) {
+      logger.error('[Projects API POST] organization_id is null/empty in insertData:', {
+        insertData,
+        originalOrganizationId: organizationId,
+        userData
+      });
+      return internalError('Failed to set organization_id for project');
+    }
+
+    logger.info('[Projects API POST] Creating project:', {
+      organization_id: insertData.organization_id,
+      owner_id: insertData.owner_id,
+      name: insertData.name,
+      hasOrganizationId: !!insertData.organization_id,
+      insertDataKeys: Object.keys(insertData),
+      insertDataString: JSON.stringify(insertData),
+    });
+    
+    // Verify organization_id one more time right before insert
+    const finalOrganizationId = String(insertData.organization_id).trim();
+    if (!finalOrganizationId || finalOrganizationId === 'null' || finalOrganizationId === 'undefined' || finalOrganizationId === '') {
+      logger.error('[Projects API POST] CRITICAL: organization_id is invalid right before insert:', {
+        organization_id: insertData.organization_id,
+        finalOrganizationId,
+        type: typeof insertData.organization_id,
+        userData,
+        insertData
+      });
+      return internalError('Failed to set organization_id for project. Please contact support.');
+    }
+
+    // Build the final insert object with explicit organization_id - rebuild to ensure all fields are correct
+    const finalInsertData = {
+      owner_id: userData.id,
+      organization_id: finalOrganizationId, // Use the validated and trimmed value
+      name: name.trim(),
+      description: description ? description.trim() : null,
+      status: status || 'idea',
+      primary_tool: primary_tool || null,
+      company_id: company_id || null,
+      source: 'Manual',
+    };
+
+    logger.info('[Projects API POST] Final insert data before database call:', {
+      ...finalInsertData,
+      organization_id_type: typeof finalInsertData.organization_id,
+      organization_id_length: finalInsertData.organization_id?.length,
+      organization_id_value: finalInsertData.organization_id,
+    });
+
+    // Try using the database function first (runs with SECURITY DEFINER, bypasses RLS completely)
+    // If that fails, fall back to direct insert with admin client
+    let project;
+    let projectError;
+    
+    // Log the exact values being passed to RPC
+    logger.info('[Projects API POST] Calling RPC function with:', {
+      p_owner_id: finalInsertData.owner_id,
+      p_organization_id: finalInsertData.organization_id,
+      p_name: finalInsertData.name,
+      p_description: finalInsertData.description,
+      p_status: finalInsertData.status,
+      p_primary_tool: finalInsertData.primary_tool,
+      p_company_id: finalInsertData.company_id,
+      p_source: finalInsertData.source,
+    });
+    
+    try {
+      const { data: functionResult, error: functionError } = await adminClientForUser
+        .rpc('create_project_with_org', {
+          p_owner_id: finalInsertData.owner_id,
+          p_organization_id: finalInsertData.organization_id,
+          p_name: finalInsertData.name,
+          p_description: finalInsertData.description || null,
+          p_status: finalInsertData.status,
+          p_primary_tool: finalInsertData.primary_tool || null,
+          p_company_id: finalInsertData.company_id || null,
+          p_source: finalInsertData.source,
+        });
+
+      if (functionError) {
+        logger.error('[Projects API POST] RPC function failed:', {
+          error: functionError,
+          message: functionError.message,
+          code: functionError.code,
+          details: functionError.details,
+          hint: functionError.hint,
+        });
+        
+        // Fall back to direct insert with admin client (should bypass RLS)
+        logger.info('[Projects API POST] Falling back to direct insert with admin client');
+        const { data: directResult, error: directError } = await adminClientForUser
+          .from('projects')
+          .insert({
+            owner_id: finalInsertData.owner_id,
+            organization_id: finalInsertData.organization_id, // Explicitly set
+            name: finalInsertData.name,
+            description: finalInsertData.description,
+            status: finalInsertData.status,
+            primary_tool: finalInsertData.primary_tool,
+            company_id: finalInsertData.company_id,
+            source: finalInsertData.source,
+          })
+          .select()
+          .single();
+        
+        project = directResult;
+        projectError = directError;
+      } else if (functionResult) {
+        project = functionResult;
+        projectError = null;
+        logger.info('[Projects API POST] RPC function succeeded');
+      } else {
+        logger.error('[Projects API POST] RPC function returned no result');
+        projectError = { message: 'RPC function returned no result' };
+      }
+    } catch (rpcError: any) {
+      logger.error('[Projects API POST] RPC call exception:', rpcError);
+      // Fall back to direct insert if RPC function doesn't exist or fails
+      const { data: directResult, error: directError } = await adminClientForUser
+        .from('projects')
+        .insert({
+          owner_id: finalInsertData.owner_id,
+          organization_id: finalInsertData.organization_id, // Explicitly set
+          name: finalInsertData.name,
+          description: finalInsertData.description,
+          status: finalInsertData.status,
+          primary_tool: finalInsertData.primary_tool,
+          company_id: finalInsertData.company_id,
+          source: finalInsertData.source,
+        })
+        .select()
+        .single();
+      
+      project = directResult;
+      projectError = directError;
+    }
 
     if (projectError) {
-      logger.error('Error creating project:', projectError);
+      logger.error('[Projects API POST] Error creating project:', {
+        error: projectError,
+        errorMessage: projectError.message,
+        errorCode: projectError.code,
+        errorDetails: projectError.details,
+        errorHint: projectError.hint,
+        finalInsertData: JSON.stringify(finalInsertData),
+        organizationId: finalInsertData.organization_id,
+        userData
+      });
+      
+      // If it's specifically the organization_id constraint error, provide more context
+      if (projectError.message?.includes('organization_id') && projectError.message?.includes('not-null')) {
+        return internalError(`Failed to create project: organization_id constraint violation. Organization ID was: ${finalInsertData.organization_id || 'NULL'}. Please contact support.`, {
+          error: projectError.message,
+          organizationId: finalInsertData.organization_id,
+        });
+      }
+      
       return internalError('Failed to create project', { error: projectError.message });
     }
 

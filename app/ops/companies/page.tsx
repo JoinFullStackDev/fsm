@@ -70,7 +70,8 @@ export default function CompaniesPage() {
       }
 
       const result = await response.json();
-      setCompanies(result.data || []);
+      // Ensure we always set an array, even if result.data is not an array
+      setCompanies(Array.isArray(result.data) ? result.data : []);
       setTotal(result.total || 0);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load companies';

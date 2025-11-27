@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
-import { unauthorized, notFound, internalError, badRequest } from '@/lib/utils/apiErrors';
+import { getUserOrganizationId } from '@/lib/organizationContext';
+import { unauthorized, notFound, internalError, badRequest, forbidden } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 import { createLeadFromContact } from '@/lib/ops/leads';
 import { createActivityFeedItem } from '@/lib/ops/activityFeed';
@@ -111,6 +112,12 @@ export async function POST(
       return badRequest('Last name is required');
     }
 
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
+    }
+
     // Get user record for created_by
     const { data: userData, error: userError } = await supabase
       .from('users')
@@ -122,10 +129,10 @@ export async function POST(
       return notFound('User');
     }
 
-    // Verify company exists
+    // Verify company exists and belongs to user's organization
     const { data: company, error: companyError } = await supabase
       .from('companies')
-      .select('id')
+      .select('id, organization_id')
       .eq('id', companyId)
       .single();
 
@@ -137,11 +144,17 @@ export async function POST(
       return internalError('Failed to check company', { error: companyError?.message });
     }
 
+    // Verify company belongs to user's organization
+    if (company.organization_id !== organizationId) {
+      return forbidden('Company does not belong to your organization');
+    }
+
     // Create contact with all fields
     const { data: contact, error: contactError } = await supabase
       .from('company_contacts')
       .insert({
         company_id: companyId,
+        organization_id: organizationId,
         first_name: first_name.trim(),
         last_name: last_name.trim(),
         email: email?.trim() || null,

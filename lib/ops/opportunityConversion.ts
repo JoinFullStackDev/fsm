@@ -9,6 +9,7 @@ import { createActivityFeedItem } from './activityFeed';
  * @param supabase - Supabase client instance
  * @param opportunity - The opportunity to convert
  * @param ownerId - ID of the user creating the project
+ * @param organizationId - ID of the organization
  * @param templateId - Optional template ID to use for project phases
  * @param memberIds - Optional array of user IDs to add as project members
  */
@@ -16,6 +17,7 @@ export async function convertOpportunityToProject(
   supabase: SupabaseClient,
   opportunity: Opportunity,
   ownerId: string,
+  organizationId: string,
   templateId?: string | null,
   memberIds?: string[]
 ): Promise<Project> {
@@ -25,6 +27,7 @@ export async function convertOpportunityToProject(
       .from('projects')
       .insert({
         owner_id: ownerId,
+        organization_id: organizationId,
         name: opportunity.name,
         description: `Converted from opportunity: ${opportunity.name}`,
         status: 'idea',
