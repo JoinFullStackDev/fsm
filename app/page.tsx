@@ -13,6 +13,13 @@ import {
   alpha,
   Paper,
   CircularProgress,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Divider,
 } from '@mui/material';
 import {
   ArrowForward as ArrowForwardIcon,
@@ -21,6 +28,10 @@ import {
   Security as SecurityIcon,
   Analytics as AnalyticsIcon,
   Timeline as TimelineIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
+  Check as CheckIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import FeatureCard from '@/components/landing/FeatureCard';
 import PricingCard from '@/components/landing/PricingCard';
@@ -320,8 +331,331 @@ export default function HomePage() {
           <MockTableSection />
         </Box>
 
+        {/* Comparison Table Section */}
+        <Box sx={{ py: { xs: 6, md: 10 }, mt: 4 }}>
+          <Divider
+            sx={{
+              mb: 8,
+              borderColor: theme.palette.divider,
+              borderWidth: 2,
+              '&::before, &::after': {
+                borderColor: theme.palette.divider,
+                borderWidth: 2,
+              },
+            }}
+          />
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-100px' }}
+            transition={{ duration: 0.6 }}
+            style={{ width: '100%' }}
+          >
+            <Typography
+              variant="h2"
+              align="center"
+              sx={{
+                fontSize: { xs: '2rem', md: '3rem' },
+                fontWeight: 700,
+                mb: 1,
+              }}
+            >
+              FSM vs. The Competition
+            </Typography>
+            <Typography
+              variant="h6"
+              align="center"
+              color="text.secondary"
+              sx={{ mb: 6, maxWidth: '700px', mx: 'auto' }}
+            >
+              See how FullStack Method™ compares to other product development tools
+            </Typography>
+          </motion.div>
+
+          <TableContainer
+            component={Paper}
+            sx={{
+              borderRadius: 2,
+              border: `1px solid ${theme.palette.divider}`,
+              overflowX: 'auto',
+              overflowY: 'hidden',
+              backgroundColor: theme.palette.background.paper,
+              maxWidth: '100%',
+            }}
+          >
+            <Table sx={{ minWidth: 800 }}>
+              <TableHead>
+                <TableRow
+                  sx={{
+                    backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                    '& th': {
+                      fontWeight: 700,
+                      fontSize: '1rem',
+                      color: theme.palette.text.primary,
+                      borderBottom: `2px solid ${theme.palette.divider}`,
+                    },
+                  }}
+                >
+                  <TableCell 
+                    sx={{ 
+                      width: '30%', 
+                      minWidth: 200,
+                      position: 'sticky', 
+                      left: 0, 
+                      backgroundColor: alpha(theme.palette.primary.main, 0.1), 
+                      zIndex: 2,
+                      boxShadow: '2px 0 4px rgba(0,0,0,0.1)',
+                    }}
+                  >
+                    Feature
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 800, color: theme.palette.primary.main, minWidth: 120 }}>
+                    FSM
+                  </TableCell>
+                  <TableCell align="center" sx={{ minWidth: 120 }}>Jira</TableCell>
+                  <TableCell align="center" sx={{ minWidth: 120 }}>Linear</TableCell>
+                  <TableCell align="center" sx={{ minWidth: 120 }}>Notion</TableCell>
+                  <TableCell align="center" sx={{ minWidth: 120 }}>Asana</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {[
+                  // All platforms have these (all green checks)
+                  { feature: 'Project Templates', fsm: true, jira: true, linear: true, notion: true, asana: true },
+                  { feature: 'Team Collaboration', fsm: true, jira: true, linear: true, notion: true, asana: true },
+                  { feature: 'Task Management', fsm: true, jira: true, linear: true, notion: true, asana: true },
+                  { feature: 'RBAC & Permissions', fsm: true, jira: true, linear: true, notion: true, asana: true },
+                  { feature: 'API Access', fsm: true, jira: true, linear: true, notion: true, asana: true },
+                  // Most platforms have these (progression)
+                  { feature: 'Real-time Analytics', fsm: true, jira: true, linear: true, notion: false, asana: true },
+                  { feature: 'Multi-tenant Architecture', fsm: true, jira: true, linear: false, notion: false, asana: true },
+                  { feature: 'GitHub Integration', fsm: true, jira: true, linear: true, notion: false, asana: false },
+                  { feature: 'Audit Trails', fsm: true, jira: true, linear: false, notion: false, asana: false },
+                  // FSM-only features (only FSM has green check)
+                  { feature: 'Export to Cursor/Blueprint', fsm: true, jira: false, linear: false, notion: false, asana: false },
+                  { feature: 'Custom Branding', fsm: true, jira: false, linear: false, notion: false, asana: false },
+                  { feature: 'AI-Powered PRD Generation', fsm: true, jira: false, linear: false, notion: false, asana: false },
+                  { feature: 'Phase-Based Workflow', fsm: true, jira: false, linear: false, notion: false, asana: false },
+                  { feature: 'Built-in ERD Generator', fsm: true, jira: false, linear: false, notion: false, asana: false },
+                  { feature: 'Automated User Stories', fsm: true, jira: false, linear: false, notion: false, asana: false },
+                ].map((row, index) => (
+                  <TableRow
+                    key={row.feature}
+                    sx={{
+                      '&:nth-of-type(odd)': {
+                        backgroundColor: alpha(theme.palette.action.hover, 0.05),
+                      },
+                      '&:hover': {
+                        backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                      },
+                      '& td': {
+                        borderBottom: `1px solid ${theme.palette.divider}`,
+                        py: 2,
+                      },
+                    }}
+                  >
+                    <TableCell
+                      component="th"
+                      scope="row"
+                      sx={{
+                        fontWeight: 600,
+                        position: 'sticky',
+                        left: 0,
+                        backgroundColor: index % 2 === 0
+                          ? theme.palette.background.paper
+                          : alpha(theme.palette.action.hover, 0.05),
+                        zIndex: 1,
+                        boxShadow: '2px 0 4px rgba(0,0,0,0.1)',
+                        minWidth: 200,
+                      }}
+                    >
+                      {row.feature}
+                    </TableCell>
+                    <TableCell align="center">
+                      {row.fsm ? (
+                        <Box
+                          sx={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            backgroundColor: '#4caf50',
+                            color: '#ffffff',
+                          }}
+                        >
+                          <CheckIcon sx={{ fontSize: 20, color: '#ffffff' }} />
+                        </Box>
+                      ) : (
+                        <Box
+                          sx={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            backgroundColor: '#f44336',
+                            color: '#ffffff',
+                          }}
+                        >
+                          <CloseIcon sx={{ fontSize: 20, color: '#ffffff' }} />
+                        </Box>
+                      )}
+                    </TableCell>
+                    <TableCell align="center">
+                      {row.jira ? (
+                        <Box
+                          sx={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            backgroundColor: '#4caf50',
+                            color: '#ffffff',
+                          }}
+                        >
+                          <CheckIcon sx={{ fontSize: 20, color: '#ffffff' }} />
+                        </Box>
+                      ) : (
+                        <Box
+                          sx={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            backgroundColor: '#f44336',
+                            color: '#ffffff',
+                          }}
+                        >
+                          <CloseIcon sx={{ fontSize: 20, color: '#ffffff' }} />
+                        </Box>
+                      )}
+                    </TableCell>
+                    <TableCell align="center">
+                      {row.linear ? (
+                        <Box
+                          sx={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            backgroundColor: '#4caf50',
+                            color: '#ffffff',
+                          }}
+                        >
+                          <CheckIcon sx={{ fontSize: 20, color: '#ffffff' }} />
+                        </Box>
+                      ) : (
+                        <Box
+                          sx={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            backgroundColor: '#f44336',
+                            color: '#ffffff',
+                          }}
+                        >
+                          <CloseIcon sx={{ fontSize: 20, color: '#ffffff' }} />
+                        </Box>
+                      )}
+                    </TableCell>
+                    <TableCell align="center">
+                      {row.notion ? (
+                        <Box
+                          sx={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            backgroundColor: '#4caf50',
+                            color: '#ffffff',
+                          }}
+                        >
+                          <CheckIcon sx={{ fontSize: 20, color: '#ffffff' }} />
+                        </Box>
+                      ) : (
+                        <Box
+                          sx={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            backgroundColor: '#f44336',
+                            color: '#ffffff',
+                          }}
+                        >
+                          <CloseIcon sx={{ fontSize: 20, color: '#ffffff' }} />
+                        </Box>
+                      )}
+                    </TableCell>
+                    <TableCell align="center">
+                      {row.asana ? (
+                        <Box
+                          sx={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            backgroundColor: '#4caf50',
+                            color: '#ffffff',
+                          }}
+                        >
+                          <CheckIcon sx={{ fontSize: 20, color: '#ffffff' }} />
+                        </Box>
+                      ) : (
+                        <Box
+                          sx={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            backgroundColor: '#f44336',
+                            color: '#ffffff',
+                          }}
+                        >
+                          <CloseIcon sx={{ fontSize: 20, color: '#ffffff' }} />
+                        </Box>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
+
         {/* Pricing Section */}
         <Box sx={{ py: { xs: 6, md: 10 } }}>
+          <Divider
+            sx={{
+              mb: 8,
+              borderColor: theme.palette.divider,
+              borderWidth: 2,
+              '&::before, &::after': {
+                borderColor: theme.palette.divider,
+                borderWidth: 2,
+              },
+            }}
+          />
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
