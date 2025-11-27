@@ -12,10 +12,11 @@ import {
   Chip,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { Add as AddIcon, OpenInNew as OpenIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { Add as AddIcon, OpenInNew as OpenIcon, Delete as DeleteIcon, Folder as FolderIcon } from '@mui/icons-material';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import type { Project } from '@/types/project';
 import SortableTable from '@/components/dashboard/SortableTable';
+import EmptyState from '@/components/ui/EmptyState';
 
 interface CompanyProjectsTabProps {
   companyId: string;
@@ -220,9 +221,13 @@ export default function CompanyProjectsTab({ companyId }: CompanyProjectsTabProp
       </Box>
 
       {projects.length === 0 ? (
-        <Alert severity="info">
-          No projects yet. Create a project to get started.
-        </Alert>
+        <EmptyState
+          icon={<FolderIcon sx={{ fontSize: 64 }} />}
+          title="No projects yet"
+          description="Create a project to get started."
+          actionLabel="Create Project"
+          onAction={handleCreateProject}
+        />
       ) : (
         <SortableTable
           data={projects}

@@ -37,6 +37,7 @@ import {
   Settings as SettingsIcon,
   Build as BuildIcon,
   AdminPanelSettings as AdminIcon,
+  Security as SecurityIcon,
   Person as PersonIcon,
   Logout as LogoutIcon,
 } from '@mui/icons-material';
@@ -533,7 +534,21 @@ export default function LandingPage() {
                       <DashboardIcon fontSize="small" sx={{ mr: 1.5 }} />
                       Dashboard
                     </MenuItem>
-                    {!roleLoading && role === 'admin' && isSuperAdmin && (
+                    {!roleLoading && isSuperAdmin && (
+                      <MenuItem
+                        onClick={() => handleNavigate('/global/admin')}
+                        sx={{
+                          color: 'text.primary',
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        }}
+                      >
+                        <SecurityIcon fontSize="small" sx={{ mr: 1.5 }} />
+                        Super Admin
+                      </MenuItem>
+                    )}
+                    {!roleLoading && role === 'admin' && (
                       <MenuItem
                         onClick={() => handleNavigate('/admin')}
                         sx={{

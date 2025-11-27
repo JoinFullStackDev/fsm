@@ -76,6 +76,53 @@ export async function middleware(request: NextRequest) {
     });
   }
 
+  // Protect global admin routes (super admin only)
+  if (request.nextUrl.pathname.startsWith('/global/admin')) {
+    const currentUserId = user?.id || session?.user?.id;
+    
+    if (!currentUserId) {
+      if (authCookies.length > 0) {
+        return response;
+      }
+      return NextResponse.redirect(new URL('/auth/signin', request.url));
+    }
+
+    // Check if user is super admin
+    const { data: userData, error: dbUserError } = await supabase
+      .from('users')
+      .select('id, email, role, auth_id, is_super_admin')
+      .eq('auth_id', currentUserId)
+      .single();
+
+    if (dbUserError) {
+      const userEmail = user?.email || session?.user?.email;
+      if (userEmail) {
+        const { data: emailUserData } = await supabase
+          .from('users')
+          .select('id, email, role, auth_id, is_super_admin')
+          .eq('email', userEmail)
+          .single();
+        
+        if (emailUserData && emailUserData.role === 'admin' && emailUserData.is_super_admin) {
+          return response;
+        }
+      }
+      // Let client-side handle it
+      return response;
+    }
+
+    if (!userData) {
+      return response;
+    }
+
+    // Only allow super admins
+    if (userData.role !== 'admin' || !userData.is_super_admin) {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+
+    return response;
+  }
+
   // Protect admin routes
   if (request.nextUrl.pathname.startsWith('/admin')) {
     console.log('[Middleware] Admin route access check:', {
@@ -212,6 +259,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/sw.js',
+    '/global/admin/:path*',
     '/admin/:path*',
     '/dashboard/:path*',
     '/project/:path*',

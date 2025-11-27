@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Typography, Button, Card, CardContent } from '@mui/material';
+import { Box, Typography, Button, Paper, useTheme } from '@mui/material';
 import { ReactNode } from 'react';
 
 interface EmptyStateProps {
@@ -20,31 +20,49 @@ export default function EmptyState({
   onAction,
   variant = 'default',
 }: EmptyStateProps) {
+  const theme = useTheme();
+
   if (variant === 'minimal') {
     return (
       <Box sx={{ textAlign: 'center', py: 4 }}>
         {icon && (
-          <Box sx={{ mb: 2, color: '#B0B0B0' }}>
+          <Box sx={{ mb: 2, color: theme.palette.text.secondary, display: 'flex', justifyContent: 'center' }}>
             {icon}
           </Box>
         )}
-        <Typography variant="h6" sx={{ color: '#E0E0E0', mb: 1, fontWeight: 600 }}>
+        <Typography 
+          variant="h6" 
+          sx={{ 
+            color: theme.palette.text.primary, 
+            mb: 1, 
+            fontWeight: 600,
+            fontFamily: 'var(--font-rubik), Rubik, sans-serif',
+          }}
+        >
           {title}
         </Typography>
-        <Typography variant="body2" sx={{ color: '#B0B0B0', mb: 2 }}>
+        <Typography 
+          variant="body2" 
+          sx={{ 
+            color: theme.palette.text.secondary, 
+            mb: 2,
+            maxWidth: 500,
+            mx: 'auto',
+          }}
+        >
           {description}
         </Typography>
         {actionLabel && onAction && (
           <Button
-            variant="contained"
+            variant="outlined"
             onClick={onAction}
             sx={{
-              backgroundColor: '#00E5FF',
-              color: '#000',
+              borderColor: theme.palette.text.primary,
+              color: theme.palette.text.primary,
               fontWeight: 600,
               '&:hover': {
-                backgroundColor: '#00B2CC',
-                boxShadow: '0 6px 25px rgba(0, 229, 255, 0.5)',
+                borderColor: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
               },
             }}
           >
@@ -56,72 +74,76 @@ export default function EmptyState({
   }
 
   return (
-    <Card
+    <Paper
       sx={{
-        backgroundColor: '#000',
-        border: '2px solid rgba(0, 229, 255, 0.2)',
-        borderRadius: 3,
+        backgroundColor: theme.palette.background.paper,
+        border: `1px solid ${theme.palette.divider}`,
+        borderRadius: 2,
         textAlign: 'center',
+        p: 6,
+        maxWidth: 600,
+        mx: 'auto',
       }}
     >
-      <CardContent sx={{ py: 6, px: 4 }}>
-        {icon && (
-          <Box
-            sx={{
-              mb: 3,
-              color: '#00E5FF',
-              display: 'flex',
-              justifyContent: 'center',
-            }}
-          >
-            {icon}
-          </Box>
-        )}
-        <Typography
-          variant="h5"
-          component="h2"
-          gutterBottom
+      {icon && (
+        <Box
           sx={{
-            fontWeight: 700,
-            background: '#00E5FF',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            mb: 2,
-          }}
-        >
-          {title}
-        </Typography>
-        <Typography
-          variant="body1"
-          sx={{
-            color: '#B0B0B0',
             mb: 3,
-            maxWidth: 400,
-            mx: 'auto',
+            color: theme.palette.text.secondary,
+            display: 'flex',
+            justifyContent: 'center',
+            opacity: 0.7,
           }}
         >
-          {description}
-        </Typography>
-        {actionLabel && onAction && (
-          <Button
-            variant="contained"
-            onClick={onAction}
-            sx={{
-              backgroundColor: '#00E5FF',
-              color: '#000',
-              fontWeight: 600,
-              '&:hover': {
-                backgroundColor: '#00B2CC',
-                boxShadow: '0 6px 25px rgba(0, 229, 255, 0.5)',
-                transform: 'translateY(-2px)',
-              },
-            }}
-          >
-            {actionLabel}
-          </Button>
-        )}
-      </CardContent>
-    </Card>
+          {icon}
+        </Box>
+      )}
+      <Typography
+        variant="h5"
+        component="h2"
+        gutterBottom
+        sx={{
+          fontWeight: 600,
+          color: theme.palette.text.primary,
+          mb: 2,
+          fontFamily: 'var(--font-rubik), Rubik, sans-serif',
+        }}
+      >
+        {title}
+      </Typography>
+      <Typography
+        variant="body1"
+        sx={{
+          color: theme.palette.text.secondary,
+          mb: 4,
+          maxWidth: 500,
+          mx: 'auto',
+          lineHeight: 1.6,
+        }}
+      >
+        {description}
+      </Typography>
+      {actionLabel && onAction && (
+        <Button
+          variant="outlined"
+          onClick={onAction}
+          sx={{
+            borderColor: theme.palette.text.primary,
+            color: theme.palette.text.primary,
+            fontWeight: 600,
+            px: 4,
+            py: 1.5,
+            fontSize: '1rem',
+            '&:hover': {
+              borderColor: theme.palette.text.primary,
+              backgroundColor: theme.palette.action.hover,
+            },
+          }}
+        >
+          {actionLabel}
+        </Button>
+      )}
+    </Paper>
   );
 }
 

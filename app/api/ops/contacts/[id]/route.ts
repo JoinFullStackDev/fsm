@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
-import { unauthorized, notFound, internalError, badRequest } from '@/lib/utils/apiErrors';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
+import { getUserOrganizationId } from '@/lib/organizationContext';
+import { hasOpsTool } from '@/lib/packageLimits';
+import { unauthorized, notFound, internalError, badRequest, forbidden } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 import { createActivityFeedItem } from '@/lib/ops/activityFeed';
 import type { CompanyContact } from '@/types/ops';
@@ -17,6 +20,44 @@ export async function GET(
 
     if (!session) {
       return unauthorized('You must be logged in to view contacts');
+    }
+
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
+    }
+
+    // Check if organization has ops tool access
+    const hasAccess = await hasOpsTool(supabase, organizationId);
+    if (!hasAccess) {
+      return forbidden('Ops Tool is not available for your subscription plan');
+    }
+
+    // Get user record to check if super admin
+    let userData;
+    const { data: regularUserData, error: regularUserError } = await supabase
+      .from('users')
+      .select('id, role, organization_id, is_super_admin')
+      .eq('auth_id', session.user.id)
+      .single();
+
+    if (regularUserError || !regularUserData) {
+      // RLS might be blocking - try admin client
+      const adminClient = createAdminSupabaseClient();
+      const { data: adminUserData, error: adminUserError } = await adminClient
+        .from('users')
+        .select('id, role, organization_id, is_super_admin')
+        .eq('auth_id', session.user.id)
+        .single();
+
+      if (adminUserError || !adminUserData) {
+        return notFound('User not found');
+      }
+
+      userData = adminUserData;
+    } else {
+      userData = regularUserData;
     }
 
     const { id } = params;
@@ -41,6 +82,13 @@ export async function GET(
       return internalError('Failed to load contact', { error: contactError?.message });
     }
 
+    // Validate organization access (super admins can see all contacts)
+    if (userData.role !== 'admin' || userData.is_super_admin !== true) {
+      if (contact.organization_id !== organizationId) {
+        return forbidden('You do not have access to this contact');
+      }
+    }
+
     return NextResponse.json(contact);
   } catch (error) {
     logger.error('Error in GET /api/ops/contacts/[id]:', error);
@@ -58,6 +106,44 @@ export async function PUT(
 
     if (!session) {
       return unauthorized('You must be logged in to update contacts');
+    }
+
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
+    }
+
+    // Check if organization has ops tool access
+    const hasAccess = await hasOpsTool(supabase, organizationId);
+    if (!hasAccess) {
+      return forbidden('Ops Tool is not available for your subscription plan');
+    }
+
+    // Get user record to check if super admin
+    let userData;
+    const { data: regularUserData, error: regularUserError } = await supabase
+      .from('users')
+      .select('id, role, organization_id, is_super_admin')
+      .eq('auth_id', session.user.id)
+      .single();
+
+    if (regularUserError || !regularUserData) {
+      // RLS might be blocking - try admin client
+      const adminClient = createAdminSupabaseClient();
+      const { data: adminUserData, error: adminUserError } = await adminClient
+        .from('users')
+        .select('id, role, organization_id, is_super_admin')
+        .eq('auth_id', session.user.id)
+        .single();
+
+      if (adminUserError || !adminUserData) {
+        return notFound('User not found');
+      }
+
+      userData = adminUserData;
+    } else {
+      userData = regularUserData;
     }
 
     const { id } = params;
@@ -101,10 +187,10 @@ export async function PUT(
       return notFound('User');
     }
 
-    // Get existing contact to check company_id and track changes
+    // Get existing contact to check company_id, organization_id, and track changes
     const { data: existingContact, error: existingError } = await supabase
       .from('company_contacts')
-      .select('company_id, first_name, last_name, lead_status, pipeline_stage, assigned_to, next_follow_up_date, lead_source, priority_level, lifecycle_stage, email, phone, job_title')
+      .select('company_id, organization_id, first_name, last_name, lead_status, pipeline_stage, assigned_to, next_follow_up_date, lead_source, priority_level, lifecycle_stage, email, phone, job_title')
       .eq('id', id)
       .single();
 
@@ -114,6 +200,13 @@ export async function PUT(
       }
       logger.error('Error checking contact:', existingError);
       return internalError('Failed to check contact', { error: existingError?.message });
+    }
+
+    // Validate organization access (super admins can update all contacts)
+    if (userData.role !== 'admin' || userData.is_super_admin !== true) {
+      if (existingContact.organization_id !== organizationId) {
+        return forbidden('You do not have access to update this contact');
+      }
     }
 
     // Build update object with all fields
@@ -353,12 +446,50 @@ export async function DELETE(
       return unauthorized('You must be logged in to delete contacts');
     }
 
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
+    }
+
+    // Check if organization has ops tool access
+    const hasAccess = await hasOpsTool(supabase, organizationId);
+    if (!hasAccess) {
+      return forbidden('Ops Tool is not available for your subscription plan');
+    }
+
+    // Get user record to check if super admin
+    let userData;
+    const { data: regularUserData, error: regularUserError } = await supabase
+      .from('users')
+      .select('id, role, organization_id, is_super_admin')
+      .eq('auth_id', session.user.id)
+      .single();
+
+    if (regularUserError || !regularUserData) {
+      // RLS might be blocking - try admin client
+      const adminClient = createAdminSupabaseClient();
+      const { data: adminUserData, error: adminUserError } = await adminClient
+        .from('users')
+        .select('id, role, organization_id, is_super_admin')
+        .eq('auth_id', session.user.id)
+        .single();
+
+      if (adminUserError || !adminUserData) {
+        return notFound('User not found');
+      }
+
+      userData = adminUserData;
+    } else {
+      userData = regularUserData;
+    }
+
     const { id } = params;
 
-    // Check if contact exists and get company_id
+    // Check if contact exists and validate organization access
     const { data: contact, error: checkError } = await supabase
       .from('company_contacts')
-      .select('id, company_id, first_name, last_name')
+      .select('id, company_id, organization_id, first_name, last_name')
       .eq('id', id)
       .single();
 
@@ -368,6 +499,13 @@ export async function DELETE(
       }
       logger.error('Error checking contact:', checkError);
       return internalError('Failed to check contact', { error: checkError?.message });
+    }
+
+    // Validate organization access (super admins can delete all contacts)
+    if (userData.role !== 'admin' || userData.is_super_admin !== true) {
+      if (contact.organization_id !== organizationId) {
+        return forbidden('You do not have access to delete this contact');
+      }
     }
 
     // Delete contact (cascade will handle leads)

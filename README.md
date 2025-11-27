@@ -113,7 +113,14 @@ Required environment variables (see team documentation for actual values):
 NEXT_PUBLIC_SUPABASE_URL=<internal_supabase_url>
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<internal_supabase_key>
 GOOGLE_GENAI_API_KEY=<internal_genai_key>  # Optional, for AI features
+API_KEY_ENCRYPTION_KEY=<64-character-hex-string>  # Required for API Key Management
 ```
+
+**Generating API Key Encryption Key:**
+```bash
+node scripts/generate-api-key-encryption-key.js
+```
+This generates a secure 64-character hex string for encrypting API keys. Keep this key secure and never commit it to version control.
 
 ### Deployment
 
