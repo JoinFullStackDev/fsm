@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { createApiKeyRecord } from '@/lib/apiKeys';
+import { getUserOrganizationId } from '@/lib/organizationContext';
 import { unauthorized, forbidden, badRequest, internalError } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 import type { CreateApiKeyRequest } from '@/types/apiKeys';
@@ -46,10 +47,14 @@ export async function GET(request: NextRequest) {
       userData = regularUserData;
     }
 
-    // Check super admin access
-    if (userData.role !== 'admin' || !userData.is_super_admin) {
-      return forbidden('Super admin access required');
+    // Check admin access
+    if (userData.role !== 'admin') {
+      return forbidden('Admin access required');
     }
+
+    // Get user's organization for org admins
+    const userOrgId = await getUserOrganizationId(supabase, session.user.id);
+    const isSuperAdmin = userData.is_super_admin === true;
 
     // Get query parameters
     const { searchParams } = new URL(request.url);
@@ -67,15 +72,20 @@ export async function GET(request: NextRequest) {
       .select('id, key_id, name, scope, organization_id, permissions, status, expires_at, last_used_at, description, created_by, created_at, updated_at', { count: 'exact' })
       .order('created_at', { ascending: false });
 
+    // For org admins, filter by their organization
+    if (!isSuperAdmin && userOrgId) {
+      query = query.eq('organization_id', userOrgId);
+    } else if (organizationId) {
+      // Super admins can filter by any organization
+      query = query.eq('organization_id', organizationId);
+    }
+
     // Apply filters
     if (status) {
       query = query.eq('status', status);
     }
     if (scope) {
       query = query.eq('scope', scope);
-    }
-    if (organizationId) {
-      query = query.eq('organization_id', organizationId);
     }
     if (search) {
       query = query.ilike('name', `%${search}%`);
@@ -147,14 +157,17 @@ export async function POST(request: NextRequest) {
       userData = regularUserData;
     }
 
-    // Check super admin access
-    if (userData.role !== 'admin' || !userData.is_super_admin) {
-      return forbidden('Super admin access required');
+    // Check admin access
+    if (userData.role !== 'admin') {
+      return forbidden('Admin access required');
     }
+
+    const isSuperAdmin = userData.is_super_admin === true;
+    const userOrgId = await getUserOrganizationId(supabase, session.user.id);
 
     // Parse request body
     const body = await request.json();
-    const { name, scope, organization_id, permissions, expires_at, description, key_prefix } = body;
+    let { name, scope, organization_id, permissions, expires_at, description, key_prefix } = body;
 
     // Validate required fields
     if (!name || !scope || !permissions) {
@@ -171,14 +184,27 @@ export async function POST(request: NextRequest) {
       return badRequest('permissions must be "read" or "write"');
     }
 
-    // Validate org-scoped keys require organization_id
-    if (scope === 'org' && !organization_id) {
-      return badRequest('organization_id is required for org-scoped keys');
-    }
+    // Org admins can only create org-scoped keys for their organization
+    if (!isSuperAdmin) {
+      if (scope === 'global') {
+        return forbidden('Organization admins can only create org-scoped keys');
+      }
+      if (!userOrgId) {
+        return badRequest('User is not assigned to an organization');
+      }
+      // Force organization_id to user's organization
+      organization_id = userOrgId;
+    } else {
+      // Super admins can create global or org-scoped keys
+      // Validate org-scoped keys require organization_id
+      if (scope === 'org' && !organization_id) {
+        return badRequest('organization_id is required for org-scoped keys');
+      }
 
-    // Validate global keys don't have organization_id
-    if (scope === 'global' && organization_id) {
-      return badRequest('organization_id cannot be set for global-scoped keys');
+      // Validate global keys don't have organization_id
+      if (scope === 'global' && organization_id) {
+        return badRequest('organization_id cannot be set for global-scoped keys');
+      }
     }
 
     // Create API key

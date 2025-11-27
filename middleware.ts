@@ -124,7 +124,8 @@ export async function middleware(request: NextRequest) {
   }
 
   // Protect admin routes
-  if (request.nextUrl.pathname.startsWith('/admin')) {
+  // Exclude /admin/templates routes - they handle their own access control based on package settings
+  if (request.nextUrl.pathname.startsWith('/admin') && !request.nextUrl.pathname.startsWith('/admin/templates')) {
     console.log('[Middleware] Admin route access check:', {
       path: request.nextUrl.pathname,
       hasUser: !!user,
@@ -194,15 +195,31 @@ export async function middleware(request: NextRequest) {
       return response;
     }
 
-    // Only allow admins with super_admin flag to access admin routes
-    // Individual pages and API routes handle their own access control
-    if (userData.role !== 'admin' || !userData.is_super_admin) {
-      console.log('[Middleware] User is not super admin (role:', userData.role, ', is_super_admin:', userData.is_super_admin, '), redirecting to dashboard');
+    // Allow admins (both organization admins and super admins) to access admin routes
+    // Individual pages handle their own access control (super admin vs organization admin)
+    if (userData.role !== 'admin') {
+      console.log('[Middleware] User is not an admin (role:', userData.role, '), redirecting to dashboard');
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
 
-    console.log('[Middleware] Super admin access granted, role:', userData.role);
+    console.log('[Middleware] Admin access granted, role:', userData.role, 'is_super_admin:', userData.is_super_admin);
     return response; // Explicitly allow access
+  }
+
+  // For /admin/templates routes, just check authentication and let the page handle access control
+  if (request.nextUrl.pathname.startsWith('/admin/templates')) {
+    const currentUserId = user?.id || session?.user?.id;
+    
+    if (!currentUserId) {
+      // If we have auth cookies, let it through for client-side check
+      if (authCookies.length > 0) {
+        return response;
+      }
+      return NextResponse.redirect(new URL('/auth/signin', request.url));
+    }
+
+    // Allow authenticated users through - the templates page will check package limits
+    return response;
   }
 
   // Protect dashboard and project routes

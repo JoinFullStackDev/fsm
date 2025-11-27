@@ -101,7 +101,8 @@ export interface ProjectTemplate {
   name: string;
   description: string | null;
   created_by: string | null;
-  is_public: boolean;
+  is_public: boolean; // Visible to all organization members
+  is_publicly_available: boolean; // Available to public (outside organization)
   category: string | null;
   created_at: string;
   updated_at: string;

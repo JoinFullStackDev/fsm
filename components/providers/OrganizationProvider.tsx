@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import logger from '@/lib/utils/logger';
 import type {
@@ -71,6 +71,15 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
 
       const context: OrgContext = await response.json();
 
+      // Ensure module_overrides is properly parsed if it's a string
+      if (context.organization?.module_overrides && typeof context.organization.module_overrides === 'string') {
+        try {
+          context.organization.module_overrides = JSON.parse(context.organization.module_overrides);
+        } catch {
+          context.organization.module_overrides = null;
+        }
+      }
+
       setOrganization(context.organization);
       setSubscription(context.subscription);
       setPackage(context.package);
@@ -102,7 +111,43 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     await loadOrganizationContext();
   }, [loadOrganizationContext]);
 
-  const features = packageData?.features || null;
+  // Merge package features with organization module_overrides
+  // Organization overrides take precedence over package features
+  const features = useMemo(() => {
+    if (!packageData?.features) {
+      return null;
+    }
+
+    const baseFeatures = { ...packageData.features };
+    
+    // Apply organization module_overrides if they exist
+    if (organization?.module_overrides) {
+      let overrides: Record<string, boolean>;
+      
+      // Handle JSONB from database (could be object or string)
+      if (typeof organization.module_overrides === 'string') {
+        try {
+          overrides = JSON.parse(organization.module_overrides);
+        } catch {
+          overrides = {};
+        }
+      } else if (typeof organization.module_overrides === 'object') {
+        overrides = organization.module_overrides as Record<string, boolean>;
+      } else {
+        overrides = {};
+      }
+      
+      // Only apply overrides for module keys (feature flags that are booleans)
+      Object.keys(overrides).forEach((key) => {
+        // Only override if it's a boolean feature in PackageFeatures
+        if (key in baseFeatures && typeof (baseFeatures as any)[key] === 'boolean') {
+          (baseFeatures as any)[key] = overrides[key] === true;
+        }
+      });
+    }
+
+    return baseFeatures;
+  }, [packageData?.features, organization?.module_overrides]);
 
   return (
     <OrganizationContext.Provider

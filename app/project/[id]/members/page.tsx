@@ -127,11 +127,32 @@ export default function ProjectMembersPage() {
 
     setMembers((membersData || []) as any);
 
-    // Load all users for adding
-    const { data: usersData } = await supabase
+    // Get current user's organization_id to filter users
+    const { data: currentUser } = await supabase
+      .from('users')
+      .select('organization_id, role, is_super_admin')
+      .eq('auth_id', session.user.id)
+      .single();
+
+    // Load users from the same organization (or all users if super admin)
+    let usersQuery = supabase
       .from('users')
       .select('id, name, email, role')
       .order('name');
+
+    // Filter by organization unless user is super admin
+    if (currentUser && !(currentUser.role === 'admin' && currentUser.is_super_admin === true)) {
+      if (currentUser.organization_id) {
+        usersQuery = usersQuery.eq('organization_id', currentUser.organization_id);
+      } else {
+        // User has no organization, show no users
+        setAvailableUsers([]);
+        setLoading(false);
+        return;
+      }
+    }
+
+    const { data: usersData } = await usersQuery;
 
     if (usersData) {
       // Filter out users who are already members

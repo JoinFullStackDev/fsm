@@ -34,6 +34,7 @@ import {
   TrendingUp as TrendingUpIcon,
 } from '@mui/icons-material';
 import { useRole } from '@/lib/hooks/useRole';
+import { useOrganization } from '@/components/providers/OrganizationProvider';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import type { Project } from '@/types/project';
 
@@ -55,6 +56,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const theme = useTheme();
   const { role } = useRole();
+  const { organization, features } = useOrganization();
   const supabase = createSupabaseClient();
   
   const [projects, setProjects] = useState<Project[]>([]);
@@ -145,7 +147,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
     loadProjects();
   }, [supabase]);
 
-  // Load all templates (admin and PM only)
+  // Load all templates (admin and PM only) - use API route to handle organization filtering
   useEffect(() => {
     const loadTemplates = async () => {
       if (role !== 'admin' && role !== 'pm') {
@@ -154,13 +156,11 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
       }
 
       try {
-        const { data, error } = await supabase
-          .from('project_templates')
-          .select('id, name')
-          .order('name', { ascending: true });
-
-        if (!error && data) {
-          setTemplates(data);
+        const response = await fetch('/api/admin/templates?limit=100');
+        if (response.ok) {
+          const data = await response.json();
+          const templatesList = (data.data || []).map((t: any) => ({ id: t.id, name: t.name }));
+          setTemplates(templatesList);
         }
       } catch (error) {
         console.error('Error loading templates:', error);
@@ -168,7 +168,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
     };
 
     loadTemplates();
-  }, [role, supabase]);
+  }, [role]);
 
   // Load projects for project management (same as regular projects)
   useEffect(() => {
@@ -361,7 +361,23 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
           }}
         >
           {open ? (
-            logoError ? (
+            organization?.logo_url ? (
+              <Box
+                component="img"
+                src={organization.logo_url}
+                alt="Company Logo"
+                sx={{
+                  height: 40,
+                  width: 'auto',
+                  maxWidth: 140,
+                  objectFit: 'contain',
+                  display: 'block',
+                }}
+                onError={() => {
+                  setLogoError(true);
+                }}
+              />
+            ) : logoError ? (
               <Typography
                 variant="h6"
                 sx={{
@@ -389,7 +405,30 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
               />
             )
           ) : (
-            iconError ? (
+            organization?.icon_url ? (
+              <Box
+                component="img"
+                src={organization.icon_url}
+                alt="Company Icon"
+                sx={{
+                  height: 32,
+                  width: 32,
+                  objectFit: 'contain',
+                  display: 'block',
+                  transformOrigin: 'center center',
+                  animation: isSpinning && spinDirection === 'reverse' 
+                    ? 'spinFree 2s cubic-bezier(0.4, 0, 0.2, 1)' 
+                    : 'none',
+                  '@keyframes spinFree': {
+                    '0%': { transform: 'rotate(0deg)' },
+                    '100%': { transform: 'rotate(-1080deg)' }, // 3 full rotations
+                  },
+                }}
+                onError={() => {
+                  setIconError(true);
+                }}
+              />
+            ) : iconError ? (
               <Typography
                 variant="h6"
                 sx={{
@@ -669,120 +708,124 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
           </ListItem>
         )}
 
-        {/* Ops Tool Section */}
-        <Divider sx={{ my: 1, borderColor: theme.palette.divider }} />
-        {open && (
-          <Box sx={{ px: 2, py: 1 }}>
-            <Typography
-              variant="caption"
-              sx={{
-                color: theme.palette.text.secondary,
-                textTransform: 'uppercase',
-                letterSpacing: 1,
-                fontSize: '0.7rem',
-                fontWeight: 600,
-              }}
-            >
-              Ops Tool
-            </Typography>
-          </Box>
+        {/* Ops Tool Section - Only show if ops_tool_enabled is true */}
+        {features?.ops_tool_enabled === true && (
+          <>
+            <Divider sx={{ my: 1, borderColor: theme.palette.divider }} />
+            {open && (
+              <Box sx={{ px: 2, py: 1 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: theme.palette.text.secondary,
+                    textTransform: 'uppercase',
+                    letterSpacing: 1,
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  Ops Tool
+                </Typography>
+              </Box>
+            )}
+
+            {/* Companies */}
+            <ListItem disablePadding>
+              <ListItemButton
+                onClick={() => handleNavigate('/ops/companies')}
+                selected={isActive('/ops/companies')}
+                sx={{
+                  minHeight: 48,
+                  '&.Mui-selected': {
+                    backgroundColor: theme.palette.action.hover,
+                    borderLeft: `1px solid ${theme.palette.text.primary}`,
+                    '&:hover': {
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                  },
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    minWidth: 40,
+                    justifyContent: 'center',
+                    color: isActive('/ops/companies') ? theme.palette.text.primary : theme.palette.text.secondary,
+                  }}
+                >
+                  <BusinessIcon />
+                </ListItemIcon>
+                {open && <ListItemText primary="Companies" />}
+              </ListItemButton>
+            </ListItem>
+
+            {/* Opportunities */}
+            <ListItem disablePadding>
+              <ListItemButton
+                onClick={() => handleNavigate('/ops/opportunities')}
+                selected={isActive('/ops/opportunities')}
+                sx={{
+                  minHeight: 48,
+                  '&.Mui-selected': {
+                    backgroundColor: theme.palette.action.hover,
+                    borderLeft: `1px solid ${theme.palette.text.primary}`,
+                    '&:hover': {
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                  },
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    minWidth: 40,
+                    justifyContent: 'center',
+                    color: isActive('/ops/opportunities') ? theme.palette.text.primary : theme.palette.text.secondary,
+                  }}
+                >
+                  <TrendingUpIcon />
+                </ListItemIcon>
+                {open && <ListItemText primary="Opportunities" />}
+              </ListItemButton>
+            </ListItem>
+
+            {/* Contacts */}
+            <ListItem disablePadding>
+              <ListItemButton
+                onClick={() => handleNavigate('/ops/contacts')}
+                selected={isActive('/ops/contacts')}
+                sx={{
+                  minHeight: 48,
+                  '&.Mui-selected': {
+                    backgroundColor: theme.palette.action.hover,
+                    borderLeft: `1px solid ${theme.palette.text.primary}`,
+                    '&:hover': {
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                  },
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    minWidth: 40,
+                    justifyContent: 'center',
+                    color: isActive('/ops/contacts') ? theme.palette.text.primary : theme.palette.text.secondary,
+                  }}
+                >
+                  <ContactsIcon />
+                </ListItemIcon>
+                {open && <ListItemText primary="Contacts" />}
+              </ListItemButton>
+            </ListItem>
+          </>
         )}
-
-        {/* Companies */}
-        <ListItem disablePadding>
-          <ListItemButton
-            onClick={() => handleNavigate('/ops/companies')}
-            selected={isActive('/ops/companies')}
-            sx={{
-              minHeight: 48,
-              '&.Mui-selected': {
-                backgroundColor: theme.palette.action.hover,
-                borderLeft: `1px solid ${theme.palette.text.primary}`,
-                '&:hover': {
-                  backgroundColor: theme.palette.action.hover,
-                },
-              },
-              '&:hover': {
-                backgroundColor: theme.palette.action.hover,
-              },
-            }}
-          >
-            <ListItemIcon
-              sx={{
-                minWidth: 40,
-                justifyContent: 'center',
-                color: isActive('/ops/companies') ? theme.palette.text.primary : theme.palette.text.secondary,
-              }}
-            >
-              <BusinessIcon />
-            </ListItemIcon>
-            {open && <ListItemText primary="Companies" />}
-          </ListItemButton>
-        </ListItem>
-
-        {/* Opportunities */}
-        <ListItem disablePadding>
-          <ListItemButton
-            onClick={() => handleNavigate('/ops/opportunities')}
-            selected={isActive('/ops/opportunities')}
-            sx={{
-              minHeight: 48,
-              '&.Mui-selected': {
-                backgroundColor: theme.palette.action.hover,
-                borderLeft: `1px solid ${theme.palette.text.primary}`,
-                '&:hover': {
-                  backgroundColor: theme.palette.action.hover,
-                },
-              },
-              '&:hover': {
-                backgroundColor: theme.palette.action.hover,
-              },
-            }}
-          >
-            <ListItemIcon
-              sx={{
-                minWidth: 40,
-                justifyContent: 'center',
-                color: isActive('/ops/opportunities') ? theme.palette.text.primary : theme.palette.text.secondary,
-              }}
-            >
-              <TrendingUpIcon />
-            </ListItemIcon>
-            {open && <ListItemText primary="Opportunities" />}
-          </ListItemButton>
-        </ListItem>
-
-        {/* Contacts */}
-        <ListItem disablePadding>
-          <ListItemButton
-            onClick={() => handleNavigate('/ops/contacts')}
-            selected={isActive('/ops/contacts')}
-            sx={{
-              minHeight: 48,
-              '&.Mui-selected': {
-                backgroundColor: theme.palette.action.hover,
-                borderLeft: `1px solid ${theme.palette.text.primary}`,
-                '&:hover': {
-                  backgroundColor: theme.palette.action.hover,
-                },
-              },
-              '&:hover': {
-                backgroundColor: theme.palette.action.hover,
-              },
-            }}
-          >
-            <ListItemIcon
-              sx={{
-                minWidth: 40,
-                justifyContent: 'center',
-                color: isActive('/ops/contacts') ? theme.palette.text.primary : theme.palette.text.secondary,
-              }}
-            >
-              <ContactsIcon />
-            </ListItemIcon>
-            {open && <ListItemText primary="Contacts" />}
-          </ListItemButton>
-        </ListItem>
       </List>
 
       {/* Projects Popover - Shows on hover regardless of sidebar state */}

@@ -41,6 +41,7 @@ import {
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useRole } from '@/lib/hooks/useRole';
 import { useNotification } from '@/components/providers/NotificationProvider';
+import { useOrganization } from '@/components/providers/OrganizationProvider';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import logger from '@/lib/utils/logger';
@@ -52,6 +53,7 @@ export default function TemplatesPage() {
   const router = useRouter();
   const supabase = createSupabaseClient();
   const { role, loading: roleLoading } = useRole();
+  const { features, loading: orgLoading } = useOrganization();
   const { showSuccess, showError } = useNotification();
   const [templates, setTemplates] = useState<(ProjectTemplate & { usage_count?: number })[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -66,7 +68,8 @@ export default function TemplatesPage() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    is_public: false,
+    is_public: false, // Visible to all organization members
+    is_publicly_available: false, // Available to public
     category: '',
   });
   const [searchTerm, setSearchTerm] = useState('');
@@ -118,23 +121,26 @@ export default function TemplatesPage() {
   }, [supabase, showError, page, pageSize]);
 
   useEffect(() => {
-    logger.debug('[TemplatesPage] Role check:', { role, roleLoading });
+    logger.debug('[TemplatesPage] Access check:', { role, roleLoading, orgLoading, features });
     
-    if (roleLoading) {
-      logger.debug('[TemplatesPage] Still loading role, waiting...');
-      return; // Wait for role to load
+    if (roleLoading || orgLoading) {
+      logger.debug('[TemplatesPage] Still loading, waiting...');
+      return; // Wait for role and org to load
     }
 
-    // Allow admins and PMs to access templates
-    if (role !== 'admin' && role !== 'pm') {
-      logger.debug('[TemplatesPage] User is not admin or PM, redirecting. Role:', role);
+    // Check if organization has template access based on package limits
+    // If features exist and max_templates is defined (null = unlimited, number = limited), they have access
+    const hasTemplateAccess = features !== null && features !== undefined && features.max_templates !== undefined;
+    
+    if (!hasTemplateAccess) {
+      logger.debug('[TemplatesPage] Organization does not have template access, redirecting.');
       router.push('/dashboard');
       return;
     }
 
-    logger.debug('[TemplatesPage] User is admin or PM, loading templates. Role:', role);
+    logger.debug('[TemplatesPage] Organization has template access, loading templates.');
     loadTemplates();
-  }, [role, roleLoading, router, loadTemplates, page, pageSize]);
+  }, [role, roleLoading, orgLoading, features, router, loadTemplates, page, pageSize]);
 
   const handleOpenDialog = (template?: ProjectTemplate) => {
     if (template) {
@@ -143,6 +149,7 @@ export default function TemplatesPage() {
         name: template.name,
         description: template.description || '',
         is_public: template.is_public,
+        is_publicly_available: template.is_publicly_available || false,
         category: template.category || '',
       });
     } else {
@@ -151,6 +158,7 @@ export default function TemplatesPage() {
         name: '',
         description: '',
         is_public: false,
+        is_publicly_available: false,
         category: '',
       });
     }
@@ -164,6 +172,7 @@ export default function TemplatesPage() {
       name: '',
       description: '',
       is_public: false,
+      is_publicly_available: false,
       category: '',
     });
   };
@@ -177,12 +186,6 @@ export default function TemplatesPage() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
-    const { data: userData } = await supabase
-      .from('users')
-      .select('id')
-      .eq('auth_id', session.user.id)
-      .single();
-
     if (editingTemplate) {
       // Update existing template
       const { error: updateError } = await supabase
@@ -191,6 +194,7 @@ export default function TemplatesPage() {
           name: formData.name,
           description: formData.description || null,
           is_public: formData.is_public,
+          is_publicly_available: formData.is_publicly_available,
           category: formData.category || null,
           updated_at: new Date().toISOString(),
         })
@@ -204,25 +208,33 @@ export default function TemplatesPage() {
         loadTemplates();
       }
     } else {
-      // Create new template
-      const { data: newTemplate, error: createError } = await supabase
-        .from('project_templates')
-        .insert({
-          name: formData.name,
-          description: formData.description || null,
-          created_by: userData?.id || null,
-          is_public: formData.is_public,
-          category: formData.category || null,
-        })
-        .select()
-        .single();
+      // Create new template via API route (handles organization_id and package limits)
+      try {
+        const response = await fetch('/api/admin/templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: formData.name,
+            description: formData.description || null,
+            is_public: formData.is_public,
+            is_publicly_available: formData.is_publicly_available,
+            category: formData.category || null,
+          }),
+        });
 
-      if (createError) {
-        showError('Failed to create template: ' + createError.message);
-      } else if (newTemplate) {
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to create template');
+        }
+
+        const newTemplate = await response.json();
         showSuccess('Template created! Now add phase data.');
         handleCloseDialog();
         router.push(`/admin/templates/${newTemplate.id}/edit`);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to create template';
+        showError(errorMessage);
+        logger.error('[Templates Page] Error creating template:', err);
       }
     }
   };
@@ -310,8 +322,12 @@ export default function TemplatesPage() {
     }
   };
 
-  // Allow admins and PMs to access templates page
-  if (role !== 'admin' && role !== 'pm') {
+  // Check if organization has template access
+  const hasTemplateAccess = features !== null && features !== undefined && features.max_templates !== undefined;
+  // AI features: true means enabled, null also means enabled (unlimited)
+  const hasAIFeatures = features?.ai_features_enabled === true || features?.ai_features_enabled === null;
+  
+  if (!hasTemplateAccess) {
     return null;
   }
 
@@ -353,22 +369,24 @@ export default function TemplatesPage() {
           )}
         </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button
-            variant="outlined"
-            startIcon={<AutoAwesomeIcon />}
-            onClick={() => router.push('/admin/templates/generate')}
-            sx={{
-              borderColor: theme.palette.text.primary,
-              color: theme.palette.text.primary,
-              fontWeight: 600,
-              '&:hover': {
+          {hasAIFeatures && (
+            <Button
+              variant="outlined"
+              startIcon={<AutoAwesomeIcon />}
+              onClick={() => router.push('/admin/templates/generate')}
+              sx={{
                 borderColor: theme.palette.text.primary,
-                backgroundColor: theme.palette.action.hover,
-              },
-            }}
-          >
-            Generate with AI
-          </Button>
+                color: theme.palette.text.primary,
+                fontWeight: 600,
+                '&:hover': {
+                  borderColor: theme.palette.text.primary,
+                  backgroundColor: theme.palette.action.hover,
+                },
+              }}
+            >
+              Generate with AI
+            </Button>
+          )}
           <Button
             variant="outlined"
             startIcon={<AddIcon />}
@@ -532,15 +550,32 @@ export default function TemplatesPage() {
                 },
                 {
                   key: 'is_public',
-                  label: 'Visibility',
+                  label: 'Organization Visibility',
                   sortable: true,
                   render: (value) => (
                     <Chip
-                      label={value ? 'Public' : 'Private'}
+                      label={value ? 'Organization' : 'Private'}
                       size="small"
                       sx={{
                         backgroundColor: theme.palette.action.hover,
                         color: theme.palette.text.primary,
+                        border: `1px solid ${theme.palette.divider}`,
+                        fontWeight: 500,
+                      }}
+                    />
+                  ),
+                },
+                {
+                  key: 'is_publicly_available',
+                  label: 'Publicly Available',
+                  sortable: true,
+                  render: (value) => (
+                    <Chip
+                      label={value ? 'Yes' : 'No'}
+                      size="small"
+                      sx={{
+                        backgroundColor: value ? theme.palette.success.main : theme.palette.action.hover,
+                        color: value ? theme.palette.background.default : theme.palette.text.primary,
                         border: `1px solid ${theme.palette.divider}`,
                         fontWeight: 500,
                       }}
@@ -802,7 +837,22 @@ export default function TemplatesPage() {
                     }}
                   />
                 }
-                label="Make template public (visible to all users)"
+                label="Visible to all organization members"
+                sx={{ color: theme.palette.text.secondary }}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.is_publicly_available}
+                    onChange={(e) => setFormData({ ...formData, is_publicly_available: e.target.checked })}
+                    sx={{
+                      '& .MuiSwitch-switchBase.Mui-checked': {
+                        color: theme.palette.text.primary,
+                      },
+                    }}
+                  />
+                }
+                label="Available to public (outside organization)"
                 sx={{ color: theme.palette.text.secondary }}
               />
             </DialogContent>

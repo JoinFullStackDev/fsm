@@ -137,9 +137,12 @@ export default function SortableTable<T extends Record<string, any>>({
   };
 
   const sortedData = useMemo(() => {
-    if (!sortField || !sortDirection) return data;
+    // Ensure data is always an array
+    const dataArray = Array.isArray(data) ? data : [];
+    
+    if (!sortField || !sortDirection) return dataArray;
 
-    return [...data].sort((a, b) => {
+    return [...dataArray].sort((a, b) => {
       const aValue = a[sortField as string];
       const bValue = b[sortField as string];
 

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter, Rubik } from 'next/font/google';
 import MUIThemeProvider from '@/components/ThemeProvider';
 import { NotificationProvider } from '@/components/providers/NotificationProvider';
+import { OrganizationProvider } from '@/components/providers/OrganizationProvider';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import LayoutWrapper from '@/components/layout/LayoutWrapper';
 import './globals.css';
@@ -29,11 +30,13 @@ export default function RootLayout({
       <body className={`${inter.className} ${rubik.variable}`}>
         <MUIThemeProvider>
           <NotificationProvider>
-            <ErrorBoundary>
-              <LayoutWrapper>
-                {children}
-              </LayoutWrapper>
-            </ErrorBoundary>
+            <OrganizationProvider>
+              <ErrorBoundary>
+                <LayoutWrapper>
+                  {children}
+                </LayoutWrapper>
+              </ErrorBoundary>
+            </OrganizationProvider>
           </NotificationProvider>
         </MUIThemeProvider>
       </body>

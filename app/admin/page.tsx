@@ -18,18 +18,19 @@ import {
   Settings as SettingsIcon,
   Api as ApiIcon,
   Analytics as AnalyticsIcon,
-  Business as BusinessIcon,
   VpnKey as VpnKeyIcon,
+  CreditCard as CreditCardIcon,
 } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useRole } from '@/lib/hooks/useRole';
+import { useOrganization } from '@/components/providers/OrganizationProvider';
 import AdminUsersTab from '@/components/admin/AdminUsersTab';
 import AdminThemeTab from '@/components/admin/AdminThemeTab';
 import AdminApiConfigTab from '@/components/admin/AdminApiConfigTab';
 import AdminSystemTab from '@/components/admin/AdminSystemTab';
 import AdminAnalyticsTab from '@/components/admin/AdminAnalyticsTab';
-import AdminOrganizationsTab from '@/components/admin/AdminOrganizationsTab';
 import AdminApiKeysTab from '@/components/admin/AdminApiKeysTab';
+import AdminSubscriptionTab from '@/components/admin/AdminSubscriptionTab';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -58,6 +59,7 @@ export default function AdminPage() {
   const router = useRouter();
   const supabase = createSupabaseClient();
   const { role, isSuperAdmin, loading: roleLoading } = useRole();
+  const { organization } = useOrganization();
   // Initialize activeTab: 0 for admin (Users), 1 for PM (Theme)
   const [activeTab, setActiveTab] = useState(0);
   const [stats, setStats] = useState({
@@ -70,28 +72,45 @@ export default function AdminPage() {
 
   const loadStats = useCallback(async () => {
     try {
-      // Get total users
-      const { count: userCount } = await supabase
+      // Get current user's organization
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data: currentUser } = await supabase
         .from('users')
-        .select('*', { count: 'exact', head: true });
+        .select('organization_id, is_super_admin')
+        .eq('auth_id', session.user.id)
+        .single();
+
+      const orgId = currentUser?.organization_id;
+
+      // Build queries - filter by organization unless super admin
+      let userQuery = supabase.from('users').select('*', { count: 'exact', head: true });
+      let templateQuery = supabase.from('project_templates').select('*', { count: 'exact', head: true });
+      let projectQuery = supabase.from('projects').select('*', { count: 'exact', head: true });
+      let activeUserQuery = supabase.from('users').select('*', { count: 'exact', head: true });
+
+      // Filter by organization unless super admin
+      if (orgId && !(currentUser?.is_super_admin === true)) {
+        userQuery = userQuery.eq('organization_id', orgId);
+        templateQuery = templateQuery.eq('organization_id', orgId);
+        projectQuery = projectQuery.eq('organization_id', orgId);
+        activeUserQuery = activeUserQuery.eq('organization_id', orgId);
+      }
+
+      // Get total users
+      const { count: userCount } = await userQuery;
 
       // Get total templates
-      const { count: templateCount } = await supabase
-        .from('project_templates')
-        .select('*', { count: 'exact', head: true });
+      const { count: templateCount } = await templateQuery;
 
       // Get total projects
-      const { count: projectCount } = await supabase
-        .from('projects')
-        .select('*', { count: 'exact', head: true });
+      const { count: projectCount } = await projectQuery;
 
       // Get active users (users who have logged in recently - last 30 days)
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const { count: activeUserCount } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true })
-        .gte('last_login_at', thirtyDaysAgo.toISOString());
+      const { count: activeUserCount } = await activeUserQuery.gte('last_login_at', thirtyDaysAgo.toISOString());
 
       setStats({
         totalUsers: userCount || 0,
@@ -113,16 +132,16 @@ export default function AdminPage() {
       return;
     }
 
-    // Only allow admins with super_admin flag to access admin page
-    if (role !== 'admin' || !isSuperAdmin) {
+    // Allow organization admins and super admins to access admin page
+    if (role !== 'admin') {
       router.push('/dashboard');
       return;
     }
 
-    if (role === 'admin' && isSuperAdmin) {
+    if (role === 'admin') {
       loadStats();
     }
-  }, [role, isSuperAdmin, roleLoading, router, loadStats]);
+  }, [role, roleLoading, router, loadStats]);
 
   if (roleLoading || loadingStats) {
     return (
@@ -133,7 +152,7 @@ export default function AdminPage() {
   }
 
 
-  if (role !== 'admin' || !isSuperAdmin) {
+  if (role !== 'admin') {
     return (
       <Box sx={{ mt: 4 }}>
         <Alert 
@@ -144,7 +163,7 @@ export default function AdminPage() {
             color: theme.palette.text.primary,
           }}
         >
-          Access denied. Super admin access required.
+          Access denied. Admin access required.
         </Alert>
       </Box>
     );
@@ -206,11 +225,15 @@ export default function AdminPage() {
               iconPosition="start" 
               label="Users"
             />
-            <Tab icon={<BusinessIcon />} iconPosition="start" label="Organizations" />
             <Tab icon={<VpnKeyIcon />} iconPosition="start" label="API Keys" />
             <Tab icon={<PaletteIcon />} iconPosition="start" label="Theme" />
-            <Tab icon={<ApiIcon />} iconPosition="start" label="API Config" />
-            <Tab icon={<SettingsIcon />} iconPosition="start" label="System" />
+            <Tab icon={<CreditCardIcon />} iconPosition="start" label="Subscription" />
+            {isSuperAdmin && (
+              <Tab icon={<ApiIcon />} iconPosition="start" label="API Config" />
+            )}
+            {isSuperAdmin && (
+              <Tab icon={<SettingsIcon />} iconPosition="start" label="System" />
+            )}
             <Tab icon={<AnalyticsIcon />} iconPosition="start" label="Analytics" />
           </Tabs>
         </Box>
@@ -220,21 +243,25 @@ export default function AdminPage() {
             <AdminUsersTab />
           </TabPanel>
           <TabPanel value={activeTab} index={1}>
-            <AdminOrganizationsTab />
-          </TabPanel>
-          <TabPanel value={activeTab} index={2}>
             <AdminApiKeysTab />
           </TabPanel>
-          <TabPanel value={activeTab} index={3}>
+          <TabPanel value={activeTab} index={2}>
             <AdminThemeTab />
           </TabPanel>
-          <TabPanel value={activeTab} index={4}>
-            <AdminApiConfigTab />
+          <TabPanel value={activeTab} index={3}>
+            <AdminSubscriptionTab />
           </TabPanel>
-          <TabPanel value={activeTab} index={5}>
-            <AdminSystemTab />
-          </TabPanel>
-          <TabPanel value={activeTab} index={6}>
+          {isSuperAdmin && (
+            <TabPanel value={activeTab} index={4}>
+              <AdminApiConfigTab />
+            </TabPanel>
+          )}
+          {isSuperAdmin && (
+            <TabPanel value={activeTab} index={5}>
+              <AdminSystemTab />
+            </TabPanel>
+          )}
+          <TabPanel value={activeTab} index={isSuperAdmin ? 6 : 4}>
             <AdminAnalyticsTab />
           </TabPanel>
         </Box>

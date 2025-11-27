@@ -26,6 +26,7 @@ import {
   TrendingUp as TrendingUpIcon,
 } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
+import { useOrganization } from '@/components/providers/OrganizationProvider';
 
 interface AnalyticsData {
   totalUsers: number;
@@ -41,6 +42,7 @@ interface AnalyticsData {
 export default function AdminAnalyticsTab() {
   const theme = useTheme();
   const supabase = createSupabaseClient();
+  const { organization } = useOrganization();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsData>({
@@ -55,54 +57,84 @@ export default function AdminAnalyticsTab() {
   });
 
   useEffect(() => {
-    loadAnalytics();
+    if (organization?.id) {
+      loadAnalytics();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [organization?.id]);
 
   const loadAnalytics = async () => {
+    if (!organization?.id) {
+      setError('Organization not found');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      // Get total users
+      const organizationId = organization.id;
+
+      // Get total users (filtered by organization)
       const { count: userCount } = await supabase
         .from('users')
-        .select('*', { count: 'exact', head: true });
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organizationId);
 
-      // Get total templates
+      // Get total templates (filtered by organization)
       const { count: templateCount } = await supabase
         .from('project_templates')
-        .select('*', { count: 'exact', head: true });
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organizationId);
 
-      // Get total projects
+      // Get total projects (filtered by organization)
       const { count: projectCount } = await supabase
         .from('projects')
-        .select('*', { count: 'exact', head: true });
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organizationId);
 
-      // Get active users (users who have logged in recently - last 30 days)
+      // Get active users (users who have logged in recently - last 30 days, filtered by organization)
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const { count: activeUserCount } = await supabase
         .from('users')
         .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organizationId)
         .gte('last_login_at', thirtyDaysAgo.toISOString());
 
-      // Get user stats for this month
+      // Get user stats for this month (filtered by organization)
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const { data: usersData } = await supabase
         .from('users')
-        .select('created_at');
+        .select('created_at')
+        .eq('organization_id', organizationId);
       
       const newUsersThisMonth = usersData?.filter(u => 
         new Date(u.created_at) >= startOfMonth
       ).length || 0;
 
-      // Get export stats
-      const { data: exportsData } = await supabase
-        .from('exports')
-        .select('export_type');
+      // Get export stats (filtered by organization via projects)
+      // Exports table doesn't have organization_id, but projects do
+      // First get all projects for this organization, then get their exports
+      const { data: orgProjects } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('organization_id', organizationId);
+      
+      const projectIds = orgProjects?.map(p => p.id) || [];
+      
+      let filteredExports: any[] = [];
+      if (projectIds.length > 0) {
+        const { data: exportsData } = await supabase
+          .from('exports')
+          .select('export_type')
+          .in('project_id', projectIds);
+        
+        filteredExports = exportsData || [];
+      }
 
-      const exportsByType = (exportsData || []).reduce((acc: any[], exp: any) => {
+      const exportsByType = filteredExports.reduce((acc: any[], exp: any) => {
         const type = exp.export_type || 'unknown';
         const existing = acc.find(e => e.type === type);
         if (existing) {
@@ -113,11 +145,26 @@ export default function AdminAnalyticsTab() {
         return acc;
       }, []);
 
-      // Get AI usage from activity logs
-      const { data: aiActivityData } = await supabase
-        .from('activity_logs')
+      // Get AI usage from activity logs (filtered by organization via users)
+      // Activity_logs table doesn't have organization_id, but users do
+      // First get all users for this organization, then get their activity logs
+      const { data: orgUsers } = await supabase
+        .from('users')
         .select('id')
-        .eq('action_type', 'ai_used');
+        .eq('organization_id', organizationId);
+      
+      const userIds = orgUsers?.map(u => u.id) || [];
+      
+      let filteredAiActivity: any[] = [];
+      if (userIds.length > 0) {
+        const { data: aiActivityData } = await supabase
+          .from('activity_logs')
+          .select('id')
+          .eq('action_type', 'ai_used')
+          .in('user_id', userIds);
+        
+        filteredAiActivity = aiActivityData || [];
+      }
 
       const activeUserPercentage = (userCount || 0) > 0 
         ? Math.round(((activeUserCount || 0) / (userCount || 1)) * 100) 
@@ -129,8 +176,8 @@ export default function AdminAnalyticsTab() {
         totalTemplates: templateCount || 0,
         totalProjects: projectCount || 0,
         newUsersThisMonth,
-        totalExports: exportsData?.length || 0,
-        aiRequests: aiActivityData?.length || 0,
+        totalExports: filteredExports.length,
+        aiRequests: filteredAiActivity.length,
         exportsByType,
       });
 

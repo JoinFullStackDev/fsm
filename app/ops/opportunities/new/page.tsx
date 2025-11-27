@@ -53,11 +53,13 @@ export default function NewOpportunityPage() {
       setLoadingCompanies(true);
       const response = await fetch('/api/ops/companies');
       if (response.ok) {
-        const data = await response.json();
-        setCompanies(data);
+        const result = await response.json();
+        // Ensure we always set an array, even if result.data is not an array
+        setCompanies(Array.isArray(result.data) ? result.data : []);
       }
     } catch (err) {
       // Ignore errors, just show form
+      setCompanies([]);
     } finally {
       setLoadingCompanies(false);
     }

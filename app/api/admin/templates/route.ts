@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
-import { getUserOrganizationId } from '@/lib/organizationContext';
+import { getUserOrganizationId, getOrganizationPackageFeatures } from '@/lib/organizationContext';
 import { unauthorized, notFound, internalError, forbidden, badRequest } from '@/lib/utils/apiErrors';
+import { canCreateTemplate } from '@/lib/packageLimits';
 import logger from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
@@ -48,9 +49,11 @@ export async function GET(request: NextRequest) {
       userData = regularUserData;
     }
 
-    // Only admins and PMs can view templates
-    if (userData.role !== 'admin' && userData.role !== 'pm') {
-      return forbidden('Admin or PM access required');
+    // Check if organization has template access based on package features
+    // If max_templates is defined (null = unlimited, number = limited), they have access to view
+    const packageFeatures = await getOrganizationPackageFeatures(supabase, organizationId);
+    if (!packageFeatures || packageFeatures.max_templates === undefined) {
+      return forbidden('Template access not available in your package');
     }
 
     // Get query parameters
@@ -58,32 +61,72 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10', 10);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
-    // Build query
-    let query = supabase
-      .from('project_templates')
-      .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false });
+    // Filter by organization and visibility (super admins can see all templates)
+    let templates: any[] = [];
+    let count = 0;
 
-    // Filter by organization (super admins can see all templates)
     if (userData.role === 'admin' && userData.is_super_admin === true) {
       // Super admin can see all templates
+      const { data: allTemplates, error: allError, count: allCount } = await supabase
+        .from('project_templates')
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (allError) {
+        logger.error('Error loading templates:', allError);
+        return internalError('Failed to load templates', { error: allError.message });
+      }
+
+      templates = allTemplates || [];
+      count = allCount || 0;
     } else {
-      query = query.eq('organization_id', organizationId);
+      // Regular users see templates that match:
+      // 1. Templates from their organization where (is_public = true OR created_by = current user)
+      // 2. OR templates where is_publicly_available = true (from any organization)
+      
+      // Fetch organization templates (public or created by user)
+      const { data: orgTemplates, error: orgError } = await supabase
+        .from('project_templates')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .or(`is_public.eq.true,created_by.eq.${userData.id}`);
+
+      // Fetch publicly available templates
+      const { data: publicTemplates, error: publicError } = await supabase
+        .from('project_templates')
+        .select('*')
+        .eq('is_publicly_available', true);
+
+      if (orgError || publicError) {
+        logger.error('Error loading templates:', orgError || publicError);
+        return internalError('Failed to load templates', { error: (orgError || publicError)?.message });
+      }
+
+      // Combine and deduplicate templates
+      const allTemplates = [...(orgTemplates || []), ...(publicTemplates || [])];
+      const uniqueTemplates = Array.from(
+        new Map(allTemplates.map(t => [t.id, t])).values()
+      );
+
+      // Sort by created_at descending
+      uniqueTemplates.sort((a, b) => {
+        const dateA = new Date(a.created_at).getTime();
+        const dateB = new Date(b.created_at).getTime();
+        return dateB - dateA;
+      });
+
+      count = uniqueTemplates.length;
+      
+      // Apply pagination
+      templates = uniqueTemplates.slice(offset, offset + limit);
     }
 
-    // Apply pagination
-    query = query.range(offset, offset + limit - 1);
-
-    const { data: templates, error: templatesError, count } = await query;
-
-    if (templatesError) {
-      logger.error('Error loading templates:', templatesError);
-      return internalError('Failed to load templates', { error: templatesError.message });
-    }
+    const templatesError = null;
 
     // Get usage counts for each template
     const templatesWithUsage = await Promise.all(
-      (templates || []).map(async (template) => {
+      templates.map(async (template) => {
         const { count: usageCount, error: countError } = await supabase
           .from('projects')
           .select('*', { count: 'exact', head: true })
@@ -107,6 +150,74 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     logger.error('Error in GET /api/admin/templates:', error);
     return internalError('Failed to load templates', { error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session) {
+      return unauthorized('You must be logged in to create templates');
+    }
+
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
+    }
+
+    // Get user record with role - use admin client to ensure we get it
+    const adminClient = createAdminSupabaseClient();
+    const { data: userData, error: userError } = await adminClient
+      .from('users')
+      .select('id, role, organization_id')
+      .eq('auth_id', session.user.id)
+      .single();
+
+    if (userError || !userData) {
+      logger.error('[Template POST] User not found:', userError);
+      return notFound('User not found');
+    }
+
+    // Check package limits - this determines if user can create templates
+    const limitCheck = await canCreateTemplate(supabase, organizationId);
+    if (!limitCheck.allowed) {
+      return forbidden(limitCheck.reason || 'Template limit reached');
+    }
+
+    const body = await request.json();
+    const { name, description, is_public, is_publicly_available, category } = body;
+
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      return badRequest('Template name is required');
+    }
+
+    // Create template with organization_id - use admin client to bypass RLS
+    const { data: newTemplate, error: createError } = await adminClient
+      .from('project_templates')
+      .insert({
+        name: name.trim(),
+        description: description ? description.trim() : null,
+        created_by: userData.id,
+        organization_id: organizationId,
+        is_public: is_public || false,
+        is_publicly_available: is_publicly_available || false,
+        category: category || null,
+      })
+      .select()
+      .single();
+
+    if (createError) {
+      logger.error('[Template POST] Error creating template:', createError);
+      return internalError('Failed to create template', { error: createError.message });
+    }
+
+    return NextResponse.json(newTemplate, { status: 201 });
+  } catch (error) {
+    logger.error('Error in POST /api/admin/templates:', error);
+    return internalError('Failed to create template', { error: error instanceof Error ? error.message : 'Unknown error' });
   }
 }
 

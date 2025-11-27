@@ -113,30 +113,29 @@ export default function DashboardPage() {
       setCurrentUserId(userData.id);
       setCurrentUserRole(userData.role as 'admin' | 'pm' | 'designer' | 'engineer' | null);
 
-      // Get projects where user is owner
-      const { data: ownedProjects, error: ownedError } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('owner_id', userData.id)
-        .order('updated_at', { ascending: false });
+      // Use API route to get projects (handles organization filtering and RLS properly)
+      try {
+        const response = await fetch('/api/projects?limit=100');
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ message: 'Failed to load projects' }));
+          logger.error('[Dashboard] Failed to load projects:', errorData);
+          setError(errorData.message || errorData.error || 'Failed to load projects');
+          setLoading(false);
+          return;
+        }
 
-      // Get projects where user is a member
-      const { data: memberProjects, error: memberError } = await supabase
-        .from('project_members')
-        .select('project_id, projects(*)')
-        .eq('user_id', userData.id);
+        const projectsData = await response.json();
+        logger.debug('[Dashboard] Projects API response:', { 
+          hasData: !!projectsData.data, 
+          dataLength: projectsData.data?.length,
+          total: projectsData.total 
+        });
+        const allProjects = projectsData.data || [];
+        
+        if (allProjects.length === 0) {
+          logger.debug('[Dashboard] No projects found for user');
+        }
 
-      if (ownedError || memberError) {
-        setError(ownedError?.message || memberError?.message || 'Failed to load projects');
-        setLoading(false);
-        return;
-      }
-
-      // Combine owned projects and member projects
-      const owned = ownedProjects || [];
-      const member = (memberProjects || []).map((mp: any) => mp.projects).filter(Boolean);
-      const allProjects = [...owned, ...member];
-      
       // Remove duplicates
       const uniqueProjects = Array.from(
         new Map(allProjects.map((p: any) => [p.id, p])).values()
@@ -147,14 +146,21 @@ export default function DashboardPage() {
       // Load all tasks for user's projects
       const projectIds = uniqueProjects.map((p) => p.id);
       if (projectIds.length > 0) {
+        // Use API route or filter by project IDs - tasks inherit org through projects
         const { data: tasksData, error: tasksError } = await supabase
           .from('project_tasks')
           .select('*')
           .in('project_id', projectIds);
 
-        if (!tasksError && tasksData) {
-          setTasks(tasksData as ProjectTask[]);
+        if (tasksError) {
+          logger.error('[Dashboard] Error loading tasks:', tasksError);
+          setTasks([]);
+        } else {
+          setTasks((tasksData || []) as ProjectTask[]);
+          logger.debug('[Dashboard] Loaded tasks:', { count: tasksData?.length || 0 });
         }
+      } else {
+        setTasks([]);
       }
 
       // Load project members
@@ -180,6 +186,11 @@ export default function DashboardPage() {
       }
 
       setLoading(false);
+      } catch (fetchError) {
+        logger.error('[Dashboard] Error fetching projects:', fetchError);
+        setError(fetchError instanceof Error ? fetchError.message : 'Failed to load projects');
+        setLoading(false);
+      }
     };
 
     // Set up auth state listener to handle session initialization after redirect
@@ -275,6 +286,20 @@ export default function DashboardPage() {
             }}
           >
             {error}
+          </Alert>
+        )}
+
+        {!error && !loading && projects.length === 0 && (
+          <Alert
+            severity="info"
+            sx={{
+              mb: 3,
+              backgroundColor: theme.palette.action.hover,
+              border: `1px solid ${theme.palette.divider}`,
+              color: theme.palette.text.primary,
+            }}
+          >
+            No projects found. Create your first project to get started!
           </Alert>
         )}
 
@@ -524,7 +549,7 @@ export default function DashboardPage() {
         </Box>
 
         {/* Projects Multi-Line Chart */}
-        {projects.length > 0 && tasks.length > 0 && (
+        {projects.length > 0 && (
           <Box sx={{ mb: 4 }}>
             <ProjectsMultiLineChart projects={projects} tasks={tasks} />
           </Box>
@@ -545,12 +570,12 @@ export default function DashboardPage() {
         )}
 
         {/* Recent Projects Table */}
-        {stats.recent.length > 0 && (
-          <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
-                Recent Projects
-              </Typography>
+        <Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+              Recent Projects
+            </Typography>
+            {stats.recent.length > 0 && (
               <Button
                 size="small"
                 onClick={handleViewProjects}
@@ -558,7 +583,9 @@ export default function DashboardPage() {
               >
                 View All
               </Button>
-            </Box>
+            )}
+          </Box>
+          {stats.recent.length > 0 ? (
             <SortableTable
               data={stats.recent}
               columns={[
@@ -637,8 +664,35 @@ export default function DashboardPage() {
               onRowClick={(row) => router.push(`/project/${row.id}`)}
               emptyMessage="No recent projects"
             />
-          </Box>
-        )}
+          ) : (
+            <Paper
+              sx={{
+                p: 4,
+                textAlign: 'center',
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
+              }}
+            >
+              <Typography variant="body1" sx={{ color: theme.palette.text.secondary, mb: 2 }}>
+                No projects yet. Create your first project to get started!
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={handleCreateProject}
+                sx={{
+                  backgroundColor: theme.palette.text.primary,
+                  color: theme.palette.background.default,
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+              >
+                Create Project
+              </Button>
+            </Paper>
+          )}
+        </Box>
       </Box>
       <WelcomeTour
         open={showWelcomeTour}

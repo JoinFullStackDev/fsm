@@ -76,27 +76,28 @@ export async function GET(
       return internalError('Failed to load company', { error: companyError?.message });
     }
 
-    // Validate organization access (super admins can see all companies)
-    if (userData.role !== 'admin' || userData.is_super_admin !== true) {
-      if (company.organization_id !== organizationId) {
-        return forbidden('You do not have access to this company');
-      }
+    // Validate organization access - always check organization
+    if (company.organization_id !== organizationId) {
+      return forbidden('You do not have access to this company');
     }
 
-    // Get counts
+    // Get counts (scoped to organization)
     const [contactsResult, opportunitiesResult, projectsResult] = await Promise.all([
       supabase
         .from('company_contacts')
         .select('id', { count: 'exact', head: true })
-        .eq('company_id', id),
+        .eq('company_id', id)
+        .eq('organization_id', organizationId),
       supabase
         .from('opportunities')
         .select('id', { count: 'exact', head: true })
-        .eq('company_id', id),
+        .eq('company_id', id)
+        .eq('organization_id', organizationId),
       supabase
         .from('projects')
         .select('id', { count: 'exact', head: true })
-        .eq('company_id', id),
+        .eq('company_id', id)
+        .eq('organization_id', organizationId),
     ]);
 
     const companyWithCounts: CompanyWithCounts = {
@@ -187,11 +188,9 @@ export async function PUT(
       return internalError('Failed to check company', { error: existingError?.message });
     }
 
-    // Validate organization access (super admins can update all companies)
-    if (userData.role !== 'admin' || userData.is_super_admin !== true) {
-      if (existingCompany.organization_id !== organizationId) {
-        return forbidden('You do not have access to update this company');
-      }
+    // Validate organization access - always check organization
+    if (existingCompany.organization_id !== organizationId) {
+      return forbidden('You do not have access to update this company');
     }
 
     // Validate
@@ -305,11 +304,9 @@ export async function DELETE(
       return internalError('Failed to check company', { error: checkError?.message });
     }
 
-    // Validate organization access (super admins can delete all companies)
-    if (userData.role !== 'admin' || userData.is_super_admin !== true) {
-      if (company.organization_id !== organizationId) {
-        return forbidden('You do not have access to delete this company');
-      }
+    // Validate organization access - always check organization
+    if (company.organization_id !== organizationId) {
+      return forbidden('You do not have access to delete this company');
     }
 
     // Delete company (cascade will handle related records)

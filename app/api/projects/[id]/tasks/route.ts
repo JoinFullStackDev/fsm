@@ -57,6 +57,51 @@ export async function POST(
       return unauthorized('You must be logged in to create tasks');
     }
 
+    // Verify project exists and user has access to it
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('id, organization_id, owner_id')
+      .eq('id', params.id)
+      .single();
+
+    if (projectError || !project) {
+      if (projectError?.code === 'PGRST116') {
+        return notFound('Project not found');
+      }
+      logger.error('[Task POST] Error checking project:', projectError);
+      return internalError('Failed to verify project access', { error: projectError?.message });
+    }
+
+    // Verify user has access to this project (either owner or member)
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id, organization_id')
+      .eq('auth_id', session.user.id)
+      .single();
+
+    if (userError || !userData) {
+      logger.error('[Task POST] User not found:', userError);
+      return unauthorized('User not found');
+    }
+
+    // Check if user is project owner or member
+    const isOwner = project.owner_id === userData.id;
+    const { data: memberData } = await supabase
+      .from('project_members')
+      .select('id')
+      .eq('project_id', params.id)
+      .eq('user_id', userData.id)
+      .single();
+
+    if (!isOwner && !memberData) {
+      return unauthorized('You do not have access to this project');
+    }
+
+    // Verify organization match (tasks inherit org through projects)
+    if (project.organization_id && userData.organization_id !== project.organization_id) {
+      return unauthorized('Project does not belong to your organization');
+    }
+
     const body = await request.json();
     const {
       title,
@@ -101,7 +146,7 @@ export async function POST(
       .single();
 
     if (error) {
-      logger.error('Error creating task:', error);
+      logger.error('[Task POST] Error creating task:', error);
       return internalError('Failed to create task', { error: error.message });
     }
 

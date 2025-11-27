@@ -22,6 +22,8 @@ import {
   AutoAwesome as AIIcon,
   AccountBalance as StripeIcon,
   Security as SecurityIcon,
+  Inventory as InventoryIcon,
+  People as PeopleIcon,
 } from '@mui/icons-material';
 import { useRole } from '@/lib/hooks/useRole';
 import TopBar from '@/components/layout/TopBar';
@@ -67,6 +69,8 @@ export default function GlobalAdminLayout({ children }: GlobalAdminLayoutProps) 
   const navItems = [
     { path: '/global/admin', label: 'Dashboard', icon: DashboardIcon },
     { path: '/global/admin/organizations', label: 'Organizations', icon: BusinessIcon },
+    { path: '/global/admin/users', label: 'Users', icon: PeopleIcon },
+    { path: '/global/admin/packages', label: 'Packages', icon: InventoryIcon },
     { path: '/global/admin/system', label: 'System Settings', icon: SettingsIcon },
     { path: '/global/admin/ai-usage', label: 'AI Usage', icon: AIIcon },
     { path: '/global/admin/stripe', label: 'Stripe Management', icon: StripeIcon },
@@ -171,7 +175,8 @@ export default function GlobalAdminLayout({ children }: GlobalAdminLayoutProps) 
           flexGrow: 1,
           p: 3,
           mt: '64px',
-          width: { sm: `calc(100% - ${sidebarOpen ? DRAWER_WIDTH : 64}px)` },
+          width: `calc(100% - ${sidebarOpen ? DRAWER_WIDTH : 64}px)`,
+          maxWidth: '100%',
           transition: 'width 0.3s ease',
           overflow: 'auto',
           backgroundColor: theme.palette.background.default,

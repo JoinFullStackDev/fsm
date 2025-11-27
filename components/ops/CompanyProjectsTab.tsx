@@ -41,8 +41,9 @@ export default function CompanyProjectsTab({ companyId }: CompanyProjectsTabProp
         throw new Error(errorData.error || `Failed to load projects: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json();
-      setProjects(data || []);
+      const result = await response.json();
+      // Ensure we always set an array, even if result.data is not an array
+      setProjects(Array.isArray(result.data) ? result.data : []);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load projects';
       setError(errorMessage);

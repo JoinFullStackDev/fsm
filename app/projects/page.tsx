@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Box,
@@ -56,7 +56,7 @@ export default function ProjectsPage() {
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
 
-  const loadProjects = async () => {
+  const loadProjects = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -83,13 +83,13 @@ export default function ProjectsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, pageSize, showError]);
 
   useEffect(() => {
     if (!roleLoading) {
       loadProjects();
     }
-  }, [page, pageSize, roleLoading]);
+  }, [loadProjects, roleLoading]);
 
   useEffect(() => {
     setPage(1);

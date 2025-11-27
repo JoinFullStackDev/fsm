@@ -101,10 +101,11 @@ export async function PATCH(
       }
 
       // Update organization subscription status
+      // Note: organizations.subscription_status uses 'trial' (not 'trialing')
       await adminClient
         .from('organizations')
         .update({
-          subscription_status: 'trial',
+          subscription_status: 'trial', // organizations table enum uses 'trial'
           trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
           updated_at: new Date().toISOString(),
         })
