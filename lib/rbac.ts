@@ -6,12 +6,7 @@ export type Permission =
   | 'create_projects'
   | 'edit_project'
   | 'delete_project'
-  | 'edit_phase_1'
-  | 'edit_phase_2'
-  | 'edit_phase_3'
-  | 'edit_phase_4'
-  | 'edit_phase_5'
-  | 'edit_phase_6'
+  | 'edit_phases'
   | 'export_blueprint'
   | 'export_cursor'
   | 'manage_project_members';
@@ -26,12 +21,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'create_projects',
     'edit_project',
     'delete_project',
-    'edit_phase_1',
-    'edit_phase_2',
-    'edit_phase_3',
-    'edit_phase_4',
-    'edit_phase_5',
-    'edit_phase_6',
+    'edit_phases',
     'export_blueprint',
     'export_cursor',
     'manage_project_members',
@@ -41,62 +31,46 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'create_projects',
     'edit_project',
     'delete_project',
-    'edit_phase_1',
-    'edit_phase_2',
-    'edit_phase_3',
-    'edit_phase_4',
-    'edit_phase_5',
-    'edit_phase_6',
+    'edit_phases',
     'export_blueprint',
     'export_cursor',
     'manage_project_members',
   ],
   designer: [
-    'edit_phase_3',
+    'edit_phases',
     'export_blueprint',
   ],
   engineer: [
-    'edit_phase_4',
-    'edit_phase_5',
-    'edit_phase_6',
+    'edit_phases',
     'export_blueprint',
     'export_cursor',
   ],
 };
 
 // Project member role permissions (for project-specific access)
+// Note: Project members get full access to all phases regardless of role
 const PROJECT_MEMBER_PERMISSIONS: Record<ProjectMemberRole, Permission[]> = {
   admin: [
     'edit_project',
     'delete_project',
-    'edit_phase_1',
-    'edit_phase_2',
-    'edit_phase_3',
-    'edit_phase_4',
-    'edit_phase_5',
-    'edit_phase_6',
+    'edit_phases',
     'export_blueprint',
     'export_cursor',
     'manage_project_members',
   ],
   pm: [
     'edit_project',
-    'edit_phase_1',
-    'edit_phase_2',
-    'edit_phase_3',
-    'edit_phase_4',
+    'edit_phases',
     'export_blueprint',
     'export_cursor',
     'manage_project_members',
   ],
   designer: [
-    'edit_phase_3',
+    'edit_phases',
     'export_blueprint',
   ],
   engineer: [
-    'edit_phase_4',
-    'edit_phase_5',
-    'edit_phase_6',
+    'edit_phases',
     'export_blueprint',
     'export_cursor',
   ],
@@ -122,7 +96,7 @@ export function hasProjectPermission(
 /**
  * Check if a user can edit a specific phase based on their role
  * @param userRole - The user's role
- * @param phaseNumber - The phase number to check
+ * @param phaseNumber - The phase number to check (kept for API compatibility but not used)
  * @param isProjectMember - Optional: whether the user is a project member (owner or member)
  */
 export function canEditPhase(
@@ -140,22 +114,8 @@ export function canEditPhase(
     return true;
   }
   
-  // For phases beyond 6, use flexible permission logic
-  if (phaseNumber > 6) {
-    // For other roles, check if they have edit permissions for any phase
-    // If they can edit phases 1-6, they can likely edit additional phases too
-    // This is a reasonable default for dynamic phases
-    return hasPermission(userRole, 'edit_phase_1') || 
-           hasPermission(userRole, 'edit_phase_2') || 
-           hasPermission(userRole, 'edit_phase_3') || 
-           hasPermission(userRole, 'edit_phase_4') || 
-           hasPermission(userRole, 'edit_phase_5') || 
-           hasPermission(userRole, 'edit_phase_6');
-  }
-  
-  // For phases 1-6, use the specific permission
-  const phasePermission = `edit_phase_${phaseNumber}` as Permission;
-  return hasPermission(userRole, phasePermission);
+  // For non-members, check if they have the general 'edit_phases' permission
+  return hasPermission(userRole, 'edit_phases');
 }
 
 /**

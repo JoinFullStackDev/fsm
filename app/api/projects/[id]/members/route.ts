@@ -112,3 +112,86 @@ export async function POST(
   }
 }
 
+// PATCH - Update a member's role
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session) {
+      return unauthorized('You must be logged in to update project members');
+    }
+
+    // Get user record
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id, role')
+      .eq('auth_id', session.user.id)
+      .single();
+
+    if (userError || !userData) {
+      return notFound('User not found');
+    }
+
+    const body = await request.json();
+    const { member_id, role } = body;
+
+    if (!member_id || !role) {
+      return badRequest('member_id and role are required');
+    }
+
+    // Verify user is project owner or admin
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('owner_id, name')
+      .eq('id', params.id)
+      .single();
+
+    if (projectError || !project) {
+      return notFound('Project not found');
+    }
+
+    const isOwner = project.owner_id === userData.id;
+    const isAdmin = userData.role === 'admin';
+    const isPM = userData.role === 'pm';
+
+    if (!isOwner && !isAdmin && !isPM) {
+      return forbidden('Only project owners, admins, or PMs can update member roles');
+    }
+
+    // Verify member exists and belongs to this project
+    const { data: existingMember, error: memberCheckError } = await supabase
+      .from('project_members')
+      .select('id, user_id')
+      .eq('id', member_id)
+      .eq('project_id', params.id)
+      .single();
+
+    if (memberCheckError || !existingMember) {
+      return notFound('Project member not found');
+    }
+
+    // Use admin client to bypass RLS for updating members
+    const adminClient = createAdminSupabaseClient();
+    const { data: updatedMember, error: updateError } = await adminClient
+      .from('project_members')
+      .update({ role })
+      .eq('id', member_id)
+      .select()
+      .single();
+
+    if (updateError) {
+      logger.error('[Project Member] Error updating member role:', updateError);
+      return internalError('Failed to update project member role', { error: updateError.message });
+    }
+
+    return NextResponse.json({ member: updatedMember });
+  } catch (error) {
+    logger.error('[Project Member] Unexpected error updating role:', error);
+    return internalError('Failed to update project member role', { error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+}
+

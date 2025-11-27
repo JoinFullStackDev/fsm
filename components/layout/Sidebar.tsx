@@ -607,7 +607,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
             >
               <AssignmentIcon />
             </ListItemIcon>
-            {open && <ListItemText primary="Project Management" />}
+            {open && <ListItemText primary="Task Management" />}
           </ListItemButton>
         </ListItem>
 

@@ -3,25 +3,34 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  Container,
   Box,
   TextField,
   Button,
   Typography,
-  Card,
-  CardContent,
+  Paper,
   MenuItem,
   FormControl,
   InputLabel,
   Select,
   Alert,
+  Grid,
+  Chip,
+  OutlinedInput,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { getDefaultPhaseData } from '@/lib/phaseSchemas';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { validateProjectName } from '@/lib/utils/validation';
 import type { ProjectStatus, PrimaryTool, ProjectTemplate } from '@/types/project';
 import type { Company } from '@/types/ops';
+
+interface UserOption {
+  id: string;
+  name: string | null;
+  email: string;
+  role: string;
+}
 
 const PHASE_NAMES = [
   'Concept Framing',
@@ -35,6 +44,7 @@ const PHASE_NAMES = [
 export default function NewProjectPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const theme = useTheme();
   const supabase = createSupabaseClient();
   const { showSuccess, showError } = useNotification();
   const [name, setName] = useState('');
@@ -45,7 +55,10 @@ export default function NewProjectPage() {
   const [templates, setTemplates] = useState<ProjectTemplate[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
+  const [users, setUsers] = useState<UserOption[]>([]);
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [loadingCompanies, setLoadingCompanies] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,10 +81,12 @@ export default function NewProjectPage() {
   const loadCompanies = useCallback(async () => {
     try {
       setLoadingCompanies(true);
-      const response = await fetch('/api/ops/companies');
+      const response = await fetch('/api/ops/companies?limit=1000');
       if (response.ok) {
-        const data = await response.json();
-        setCompanies(data);
+        const result = await response.json();
+        // Handle paginated response format
+        const companiesData = result.data || result;
+        setCompanies(Array.isArray(companiesData) ? companiesData : []);
       }
     } catch (err) {
       // Ignore errors, just show form without company selection
@@ -79,6 +94,53 @@ export default function NewProjectPage() {
       setLoadingCompanies(false);
     }
   }, []);
+
+  const loadUsers = useCallback(async () => {
+    try {
+      setLoadingUsers(true);
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, name, email, role')
+        .order('name');
+
+      if (!usersError && usersData) {
+        setUsers(usersData);
+      }
+    } catch (err) {
+      // Ignore errors, just show form without user selection
+    } finally {
+      setLoadingUsers(false);
+    }
+  }, [supabase]);
+
+  // Load data on mount
+  useEffect(() => {
+    loadTemplates();
+    loadCompanies();
+    loadUsers();
+  }, [loadTemplates, loadCompanies, loadUsers]);
+
+  // Read query parameters and populate form fields
+  useEffect(() => {
+    const companyId = searchParams.get('company_id');
+    const templateId = searchParams.get('template_id');
+
+    if (companyId && companies.length > 0) {
+      // Verify the company exists in the loaded list
+      const companyExists = companies.some(c => c.id === companyId);
+      if (companyExists) {
+        setSelectedCompanyId(companyId);
+      }
+    }
+
+    if (templateId && templates.length > 0) {
+      // Verify the template exists in the loaded list
+      const templateExists = templates.some(t => t.id === templateId);
+      if (templateExists) {
+        setSelectedTemplate(templateId);
+      }
+    }
+  }, [searchParams, companies, templates]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -205,133 +267,288 @@ export default function NewProjectPage() {
       return;
     }
 
+    // Add project members if any were selected
+    if (selectedMemberIds.length > 0) {
+      // Use API route to add members (handles RLS and permissions)
+      const memberPromises = selectedMemberIds.map((userId) =>
+        fetch(`/api/projects/${projectData.id}/members`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: userId,
+            role: 'engineer',
+          }),
+        })
+      );
+
+      const results = await Promise.allSettled(memberPromises);
+      const failures = results.filter((r) => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.ok));
+
+      if (failures.length > 0) {
+        console.error('Failed to add some project members:', failures);
+        showError(`Project created but failed to add ${failures.length} member(s)`);
+      }
+    }
+
+    showSuccess('Project created successfully!');
     router.push(`/project/${projectData.id}`);
   };
 
   return (
-    <>
-      <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
+    <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', p: 3 }}>
+      <Box sx={{ maxWidth: 800, mx: 'auto' }}>
+        <Typography
+          variant="h4"
+          component="h1"
+          sx={{
+            fontWeight: 700,
+            color: theme.palette.text.primary,
+            mb: 4,
+          }}
+        >
           Create New Project
         </Typography>
-        <Card>
-          <CardContent>
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error}
-              </Alert>
-            )}
-            <Box component="form" onSubmit={handleSubmit}>
-              <TextField
-                fullWidth
-                label="Project Name"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  // Clear validation error when user types
-                  if (validationErrors.name) {
-                    setValidationErrors({ ...validationErrors, name: '' });
-                  }
-                }}
-                required
-                margin="normal"
-                error={!!validationErrors.name}
-                helperText={validationErrors.name}
-              />
-              <TextField
-                fullWidth
-                label="Description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                multiline
-                rows={4}
-                margin="normal"
-              />
-              <FormControl fullWidth margin="normal">
-                <InputLabel>Status</InputLabel>
-                <Select
-                  value={status}
-                  label="Status"
-                  onChange={(e) => setStatus(e.target.value as ProjectStatus)}
-                >
-                  <MenuItem value="idea">Idea</MenuItem>
-                  <MenuItem value="in_progress">In Progress</MenuItem>
-                  <MenuItem value="blueprint_ready">Blueprint Ready</MenuItem>
-                  <MenuItem value="archived">Archived</MenuItem>
-                </Select>
-              </FormControl>
-              <FormControl fullWidth margin="normal">
-                <InputLabel>Primary Tool</InputLabel>
-                <Select
-                  value={primaryTool}
-                  label="Primary Tool"
-                  onChange={(e) => setPrimaryTool(e.target.value as PrimaryTool)}
-                >
-                  <MenuItem value="cursor">Cursor</MenuItem>
-                  <MenuItem value="replit">Replit</MenuItem>
-                  <MenuItem value="lovable">Lovable</MenuItem>
-                  <MenuItem value="base44">Base44</MenuItem>
-                  <MenuItem value="other">Other</MenuItem>
-                </Select>
-              </FormControl>
-              <FormControl fullWidth margin="normal">
-                <InputLabel>Company (Optional)</InputLabel>
-                <Select
-                  value={selectedCompanyId}
-                  label="Company (Optional)"
-                  onChange={(e) => setSelectedCompanyId(e.target.value)}
-                  disabled={loading || loadingCompanies}
-                >
-                  <MenuItem value="">None</MenuItem>
-                  {companies.map((company) => (
-                    <MenuItem key={company.id} value={company.id}>
-                      {company.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <FormControl fullWidth margin="normal">
-                <InputLabel>Start from Template (Optional)</InputLabel>
-                <Select
-                  value={selectedTemplate}
-                  label="Start from Template (Optional)"
-                  onChange={(e) => setSelectedTemplate(e.target.value)}
-                  disabled={loadingTemplates}
-                >
-                  <MenuItem value="">None - Start from scratch</MenuItem>
-                  {templates.map((template) => (
-                    <MenuItem key={template.id} value={template.id}>
-                      {template.name}
-                      {template.category && ` (${template.category})`}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+
+        <Paper
+          sx={{
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
+            borderRadius: 2,
+            p: 4,
+          }}
+        >
+          {error && (
+            <Alert
+              severity="error"
+              sx={{
+                mb: 3,
+                backgroundColor: theme.palette.action.hover,
+                border: `1px solid ${theme.palette.divider}`,
+                color: theme.palette.text.primary,
+              }}
+            >
+              {error}
+            </Alert>
+          )}
+
+          <Box component="form" onSubmit={handleSubmit}>
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Project Name"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    // Clear validation error when user types
+                    if (validationErrors.name) {
+                      setValidationErrors({ ...validationErrors, name: '' });
+                    }
+                  }}
+                  required
+                  error={!!validationErrors.name}
+                  helperText={validationErrors.name}
+                  size="small"
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  multiline
+                  rows={4}
+                  size="small"
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Status</InputLabel>
+                  <Select
+                    value={status}
+                    label="Status"
+                    onChange={(e) => setStatus(e.target.value as ProjectStatus)}
+                  >
+                    <MenuItem value="idea">Idea</MenuItem>
+                    <MenuItem value="in_progress">In Progress</MenuItem>
+                    <MenuItem value="blueprint_ready">Blueprint Ready</MenuItem>
+                    <MenuItem value="archived">Archived</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Primary Tool</InputLabel>
+                  <Select
+                    value={primaryTool}
+                    label="Primary Tool"
+                    onChange={(e) => setPrimaryTool(e.target.value as PrimaryTool)}
+                  >
+                    <MenuItem value="cursor">Cursor</MenuItem>
+                    <MenuItem value="replit">Replit</MenuItem>
+                    <MenuItem value="lovable">Lovable</MenuItem>
+                    <MenuItem value="base44">Base44</MenuItem>
+                    <MenuItem value="other">Other</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Company (Optional)</InputLabel>
+                  <Select
+                    value={selectedCompanyId}
+                    label="Company (Optional)"
+                    onChange={(e) => setSelectedCompanyId(e.target.value)}
+                    disabled={loading || loadingCompanies}
+                  >
+                    <MenuItem value="">None</MenuItem>
+                    {companies.map((company) => (
+                      <MenuItem key={company.id} value={company.id}>
+                        {company.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Start from Template (Optional)</InputLabel>
+                  <Select
+                    value={selectedTemplate}
+                    label="Start from Template (Optional)"
+                    onChange={(e) => setSelectedTemplate(e.target.value)}
+                    disabled={loadingTemplates}
+                  >
+                    <MenuItem value="">None - Start from scratch</MenuItem>
+                    {templates.map((template) => (
+                      <MenuItem key={template.id} value={template.id}>
+                        {template.name}
+                        {template.category && ` (${template.category})`}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Project Members (Optional)</InputLabel>
+                  <Select
+                    multiple
+                    value={selectedMemberIds}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSelectedMemberIds(typeof value === 'string' ? value.split(',') : value);
+                    }}
+                    input={<OutlinedInput label="Project Members (Optional)" />}
+                    renderValue={(selected) => (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        {(selected as string[]).map((userId) => {
+                          const user = users.find(u => u.id === userId);
+                          return (
+                            <Chip
+                              key={userId}
+                              label={user ? `${user.name}${user.email ? ` (${user.email})` : ''}` : userId}
+                              size="small"
+                              sx={{
+                                backgroundColor: theme.palette.action.hover,
+                                color: theme.palette.text.primary,
+                                border: `1px solid ${theme.palette.divider}`,
+                              }}
+                            />
+                          );
+                        })}
+                      </Box>
+                    )}
+                    disabled={loading || loadingUsers}
+                  >
+                    {users.map((user) => (
+                      <MenuItem key={user.id} value={user.id}>
+                        {user.name || user.email}
+                        {user.name && user.email && ` (${user.email})`}
+                        {user.role && (
+                          <Chip
+                            label={user.role}
+                            size="small"
+                            sx={{
+                              ml: 1,
+                              height: 20,
+                              fontSize: '0.7rem',
+                              backgroundColor: theme.palette.action.hover,
+                              color: theme.palette.text.secondary,
+                            }}
+                          />
+                        )}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
               {selectedTemplate && (
-                <Alert severity="info" sx={{ mt: 2 }}>
-                  This project will be pre-filled with data from the selected template.
-                </Alert>
+                <Grid item xs={12}>
+                  <Alert
+                    severity="info"
+                    sx={{
+                      backgroundColor: theme.palette.action.hover,
+                      border: `1px solid ${theme.palette.divider}`,
+                      color: theme.palette.text.primary,
+                    }}
+                  >
+                    This project will be pre-filled with data from the selected template.
+                  </Alert>
+                </Grid>
               )}
-              <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
-                <Button
-                  variant="outlined"
-                  onClick={() => router.push('/dashboard')}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  variant="contained"
-                  disabled={loading}
-                >
-                  {loading ? 'Creating...' : 'Create Project'}
-                </Button>
-              </Box>
-            </Box>
-          </CardContent>
-        </Card>
-      </Container>
-    </>
+
+              <Grid item xs={12}>
+                <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => router.push('/dashboard')}
+                    sx={{
+                      borderColor: theme.palette.divider,
+                      color: theme.palette.text.primary,
+                      '&:hover': {
+                        borderColor: theme.palette.text.secondary,
+                        backgroundColor: theme.palette.action.hover,
+                      },
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    disabled={loading}
+                    sx={{
+                      backgroundColor: theme.palette.text.primary,
+                      color: theme.palette.background.default,
+                      fontWeight: 600,
+                      '&:hover': {
+                        backgroundColor: theme.palette.action.hover,
+                        transform: 'translateY(-2px)',
+                      },
+                      '&:disabled': {
+                        backgroundColor: theme.palette.action.disabledBackground,
+                        color: theme.palette.action.disabled,
+                      },
+                    }}
+                  >
+                    {loading ? 'Creating...' : 'Create Project'}
+                  </Button>
+                </Box>
+              </Grid>
+            </Grid>
+          </Box>
+        </Paper>
+      </Box>
+    </Box>
   );
 }
 

@@ -54,7 +54,7 @@ describe('/api/projects', () => {
 
   describe('GET', () => {
     it('should return projects for authenticated user', async () => {
-      const mockUser = createMockUser();
+      const mockUser = createMockUser({ role: 'engineer' }); // Non-admin user
       const mockProjects = [createMockProject(), createMockProject({ id: 'project-2' })];
 
       mockSupabaseClient.auth.getSession.mockResolvedValue({
@@ -75,6 +75,7 @@ describe('/api/projects', () => {
       };
 
       // Mock project_members query (for non-admin users)
+      // Returns empty array, so code will use .eq('owner_id', userData.id) path
       const mockProjectMembersQueryBuilder = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockResolvedValue({
@@ -84,27 +85,33 @@ describe('/api/projects', () => {
       };
 
       // Create a chainable query builder for projects
-      // Use a function to ensure 'this' binding works correctly
-      const mockProjectsQueryBuilder: any = {
-        select: jest.fn(function() { return this; }),
-        eq: jest.fn(function() { return this; }),
-        or: jest.fn(function() { return this; }),
-        order: jest.fn(function() { return this; }),
-        range: jest.fn().mockResolvedValue({
-          data: mockProjects,
-          error: null,
-          count: mockProjects.length,
-        }),
-      };
+      // Since memberProjectIds is empty, code will use .eq('owner_id', userData.id)
+      // The builder needs to support: select() -> eq() -> order() -> range()
+      // select() is called with { count: 'exact' } so it needs to handle that
+      const mockProjectsQueryBuilder: any = {};
+      mockProjectsQueryBuilder.select = jest.fn().mockReturnValue(mockProjectsQueryBuilder);
+      mockProjectsQueryBuilder.eq = jest.fn().mockReturnValue(mockProjectsQueryBuilder);
+      mockProjectsQueryBuilder.or = jest.fn().mockReturnValue(mockProjectsQueryBuilder);
+      mockProjectsQueryBuilder.order = jest.fn().mockReturnValue(mockProjectsQueryBuilder);
+      mockProjectsQueryBuilder.range = jest.fn().mockResolvedValue({
+        data: mockProjects,
+        error: null,
+        count: mockProjects.length,
+      });
 
+      // Mock the from() calls in order as they appear in the route:
+      // 1. users table (line 20 - for user lookup)
+      // 2. projects table (line 37 - start projects query with select)
+      // 3. project_members table (line 50 - to check membership, inside else block)
       mockSupabaseClient.from
-        .mockReturnValueOnce(mockUserQuery)
-        .mockReturnValueOnce(mockProjectMembersQueryBuilder)
-        .mockReturnValueOnce(mockProjectsQueryBuilder);
+        .mockReturnValueOnce(mockUserQuery) // 1. users table
+        .mockReturnValueOnce(mockProjectsQueryBuilder) // 2. projects table (called first, before project_members check)
+        .mockReturnValueOnce(mockProjectMembersQueryBuilder); // 3. project_members table
 
       const request = new NextRequest('http://localhost:3000/api/projects');
       const response = await GET(request);
       const data = await response.json();
+
 
       expect(response.status).toBe(200);
       expect(data).toEqual({

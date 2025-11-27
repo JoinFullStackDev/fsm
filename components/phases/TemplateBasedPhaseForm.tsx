@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { Grid, Box, Typography, Alert, Paper } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useSupabaseClient } from '@/lib/supabaseClient';
@@ -38,6 +38,8 @@ interface TemplateBasedPhaseFormProps {
   data: PhaseData;
   /** Callback when phase data changes */
   onChange: (data: PhaseData) => void;
+  /** Callback when a field loses focus (for auto-save) */
+  onBlur?: () => void;
 }
 
 /**
@@ -69,6 +71,7 @@ export default function TemplateBasedPhaseForm({
   phaseNumber,
   data,
   onChange,
+  onBlur,
 }: TemplateBasedPhaseFormProps) {
   const theme = useTheme();
   const [fieldConfigs, setFieldConfigs] = useState<TemplateFieldConfig[]>([]);
@@ -76,6 +79,7 @@ export default function TemplateBasedPhaseForm({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const supabase = useSupabaseClient();
+  const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Prevent loading if we don't have required props
@@ -191,86 +195,114 @@ export default function TemplateBasedPhaseForm({
       updateField(field.field_key, newValue);
     };
 
+    const handleBlur = () => {
+      if (onBlur) {
+        // Debounce blur events to avoid rapid-fire saves when tabbing between fields
+        if (blurTimeoutRef.current) {
+          clearTimeout(blurTimeoutRef.current);
+        }
+        blurTimeoutRef.current = setTimeout(() => {
+          onBlur();
+        }, 300); // Small delay to batch multiple blur events
+      }
+    };
+
     let fieldElement: React.ReactNode;
     switch (field.field_type) {
       case 'text':
         fieldElement = (
-          <TemplateTextField
-            field={field}
-            value={value as string}
-            onChange={handleChange}
-            phaseData={data}
-          />
+          <Box onBlur={handleBlur}>
+            <TemplateTextField
+              field={field}
+              value={value as string}
+              onChange={handleChange}
+              phaseData={data}
+            />
+          </Box>
         );
         break;
       case 'textarea':
         fieldElement = (
-          <TextareaField
-            field={field}
-            value={value as string}
-            onChange={handleChange}
-            phaseData={data}
-          />
+          <Box onBlur={handleBlur}>
+            <TextareaField
+              field={field}
+              value={value as string}
+              onChange={handleChange}
+              phaseData={data}
+            />
+          </Box>
         );
         break;
       case 'array':
         fieldElement = (
-          <ArrayField
-            field={field}
-            value={value as string[]}
-            onChange={handleChange}
-            phaseData={data}
-          />
+          <Box onBlur={handleBlur}>
+            <ArrayField
+              field={field}
+              value={value as string[]}
+              onChange={handleChange}
+              phaseData={data}
+            />
+          </Box>
         );
         break;
       case 'select':
         fieldElement = (
-          <SelectField
-            field={field}
-            value={value as string}
-            onChange={handleChange}
-            phaseData={data}
-          />
+          <Box onBlur={handleBlur}>
+            <SelectField
+              field={field}
+              value={value as string}
+              onChange={handleChange}
+              phaseData={data}
+            />
+          </Box>
         );
         break;
       case 'checkbox':
         fieldElement = (
-          <CheckboxField
-            field={field}
-            value={value as boolean}
-            onChange={handleChange}
-            phaseData={data}
-          />
+          <Box onBlur={handleBlur}>
+            <CheckboxField
+              field={field}
+              value={value as boolean}
+              onChange={handleChange}
+              phaseData={data}
+            />
+          </Box>
         );
         break;
       case 'table':
         fieldElement = (
-          <TableField
-            field={field}
-            value={value}
-            onChange={handleChange}
-            phaseData={data}
-          />
+          <Box onBlur={handleBlur}>
+            <TableField
+              field={field}
+              value={value}
+              onChange={handleChange}
+              phaseData={data}
+            />
+          </Box>
         );
         break;
       case 'slider':
         fieldElement = (
-          <SliderField
-            field={field}
-            value={value as number | null}
-            onChange={handleChange}
-            phaseData={data}
-          />
+          <Box onBlur={handleBlur}>
+            <SliderField
+              field={field}
+              value={value as number | null}
+              onChange={handleChange}
+              phaseData={data}
+            />
+          </Box>
         );
         break;
       case 'date':
         fieldElement = (
-          <DateField
-            field={field}
-            value={value as string | null}
-            onChange={handleChange}
-            phaseData={data}
-          />
+          <Box onBlur={handleBlur}>
+            <DateField
+              field={field}
+              value={value as string | null}
+              onChange={handleChange}
+              phaseData={data}
+            />
+          </Box>
         );
         break;
       case 'file':

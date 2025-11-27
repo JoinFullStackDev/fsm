@@ -124,7 +124,7 @@ describe('ProjectPage - Delete Functionality', () => {
       render(<ProjectPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Delete Project')).toBeInTheDocument();
+        expect(screen.getByLabelText('Delete Project')).toBeInTheDocument();
       });
     });
 
@@ -137,7 +137,7 @@ describe('ProjectPage - Delete Functionality', () => {
       render(<ProjectPage />);
 
       await waitFor(() => {
-        expect(screen.queryByText('Delete Project')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('Delete Project')).not.toBeInTheDocument();
       });
     });
 
@@ -150,7 +150,7 @@ describe('ProjectPage - Delete Functionality', () => {
       render(<ProjectPage />);
 
       await waitFor(() => {
-        expect(screen.queryByText('Delete Project')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('Delete Project')).not.toBeInTheDocument();
       });
     });
   });
@@ -167,10 +167,10 @@ describe('ProjectPage - Delete Functionality', () => {
       render(<ProjectPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Delete Project')).toBeInTheDocument();
+        expect(screen.getByLabelText('Delete Project')).toBeInTheDocument();
       });
 
-      const deleteButton = screen.getByText('Delete Project');
+      const deleteButton = screen.getByLabelText('Delete Project');
       await userEvent.click(deleteButton);
 
       await waitFor(
@@ -192,10 +192,10 @@ describe('ProjectPage - Delete Functionality', () => {
       render(<ProjectPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Delete Project')).toBeInTheDocument();
+        expect(screen.getByLabelText('Delete Project')).toBeInTheDocument();
       });
 
-      const deleteButton = screen.getByText('Delete Project');
+      const deleteButton = screen.getByLabelText('Delete Project');
       await userEvent.click(deleteButton);
 
       await waitFor(() => {
@@ -219,10 +219,10 @@ describe('ProjectPage - Delete Functionality', () => {
       render(<ProjectPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Delete Project')).toBeInTheDocument();
+        expect(screen.getByLabelText('Delete Project')).toBeInTheDocument();
       });
 
-      const deleteButton = screen.getByText('Delete Project');
+      const deleteButton = screen.getByLabelText('Delete Project');
       await userEvent.click(deleteButton);
 
       await waitFor(() => {
@@ -254,10 +254,10 @@ describe('ProjectPage - Delete Functionality', () => {
       render(<ProjectPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Delete Project')).toBeInTheDocument();
+        expect(screen.getByLabelText('Delete Project')).toBeInTheDocument();
       });
 
-      const deleteButton = screen.getByText('Delete Project');
+      const deleteButton = screen.getByLabelText('Delete Project');
       await userEvent.click(deleteButton);
 
       await waitFor(() => {
@@ -290,10 +290,10 @@ describe('ProjectPage - Delete Functionality', () => {
       render(<ProjectPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Delete Project')).toBeInTheDocument();
+        expect(screen.getByLabelText('Delete Project')).toBeInTheDocument();
       });
 
-      const deleteButton = screen.getByText('Delete Project');
+      const deleteButton = screen.getByLabelText('Delete Project');
       await userEvent.click(deleteButton);
 
       await waitFor(() => {
