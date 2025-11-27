@@ -15,12 +15,14 @@ import { useTheme } from '@mui/material/styles';
 import { Save as SaveIcon } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useNotification } from '@/components/providers/NotificationProvider';
+import { usePushNotifications } from '@/lib/hooks/usePushNotifications';
 import type { User, UserPreferences } from '@/types/project';
 
 export default function ProfilePreferencesTab() {
   const theme = useTheme();
   const supabase = createSupabaseClient();
   const { showSuccess, showError } = useNotification();
+  const pushNotifications = usePushNotifications();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<User | null>(null);
@@ -28,6 +30,7 @@ export default function ProfilePreferencesTab() {
     notifications: {
       email: true,
       inApp: true,
+      push: false,
     },
     theme: {
       mode: 'dark',
@@ -63,6 +66,7 @@ export default function ProfilePreferencesTab() {
         notifications: {
           email: true,
           inApp: true,
+          push: false,
         },
         theme: {
           mode: 'dark',
@@ -73,12 +77,56 @@ export default function ProfilePreferencesTab() {
         ...user.preferences,
       });
     }
+    
+    // Sync push subscription state with preference
+    if (pushNotifications.supported) {
+      pushNotifications.checkSubscription();
+    }
     setLoading(false);
   }, [supabase]);
 
   useEffect(() => {
     loadProfile();
   }, [loadProfile]);
+
+  const handlePushToggle = async (enabled: boolean) => {
+    if (!pushNotifications.supported) {
+      showError('Push notifications are not supported in this browser');
+      return;
+    }
+
+    if (enabled) {
+      // Subscribe to push notifications
+      const success = await pushNotifications.subscribe();
+      if (success) {
+        setPreferences({
+          ...preferences,
+          notifications: {
+            ...preferences.notifications,
+            push: true,
+          },
+        });
+        showSuccess('Push notifications enabled!');
+      } else {
+        showError(pushNotifications.error || 'Failed to enable push notifications');
+      }
+    } else {
+      // Unsubscribe from push notifications
+      const success = await pushNotifications.unsubscribe();
+      if (success) {
+        setPreferences({
+          ...preferences,
+          notifications: {
+            ...preferences.notifications,
+            push: false,
+          },
+        });
+        showSuccess('Push notifications disabled');
+      } else {
+        showError(pushNotifications.error || 'Failed to disable push notifications');
+      }
+    }
+  };
 
   const handleSave = async () => {
     if (!profile) return;
@@ -221,6 +269,47 @@ export default function ProfilePreferencesTab() {
                   />
                 }
                 label="In-App Notifications"
+                sx={{ color: theme.palette.text.primary }}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={
+                      pushNotifications.supported
+                        ? (preferences.notifications?.push ?? false) && pushNotifications.subscribed
+                        : false
+                    }
+                    onChange={(e) => handlePushToggle(e.target.checked)}
+                    disabled={!pushNotifications.supported || pushNotifications.loading}
+                    sx={{
+                      '& .MuiSwitch-switchBase.Mui-checked': {
+                        color: theme.palette.text.primary,
+                      },
+                    }}
+                  />
+                }
+                label={
+                  <Box>
+                    <Typography sx={{ color: theme.palette.text.primary }}>
+                      Browser Push Notifications
+                    </Typography>
+                    {!pushNotifications.supported && (
+                      <Typography variant="caption" sx={{ color: theme.palette.text.secondary, display: 'block' }}>
+                        Not supported in this browser
+                      </Typography>
+                    )}
+                    {pushNotifications.supported && pushNotifications.permission === 'denied' && (
+                      <Typography variant="caption" sx={{ color: theme.palette.error.main, display: 'block' }}>
+                        Permission denied. Please enable in browser settings.
+                      </Typography>
+                    )}
+                    {pushNotifications.error && (
+                      <Typography variant="caption" sx={{ color: theme.palette.error.main, display: 'block' }}>
+                        {pushNotifications.error}
+                      </Typography>
+                    )}
+                  </Box>
+                }
                 sx={{ color: theme.palette.text.primary }}
               />
             </Box>

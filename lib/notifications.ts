@@ -1,5 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
+import { sendPushNotification } from '@/lib/pushNotifications';
+import logger from '@/lib/utils/logger';
 import type { NotificationType, NotificationMetadata } from '@/types/project';
 
 /**
@@ -26,11 +28,11 @@ export async function createNotification(
 
     // Respect user preferences - if inApp notifications are disabled, don't create
     if (user?.preferences?.notifications?.inApp === false) {
-      console.log('[Notifications] Skipping notification - user has in-app notifications disabled:', userId);
+      logger.debug('[Notifications] Skipping notification - user has in-app notifications disabled:', userId);
       return null;
     }
 
-    console.log('[Notifications] Attempting to create notification:', {
+    logger.debug('[Notifications] Attempting to create notification:', {
       userId,
       type,
       title,
@@ -51,7 +53,7 @@ export async function createNotification(
       .single();
 
     if (error) {
-      console.error('[Notifications] Error creating notification:', {
+      logger.error('[Notifications] Error creating notification:', {
         error_code: error.code,
         error_message: error.message,
         error_details: error.details,
@@ -64,15 +66,21 @@ export async function createNotification(
       return null;
     }
 
-    console.log('[Notifications] Notification created successfully:', {
+    logger.debug('[Notifications] Notification created successfully:', {
       id: notification?.id,
       userId,
       type,
     });
 
+    // Send push notification if enabled (non-blocking)
+    sendPushNotification(userId, title, message, metadata).catch((error) => {
+      logger.error('[Notifications] Error sending push notification:', error);
+      // Don't fail the notification creation if push fails
+    });
+
     return notification;
   } catch (error) {
-    console.error('[Notifications] Error creating notification:', error);
+    logger.error('[Notifications] Error creating notification:', error);
     return null;
   }
 }

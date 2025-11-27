@@ -12,6 +12,7 @@ import {
   Alert,
   Box,
   Typography,
+  useTheme,
 } from '@mui/material';
 import { AutoAwesome as AutoAwesomeIcon } from '@mui/icons-material';
 
@@ -30,6 +31,7 @@ export default function AIAssistButton({
   context,
   disabled,
 }: AIAssistButtonProps) {
+  const theme = useTheme();
   const [open, setOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [result, setResult] = useState('');
@@ -70,17 +72,16 @@ export default function AIAssistButton({
         disabled={disabled}
         size="small"
         sx={{
-          borderColor: '#00FF88',
-          color: '#00FF88',
-          backgroundColor: 'rgba(0, 255, 136, 0.1)',
+          borderColor: theme.palette.text.primary,
+          color: theme.palette.text.primary,
+          backgroundColor: theme.palette.action.hover,
           '&:hover': {
-            borderColor: '#00FF88',
-            backgroundColor: 'rgba(0, 255, 136, 0.2)',
-            boxShadow: '0 0 15px rgba(0, 255, 136, 0.4)',
+            borderColor: theme.palette.text.primary,
+            backgroundColor: theme.palette.action.hover,
           },
           '&.Mui-disabled': {
-            borderColor: 'rgba(0, 255, 136, 0.3)',
-            color: 'rgba(0, 255, 136, 0.3)',
+            borderColor: theme.palette.divider,
+            color: theme.palette.text.secondary,
           },
         }}
       >
@@ -94,20 +95,19 @@ export default function AIAssistButton({
         fullWidth
         PaperProps={{
           sx: {
-            backgroundColor: 'background.paper',
-            border: '2px solid',
-            borderColor: 'success.main',
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
             borderRadius: 3,
           },
         }}
       >
         <DialogTitle
           sx={{
-            backgroundColor: 'rgba(0, 255, 136, 0.1)',
-            borderBottom: '1px solid',
-            borderColor: 'success.main',
-            color: 'success.main',
+            backgroundColor: theme.palette.action.hover,
+            borderBottom: `1px solid ${theme.palette.divider}`,
+            color: theme.palette.text.primary,
             fontWeight: 600,
+            fontFamily: 'var(--font-rubik), Rubik, sans-serif',
             display: 'flex',
             alignItems: 'center',
             gap: 1,
@@ -122,10 +122,9 @@ export default function AIAssistButton({
               severity="info"
               sx={{
                 mb: 2,
-                backgroundColor: 'rgba(33, 150, 243, 0.1)',
-                border: '1px solid',
-                borderColor: 'info.main',
-                color: 'info.main',
+                backgroundColor: theme.palette.action.hover,
+                border: `1px solid ${theme.palette.divider}`,
+                color: theme.palette.text.primary,
               }}
             >
               {context}
@@ -141,18 +140,54 @@ export default function AIAssistButton({
             onChange={(e) => setPrompt(e.target.value)}
             margin="normal"
             placeholder="Add any specific requirements or context..."
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: theme.palette.background.paper,
+                color: theme.palette.text.primary,
+                '& fieldset': {
+                  borderColor: theme.palette.divider,
+                },
+                '&:hover fieldset': {
+                  borderColor: theme.palette.text.secondary,
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: theme.palette.text.primary,
+                },
+              },
+              '& .MuiInputLabel-root': {
+                color: theme.palette.text.secondary,
+              },
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: theme.palette.text.primary,
+              },
+              '& .MuiInputBase-input': {
+                color: theme.palette.text.primary,
+              },
+              '& .MuiInputBase-input::placeholder': {
+                color: theme.palette.text.secondary,
+                opacity: 0.7,
+              },
+            }}
           />
 
           {error && (
-            <Alert severity="error" sx={{ mt: 2 }}>
+            <Alert 
+              severity="error" 
+              sx={{ 
+                mt: 2,
+                backgroundColor: theme.palette.action.hover,
+                border: `1px solid ${theme.palette.divider}`,
+                color: theme.palette.text.primary,
+              }}
+            >
               {error}
             </Alert>
           )}
 
           {loading && (
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', my: 4, gap: 2 }}>
-              <CircularProgress sx={{ color: 'success.main' }} size={48} />
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              <CircularProgress sx={{ color: theme.palette.text.primary }} size={48} />
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
                 AI is generating...
               </Typography>
             </Box>
@@ -168,17 +203,41 @@ export default function AIAssistButton({
                 value={result}
                 onChange={(e) => setResult(e.target.value)}
                 margin="normal"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: theme.palette.background.paper,
+                    color: theme.palette.text.primary,
+                    '& fieldset': {
+                      borderColor: theme.palette.divider,
+                    },
+                    '&:hover fieldset': {
+                      borderColor: theme.palette.text.secondary,
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: theme.palette.text.primary,
+                    },
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: theme.palette.text.secondary,
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: theme.palette.text.primary,
+                  },
+                  '& .MuiInputBase-input': {
+                    color: theme.palette.text.primary,
+                  },
+                }}
               />
             </Box>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+        <DialogActions sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
           <Button
             onClick={() => setOpen(false)}
             sx={{
-              color: 'text.secondary',
+              color: theme.palette.text.secondary,
               '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                backgroundColor: theme.palette.action.hover,
               },
             }}
           >
@@ -189,11 +248,15 @@ export default function AIAssistButton({
             variant="outlined"
             disabled={loading}
             sx={{
-              borderColor: 'success.main',
-              color: 'success.main',
+              borderColor: theme.palette.text.primary,
+              color: theme.palette.text.primary,
               '&:hover': {
-                borderColor: 'success.light',
-                backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                borderColor: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
+              },
+              '&.Mui-disabled': {
+                borderColor: theme.palette.divider,
+                color: theme.palette.text.secondary,
               },
             }}
           >
@@ -204,11 +267,10 @@ export default function AIAssistButton({
               onClick={handleAccept}
               variant="contained"
               sx={{
-                backgroundColor: 'success.main',
-                color: 'success.contrastText',
+                backgroundColor: theme.palette.text.primary,
+                color: theme.palette.background.default,
                 '&:hover': {
-                  backgroundColor: 'success.dark',
-                  boxShadow: '0 4px 15px rgba(0, 255, 136, 0.4)',
+                  backgroundColor: theme.palette.action.hover,
                 },
               }}
             >

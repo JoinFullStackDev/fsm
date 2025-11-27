@@ -9,6 +9,7 @@ import {
   FormHelperText,
   Box,
   Typography,
+  useTheme,
 } from '@mui/material';
 import HelpTooltip from '@/components/ui/HelpTooltip';
 import type { TemplateFieldConfig } from '@/types/templates';
@@ -22,20 +23,48 @@ interface SelectFieldProps {
 }
 
 function SelectField({ field, value, onChange, error, phaseData }: SelectFieldProps) {
+  const theme = useTheme();
   const config = field.field_config;
   const options = config.options || [];
 
   return (
     <FormControl fullWidth size="small" error={!!error} required={config.required}>
-      <InputLabel sx={{ color: 'text.secondary' }}>{config.label}</InputLabel>
+      <InputLabel sx={{ color: theme.palette.text.secondary }}>{config.label}</InputLabel>
       <Select
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}
         label={config.label}
+        MenuProps={{
+          PaperProps: {
+            sx: {
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              '& .MuiMenuItem-root': {
+                color: theme.palette.text.primary,
+                '&:hover': {
+                  backgroundColor: theme.palette.action.hover,
+                },
+                '&.Mui-selected': {
+                  backgroundColor: theme.palette.action.hover,
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                },
+              },
+            },
+          },
+        }}
         sx={{
-          color: 'text.primary',
-          '.MuiOutlinedInput-notchedOutline': {
-            borderColor: error ? 'error.main' : 'rgba(0, 229, 255, 0.3)',
+          color: theme.palette.text.primary,
+          backgroundColor: theme.palette.background.paper,
+          '& .MuiOutlinedInput-notchedOutline': {
+            borderColor: error ? theme.palette.error.main : theme.palette.divider,
+          },
+          '&:hover .MuiOutlinedInput-notchedOutline': {
+            borderColor: error ? theme.palette.error.main : theme.palette.text.secondary,
+          },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: error ? theme.palette.error.main : theme.palette.text.primary,
           },
         }}
       >
@@ -51,7 +80,7 @@ function SelectField({ field, value, onChange, error, phaseData }: SelectFieldPr
         </FormHelperText>
       )}
       {config.helpText && !error && (
-        <FormHelperText>
+        <FormHelperText sx={{ color: theme.palette.text.secondary }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <span>{config.helpText}</span>
             <HelpTooltip title={config.helpText} />

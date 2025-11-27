@@ -9,6 +9,7 @@ import {
   CircularProgress,
   Link,
   IconButton,
+  useTheme,
 } from '@mui/material';
 import {
   CloudUpload as UploadIcon,
@@ -28,6 +29,7 @@ interface FileFieldProps {
 }
 
 function FileField({ field, value, onChange, error, phaseData }: FileFieldProps) {
+  const theme = useTheme();
   const config = field.field_config;
   const supabase = useSupabaseClient();
   const [uploading, setUploading] = useState(false);
@@ -137,7 +139,15 @@ function FileField({ field, value, onChange, error, phaseData }: FileFieldProps)
   return (
     <Box sx={{ width: '100%' }}>
       {(error || uploadError) && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert 
+          severity="error" 
+          sx={{ 
+            mb: 2,
+            backgroundColor: theme.palette.action.hover,
+            border: `1px solid ${theme.palette.divider}`,
+            color: theme.palette.text.primary,
+          }}
+        >
           {error || uploadError}
         </Alert>
       )}
@@ -146,10 +156,9 @@ function FileField({ field, value, onChange, error, phaseData }: FileFieldProps)
         <Box
           sx={{
             p: 2,
-            border: '1px solid',
-            borderColor: 'divider',
+            border: `1px solid ${theme.palette.divider}`,
             borderRadius: 1,
-            backgroundColor: 'background.paper',
+            backgroundColor: theme.palette.background.paper,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -157,9 +166,9 @@ function FileField({ field, value, onChange, error, phaseData }: FileFieldProps)
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
-            <FileIcon sx={{ color: 'primary.main' }} />
+            <FileIcon sx={{ color: theme.palette.text.primary }} />
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography variant="body2" sx={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <Typography variant="body2" sx={{ fontWeight: 500, color: theme.palette.text.primary, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {getFileName(value)}
               </Typography>
               <Link
@@ -167,7 +176,7 @@ function FileField({ field, value, onChange, error, phaseData }: FileFieldProps)
                 target="_blank"
                 rel="noopener noreferrer"
                 variant="caption"
-                sx={{ color: 'primary.main' }}
+                sx={{ color: theme.palette.text.primary }}
               >
                 View file
               </Link>
@@ -176,8 +185,13 @@ function FileField({ field, value, onChange, error, phaseData }: FileFieldProps)
           <IconButton
             onClick={handleRemove}
             size="small"
-            color="error"
             disabled={uploading}
+            sx={{
+              color: theme.palette.text.primary,
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+              },
+            }}
           >
             <DeleteIcon />
           </IconButton>
@@ -196,15 +210,19 @@ function FileField({ field, value, onChange, error, phaseData }: FileFieldProps)
             <Button
               variant="outlined"
               component="span"
-              startIcon={uploading ? <CircularProgress size={16} /> : <UploadIcon />}
+              startIcon={uploading ? <CircularProgress size={16} sx={{ color: theme.palette.text.primary }} /> : <UploadIcon />}
               disabled={uploading}
               fullWidth
               sx={{
-                borderColor: 'primary.main',
-                color: 'primary.main',
+                borderColor: theme.palette.text.primary,
+                color: theme.palette.text.primary,
                 '&:hover': {
-                  borderColor: 'primary.dark',
-                  backgroundColor: 'action.hover',
+                  borderColor: theme.palette.text.primary,
+                  backgroundColor: theme.palette.action.hover,
+                },
+                '&.Mui-disabled': {
+                  borderColor: theme.palette.divider,
+                  color: theme.palette.text.secondary,
                 },
               }}
             >
@@ -212,7 +230,7 @@ function FileField({ field, value, onChange, error, phaseData }: FileFieldProps)
             </Button>
           </label>
           {config.helpText && (
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+            <Typography variant="caption" sx={{ mt: 1, display: 'block', color: theme.palette.text.secondary }}>
               {config.helpText}
             </Typography>
           )}

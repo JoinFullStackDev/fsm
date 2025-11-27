@@ -1030,7 +1030,7 @@ Generate the complete ${documentType} document now:`;
               <ArrowBackIcon />
             </IconButton>
             <Box sx={{ flex: 1 }}>
-              <Typography variant="h4" sx={{ fontWeight: 600, color: theme.palette.text.primary, mb: 0.5, fontSize: '1.5rem' }}>
+              <Typography variant="h4" sx={{ fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif', color: theme.palette.text.primary, mb: 0.5, fontSize: '1.5rem' }}>
                 Phase {phaseNumber}: {currentPhaseName || `Phase ${phaseNumber}`}
               </Typography>
               <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
@@ -1117,7 +1117,7 @@ Generate the complete ${documentType} document now:`;
                 borderRadius: 4,
                 backgroundColor: theme.palette.action.hover,
                 '& .MuiLinearProgress-bar': {
-                  backgroundColor: '#4CAF50',
+                  backgroundColor: theme.palette.text.primary,
                 },
               }}
             />
@@ -1156,10 +1156,10 @@ Generate the complete ${documentType} document now:`;
                     disabled={!canEdit || (!completed && !canComplete)}
                     sx={{
                       '& .MuiSwitch-switchBase.Mui-checked': {
-                        color: 'success.main',
+                        color: theme.palette.text.primary,
                       },
                       '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                        backgroundColor: 'success.main',
+                        backgroundColor: theme.palette.text.primary,
                       },
                     }}
                   />
@@ -1178,11 +1178,11 @@ Generate the complete ${documentType} document now:`;
                   fontSize: '0.75rem',
                   height: 28,
                   px: 1,
-                  backgroundColor: completed ? '#4CAF50' : theme.palette.action.hover,
-                  color: completed ? '#FFFFFF' : theme.palette.text.primary,
-                  border: `1px solid ${completed ? '#4CAF50' : theme.palette.divider}`,
+                  backgroundColor: completed ? theme.palette.text.primary : theme.palette.action.hover,
+                  color: completed ? theme.palette.background.default : theme.palette.text.primary,
+                  border: `1px solid ${completed ? theme.palette.text.primary : theme.palette.divider}`,
                   '& .MuiChip-icon': {
-                    color: completed ? '#FFFFFF' : undefined,
+                    color: completed ? theme.palette.background.default : undefined,
                     fontSize: '16px',
                   },
                 }}
@@ -1239,12 +1239,12 @@ Generate the complete ${documentType} document now:`;
                   onClick={handleSave}
                   disabled={saving || !canEdit}
                   sx={{
-                    color: '#4CAF50',
+                    color: theme.palette.text.primary,
                     '&:hover': {
-                      backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                      backgroundColor: theme.palette.action.hover,
                     },
                     '&.Mui-disabled': {
-                      color: 'rgba(76, 175, 80, 0.3)',
+                      color: theme.palette.text.secondary,
                     },
                   }}
                 >
@@ -1333,18 +1333,18 @@ Generate the complete ${documentType} document now:`;
             onClick={handleSave}
             disabled={saving || !canEdit}
             sx={{
-              backgroundColor: '#4CAF50',
-              color: '#FFFFFF',
+              backgroundColor: theme.palette.text.primary,
+              color: theme.palette.background.default,
               '&:hover': {
-                backgroundColor: '#45A049',
+                backgroundColor: theme.palette.action.hover,
               },
               '&.Mui-disabled': {
-                backgroundColor: 'rgba(76, 175, 80, 0.3)',
-                color: 'rgba(255, 255, 255, 0.5)',
+                backgroundColor: theme.palette.divider,
+                color: theme.palette.text.secondary,
               },
             }}
           >
-            {saving ? <CircularProgress size={24} sx={{ color: '#FFFFFF' }} /> : <SaveIcon />}
+            {saving ? <CircularProgress size={24} sx={{ color: theme.palette.background.default }} /> : <SaveIcon />}
           </Fab>
         </Box>
 
@@ -1367,6 +1367,7 @@ Generate the complete ${documentType} document now:`;
               borderBottom: `1px solid ${theme.palette.divider}`,
               color: theme.palette.text.primary,
               fontWeight: 600,
+              fontFamily: 'var(--font-rubik), Rubik, sans-serif',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',

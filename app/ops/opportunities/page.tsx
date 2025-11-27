@@ -23,6 +23,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  Pagination,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Add as AddIcon, Search as SearchIcon, Delete as DeleteIcon, Edit as EditIcon, CheckCircle as CheckCircleIcon, Visibility as VisibilityIcon } from '@mui/icons-material';
@@ -45,15 +46,21 @@ export default function OpportunitiesPage() {
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [opportunityToConvert, setOpportunityToConvert] = useState<OpportunityWithCompany | null>(null);
   const [converting, setConverting] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
 
   const loadOpportunities = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
+      const offset = (page - 1) * pageSize;
       const params = new URLSearchParams();
       if (searchTerm) params.append('search', searchTerm);
       if (statusFilter !== 'all') params.append('status', statusFilter);
+      params.append('limit', pageSize.toString());
+      params.append('offset', offset.toString());
 
       const response = await fetch(`/api/ops/opportunities?${params.toString()}`);
       if (!response.ok) {
@@ -61,8 +68,9 @@ export default function OpportunitiesPage() {
         throw new Error(errorData.error || 'Failed to load opportunities');
       }
 
-      const data = await response.json();
-      setOpportunities(data);
+      const result = await response.json();
+      setOpportunities(result.data || []);
+      setTotal(result.total || 0);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load opportunities';
       setError(errorMessage);
@@ -70,7 +78,11 @@ export default function OpportunitiesPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter, showError]);
+  }, [searchTerm, statusFilter, page, pageSize, showError]);
+
+  useEffect(() => {
+    setPage(1); // Reset to first page when filters change
+  }, [searchTerm, statusFilter]);
 
   useEffect(() => {
     loadOpportunities();
@@ -313,12 +325,8 @@ export default function OpportunitiesPage() {
     },
   ];
 
-  const filteredOpportunities = opportunities.filter((opportunity) => {
-    const matchesSearch = !searchTerm || 
-      opportunity.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || opportunity.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredOpportunities = opportunities; // Filtering is now done server-side
+  const totalPages = Math.ceil(total / pageSize);
 
   if (loading) {
     return (
@@ -335,17 +343,32 @@ export default function OpportunitiesPage() {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Typography
-          variant="h4"
-          component="h1"
-          sx={{
-            fontSize: '1.5rem',
-            fontWeight: 600,
-            color: theme.palette.text.primary,
-          }}
-        >
-          Opportunities
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Typography
+            variant="h4"
+            component="h1"
+            sx={{
+              fontSize: '1.5rem',
+              fontWeight: 600,
+              color: theme.palette.text.primary,
+            }}
+          >
+            Opportunities
+          </Typography>
+          {!loading && (
+            <Chip
+              label={total}
+              size="small"
+              sx={{
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
+                border: `1px solid ${theme.palette.divider}`,
+                fontWeight: 500,
+                height: 24,
+              }}
+            />
+          )}
+        </Box>
         <Button
           variant="outlined"
           startIcon={<AddIcon />}
@@ -455,17 +478,6 @@ export default function OpportunitiesPage() {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} md={5}>
-              <Typography
-                variant="body2"
-                sx={{
-                  color: theme.palette.text.secondary,
-                  textAlign: { xs: 'left', md: 'right' },
-                }}
-              >
-                {filteredOpportunities.length} of {opportunities.length} opportunities
-              </Typography>
-            </Grid>
           </Grid>
         </Box>
       )}
@@ -479,11 +491,76 @@ export default function OpportunitiesPage() {
           onAction={handleCreateOpportunity}
         />
       ) : (
-        <SortableTable
-          data={filteredOpportunities}
-          columns={columns}
-          emptyMessage="No opportunities found"
-        />
+        <>
+          <SortableTable
+            data={filteredOpportunities}
+            columns={columns}
+            emptyMessage="No opportunities found"
+          />
+          {total > 10 && (
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 3 }}>
+              <FormControl size="small" sx={{ minWidth: 120 }}>
+                <InputLabel sx={{ color: theme.palette.text.secondary }}>Per Page</InputLabel>
+                <Select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  label="Per Page"
+                  sx={{
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: theme.palette.divider,
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: theme.palette.text.secondary,
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: theme.palette.text.primary,
+                    },
+                    '& .MuiSvgIcon-root': {
+                      color: theme.palette.text.primary,
+                    },
+                  }}
+                >
+                  <MenuItem value={10}>10</MenuItem>
+                  <MenuItem value={25}>25</MenuItem>
+                  <MenuItem value={50}>50</MenuItem>
+                  <MenuItem value={75}>75</MenuItem>
+                  <MenuItem value={100}>100</MenuItem>
+                </Select>
+              </FormControl>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: theme.palette.text.secondary,
+                }}
+              >
+                Showing {opportunities.length > 0 ? (page - 1) * pageSize + 1 : 0} - {Math.min(page * pageSize, total)} of {total}
+              </Typography>
+              <Pagination
+                count={totalPages}
+                page={page}
+                onChange={(_, value) => setPage(value)}
+                color="primary"
+                sx={{
+                  '& .MuiPaginationItem-root': {
+                    color: theme.palette.text.primary,
+                    '&.Mui-selected': {
+                      backgroundColor: theme.palette.action.hover,
+                      color: theme.palette.text.primary,
+                    },
+                    '&:hover': {
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                  },
+                }}
+              />
+            </Box>
+          )}
+        </>
       )}
 
       {/* Convert Confirmation Dialog */}

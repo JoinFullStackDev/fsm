@@ -18,6 +18,7 @@ import {
   Paper,
   Grid,
   IconButton,
+  Pagination,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Add as AddIcon, Search as SearchIcon, Delete as DeleteIcon, Visibility as VisibilityIcon } from '@mui/icons-material';
@@ -43,18 +44,24 @@ export default function ContactsPage() {
   const [leadSourceFilter, setLeadSourceFilter] = useState<string>('all');
   const [slideoutOpen, setSlideoutOpen] = useState(false);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
 
   const loadContacts = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
+      const offset = (page - 1) * pageSize;
       const params = new URLSearchParams();
       if (searchTerm) params.append('search', searchTerm);
       if (statusFilter !== 'all') params.append('status', statusFilter);
       if (leadStatusFilter !== 'all') params.append('lead_status', leadStatusFilter);
       if (pipelineStageFilter !== 'all') params.append('pipeline_stage', pipelineStageFilter);
       if (leadSourceFilter !== 'all') params.append('lead_source', leadSourceFilter);
+      params.append('limit', pageSize.toString());
+      params.append('offset', offset.toString());
 
       const response = await fetch(`/api/ops/contacts?${params.toString()}`);
       if (!response.ok) {
@@ -62,8 +69,9 @@ export default function ContactsPage() {
         throw new Error(errorData.error || 'Failed to load contacts');
       }
 
-      const data = await response.json();
-      setContacts(data);
+      const result = await response.json();
+      setContacts(result.data || []);
+      setTotal(result.total || 0);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load contacts';
       setError(errorMessage);
@@ -71,7 +79,11 @@ export default function ContactsPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter, leadStatusFilter, pipelineStageFilter, leadSourceFilter, showError]);
+  }, [searchTerm, statusFilter, leadStatusFilter, pipelineStageFilter, leadSourceFilter, page, pageSize, showError]);
+
+  useEffect(() => {
+    setPage(1); // Reset to first page when filters change
+  }, [searchTerm, statusFilter, leadStatusFilter, pipelineStageFilter, leadSourceFilter]);
 
   useEffect(() => {
     loadContacts();
@@ -265,6 +277,7 @@ export default function ContactsPage() {
 
   // Filtering is now done server-side via API
   const filteredContacts = contacts;
+  const totalPages = Math.ceil(total / pageSize);
 
   if (loading) {
     return (
@@ -281,17 +294,32 @@ export default function ContactsPage() {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Typography
-          variant="h4"
-          component="h1"
-          sx={{
-            fontSize: '1.5rem',
-            fontWeight: 600,
-            color: theme.palette.text.primary,
-          }}
-        >
-          Contacts
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Typography
+            variant="h4"
+            component="h1"
+            sx={{
+              fontSize: '1.5rem',
+              fontWeight: 600,
+              color: theme.palette.text.primary,
+            }}
+          >
+            Contacts
+          </Typography>
+          {!loading && (
+            <Chip
+              label={total}
+              size="small"
+              sx={{
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
+                border: `1px solid ${theme.palette.divider}`,
+                fontWeight: 500,
+                height: 24,
+              }}
+            />
+          )}
+        </Box>
         <Button
           variant="outlined"
           startIcon={<AddIcon />}
@@ -336,7 +364,7 @@ export default function ContactsPage() {
           }}
         >
           <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={3}>
               <TextField
                 fullWidth
                 size="small"
@@ -503,17 +531,6 @@ export default function ContactsPage() {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} md={2}>
-              <Typography
-                variant="body2"
-                sx={{
-                  color: theme.palette.text.secondary,
-                  textAlign: { xs: 'left', md: 'right' },
-                }}
-              >
-                {contacts.length} contacts
-              </Typography>
-            </Grid>
           </Grid>
         </Box>
       )}
@@ -527,11 +544,76 @@ export default function ContactsPage() {
           onAction={handleCreateContact}
         />
       ) : (
-        <SortableTable
-          data={filteredContacts}
-          columns={columns}
-          emptyMessage="No contacts found"
-        />
+        <>
+          <SortableTable
+            data={filteredContacts}
+            columns={columns}
+            emptyMessage="No contacts found"
+          />
+          {total > 10 && (
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 3 }}>
+              <FormControl size="small" sx={{ minWidth: 120 }}>
+                <InputLabel sx={{ color: theme.palette.text.secondary }}>Per Page</InputLabel>
+                <Select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  label="Per Page"
+                  sx={{
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: theme.palette.divider,
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: theme.palette.text.secondary,
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: theme.palette.text.primary,
+                    },
+                    '& .MuiSvgIcon-root': {
+                      color: theme.palette.text.primary,
+                    },
+                  }}
+                >
+                  <MenuItem value={10}>10</MenuItem>
+                  <MenuItem value={25}>25</MenuItem>
+                  <MenuItem value={50}>50</MenuItem>
+                  <MenuItem value={75}>75</MenuItem>
+                  <MenuItem value={100}>100</MenuItem>
+                </Select>
+              </FormControl>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: theme.palette.text.secondary,
+                }}
+              >
+                Showing {contacts.length > 0 ? (page - 1) * pageSize + 1 : 0} - {Math.min(page * pageSize, total)} of {total}
+              </Typography>
+              <Pagination
+                count={totalPages}
+                page={page}
+                onChange={(_, value) => setPage(value)}
+                color="primary"
+                sx={{
+                  '& .MuiPaginationItem-root': {
+                    color: theme.palette.text.primary,
+                    '&.Mui-selected': {
+                      backgroundColor: theme.palette.action.hover,
+                      color: theme.palette.text.primary,
+                    },
+                    '&:hover': {
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                  },
+                }}
+              />
+            </Box>
+          )}
+        </>
       )}
 
       <ContactDetailSlideout

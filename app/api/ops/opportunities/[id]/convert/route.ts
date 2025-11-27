@@ -60,11 +60,17 @@ export async function POST(
       }
     }
 
+    // Get request body for template_id and member_ids
+    const body = await request.json().catch(() => ({}));
+    const { template_id, member_ids } = body;
+
     // Convert opportunity to project
     const project = await convertOpportunityToProject(
       supabase,
       opportunity,
-      userData.id
+      userData.id,
+      template_id || null,
+      member_ids || []
     );
 
     // Update opportunity status to 'converted'

@@ -23,6 +23,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Pagination,
 } from '@mui/material';
 import { Add as AddIcon, Search as SearchIcon, Delete as DeleteIcon, Edit as EditIcon } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
@@ -46,15 +47,21 @@ export default function CompaniesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [companyToDelete, setCompanyToDelete] = useState<CompanyWithCounts | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
 
   const loadCompanies = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
+      const offset = (page - 1) * pageSize;
       const params = new URLSearchParams();
       if (searchTerm) params.append('search', searchTerm);
       if (statusFilter !== 'all') params.append('status', statusFilter);
+      params.append('limit', pageSize.toString());
+      params.append('offset', offset.toString());
 
       const response = await fetch(`/api/ops/companies?${params.toString()}`);
       if (!response.ok) {
@@ -62,8 +69,9 @@ export default function CompaniesPage() {
         throw new Error(errorData.error || 'Failed to load companies');
       }
 
-      const data = await response.json();
-      setCompanies(data);
+      const result = await response.json();
+      setCompanies(result.data || []);
+      setTotal(result.total || 0);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load companies';
       setError(errorMessage);
@@ -71,7 +79,11 @@ export default function CompaniesPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter, showError]);
+  }, [searchTerm, statusFilter, page, pageSize, showError]);
+
+  useEffect(() => {
+    setPage(1); // Reset to first page when filters change
+  }, [searchTerm, statusFilter]);
 
   useEffect(() => {
     loadCompanies();
@@ -200,12 +212,8 @@ export default function CompaniesPage() {
     },
   ];
 
-  const filteredCompanies = companies.filter((company) => {
-    const matchesSearch = !searchTerm || 
-      company.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || company.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredCompanies = companies; // Filtering is now done server-side
+  const totalPages = Math.ceil(total / pageSize);
 
   if (loading) {
     return (
@@ -222,16 +230,31 @@ export default function CompaniesPage() {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Typography
-          variant="h4"
-          component="h1"
-          sx={{
-            fontWeight: 700,
-            color: theme.palette.text.primary,
-          }}
-        >
-          Companies
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Typography
+            variant="h4"
+            component="h1"
+            sx={{
+              fontWeight: 700,
+              color: theme.palette.text.primary,
+            }}
+          >
+            Companies
+          </Typography>
+          {!loading && (
+            <Chip
+              label={total}
+              size="small"
+              sx={{
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
+                border: `1px solid ${theme.palette.divider}`,
+                fontWeight: 500,
+                height: 24,
+              }}
+            />
+          )}
+        </Box>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
@@ -341,17 +364,6 @@ export default function CompaniesPage() {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} md={4}>
-              <Typography
-                variant="body2"
-                sx={{
-                  color: theme.palette.text.secondary,
-                  textAlign: { xs: 'left', md: 'right' },
-                }}
-              >
-                {filteredCompanies.length} of {companies.length} companies
-              </Typography>
-            </Grid>
           </Grid>
         </Paper>
       )}
@@ -365,12 +377,77 @@ export default function CompaniesPage() {
           onAction={handleCreateCompany}
         />
       ) : (
-        <SortableTable
-          data={filteredCompanies}
-          columns={columns}
-          onRowClick={(company) => router.push(`/ops/companies/${company.id}`)}
-          emptyMessage="No companies found"
-        />
+        <>
+          <SortableTable
+            data={filteredCompanies}
+            columns={columns}
+            onRowClick={(company) => router.push(`/ops/companies/${company.id}`)}
+            emptyMessage="No companies found"
+          />
+          {total > 10 && (
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 3 }}>
+              <FormControl size="small" sx={{ minWidth: 120 }}>
+                <InputLabel sx={{ color: theme.palette.text.secondary }}>Per Page</InputLabel>
+                <Select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  label="Per Page"
+                  sx={{
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.background.paper,
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: theme.palette.divider,
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: theme.palette.divider,
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: theme.palette.divider,
+                    },
+                    '& .MuiSvgIcon-root': {
+                      color: theme.palette.text.secondary,
+                    },
+                  }}
+                >
+                  <MenuItem value={10}>10</MenuItem>
+                  <MenuItem value={25}>25</MenuItem>
+                  <MenuItem value={50}>50</MenuItem>
+                  <MenuItem value={75}>75</MenuItem>
+                  <MenuItem value={100}>100</MenuItem>
+                </Select>
+              </FormControl>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: theme.palette.text.secondary,
+                }}
+              >
+                Showing {companies.length > 0 ? (page - 1) * pageSize + 1 : 0} - {Math.min(page * pageSize, total)} of {total}
+              </Typography>
+              <Pagination
+                count={totalPages}
+                page={page}
+                onChange={(_, value) => setPage(value)}
+                color="primary"
+                sx={{
+                  '& .MuiPaginationItem-root': {
+                    color: theme.palette.text.primary,
+                    '&.Mui-selected': {
+                      backgroundColor: theme.palette.action.hover,
+                      color: theme.palette.text.primary,
+                    },
+                    '&:hover': {
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                  },
+                }}
+              />
+            </Box>
+          )}
+        </>
       )}
 
       {/* Delete Confirmation Dialog */}

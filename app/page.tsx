@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Box,
@@ -13,6 +13,11 @@ import {
   keyframes,
   LinearProgress,
   Chip,
+  Avatar,
+  IconButton,
+  Menu,
+  MenuItem,
+  Divider,
 } from '@mui/material';
 import {
   ArrowForward as ArrowForwardIcon,
@@ -31,7 +36,13 @@ import {
   Description as DescriptionIcon,
   Settings as SettingsIcon,
   Build as BuildIcon,
+  AdminPanelSettings as AdminIcon,
+  Person as PersonIcon,
+  Logout as LogoutIcon,
 } from '@mui/icons-material';
+import { createSupabaseClient } from '@/lib/supabaseClient';
+import { useRole } from '@/lib/hooks/useRole';
+import type { User } from '@/types/project';
 
 // Animations
 const floatAnimation = keyframes`
@@ -281,13 +292,79 @@ function FlowConnector({
 export default function LandingPage() {
   const router = useRouter();
   const theme = useTheme();
+  const supabase = createSupabaseClient();
+  const { role, isSuperAdmin, loading: roleLoading } = useRole();
   const [scrollY, setScrollY] = useState(0);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const loadUser = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('auth_id', session.user.id)
+        .single();
+
+      if (!error && data) {
+        setUser(data as User);
+      }
+    } catch (error) {
+      console.error('Error loading user:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [supabase]);
+
+  useEffect(() => {
+    loadUser();
+  }, [loadUser]);
+
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleNavigate = (path: string) => {
+    handleMenuClose();
+    router.push(path);
+  };
+
+  const handleSignOut = async () => {
+    handleMenuClose();
+    await supabase.auth.signOut();
+    router.push('/auth/signin');
+  };
+
+  const getUserInitials = () => {
+    if (user?.name) {
+      const names = user.name.split(' ');
+      if (names.length >= 2) {
+        return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
+      }
+      return user.name.substring(0, 2).toUpperCase();
+    }
+    if (user?.email) {
+      return user.email.substring(0, 2).toUpperCase();
+    }
+    return 'U';
+  };
 
   return (
     <Box
@@ -384,24 +461,136 @@ export default function LandingPage() {
                 color: theme.palette.text.primary,
               }}
             >
-              FullStack Method™
+              FSM™
             </Typography>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-              <Button
-                variant="outlined"
-                onClick={() => router.push('/auth/signin')}
-                sx={{
-                  borderColor: theme.palette.text.primary,
-                  color: theme.palette.text.primary,
-                  fontWeight: 600,
-                  '&:hover': {
+              {!loading && user ? (
+                <>
+                  <IconButton
+                    onClick={handleMenuOpen}
+                    sx={{
+                      p: 0,
+                      '&:hover': {
+                        opacity: 0.8,
+                      },
+                    }}
+                  >
+                    <Avatar
+                      src={user?.avatar_url || undefined}
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        bgcolor: theme.palette.text.primary,
+                        color: theme.palette.background.default,
+                        border: `1px solid ${theme.palette.divider}`,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {getUserInitials()}
+                    </Avatar>
+                  </IconButton>
+                  <Menu
+                    anchorEl={anchorEl}
+                    open={Boolean(anchorEl)}
+                    onClose={handleMenuClose}
+                    anchorOrigin={{
+                      vertical: 'bottom',
+                      horizontal: 'right',
+                    }}
+                    transformOrigin={{
+                      vertical: 'top',
+                      horizontal: 'right',
+                    }}
+                    PaperProps={{
+                      sx: {
+                        mt: 1,
+                        minWidth: 200,
+                        backgroundColor: theme.palette.background.paper,
+                        border: `1px solid ${theme.palette.divider}`,
+                      },
+                    }}
+                  >
+                    {user && (
+                      <Box sx={{ px: 2, py: 1.5 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                          {user.name || 'User'}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          {user.email}
+                        </Typography>
+                      </Box>
+                    )}
+                    <Divider sx={{ borderColor: theme.palette.divider }} />
+                    <MenuItem
+                      onClick={() => handleNavigate('/dashboard')}
+                      sx={{
+                        color: 'text.primary',
+                        '&:hover': {
+                          backgroundColor: theme.palette.action.hover,
+                        },
+                      }}
+                    >
+                      <DashboardIcon fontSize="small" sx={{ mr: 1.5 }} />
+                      Dashboard
+                    </MenuItem>
+                    {!roleLoading && role === 'admin' && isSuperAdmin && (
+                      <MenuItem
+                        onClick={() => handleNavigate('/admin')}
+                        sx={{
+                          color: 'text.primary',
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        }}
+                      >
+                        <AdminIcon fontSize="small" sx={{ mr: 1.5 }} />
+                        Admin
+                      </MenuItem>
+                    )}
+                    <MenuItem
+                      onClick={() => handleNavigate('/profile')}
+                      sx={{
+                        color: 'text.primary',
+                        '&:hover': {
+                          backgroundColor: theme.palette.action.hover,
+                        },
+                      }}
+                    >
+                      <PersonIcon fontSize="small" sx={{ mr: 1.5 }} />
+                      Profile
+                    </MenuItem>
+                    <Divider sx={{ borderColor: theme.palette.divider }} />
+                    <MenuItem
+                      onClick={handleSignOut}
+                      sx={{
+                        color: theme.palette.text.primary,
+                        '&:hover': {
+                          backgroundColor: theme.palette.action.hover,
+                        },
+                      }}
+                    >
+                      <LogoutIcon fontSize="small" sx={{ mr: 1.5 }} />
+                      Sign Out
+                    </MenuItem>
+                  </Menu>
+                </>
+              ) : (
+                <Button
+                  variant="outlined"
+                  onClick={() => router.push('/auth/signin')}
+                  sx={{
                     borderColor: theme.palette.text.primary,
-                    backgroundColor: theme.palette.action.hover,
-                  },
-                }}
-              >
-                Sign In
-              </Button>
+                    color: theme.palette.text.primary,
+                    fontWeight: 600,
+                    '&:hover': {
+                      borderColor: theme.palette.text.primary,
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                  }}
+                >
+                  Sign In
+                </Button>
+              )}
             </Box>
           </Box>
         </Container>

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { TextField, Box } from '@mui/material';
+import { TextField, Box, useTheme } from '@mui/material';
 import AIAssistButton from '@/components/ai/AIAssistButton';
 import type { TemplateFieldConfig } from '@/types/templates';
 
@@ -14,6 +14,7 @@ interface TextareaFieldProps {
 }
 
 function TextareaField({ field, value, onChange, error, phaseData }: TextareaFieldProps) {
+  const theme = useTheme();
   const config = field.field_config;
   const aiEnabled = config.aiSettings?.enabled;
 
@@ -32,11 +33,32 @@ function TextareaField({ field, value, onChange, error, phaseData }: TextareaFie
         helperText={error}
         size="small"
         sx={{
-          '& .MuiInputBase-input': {
-            color: 'text.primary',
+          '& .MuiOutlinedInput-root': {
+            backgroundColor: theme.palette.background.paper,
+            color: theme.palette.text.primary,
+            '& fieldset': {
+              borderColor: theme.palette.divider,
+            },
+            '&:hover fieldset': {
+              borderColor: theme.palette.text.secondary,
+            },
+            '&.Mui-focused fieldset': {
+              borderColor: theme.palette.text.primary,
+            },
           },
           '& .MuiInputLabel-root': {
+            color: theme.palette.text.secondary,
             fontSize: '0.875rem',
+          },
+          '& .MuiInputLabel-root.Mui-focused': {
+            color: theme.palette.text.primary,
+          },
+          '& .MuiInputBase-input': {
+            color: theme.palette.text.primary,
+          },
+          '& .MuiInputBase-input::placeholder': {
+            color: theme.palette.text.secondary,
+            opacity: 0.7,
           },
         }}
       />

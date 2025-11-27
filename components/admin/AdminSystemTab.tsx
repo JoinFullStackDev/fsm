@@ -27,6 +27,7 @@ export default function AdminSystemTab() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [pushNotificationsEnabled, setPushNotificationsEnabled] = useState(true);
   const [appName, setAppName] = useState('FullStack Method™ App');
   const [emailSignupSubject, setEmailSignupSubject] = useState('Welcome to FullStack Method™');
   const [emailSignupBody, setEmailSignupBody] = useState('Welcome!');
@@ -41,7 +42,7 @@ export default function AdminSystemTab() {
     const { data, error: fetchError } = await supabase
       .from('admin_settings')
       .select('*')
-      .in('key', ['system_maintenance_mode', 'system_app_name', 'email_signup_template']);
+      .in('key', ['system_maintenance_mode', 'system_push_notifications_enabled', 'system_app_name', 'email_signup_template']);
 
     if (fetchError) {
       setError(fetchError.message);
@@ -51,11 +52,18 @@ export default function AdminSystemTab() {
 
     const settings = data as AdminSetting[];
     const maintenance = settings.find(s => s.key === 'system_maintenance_mode');
+    const pushNotifications = settings.find(s => s.key === 'system_push_notifications_enabled');
     const appNameSetting = settings.find(s => s.key === 'system_app_name');
     const emailTemplate = settings.find(s => s.key === 'email_signup_template');
 
     if (maintenance?.value !== undefined) {
       setMaintenanceMode(Boolean(maintenance.value));
+    }
+    if (pushNotifications?.value !== undefined) {
+      setPushNotificationsEnabled(Boolean(pushNotifications.value));
+    } else {
+      // Default to true if not set
+      setPushNotificationsEnabled(true);
     }
     if (appNameSetting?.value) {
       setAppName(String(appNameSetting.value));
@@ -88,6 +96,12 @@ export default function AdminSystemTab() {
       {
         key: 'system_maintenance_mode',
         value: maintenanceMode,
+        category: 'system' as const,
+        updated_by: userData?.id,
+      },
+      {
+        key: 'system_push_notifications_enabled',
+        value: pushNotificationsEnabled,
         category: 'system' as const,
         updated_by: userData?.id,
       },
@@ -210,6 +224,39 @@ export default function AdminSystemTab() {
             />
             <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 1 }}>
               When enabled, only admins can access the application.
+            </Typography>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12}>
+          <Paper
+            sx={{
+              p: 3,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
+            }}
+          >
+            <Typography variant="h6" sx={{ mb: 2, color: theme.palette.text.primary, fontWeight: 600 }}>
+              Push Notifications
+            </Typography>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={pushNotificationsEnabled}
+                  onChange={(e) => setPushNotificationsEnabled(e.target.checked)}
+                  sx={{
+                    '& .MuiSwitch-switchBase.Mui-checked': {
+                      color: theme.palette.text.primary,
+                    },
+                  }}
+                />
+              }
+              label={pushNotificationsEnabled ? 'Push notifications are enabled' : 'Push notifications are disabled'}
+              sx={{ color: theme.palette.text.primary }}
+            />
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 1 }}>
+              When disabled, no push notifications will be sent to any users, regardless of their individual preferences.
             </Typography>
           </Paper>
         </Grid>

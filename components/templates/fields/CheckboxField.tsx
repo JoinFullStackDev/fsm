@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { FormControlLabel, Checkbox, Box, Typography } from '@mui/material';
+import { FormControlLabel, Checkbox, Box, Typography, useTheme } from '@mui/material';
 import HelpTooltip from '@/components/ui/HelpTooltip';
 import type { TemplateFieldConfig } from '@/types/templates';
 
@@ -14,6 +14,7 @@ interface CheckboxFieldProps {
 }
 
 function CheckboxField({ field, value, onChange, error, phaseData }: CheckboxFieldProps) {
+  const theme = useTheme();
   const config = field.field_config;
 
   return (
@@ -24,18 +25,18 @@ function CheckboxField({ field, value, onChange, error, phaseData }: CheckboxFie
             checked={value || false}
             onChange={(e) => onChange(e.target.checked)}
             sx={{
-              color: 'primary.main',
+              color: theme.palette.text.primary,
               '&.Mui-checked': {
-                color: 'primary.main',
+                color: theme.palette.text.primary,
               },
             }}
           />
         }
         label={config.label}
-        sx={{ color: 'text.primary' }}
+        sx={{ color: theme.palette.text.primary }}
       />
       {error && (
-        <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
+        <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: theme.palette.error.main }}>
           {error}
         </Typography>
       )}

@@ -18,6 +18,7 @@ import {
   IconButton,
   InputAdornment,
   CircularProgress,
+  useTheme,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -42,6 +43,7 @@ export default function CreateUserDialog({
   onClose,
   onUserCreated,
 }: CreateUserDialogProps) {
+  const theme = useTheme();
   const { showSuccess, showError } = useNotification();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -222,8 +224,8 @@ export default function CreateUserDialog({
       fullWidth
       PaperProps={{
         sx: {
-          backgroundColor: '#000',
-          border: '2px solid rgba(0, 229, 255, 0.2)',
+          backgroundColor: theme.palette.background.paper,
+          border: `1px solid ${theme.palette.divider}`,
         },
       }}
     >
@@ -232,17 +234,23 @@ export default function CreateUserDialog({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          color: '#00E5FF',
-          borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+          backgroundColor: theme.palette.action.hover,
+          color: theme.palette.text.primary,
+          borderBottom: `1px solid ${theme.palette.divider}`,
         }}
       >
-        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+        <Typography variant="h6" sx={{ fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif' }}>
           {createdUser ? 'User Created Successfully' : 'Create New User'}
         </Typography>
         <IconButton
           onClick={handleClose}
           disabled={loading}
-          sx={{ color: '#00E5FF' }}
+          sx={{ 
+            color: theme.palette.text.primary,
+            '&:hover': {
+              backgroundColor: theme.palette.background.paper,
+            },
+          }}
           size="small"
           aria-label="Close dialog"
         >
@@ -253,21 +261,29 @@ export default function CreateUserDialog({
       <DialogContent sx={{ mt: 2 }}>
         {createdUser ? (
           <Box>
-            <Alert severity="success" sx={{ mb: 2, backgroundColor: 'rgba(76, 175, 80, 0.1)' }}>
+            <Alert 
+              severity="success" 
+              sx={{ 
+                mb: 2, 
+                backgroundColor: theme.palette.action.hover,
+                border: `1px solid ${theme.palette.divider}`,
+                color: theme.palette.text.primary,
+              }}
+            >
               User has been created successfully. Share the temporary password with the user.
             </Alert>
 
             <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
                 Email
               </Typography>
-              <Typography variant="body1" sx={{ color: 'text.primary', fontWeight: 600 }}>
+              <Typography variant="body1" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
                 {createdUser.email}
               </Typography>
             </Box>
 
             <Box>
-              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
                 Temporary Password
               </Typography>
               <TextField
@@ -281,7 +297,13 @@ export default function CreateUserDialog({
                       <IconButton
                         onClick={() => setShowPassword(!showPassword)}
                         edge="end"
-                        sx={{ color: 'text.secondary', mr: 1 }}
+                        sx={{ 
+                          color: theme.palette.text.secondary, 
+                          mr: 1,
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        }}
                         aria-label={showPassword ? 'Hide password' : 'Show password'}
                       >
                         {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
@@ -289,7 +311,12 @@ export default function CreateUserDialog({
                       <IconButton
                         onClick={handleCopyPassword}
                         edge="end"
-                        sx={{ color: passwordCopied ? 'success.main' : 'text.secondary' }}
+                        sx={{ 
+                          color: passwordCopied ? theme.palette.text.primary : theme.palette.text.secondary,
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        }}
                         title="Copy password"
                         aria-label="Copy password to clipboard"
                       >
@@ -299,13 +326,27 @@ export default function CreateUserDialog({
                   ),
                 }}
                 sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: theme.palette.background.paper,
+                    color: theme.palette.text.primary,
+                    '& fieldset': {
+                      borderColor: theme.palette.divider,
+                    },
+                    '&:hover fieldset': {
+                      borderColor: theme.palette.text.secondary,
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: theme.palette.text.primary,
+                    },
+                  },
                   '& .MuiInputBase-input': {
                     fontFamily: 'monospace',
                     fontSize: '0.875rem',
+                    color: theme.palette.text.primary,
                   },
                 }}
               />
-              <Typography variant="caption" sx={{ color: 'text.secondary', mt: 1, display: 'block' }}>
+              <Typography variant="caption" sx={{ color: theme.palette.text.secondary, mt: 1, display: 'block' }}>
                 User should change this password on first login
               </Typography>
             </Box>
@@ -320,7 +361,15 @@ export default function CreateUserDialog({
             sx={{ mt: 1 }}
           >
             {error && (
-              <Alert severity="error" sx={{ mb: 2, backgroundColor: 'rgba(244, 67, 54, 0.1)' }}>
+              <Alert 
+                severity="error" 
+                sx={{ 
+                  mb: 2, 
+                  backgroundColor: theme.palette.action.hover,
+                  border: `1px solid ${theme.palette.divider}`,
+                  color: theme.palette.text.primary,
+                }}
+              >
                 {error}
               </Alert>
             )}
@@ -346,9 +395,29 @@ export default function CreateUserDialog({
               helperText={errorFields.name}
               sx={{
                 '& .MuiOutlinedInput-root': {
+                  backgroundColor: theme.palette.background.paper,
+                  color: theme.palette.text.primary,
                   '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: errorFields.name ? theme.palette.error.main : theme.palette.divider,
                   },
+                  '&:hover fieldset': {
+                    borderColor: errorFields.name ? theme.palette.error.main : theme.palette.text.secondary,
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: errorFields.name ? theme.palette.error.main : theme.palette.text.primary,
+                  },
+                },
+                '& .MuiInputLabel-root': {
+                  color: theme.palette.text.secondary,
+                },
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: theme.palette.text.primary,
+                },
+                '& .MuiInputBase-input': {
+                  color: theme.palette.text.primary,
+                },
+                '& .MuiFormHelperText-root': {
+                  color: errorFields.name ? theme.palette.error.main : theme.palette.text.secondary,
                 },
               }}
             />
@@ -375,23 +444,74 @@ export default function CreateUserDialog({
               helperText={errorFields.email}
               sx={{
                 '& .MuiOutlinedInput-root': {
+                  backgroundColor: theme.palette.background.paper,
+                  color: theme.palette.text.primary,
                   '& fieldset': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: errorFields.email ? theme.palette.error.main : theme.palette.divider,
                   },
+                  '&:hover fieldset': {
+                    borderColor: errorFields.email ? theme.palette.error.main : theme.palette.text.secondary,
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: errorFields.email ? theme.palette.error.main : theme.palette.text.primary,
+                  },
+                },
+                '& .MuiInputLabel-root': {
+                  color: theme.palette.text.secondary,
+                },
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: theme.palette.text.primary,
+                },
+                '& .MuiInputBase-input': {
+                  color: theme.palette.text.primary,
+                },
+                '& .MuiFormHelperText-root': {
+                  color: errorFields.email ? theme.palette.error.main : theme.palette.text.secondary,
                 },
               }}
             />
 
             <FormControl fullWidth margin="normal" required>
-              <InputLabel>Role</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Role</InputLabel>
               <Select
                 value={role}
                 label="Role"
                 onChange={(e) => setRole(e.target.value as UserRole)}
                 disabled={loading}
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      backgroundColor: theme.palette.background.paper,
+                      border: `1px solid ${theme.palette.divider}`,
+                      '& .MuiMenuItem-root': {
+                        color: theme.palette.text.primary,
+                        '&:hover': {
+                          backgroundColor: theme.palette.action.hover,
+                        },
+                        '&.Mui-selected': {
+                          backgroundColor: theme.palette.action.hover,
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        },
+                      },
+                    },
+                  },
+                }}
                 sx={{
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.background.paper,
                   '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(0, 229, 255, 0.3)',
+                    borderColor: theme.palette.divider,
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: theme.palette.text.secondary,
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: theme.palette.text.primary,
+                  },
+                  '& .MuiSvgIcon-root': {
+                    color: theme.palette.text.secondary,
                   },
                 }}
               >
@@ -405,16 +525,17 @@ export default function CreateUserDialog({
         )}
       </DialogContent>
 
-      <DialogActions sx={{ p: 2, borderTop: '2px solid rgba(0, 229, 255, 0.2)' }}>
+      <DialogActions sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
         {createdUser ? (
           <Button
             onClick={handleClose}
             variant="contained"
             sx={{
-              backgroundColor: '#00E5FF',
-              color: '#000',
+              backgroundColor: theme.palette.text.primary,
+              color: theme.palette.background.default,
               '&:hover': {
-                backgroundColor: '#00B2CC',
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
               },
             }}
           >
@@ -425,7 +546,13 @@ export default function CreateUserDialog({
             <Button
               onClick={handleClose}
               disabled={loading}
-              sx={{ color: 'text.secondary' }}
+              sx={{ 
+                color: theme.palette.text.secondary,
+                '&:hover': {
+                  backgroundColor: theme.palette.action.hover,
+                  color: theme.palette.text.primary,
+                },
+              }}
             >
               Cancel
             </Button>
@@ -457,19 +584,21 @@ export default function CreateUserDialog({
                 }
               }}
               sx={{
-                backgroundColor: '#00E5FF',
-                color: '#000',
+                backgroundColor: theme.palette.text.primary,
+                color: theme.palette.background.default,
                 '&:hover': {
-                  backgroundColor: '#00B2CC',
+                  backgroundColor: theme.palette.action.hover,
+                  color: theme.palette.text.primary,
                 },
                 '&:disabled': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.3)',
+                  backgroundColor: theme.palette.divider,
+                  color: theme.palette.text.secondary,
                 },
               }}
             >
               {loading ? (
                 <>
-                  <CircularProgress size={16} sx={{ mr: 1 }} />
+                  <CircularProgress size={16} sx={{ mr: 1, color: theme.palette.background.default }} />
                   Creating...
                 </>
               ) : (

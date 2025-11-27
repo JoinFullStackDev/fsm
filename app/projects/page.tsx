@@ -17,6 +17,7 @@ import {
   MenuItem,
   Paper,
   Grid,
+  Pagination,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Add as AddIcon, Search as SearchIcon, Delete as DeleteIcon } from '@mui/icons-material';
@@ -51,100 +52,48 @@ export default function ProjectsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+
+  const loadProjects = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const offset = (page - 1) * pageSize;
+      const params = new URLSearchParams({
+        limit: pageSize.toString(),
+        offset: offset.toString(),
+      });
+
+      const response = await fetch(`/api/projects?${params}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to load projects');
+      }
+
+      setProjects(data.data || []);
+      setTotal(data.total || 0);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load projects';
+      setError(errorMessage);
+      showError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadProjects = async () => {
-      // Wait a bit for session to be fully established
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Try multiple times to get session (in case of timing issues)
-      let session = null;
-      let attempts = 0;
-      while (!session && attempts < 5) {
-        const { data, error: sessionError } = await supabase.auth.getSession();
-        session = data.session;
-        
-        if (!session && attempts < 4) {
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
-        attempts++;
-      }
-
-      if (!session) {
-        setError('Session not found. Please try signing in again.');
-        setLoading(false);
-        return;
-      }
-
-      // Get user record
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id, role')
-        .eq('auth_id', session.user.id)
-        .single();
-
-      if (userError || !userData) {
-        setError('Failed to load user data');
-        setLoading(false);
-        return;
-      }
-
-      let allProjects: Project[] = [];
-
-      // If user is admin, load all projects
-      if (userData.role === 'admin') {
-        const { data: allProjectsData, error: allProjectsError } = await supabase
-          .from('projects')
-          .select('*')
-          .order('updated_at', { ascending: false });
-
-        if (allProjectsError) {
-          setError(allProjectsError.message || 'Failed to load projects');
-          setLoading(false);
-          return;
-        }
-
-        allProjects = (allProjectsData || []) as Project[];
-      } else {
-        // Get projects where user is owner
-        const { data: ownedProjects, error: ownedError } = await supabase
-          .from('projects')
-          .select('*')
-          .eq('owner_id', userData.id)
-          .order('updated_at', { ascending: false });
-
-        // Get projects where user is a member
-        const { data: memberProjects, error: memberError } = await supabase
-          .from('project_members')
-          .select('project_id, projects(*)')
-          .eq('user_id', userData.id);
-
-        if (ownedError || memberError) {
-          setError(ownedError?.message || memberError?.message || 'Failed to load projects');
-          setLoading(false);
-          return;
-        }
-
-        // Combine owned projects and member projects
-        const owned = ownedProjects || [];
-        const member = (memberProjects || []).map((mp: any) => mp.projects).filter(Boolean);
-        allProjects = [...owned, ...member];
-        
-        // Remove duplicates
-        allProjects = Array.from(
-          new Map(allProjects.map((p: any) => [p.id, p])).values()
-        ) as Project[];
-      }
-      
-      setProjects(allProjects);
-      setLoading(false);
-    };
-
-    // Only load projects if role is loaded (or if we're not using role-based filtering)
     if (!roleLoading) {
       loadProjects();
     }
-  }, [router, supabase, roleLoading]);
+  }, [page, pageSize, roleLoading]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, statusFilter]);
 
   const handleCreateProject = () => {
     router.push('/project/new');
@@ -174,8 +123,8 @@ export default function ProjectsPage() {
       setDeleteDialogOpen(false);
       setProjectToDelete(null);
       
-      // Remove from local state
-      setProjects(projects.filter(p => p.id !== projectToDelete.id));
+      // Reload projects
+      loadProjects();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete project';
       showError(errorMessage);
@@ -190,6 +139,8 @@ export default function ProjectsPage() {
   };
 
   // Filter projects (sorting is handled by SortableTable)
+  // Note: For now, filtering is done client-side on paginated results
+  // In the future, this could be moved to server-side for better performance
   const filteredProjects = projects.filter((project) => {
     // Search filter
     const matchesSearch =
@@ -201,6 +152,11 @@ export default function ProjectsPage() {
     
     return matchesSearch && matchesStatus;
   });
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, statusFilter]);
 
   if (loading) {
     return (
@@ -217,17 +173,32 @@ export default function ProjectsPage() {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Typography
-          variant="h4"
-          component="h1"
-          sx={{
-            fontSize: '1.5rem',
-            fontWeight: 600,
-            color: theme.palette.text.primary,
-          }}
-        >
-          Projects
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Typography
+            variant="h4"
+            component="h1"
+            sx={{
+              fontSize: '1.5rem',
+              fontWeight: 600,
+              color: theme.palette.text.primary,
+            }}
+          >
+            Projects
+          </Typography>
+          {!loading && (
+            <Chip
+              label={total}
+              size="small"
+              sx={{
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
+                border: `1px solid ${theme.palette.divider}`,
+                fontWeight: 500,
+                height: 24,
+              }}
+            />
+          )}
+        </Box>
         <Button
           variant="outlined"
           startIcon={<AddIcon />}
@@ -333,17 +304,6 @@ export default function ProjectsPage() {
                   <MenuItem value="archived">Archived</MenuItem>
                 </Select>
               </FormControl>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Typography
-                variant="body2"
-                sx={{
-                  color: theme.palette.text.secondary,
-                  textAlign: { xs: 'left', md: 'right' },
-                }}
-              >
-                {filteredProjects.length} of {projects.length} projects
-              </Typography>
             </Grid>
           </Grid>
         </Box>
@@ -484,6 +444,77 @@ export default function ProjectsPage() {
           }}
           emptyMessage="No projects found"
         />
+      )}
+
+      {/* Pagination */}
+      {total > 10 && (
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            mt: 3,
+            pt: 3,
+            borderTop: `1px solid ${theme.palette.divider}`,
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+              Showing {Math.min((page - 1) * pageSize + 1, total)} - {Math.min(page * pageSize, total)} of {total}
+            </Typography>
+            <FormControl size="small" sx={{ minWidth: 120 }}>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Per Page</InputLabel>
+              <Select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(1);
+                }}
+                label="Per Page"
+                sx={{
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.action.hover,
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: theme.palette.divider,
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: theme.palette.text.secondary,
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: theme.palette.text.primary,
+                  },
+                  '& .MuiSvgIcon-root': {
+                    color: theme.palette.text.primary,
+                  },
+                }}
+              >
+                <MenuItem value={10}>10</MenuItem>
+                <MenuItem value={25}>25</MenuItem>
+                <MenuItem value={50}>50</MenuItem>
+                <MenuItem value={75}>75</MenuItem>
+                <MenuItem value={100}>100</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+          <Pagination
+            count={Math.ceil(total / pageSize)}
+            page={page}
+            onChange={(_, value) => setPage(value)}
+            color="primary"
+            sx={{
+              '& .MuiPaginationItem-root': {
+                color: theme.palette.text.primary,
+                '&.Mui-selected': {
+                  backgroundColor: theme.palette.action.hover,
+                  color: theme.palette.text.primary,
+                },
+                '&:hover': {
+                  backgroundColor: theme.palette.action.hover,
+                },
+              },
+            }}
+          />
+        </Box>
       )}
 
       {/* Delete Confirmation Dialog */}

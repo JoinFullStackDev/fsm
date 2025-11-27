@@ -8,6 +8,7 @@ import {
   Chip,
   IconButton,
   Typography,
+  useTheme,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -27,6 +28,7 @@ interface ArrayFieldProps {
 }
 
 function ArrayField({ field, value, onChange, error, phaseData }: ArrayFieldProps) {
+  const theme = useTheme();
   const config = field.field_config;
   const aiEnabled = config.aiSettings?.enabled;
   const [modalOpen, setModalOpen] = useState(false);
@@ -44,7 +46,7 @@ function ArrayField({ field, value, onChange, error, phaseData }: ArrayFieldProp
   return (
     <Box sx={{ width: '100%' }}>
       {error && (
-        <Typography variant="caption" color="error" sx={{ mb: 1, display: 'block' }}>
+        <Typography variant="caption" sx={{ mb: 1, display: 'block', color: theme.palette.error.main }}>
           {error}
         </Typography>
       )}
@@ -56,10 +58,15 @@ function ArrayField({ field, value, onChange, error, phaseData }: ArrayFieldProp
             onDelete={() => removeItem(index)}
             deleteIcon={<DeleteIcon />}
             sx={{
-              backgroundColor: 'rgba(0, 229, 255, 0.1)',
-              color: 'text.primary',
-              border: '1px solid',
-              borderColor: 'primary.main',
+              backgroundColor: theme.palette.action.hover,
+              color: theme.palette.text.primary,
+              border: `1px solid ${theme.palette.divider}`,
+              '& .MuiChip-deleteIcon': {
+                color: theme.palette.text.primary,
+                '&:hover': {
+                  color: theme.palette.text.secondary,
+                },
+              },
             }}
           />
         ))}
@@ -71,11 +78,11 @@ function ArrayField({ field, value, onChange, error, phaseData }: ArrayFieldProp
           startIcon={<AddIcon />}
           onClick={() => setModalOpen(true)}
           sx={{
-            borderColor: 'primary.main',
-            color: 'primary.main',
+            borderColor: theme.palette.text.primary,
+            color: theme.palette.text.primary,
             '&:hover': {
-              borderColor: 'primary.light',
-              backgroundColor: 'rgba(0, 229, 255, 0.1)',
+              borderColor: theme.palette.text.primary,
+              backgroundColor: theme.palette.action.hover,
             },
           }}
         >

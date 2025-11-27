@@ -20,6 +20,7 @@ import {
   Grid,
   IconButton,
   Tooltip,
+  useTheme,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -69,6 +70,7 @@ interface GeneratedTemplate {
 }
 
 export default function GenerateTemplatePage() {
+  const theme = useTheme();
   const router = useRouter();
   const supabase = createSupabaseClient();
   const { role, loading: roleLoading } = useRole();
@@ -150,7 +152,7 @@ Please help me craft this description based on my project needs, making sure to 
     return (
       <Container>
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-          <CircularProgress />
+          <CircularProgress sx={{ color: theme.palette.text.primary }} />
         </Box>
       </Container>
     );
@@ -258,18 +260,17 @@ Please help me craft this description based on my project needs, making sure to 
 
   if (step === 'preview' && generatedTemplate) {
     return (
-      <Box sx={{ backgroundColor: '#000', minHeight: '100vh', pb: 4 }}>
+      <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', pb: 4 }}>
         <Container maxWidth="lg" sx={{ pt: 4, pb: 4 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
             <Button
               startIcon={<ArrowBackIcon />}
               onClick={handleRegenerate}
               sx={{
-                color: '#00E5FF',
-                border: '1px solid',
-                borderColor: '#00E5FF',
+                color: theme.palette.text.primary,
+                border: `1px solid ${theme.palette.text.primary}`,
                 '&:hover': {
-                  backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                  backgroundColor: theme.palette.action.hover,
                 },
               }}
             >
@@ -280,9 +281,8 @@ Please help me craft this description based on my project needs, making sure to 
               sx={{
                 flex: 1,
                 fontWeight: 700,
-                background: '#00E5FF',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
+                fontFamily: 'var(--font-rubik), Rubik, sans-serif',
+                color: theme.palette.text.primary,
               }}
             >
               Review Generated Template
@@ -290,27 +290,35 @@ Please help me craft this description based on my project needs, making sure to 
           </Box>
 
           {error && (
-            <Alert severity="error" sx={{ mb: 3 }}>
+            <Alert 
+              severity="error" 
+              sx={{ 
+                mb: 3,
+                backgroundColor: theme.palette.action.hover,
+                border: `1px solid ${theme.palette.divider}`,
+                color: theme.palette.text.primary,
+              }}
+            >
               {error}
             </Alert>
           )}
 
           <Card
             sx={{
-              backgroundColor: '#000',
-              border: '2px solid rgba(0, 229, 255, 0.2)',
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
               borderRadius: 3,
               mb: 3,
             }}
           >
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-                <AutoAwesomeIcon sx={{ color: '#E91E63', fontSize: 32 }} />
+                <AutoAwesomeIcon sx={{ color: theme.palette.text.primary, fontSize: 32 }} />
                 <Box>
-                  <Typography variant="h5" sx={{ color: '#00E5FF', fontWeight: 600 }}>
+                  <Typography variant="h5" sx={{ color: theme.palette.text.primary, fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif' }}>
                     {generatedTemplate.template.name}
                   </Typography>
-                  <Typography variant="body2" sx={{ color: '#B0B0B0', mt: 0.5 }}>
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
                     {generatedTemplate.template.description}
                   </Typography>
                   {generatedTemplate.template.category && (
@@ -319,17 +327,18 @@ Please help me craft this description based on my project needs, making sure to 
                       size="small"
                       sx={{
                         mt: 1,
-                        backgroundColor: 'rgba(233, 30, 99, 0.15)',
-                        color: '#E91E63',
+                        backgroundColor: theme.palette.action.hover,
+                        color: theme.palette.text.primary,
+                        border: `1px solid ${theme.palette.divider}`,
                       }}
                     />
                   )}
                 </Box>
               </Box>
 
-              <Divider sx={{ my: 3, borderColor: 'rgba(0, 229, 255, 0.2)' }} />
+              <Divider sx={{ my: 3, borderColor: theme.palette.divider }} />
 
-              <Typography variant="h6" sx={{ color: '#00E5FF', mb: 2, fontWeight: 600 }}>
+              <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 2, fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif' }}>
                 Phases ({generatedTemplate.phases.length})
               </Typography>
 
@@ -346,8 +355,8 @@ Please help me craft this description based on my project needs, making sure to 
                         key={phase.phase_number}
                         sx={{
                           p: 3,
-                          backgroundColor: 'rgba(0, 229, 255, 0.05)',
-                          border: '2px solid rgba(0, 229, 255, 0.2)',
+                          backgroundColor: theme.palette.background.paper,
+                          border: `1px solid ${theme.palette.divider}`,
                           borderRadius: 2,
                         }}
                       >
@@ -356,20 +365,22 @@ Please help me craft this description based on my project needs, making sure to 
                             label={`Phase ${phase.phase_number}`}
                             size="small"
                             sx={{
-                              backgroundColor: 'rgba(0, 229, 255, 0.2)',
-                              color: '#00E5FF',
+                              backgroundColor: theme.palette.action.hover,
+                              color: theme.palette.text.primary,
                               fontWeight: 600,
+                              border: `1px solid ${theme.palette.divider}`,
                             }}
                           />
-                          <Typography variant="h6" sx={{ color: '#00E5FF', fontWeight: 600 }}>
+                          <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif' }}>
                             {phase.phase_name}
                           </Typography>
                           <Chip
                             label={`${phaseFields.length} field${phaseFields.length !== 1 ? 's' : ''}`}
                             size="small"
                             sx={{
-                              backgroundColor: 'rgba(233, 30, 99, 0.15)',
-                              color: '#E91E63',
+                              backgroundColor: theme.palette.action.hover,
+                              color: theme.palette.text.primary,
+                              border: `1px solid ${theme.palette.divider}`,
                             }}
                           />
                         </Box>
@@ -382,22 +393,22 @@ Please help me craft this description based on my project needs, making sure to 
                                   <Paper
                                     sx={{
                                       p: 2,
-                                      backgroundColor: 'rgba(0, 0, 0, 0.2)',
-                                      border: '1px solid rgba(0, 229, 255, 0.1)',
+                                      backgroundColor: theme.palette.background.paper,
+                                      border: `1px solid ${theme.palette.divider}`,
                                       borderRadius: 1,
                                     }}
                                   >
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                                       <Typography
                                         variant="body2"
-                                        sx={{ color: '#00E5FF', fontWeight: 600 }}
+                                        sx={{ color: theme.palette.text.primary, fontWeight: 600 }}
                                       >
                                         {field.field_config.label}
                                       </Typography>
                                       {field.field_config.required && (
                                         <Typography
                                           component="span"
-                                          sx={{ color: '#FF1744', fontSize: '0.875rem' }}
+                                          sx={{ color: theme.palette.error.main, fontSize: '0.875rem' }}
                                         >
                                           *
                                         </Typography>
@@ -407,16 +418,17 @@ Please help me craft this description based on my project needs, making sure to 
                                       label={field.field_type}
                                       size="small"
                                       sx={{
-                                        backgroundColor: 'rgba(156, 39, 176, 0.2)',
-                                        color: '#9C27B0',
+                                        backgroundColor: theme.palette.action.hover,
+                                        color: theme.palette.text.primary,
                                         fontSize: '0.7rem',
                                         height: 20,
+                                        border: `1px solid ${theme.palette.divider}`,
                                       }}
                                     />
                                     {field.field_config.helpText && (
                                       <Typography
                                         variant="caption"
-                                        sx={{ color: '#B0B0B0', display: 'block', mt: 1 }}
+                                        sx={{ color: theme.palette.text.secondary, display: 'block', mt: 1 }}
                                       >
                                         {field.field_config.helpText}
                                       </Typography>
@@ -426,7 +438,7 @@ Please help me craft this description based on my project needs, making sure to 
                               ))}
                             </Grid>
                           ) : (
-                            <Typography variant="body2" sx={{ color: '#B0B0B0', fontStyle: 'italic' }}>
+                            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontStyle: 'italic' }}>
                               No fields configured for this phase
                             </Typography>
                           )}
@@ -436,19 +448,22 @@ Please help me craft this description based on my project needs, making sure to 
                   })}
               </Box>
 
-              <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', pt: 2, borderTop: '2px solid rgba(0, 229, 255, 0.2)' }}>
+              <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', pt: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
                 <Button
                   variant="outlined"
                   startIcon={<RefreshIcon />}
                   onClick={handleRegenerate}
                   disabled={saving}
                   sx={{
-                    borderColor: '#B0B0B0',
-                    color: '#B0B0B0',
+                    borderColor: theme.palette.text.primary,
+                    color: theme.palette.text.primary,
                     '&:hover': {
-                      borderColor: '#E91E63',
-                      color: '#E91E63',
-                      backgroundColor: 'rgba(233, 30, 99, 0.1)',
+                      borderColor: theme.palette.text.primary,
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                    '&.Mui-disabled': {
+                      borderColor: theme.palette.divider,
+                      color: theme.palette.text.secondary,
                     },
                   }}
                 >
@@ -456,16 +471,19 @@ Please help me craft this description based on my project needs, making sure to 
                 </Button>
                 <Button
                   variant="contained"
-                  startIcon={saving ? <CircularProgress size={20} /> : <CheckCircleIcon />}
+                  startIcon={saving ? <CircularProgress size={20} sx={{ color: theme.palette.background.default }} /> : <CheckCircleIcon />}
                   onClick={handleConfirm}
                   disabled={saving}
                   sx={{
-                    backgroundColor: '#00E5FF',
-                    color: '#000',
+                    backgroundColor: theme.palette.text.primary,
+                    color: theme.palette.background.default,
                     fontWeight: 600,
                     '&:hover': {
-                      backgroundColor: '#00B2CC',
-                      boxShadow: '0 6px 25px rgba(0, 229, 255, 0.5)',
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                    '&.Mui-disabled': {
+                      backgroundColor: theme.palette.divider,
+                      color: theme.palette.text.secondary,
                     },
                   }}
                 >
@@ -480,18 +498,17 @@ Please help me craft this description based on my project needs, making sure to 
   }
 
   return (
-    <Box sx={{ backgroundColor: '#000', minHeight: '100vh', pb: 4 }}>
+    <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', pb: 4 }}>
       <Container maxWidth="md" sx={{ pt: 4, pb: 4 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4 }}>
           <Button
             startIcon={<ArrowBackIcon />}
             onClick={() => router.push('/admin/templates')}
             sx={{
-              color: '#00E5FF',
-              border: '1px solid',
-              borderColor: '#00E5FF',
+              color: theme.palette.text.primary,
+              border: `1px solid ${theme.palette.text.primary}`,
               '&:hover': {
-                backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                backgroundColor: theme.palette.action.hover,
               },
             }}
           >
@@ -502,9 +519,8 @@ Please help me craft this description based on my project needs, making sure to 
             sx={{
               flex: 1,
               fontWeight: 700,
-              background: '#00E5FF',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
+              fontFamily: 'var(--font-rubik), Rubik, sans-serif',
+              color: theme.palette.text.primary,
             }}
           >
             AI Template Generator
@@ -513,26 +529,34 @@ Please help me craft this description based on my project needs, making sure to 
 
         <Card
           sx={{
-            backgroundColor: '#000',
-            border: '2px solid rgba(0, 229, 255, 0.2)',
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
             borderRadius: 3,
           }}
         >
           <CardContent sx={{ p: 4 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-              <AutoAwesomeIcon sx={{ color: '#E91E63', fontSize: 32 }} />
+              <AutoAwesomeIcon sx={{ color: theme.palette.text.primary, fontSize: 32 }} />
               <Box>
-                <Typography variant="h5" sx={{ color: '#00E5FF', fontWeight: 600 }}>
+                <Typography variant="h5" sx={{ color: theme.palette.text.primary, fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif' }}>
                   Generate Template with AI
                 </Typography>
-                <Typography variant="body2" sx={{ color: '#B0B0B0', mt: 0.5 }}>
+                <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
                   Describe your project type and requirements, and AI will generate a custom template with phases and fields.
                 </Typography>
               </Box>
             </Box>
 
             {error && (
-              <Alert severity="error" sx={{ mb: 3 }}>
+              <Alert 
+                severity="error" 
+                sx={{ 
+                  mb: 3,
+                  backgroundColor: theme.palette.action.hover,
+                  border: `1px solid ${theme.palette.divider}`,
+                  color: theme.palette.text.primary,
+                }}
+              >
                 {error}
               </Alert>
             )}
@@ -547,22 +571,30 @@ Please help me craft this description based on my project needs, making sure to 
                 placeholder="e.g., SaaS Product Template, E-commerce Template"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                    backgroundColor: theme.palette.background.paper,
+                    color: theme.palette.text.primary,
                     '& fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused fieldset': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                   },
                   '& .MuiInputLabel-root': {
-                    color: '#B0B0B0',
+                    color: theme.palette.text.secondary,
                   },
                   '& .MuiInputLabel-root.Mui-focused': {
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
+                  },
+                  '& .MuiInputBase-input': {
+                    color: theme.palette.text.primary,
+                  },
+                  '& .MuiInputBase-input::placeholder': {
+                    color: theme.palette.text.secondary,
+                    opacity: 0.7,
                   },
                 }}
               />
@@ -572,7 +604,7 @@ Please help me craft this description based on my project needs, making sure to 
                   <Typography
                     variant="body2"
                     sx={{
-                      color: '#B0B0B0',
+                      color: theme.palette.text.secondary,
                       fontWeight: 500,
                     }}
                   >
@@ -583,9 +615,9 @@ Please help me craft this description based on my project needs, making sure to 
                       size="small"
                       onClick={handleCopyPrompt}
                       sx={{
-                        color: '#00E5FF',
+                        color: theme.palette.text.primary,
                         '&:hover': {
-                          backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                          backgroundColor: theme.palette.action.hover,
                         },
                       }}
                     >
@@ -595,7 +627,7 @@ Please help me craft this description based on my project needs, making sure to 
                   <Typography
                     component="span"
                     sx={{
-                      color: '#FF1744',
+                      color: theme.palette.error.main,
                       fontSize: '0.875rem',
                       ml: 0.5,
                     }}
@@ -614,25 +646,33 @@ Please help me craft this description based on my project needs, making sure to 
                   helperText="Be as detailed as possible. The AI will use this to generate appropriate phases and fields."
                   sx={{
                   '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                    backgroundColor: theme.palette.background.paper,
+                    color: theme.palette.text.primary,
                     '& fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused fieldset': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                   },
                   '& .MuiInputLabel-root': {
-                    color: '#B0B0B0',
+                    color: theme.palette.text.secondary,
                   },
                   '& .MuiInputLabel-root.Mui-focused': {
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
+                  },
+                  '& .MuiInputBase-input': {
+                    color: theme.palette.text.primary,
+                  },
+                  '& .MuiInputBase-input::placeholder': {
+                    color: theme.palette.text.secondary,
+                    opacity: 0.7,
                   },
                   '& .MuiFormHelperText-root': {
-                    color: '#808080',
+                    color: theme.palette.text.secondary,
                   },
                 }}
               />
@@ -646,22 +686,30 @@ Please help me craft this description based on my project needs, making sure to 
                 placeholder="e.g., SaaS, E-commerce, Mobile App, Enterprise"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                    backgroundColor: theme.palette.background.paper,
+                    color: theme.palette.text.primary,
                     '& fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.3)',
+                      borderColor: theme.palette.divider,
                     },
                     '&:hover fieldset': {
-                      borderColor: 'rgba(0, 229, 255, 0.5)',
+                      borderColor: theme.palette.text.secondary,
                     },
                     '&.Mui-focused fieldset': {
-                      borderColor: '#00E5FF',
+                      borderColor: theme.palette.text.primary,
                     },
                   },
                   '& .MuiInputLabel-root': {
-                    color: '#B0B0B0',
+                    color: theme.palette.text.secondary,
                   },
                   '& .MuiInputLabel-root.Mui-focused': {
-                    color: '#00E5FF',
+                    color: theme.palette.text.primary,
+                  },
+                  '& .MuiInputBase-input': {
+                    color: theme.palette.text.primary,
+                  },
+                  '& .MuiInputBase-input::placeholder': {
+                    color: theme.palette.text.secondary,
+                    opacity: 0.7,
                   },
                 }}
               />
@@ -673,16 +721,16 @@ Please help me craft this description based on my project needs, making sure to 
                     onChange={(e) => setIsPublic(e.target.checked)}
                     sx={{
                       '& .MuiSwitch-switchBase.Mui-checked': {
-                        color: '#00E5FF',
+                        color: theme.palette.text.primary,
                       },
                       '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                        backgroundColor: '#00E5FF',
+                        backgroundColor: theme.palette.text.primary,
                       },
                     }}
                   />
                 }
                 label="Make template public (visible to all users)"
-                sx={{ color: '#B0B0B0' }}
+                sx={{ color: theme.palette.text.secondary }}
               />
 
               <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', pt: 2 }}>
@@ -690,12 +738,11 @@ Please help me craft this description based on my project needs, making sure to 
                   variant="outlined"
                   onClick={() => router.push('/admin/templates')}
                   sx={{
-                    borderColor: '#B0B0B0',
-                    color: '#B0B0B0',
+                    borderColor: theme.palette.text.primary,
+                    color: theme.palette.text.primary,
                     '&:hover': {
-                      borderColor: '#E91E63',
-                      color: '#E91E63',
-                      backgroundColor: 'rgba(233, 30, 99, 0.1)',
+                      borderColor: theme.palette.text.primary,
+                      backgroundColor: theme.palette.action.hover,
                     },
                   }}
                 >
@@ -703,20 +750,19 @@ Please help me craft this description based on my project needs, making sure to 
                 </Button>
                 <Button
                   variant="contained"
-                  startIcon={generating ? <CircularProgress size={20} /> : <AutoAwesomeIcon />}
+                  startIcon={generating ? <CircularProgress size={20} sx={{ color: theme.palette.background.default }} /> : <AutoAwesomeIcon />}
                   onClick={handleGenerate}
                   disabled={generating || !templateName.trim() || !description.trim()}
                   sx={{
-                    backgroundColor: '#E91E63',
-                    color: '#fff',
+                    backgroundColor: theme.palette.text.primary,
+                    color: theme.palette.background.default,
                     fontWeight: 600,
                     '&:hover': {
-                      backgroundColor: '#C2185B',
-                      boxShadow: '0 6px 25px rgba(233, 30, 99, 0.5)',
+                      backgroundColor: theme.palette.action.hover,
                     },
                     '&.Mui-disabled': {
-                      backgroundColor: 'rgba(233, 30, 99, 0.3)',
-                      color: 'rgba(255, 255, 255, 0.5)',
+                      backgroundColor: theme.palette.divider,
+                      color: theme.palette.text.secondary,
                     },
                   }}
                 >

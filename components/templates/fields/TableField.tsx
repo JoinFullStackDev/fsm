@@ -45,6 +45,7 @@ import {
   Tooltip,
   Menu,
   Button,
+  useTheme,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -95,11 +96,13 @@ const DEFAULT_COLUMNS: TableColumn[] = [
 function SortableColumnHeader({ 
   column, 
   colIndex, 
-  onMenuOpen 
+  onMenuOpen,
+  theme,
 }: { 
   column: TableColumn; 
   colIndex: number;
   onMenuOpen: (e: React.MouseEvent<HTMLElement>, colIndex: number) => void;
+  theme: any;
 }) {
   const {
     attributes,
@@ -123,8 +126,8 @@ function SortableColumnHeader({
       ref={setNodeRef}
       style={style}
       sx={{
-        backgroundColor: 'background.paper',
-        color: 'primary.main',
+        backgroundColor: theme.palette.background.paper,
+        color: theme.palette.text.primary,
         fontWeight: 600,
         minWidth: column.type === 'textarea' ? 250 : 150,
         position: 'relative',
@@ -139,9 +142,9 @@ function SortableColumnHeader({
           sx={{
             p: 0.5,
             cursor: 'grab',
-            color: 'text.secondary',
+            color: theme.palette.text.secondary,
             '&:hover': {
-              color: 'primary.main',
+              color: theme.palette.text.primary,
             },
           }}
         >
@@ -171,6 +174,7 @@ function SortableColumnHeader({
 }
 
 function TableField({ field, value, onChange, error, phaseData }: TableFieldProps) {
+  const theme = useTheme();
   const [tableData, setTableData] = useState<TableData>(() => {
     if (value && typeof value === 'object' && value.columns && value.rows) {
       return value as TableData;
@@ -753,13 +757,14 @@ function TableField({ field, value, onChange, error, phaseData }: TableFieldProp
                       column={column} 
                       colIndex={colIndex}
                       onMenuOpen={handleColumnMenuOpen}
+                      theme={theme}
                     />
                   ))}
                 </SortableContext>
                 <TableCell
                   sx={{
-                    backgroundColor: 'background.paper',
-                    color: 'primary.main',
+                    backgroundColor: theme.palette.background.paper,
+                    color: theme.palette.text.primary,
                     fontWeight: 600,
                     width: 120,
                     position: 'relative',

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Box,
@@ -46,34 +46,90 @@ export default function CompanyActivityTab({ companyId }: CompanyActivityTabProp
   const router = useRouter();
   const theme = useTheme();
   const [activities, setActivities] = useState<ActivityFeedItem[]>([]);
+  const [displayedCount, setDisplayedCount] = useState(10);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
   const [eventTypeFilter, setEventTypeFilter] = useState<string>('all');
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const observerTargetRef = useRef<HTMLDivElement>(null);
 
-  const loadActivities = useCallback(async () => {
+  const loadActivities = useCallback(async (offset: number = 0, limit: number = 10) => {
     try {
-      setLoading(true);
+      if (offset === 0) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
       setError(null);
 
-      const response = await fetch(`/api/ops/companies/${companyId}/activity?limit=50`);
+      const response = await fetch(`/api/ops/companies/${companyId}/activity?limit=${limit}&offset=${offset}`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to load activity feed');
       }
 
       const data = await response.json();
-      setActivities(data);
+      
+      if (offset === 0) {
+        setActivities(data);
+        setDisplayedCount(10); // Always show first 10 initially
+        setHasMore(data.length === limit);
+      } else {
+        setActivities(prev => [...prev, ...data]);
+        setDisplayedCount(prev => prev + data.length); // Increase displayed count
+        setHasMore(data.length === limit);
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load activity feed';
       setError(errorMessage);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [companyId]);
 
   useEffect(() => {
-    loadActivities();
+    loadActivities(0, 9);
   }, [loadActivities]);
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    // Only enable infinite scroll when filter is 'all'
+    if (eventTypeFilter !== 'all') {
+      return;
+    }
+
+    const scrollContainer = scrollContainerRef.current;
+    const observerTarget = observerTargetRef.current;
+
+    if (!scrollContainer || !observerTarget || !hasMore || loadingMore || loading) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          const nextOffset = activities.length;
+          if (nextOffset > 0) {
+            loadActivities(nextOffset, 9);
+          }
+        }
+      },
+      {
+        root: scrollContainer,
+        rootMargin: '100px', // Start loading 100px before reaching the bottom
+        threshold: 0.1,
+      }
+    );
+
+    observer.observe(observerTarget);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasMore, loadingMore, loading, activities.length, loadActivities, eventTypeFilter]);
 
   const getEventTypeIcon = (eventType: ActivityEventType) => {
     switch (eventType) {
@@ -169,9 +225,13 @@ export default function CompanyActivityTab({ companyId }: CompanyActivityTabProp
       .join(' ');
   };
 
+  // Filter activities first
   const filteredActivities = eventTypeFilter === 'all' 
     ? activities 
     : activities.filter(activity => activity.event_type === eventTypeFilter);
+
+  // Show only the first displayedCount items
+  const displayedActivities = filteredActivities.slice(0, displayedCount);
 
   // Get unique event types from activities for the filter dropdown
   const availableEventTypes = Array.from(new Set(activities.map(a => a.event_type))).sort();
@@ -265,8 +325,17 @@ export default function CompanyActivityTab({ companyId }: CompanyActivityTabProp
         </Alert>
       )}
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {filteredActivities.map((activity) => {
+      <Box 
+        ref={scrollContainerRef}
+        sx={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: 2,
+          maxHeight: '70vh',
+          overflowY: 'auto',
+        }}
+      >
+        {displayedActivities.map((activity) => {
           const hasClickableEntity = activity.related_entity_id && activity.related_entity_type;
           const isClickable = hasClickableEntity && 
             (activity.related_entity_type === 'contact' || 
@@ -470,6 +539,29 @@ export default function CompanyActivityTab({ companyId }: CompanyActivityTabProp
             </Paper>
           );
         })}
+        
+        {/* Loading indicator for more items */}
+        {loadingMore && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+            <CircularProgress size={24} sx={{ color: theme.palette.text.primary }} />
+          </Box>
+        )}
+        
+        {/* Observer target for infinite scroll - only show if we have more to load and haven't filtered */}
+        {hasMore && !loadingMore && eventTypeFilter === 'all' && (
+          <Box ref={observerTargetRef} sx={{ height: 100, minHeight: 100 }} />
+        )}
+        
+        {/* End of list indicator */}
+        {(!hasMore || eventTypeFilter !== 'all') && displayedActivities.length > 0 && (
+          <Box sx={{ textAlign: 'center', py: 2 }}>
+            <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+              {eventTypeFilter !== 'all' 
+                ? `Showing ${displayedActivities.length} of ${filteredActivities.length} filtered activities`
+                : 'No more activities to load'}
+            </Typography>
+          </Box>
+        )}
       </Box>
     </Box>
   );

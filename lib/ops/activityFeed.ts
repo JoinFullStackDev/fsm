@@ -48,11 +48,13 @@ export async function createActivityFeedItem(
  * @param supabase - Supabase client instance
  * @param companyId - ID of the company
  * @param limit - Maximum number of items to return (default: 50)
+ * @param offset - Number of items to skip (default: 0)
  */
 export async function getActivityFeedForCompany(
   supabase: SupabaseClient,
   companyId: string,
-  limit: number = 50
+  limit: number = 50,
+  offset: number = 0
 ) {
   try {
     // Get activity feed items
@@ -61,7 +63,7 @@ export async function getActivityFeedForCompany(
       .select('*')
       .eq('company_id', companyId)
       .order('created_at', { ascending: false })
-      .limit(limit);
+      .range(offset, offset + limit - 1);
 
     if (activitiesError) {
       throw activitiesError;

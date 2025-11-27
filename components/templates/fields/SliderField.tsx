@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Box, Typography, Slider } from '@mui/material';
+import { Box, Typography, Slider, useTheme } from '@mui/material';
 import type { TemplateFieldConfig } from '@/types/templates';
 
 interface SliderFieldProps {
@@ -13,6 +13,7 @@ interface SliderFieldProps {
 }
 
 function SliderField({ field, value, onChange, error, phaseData }: SliderFieldProps) {
+  const theme = useTheme();
   const config = field.field_config;
   const min = config.min ?? 0;
   const max = config.max ?? 100;
@@ -26,12 +27,12 @@ function SliderField({ field, value, onChange, error, phaseData }: SliderFieldPr
   return (
     <Box sx={{ width: '100%', px: 1 }}>
       {error && (
-        <Typography variant="caption" color="error" sx={{ mb: 1, display: 'block' }}>
+        <Typography variant="caption" sx={{ mb: 1, display: 'block', color: theme.palette.error.main }}>
           {error}
         </Typography>
       )}
       <Box sx={{ mb: 2 }}>
-        <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
+        <Typography variant="body2" sx={{ mb: 1, color: theme.palette.text.secondary }}>
           {config.label}: {currentValue}
         </Typography>
         <Slider
@@ -44,21 +45,26 @@ function SliderField({ field, value, onChange, error, phaseData }: SliderFieldPr
           valueLabelDisplay="auto"
           sx={{
             '& .MuiSlider-thumb': {
-              color: 'primary.main',
+              color: theme.palette.text.primary,
             },
             '& .MuiSlider-track': {
-              color: 'primary.main',
+              color: theme.palette.text.primary,
             },
             '& .MuiSlider-rail': {
-              color: 'action.disabledBackground',
+              color: theme.palette.divider,
+            },
+            '& .MuiSlider-valueLabel': {
+              backgroundColor: theme.palette.background.paper,
+              color: theme.palette.text.primary,
+              border: `1px solid ${theme.palette.divider}`,
             },
           }}
         />
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
             {min}
           </Typography>
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
             {max}
           </Typography>
         </Box>
