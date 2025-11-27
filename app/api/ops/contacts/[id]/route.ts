@@ -176,17 +176,6 @@ export async function PUT(
       return badRequest('Last name cannot be empty');
     }
 
-    // Get user record for modified_by
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('auth_id', session.user.id)
-      .single();
-
-    if (userError || !userData) {
-      return notFound('User');
-    }
-
     // Get existing contact to check company_id, organization_id, and track changes
     const { data: existingContact, error: existingError } = await supabase
       .from('company_contacts')

@@ -107,15 +107,20 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription): Pro
         return;
       }
 
+      const subscriptionData = subscription as any; // Type assertion for Stripe API compatibility
       await supabase.from('subscriptions').insert({
         organization_id: organizationId,
         package_id: packageData.id,
         stripe_subscription_id: subscription.id,
         stripe_price_id: subscription.items.data[0]?.price.id || null,
         status: subscription.status as 'active' | 'canceled' | 'past_due' | 'trialing',
-        current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-        cancel_at_period_end: subscription.cancel_at_period_end || false,
+        current_period_start: subscriptionData.current_period_start 
+          ? new Date(subscriptionData.current_period_start * 1000).toISOString()
+          : null,
+        current_period_end: subscriptionData.current_period_end 
+          ? new Date(subscriptionData.current_period_end * 1000).toISOString()
+          : null,
+        cancel_at_period_end: subscriptionData.cancel_at_period_end || false,
       });
 
       // Update organization subscription status
@@ -161,11 +166,12 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Pro
  */
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice): Promise<void> {
   try {
-    if (invoice.subscription) {
+    const invoiceData = invoice as any; // Type assertion for Stripe API compatibility
+    if (invoiceData.subscription) {
       const subscriptionId =
-        typeof invoice.subscription === 'string'
-          ? invoice.subscription
-          : invoice.subscription.id;
+        typeof invoiceData.subscription === 'string'
+          ? invoiceData.subscription
+          : invoiceData.subscription.id;
 
       const stripe = getStripeClient();
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
@@ -183,11 +189,12 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice): Promise<v
  */
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
   try {
-    if (invoice.subscription) {
+    const invoiceData = invoice as any; // Type assertion for Stripe API compatibility
+    if (invoiceData.subscription) {
       const subscriptionId =
-        typeof invoice.subscription === 'string'
-          ? invoice.subscription
-          : invoice.subscription.id;
+        typeof invoiceData.subscription === 'string'
+          ? invoiceData.subscription
+          : invoiceData.subscription.id;
 
       const stripe = getStripeClient();
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);

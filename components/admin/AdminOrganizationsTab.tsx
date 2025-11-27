@@ -143,12 +143,9 @@ export default function AdminOrganizationsTab() {
       <Box p={3}>
         <EmptyState
           title="Failed to load organizations"
-          message={error}
-          action={
-            <Button variant="contained" onClick={loadOrganizations}>
-              Retry
-            </Button>
-          }
+          description={error}
+          actionLabel="Retry"
+          onAction={loadOrganizations}
         />
       </Box>
     );
@@ -182,7 +179,7 @@ export default function AdminOrganizationsTab() {
       {filteredOrganizations.length === 0 ? (
         <EmptyState
           title="No organizations found"
-          message={searchTerm ? 'Try adjusting your search terms' : 'No organizations have been created yet'}
+          description={searchTerm ? 'Try adjusting your search terms' : 'No organizations have been created yet'}
         />
       ) : (
         <TableContainer component={Paper}>

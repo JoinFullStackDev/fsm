@@ -210,13 +210,18 @@ export async function updateSubscriptionFromWebhook(
     }
 
     // Update subscription
+    const subscriptionData = stripeSubscription as any; // Type assertion for Stripe API compatibility
     await supabase
       .from('subscriptions')
       .update({
         status: stripeSubscription.status as 'active' | 'canceled' | 'past_due' | 'trialing',
-        current_period_start: new Date(stripeSubscription.current_period_start * 1000).toISOString(),
-        current_period_end: new Date(stripeSubscription.current_period_end * 1000).toISOString(),
-        cancel_at_period_end: stripeSubscription.cancel_at_period_end || false,
+        current_period_start: subscriptionData.current_period_start 
+          ? new Date(subscriptionData.current_period_start * 1000).toISOString()
+          : null,
+        current_period_end: subscriptionData.current_period_end 
+          ? new Date(subscriptionData.current_period_end * 1000).toISOString()
+          : null,
+        cancel_at_period_end: subscriptionData.cancel_at_period_end || false,
         updated_at: new Date().toISOString(),
       })
       .eq('id', subscription.id);

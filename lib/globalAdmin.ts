@@ -78,7 +78,7 @@ export async function testStripeConnection(mode: 'test' | 'live'): Promise<{
     const stripe = getStripeClient();
     
     // Test connection by fetching account info
-    const account = await stripe.account.retrieve();
+    const account = await stripe.accounts.retrieve();
     
     return {
       success: true,

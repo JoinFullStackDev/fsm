@@ -5,6 +5,8 @@ import { getUserOrganizationId } from '@/lib/organizationContext';
 import { unauthorized, notFound, internalError, forbidden, badRequest } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * DELETE /api/admin/templates/[id]
  * 
