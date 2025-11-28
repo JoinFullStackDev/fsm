@@ -28,6 +28,7 @@ import ReportsList from '@/components/project-management/ReportsList';
 import TaskGeneratorModal from '@/components/project-management/TaskGeneratorModal';
 import TaskPreviewTable from '@/components/project-management/TaskPreviewTable';
 import { useNotification } from '@/components/providers/NotificationProvider';
+import { useOrganization } from '@/components/providers/OrganizationProvider';
 import type { ProjectTask, ProjectTaskExtended, Project } from '@/types/project';
 import type { User } from '@/types/project';
 import type { PreviewTask, TaskMerge } from '@/types/taskGenerator';
@@ -39,6 +40,7 @@ export default function ProjectTaskManagementPage() {
   const searchParams = useSearchParams();
   const projectId = params.id as string;
   const supabase = createSupabaseClient();
+  const { features } = useOrganization();
 
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<(ProjectTask | ProjectTaskExtended)[]>([]);
@@ -401,24 +403,26 @@ export default function ProjectTaskManagementPage() {
           {project?.name || 'Project'} - Task Management
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Button
-            variant="contained"
-            startIcon={<AutoAwesomeIcon />}
-            onClick={() => setTaskGeneratorOpen(true)}
-            size="small"
-            sx={{
-              height: '32px',
-              minHeight: '32px',
-              backgroundColor: 'primary.main',
-              color: '#000',
-              fontSize: '0.75rem',
-              '&:hover': {
-                backgroundColor: 'primary.light',
-              },
-            }}
-          >
-            Generate Tasks
-          </Button>
+          {features?.ai_task_generator_enabled && (
+            <Button
+              variant="contained"
+              startIcon={<AutoAwesomeIcon />}
+              onClick={() => setTaskGeneratorOpen(true)}
+              size="small"
+              sx={{
+                height: '32px',
+                minHeight: '32px',
+                backgroundColor: 'primary.main',
+                color: '#000',
+                fontSize: '0.75rem',
+                '&:hover': {
+                  backgroundColor: 'primary.light',
+                },
+              }}
+            >
+              Generate Tasks
+            </Button>
+          )}
           <Button
             variant="outlined"
             startIcon={<RefreshIcon />}

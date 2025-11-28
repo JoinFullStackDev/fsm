@@ -3,12 +3,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
-  Container,
   Box,
   Typography,
   Button,
-  Card,
-  CardContent,
+  Paper,
   Table,
   TableBody,
   TableCell,
@@ -20,7 +18,6 @@ import {
   CircularProgress,
   Alert,
   Tooltip,
-  TextField,
   Select,
   MenuItem,
   FormControl,
@@ -28,7 +25,6 @@ import {
   Grid,
   Pagination,
   SelectChangeEvent,
-  InputAdornment,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -38,10 +34,10 @@ import {
   Clear as ClearIcon,
   Search as SearchIcon,
 } from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import LoadingSkeleton from '@/components/ui/LoadingSkeleton';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
-import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import EmptyState from '@/components/ui/EmptyState';
 import { formatFileSize, getExportTypeLabel, getExportTypeColor, generateExportFilename } from '@/lib/utils/exportHelpers';
 import type { ExportWithUser, Project, ExportListResponse } from '@/types/project';
@@ -63,6 +59,7 @@ const DATE_RANGES = [
 const PAGE_SIZES = [10, 20, 50, 100];
 
 export default function ExportHistoryPage() {
+  const theme = useTheme();
   const router = useRouter();
   const params = useParams();
   const projectId = params.id as string;
@@ -238,65 +235,69 @@ export default function ExportHistoryPage() {
 
   if (loading && !project) {
     return (
-      <Box sx={{ backgroundColor: '#000', minHeight: '100vh', pb: 4 }}>
-        <Container maxWidth="lg" sx={{ pt: 4 }}>
-          <LoadingSkeleton />
-        </Container>
+      <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', p: 3 }}>
+        <LoadingSkeleton />
       </Box>
     );
   }
 
   if (error && !project) {
     return (
-      <Box sx={{ backgroundColor: '#000', minHeight: '100vh', pb: 4 }}>
-        <Container maxWidth="lg" sx={{ pt: 4 }}>
-          <Alert severity="error">{error}</Alert>
-          <Button
-            onClick={() => router.push(`/project/${projectId}`)}
-            startIcon={<ArrowBackIcon />}
-            sx={{ mt: 2 }}
-          >
-            Back to Project
-          </Button>
-        </Container>
+      <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', p: 3 }}>
+        <Alert
+          severity="error"
+          sx={{
+            mb: 3,
+            backgroundColor: theme.palette.action.hover,
+            border: `1px solid ${theme.palette.divider}`,
+            color: theme.palette.text.primary,
+          }}
+        >
+          {error}
+        </Alert>
+        <Button
+          onClick={() => router.push(`/project/${projectId}`)}
+          startIcon={<ArrowBackIcon />}
+          variant="outlined"
+          sx={{
+            borderColor: theme.palette.text.primary,
+            color: theme.palette.text.primary,
+            '&:hover': {
+              borderColor: theme.palette.text.primary,
+              backgroundColor: theme.palette.action.hover,
+            },
+          }}
+        >
+          Back to Project
+        </Button>
       </Box>
     );
   }
 
   return (
     <ErrorBoundary>
-      <Box sx={{ backgroundColor: '#000', minHeight: '100vh', pb: 4 }}>
-        <Container maxWidth="lg" sx={{ pt: 4 }}>
-          <Breadcrumbs
-            items={[
-              { label: 'Dashboard', href: '/dashboard' },
-              { label: project?.name || 'Project', href: `/project/${projectId}` },
-              { label: 'Export History' },
-            ]}
-          />
-
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, mt: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <HistoryIcon sx={{ color: '#00E5FF', fontSize: 32 }} />
-              <Box>
-                <Typography variant="h4" sx={{ color: '#FFFFFF', fontWeight: 600 }}>
-                  Export History
-                </Typography>
-                <Typography variant="body2" sx={{ color: '#B0BEC5', mt: 0.5 }}>
-                  {project?.name}
-                </Typography>
-              </Box>
-            </Box>
+      <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', p: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+            <Typography
+              variant="h4"
+              component="h1"
+              sx={{
+                fontWeight: 700,
+                color: theme.palette.text.primary,
+              }}
+            >
+              Export History
+            </Typography>
             <Button
               variant="outlined"
               startIcon={<ArrowBackIcon />}
               onClick={() => router.push(`/project/${projectId}`)}
               sx={{
-                borderColor: '#00E5FF',
-                color: '#00E5FF',
+                borderColor: theme.palette.text.primary,
+                color: theme.palette.text.primary,
                 '&:hover': {
-                  borderColor: '#00E5FF',
-                  backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                  borderColor: theme.palette.text.primary,
+                  backgroundColor: theme.palette.action.hover,
                 },
               }}
             >
@@ -306,93 +307,109 @@ export default function ExportHistoryPage() {
 
           {/* Statistics Summary */}
           {stats.total > 0 && (
-            <Card
-              sx={{
-                backgroundColor: '#1A1F3A',
-                border: '2px solid rgba(0, 229, 255, 0.2)',
-                borderRadius: 2,
-                mb: 3,
-              }}
-            >
-              <CardContent>
-                <Grid container spacing={3}>
-                  <Grid item xs={12} sm={4}>
-                    <Typography variant="body2" sx={{ color: '#B0BEC5', mb: 0.5 }}>
-                      Total Exports
-                    </Typography>
-                    <Typography variant="h5" sx={{ color: '#00E5FF', fontWeight: 600 }}>
-                      {stats.total}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
-                    <Typography variant="body2" sx={{ color: '#B0BEC5', mb: 0.5 }}>
-                      Most Recent
-                    </Typography>
-                    <Typography variant="body1" sx={{ color: '#FFFFFF' }}>
-                      {stats.mostRecent ? formatDate(stats.mostRecent) : 'N/A'}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
-                    <Typography variant="body2" sx={{ color: '#B0BEC5', mb: 0.5 }}>
-                      By Type
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                      {Object.entries(stats.byType).map(([type, count]) => (
-                        <Chip
-                          key={type}
-                          label={`${getExportTypeLabel(type)}: ${count}`}
-                          size="small"
-                          color={getExportTypeColor(type)}
-                        />
-                      ))}
-                    </Box>
-                  </Grid>
-                </Grid>
-              </CardContent>
-            </Card>
+            <Grid container spacing={3} sx={{ mb: 4 }}>
+              <Grid item xs={12} sm={4}>
+                <Box
+                  component={Paper}
+                  sx={{
+                    p: 2,
+                    backgroundColor: theme.palette.background.paper,
+                    border: `1px solid ${theme.palette.divider}`,
+                  }}
+                >
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+                    Total Exports
+                  </Typography>
+                  <Typography variant="h4" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+                    {stats.total}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <Box
+                  component={Paper}
+                  sx={{
+                    p: 2,
+                    backgroundColor: theme.palette.background.paper,
+                    border: `1px solid ${theme.palette.divider}`,
+                  }}
+                >
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+                    Most Recent
+                  </Typography>
+                  <Typography variant="body1" sx={{ color: theme.palette.text.primary }}>
+                    {stats.mostRecent ? formatDate(stats.mostRecent) : 'N/A'}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <Box
+                  component={Paper}
+                  sx={{
+                    p: 2,
+                    backgroundColor: theme.palette.background.paper,
+                    border: `1px solid ${theme.palette.divider}`,
+                  }}
+                >
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+                    By Type
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    {Object.entries(stats.byType).map(([type, count]) => (
+                      <Chip
+                        key={type}
+                        label={`${getExportTypeLabel(type)}: ${count}`}
+                        size="small"
+                        color={getExportTypeColor(type)}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+              </Grid>
+            </Grid>
           )}
 
           {/* Filters */}
-          <Card
+          <Box
+            component={Paper}
             sx={{
-              backgroundColor: '#1A1F3A',
-              border: '2px solid rgba(0, 229, 255, 0.2)',
-              borderRadius: 2,
+              p: 3,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
               mb: 3,
             }}
           >
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                <FilterListIcon sx={{ color: '#00E5FF' }} />
-                <Typography variant="h6" sx={{ color: '#FFFFFF', flexGrow: 1 }}>
-                  Filters
-                </Typography>
-                {hasActiveFilters && (
-                  <Button
-                    size="small"
-                    startIcon={<ClearIcon />}
-                    onClick={handleClearFilters}
-                    sx={{ color: '#B0BEC5' }}
-                  >
-                    Clear Filters
-                  </Button>
-                )}
-              </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+              <FilterListIcon sx={{ color: theme.palette.text.primary }} />
+              <Typography variant="h6" sx={{ color: theme.palette.text.primary, flexGrow: 1 }}>
+                Filters
+              </Typography>
+              {hasActiveFilters && (
+                <Button
+                  size="small"
+                  startIcon={<ClearIcon />}
+                  onClick={handleClearFilters}
+                  sx={{ color: theme.palette.text.secondary }}
+                >
+                  Clear Filters
+                </Button>
+              )}
+            </Box>
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6} md={3}>
                   <FormControl fullWidth>
-                    <InputLabel sx={{ color: '#B0BEC5' }}>Export Type</InputLabel>
+                    <InputLabel sx={{ color: theme.palette.text.secondary }}>Export Type</InputLabel>
                     <Select
                       value={exportTypeFilter}
                       onChange={(e) => handleFilterChange('export_type', e.target.value)}
                       label="Export Type"
                       sx={{
-                        color: '#FFFFFF',
+                        color: theme.palette.text.primary,
                         '& .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'rgba(0, 229, 255, 0.3)',
+                          borderColor: theme.palette.divider,
                         },
                         '&:hover .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'rgba(0, 229, 255, 0.5)',
+                          borderColor: theme.palette.text.primary,
                         },
                       }}
                     >
@@ -406,18 +423,18 @@ export default function ExportHistoryPage() {
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
                   <FormControl fullWidth>
-                    <InputLabel sx={{ color: '#B0BEC5' }}>Date Range</InputLabel>
+                    <InputLabel sx={{ color: theme.palette.text.secondary }}>Date Range</InputLabel>
                     <Select
                       value={dateRangeFilter}
                       onChange={(e) => handleFilterChange('date_range', e.target.value)}
                       label="Date Range"
                       sx={{
-                        color: '#FFFFFF',
+                        color: theme.palette.text.primary,
                         '& .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'rgba(0, 229, 255, 0.3)',
+                          borderColor: theme.palette.divider,
                         },
                         '&:hover .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'rgba(0, 229, 255, 0.5)',
+                          borderColor: theme.palette.text.primary,
                         },
                       }}
                     >
@@ -431,18 +448,18 @@ export default function ExportHistoryPage() {
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
                   <FormControl fullWidth>
-                    <InputLabel sx={{ color: '#B0BEC5' }}>Page Size</InputLabel>
+                    <InputLabel sx={{ color: theme.palette.text.secondary }}>Page Size</InputLabel>
                     <Select
                       value={pageSize}
                       onChange={handlePageSizeChange}
                       label="Page Size"
                       sx={{
-                        color: '#FFFFFF',
+                        color: theme.palette.text.primary,
                         '& .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'rgba(0, 229, 255, 0.3)',
+                          borderColor: theme.palette.divider,
                         },
                         '&:hover .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'rgba(0, 229, 255, 0.5)',
+                          borderColor: theme.palette.text.primary,
                         },
                       }}
                     >
@@ -455,14 +472,21 @@ export default function ExportHistoryPage() {
                   </FormControl>
                 </Grid>
               </Grid>
-            </CardContent>
-          </Card>
+            </Box>
 
           {/* Exports Table */}
           {loading ? (
             <LoadingSkeleton />
           ) : error ? (
-            <Alert severity="error" sx={{ mb: 2 }}>
+            <Alert
+              severity="error"
+              sx={{
+                mb: 3,
+                backgroundColor: theme.palette.action.hover,
+                border: `1px solid ${theme.palette.divider}`,
+                color: theme.palette.text.primary,
+              }}
+            >
               {error}
             </Alert>
           ) : exports.length === 0 ? (
@@ -479,99 +503,97 @@ export default function ExportHistoryPage() {
             />
           ) : (
             <>
-              <Card
+              <Box
+                component={Paper}
                 sx={{
-                  backgroundColor: '#1A1F3A',
-                  border: '2px solid rgba(0, 229, 255, 0.2)',
-                  borderRadius: 2,
+                  backgroundColor: theme.palette.background.paper,
+                  border: `1px solid ${theme.palette.divider}`,
                   mb: 2,
                 }}
               >
-                <CardContent>
-                  <TableContainer>
-                    <Table>
-                      <TableHead>
-                        <TableRow>
-                          <TableCell sx={{ color: '#B0BEC5', fontWeight: 600 }}>Type</TableCell>
-                          <TableCell sx={{ color: '#B0BEC5', fontWeight: 600 }}>Created</TableCell>
-                          <TableCell sx={{ color: '#B0BEC5', fontWeight: 600 }}>Created By</TableCell>
-                          <TableCell sx={{ color: '#B0BEC5', fontWeight: 600 }}>File Size</TableCell>
-                          <TableCell sx={{ color: '#B0BEC5', fontWeight: 600 }}>Status</TableCell>
-                          <TableCell sx={{ color: '#B0BEC5', fontWeight: 600 }} align="right">
-                            Actions
+                <TableContainer>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ color: theme.palette.text.secondary, fontWeight: 600 }}>Type</TableCell>
+                        <TableCell sx={{ color: theme.palette.text.secondary, fontWeight: 600 }}>Created</TableCell>
+                        <TableCell sx={{ color: theme.palette.text.secondary, fontWeight: 600 }}>Created By</TableCell>
+                        <TableCell sx={{ color: theme.palette.text.secondary, fontWeight: 600 }}>File Size</TableCell>
+                        <TableCell sx={{ color: theme.palette.text.secondary, fontWeight: 600 }}>Status</TableCell>
+                        <TableCell sx={{ color: theme.palette.text.secondary, fontWeight: 600 }} align="right">
+                          Actions
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {exports.map((exportItem) => (
+                        <TableRow
+                          key={exportItem.id}
+                          sx={{
+                            '&:hover': {
+                              backgroundColor: theme.palette.action.hover,
+                            },
+                          }}
+                        >
+                          <TableCell sx={{ color: theme.palette.text.primary }}>
+                            <Chip
+                              label={getExportTypeLabel(exportItem.export_type)}
+                              color={getExportTypeColor(exportItem.export_type)}
+                              size="small"
+                            />
+                          </TableCell>
+                          <TableCell sx={{ color: theme.palette.text.secondary }}>
+                            {formatDate(exportItem.created_at)}
+                          </TableCell>
+                          <TableCell sx={{ color: theme.palette.text.secondary }}>
+                            {exportItem.user ? (
+                              <Tooltip title={exportItem.user.email}>
+                                <Typography variant="body2">
+                                  {exportItem.user.name}
+                                </Typography>
+                              </Tooltip>
+                            ) : (
+                              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontStyle: 'italic' }}>
+                                Unknown
+                              </Typography>
+                            )}
+                          </TableCell>
+                          <TableCell sx={{ color: theme.palette.text.secondary }}>
+                            {formatFileSize(exportItem.file_size)}
+                          </TableCell>
+                          <TableCell sx={{ color: theme.palette.text.secondary }}>
+                            {exportItem.storage_path ? (
+                              <Chip label="Stored" color="success" size="small" />
+                            ) : (
+                              <Chip label="On-Demand" color="default" size="small" />
+                            )}
+                          </TableCell>
+                          <TableCell align="right">
+                            <Tooltip title="Download Export">
+                              <IconButton
+                                onClick={() => handleDownload(exportItem)}
+                                sx={{
+                                  color: theme.palette.text.primary,
+                                  '&:hover': {
+                                    backgroundColor: theme.palette.action.hover,
+                                  },
+                                }}
+                              >
+                                <FileDownloadIcon />
+                              </IconButton>
+                            </Tooltip>
                           </TableCell>
                         </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {exports.map((exportItem) => (
-                          <TableRow
-                            key={exportItem.id}
-                            sx={{
-                              '&:hover': {
-                                backgroundColor: 'rgba(0, 229, 255, 0.05)',
-                              },
-                            }}
-                          >
-                            <TableCell sx={{ color: '#FFFFFF' }}>
-                              <Chip
-                                label={getExportTypeLabel(exportItem.export_type)}
-                                color={getExportTypeColor(exportItem.export_type)}
-                                size="small"
-                              />
-                            </TableCell>
-                            <TableCell sx={{ color: '#B0BEC5' }}>
-                              {formatDate(exportItem.created_at)}
-                            </TableCell>
-                            <TableCell sx={{ color: '#B0BEC5' }}>
-                              {exportItem.user ? (
-                                <Tooltip title={exportItem.user.email}>
-                                  <Typography variant="body2">
-                                    {exportItem.user.name}
-                                  </Typography>
-                                </Tooltip>
-                              ) : (
-                                <Typography variant="body2" sx={{ color: '#666', fontStyle: 'italic' }}>
-                                  Unknown
-                                </Typography>
-                              )}
-                            </TableCell>
-                            <TableCell sx={{ color: '#B0BEC5' }}>
-                              {formatFileSize(exportItem.file_size)}
-                            </TableCell>
-                            <TableCell sx={{ color: '#B0BEC5' }}>
-                              {exportItem.storage_path ? (
-                                <Chip label="Stored" color="success" size="small" />
-                              ) : (
-                                <Chip label="On-Demand" color="default" size="small" />
-                              )}
-                            </TableCell>
-                            <TableCell align="right">
-                              <Tooltip title="Download Export">
-                                <IconButton
-                                  onClick={() => handleDownload(exportItem)}
-                                  sx={{
-                                    color: '#00E5FF',
-                                    '&:hover': {
-                                      backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                                    },
-                                  }}
-                                >
-                                  <FileDownloadIcon />
-                                </IconButton>
-                              </Tooltip>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </CardContent>
-              </Card>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
 
               {/* Pagination */}
               {totalPages > 1 && (
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
-                  <Typography variant="body2" sx={{ color: '#B0BEC5' }}>
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
                     Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, total)} of {total} exports
                   </Typography>
                   <Pagination
@@ -581,10 +603,10 @@ export default function ExportHistoryPage() {
                     color="primary"
                     sx={{
                       '& .MuiPaginationItem-root': {
-                        color: '#B0BEC5',
+                        color: theme.palette.text.secondary,
                         '&.Mui-selected': {
-                          backgroundColor: '#00E5FF',
-                          color: '#000',
+                          backgroundColor: theme.palette.text.primary,
+                          color: theme.palette.background.default,
                         },
                       },
                     }}
@@ -593,7 +615,6 @@ export default function ExportHistoryPage() {
               )}
             </>
           )}
-        </Container>
       </Box>
     </ErrorBoundary>
   );

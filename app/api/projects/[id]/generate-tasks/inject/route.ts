@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { mergeTaskContent } from '@/lib/ai/taskMerger';
 import logger from '@/lib/utils/logger';
 import { unauthorized, notFound, badRequest, internalError } from '@/lib/utils/apiErrors';
+import { getOrganizationContext, hasFeatureAccess } from '@/lib/organizationContext';
 import type { TaskInjectionRequest, TaskInjectionResponse, PreviewTask } from '@/types/taskGenerator';
 import type { ProjectTask } from '@/types/project';
 
@@ -51,6 +52,22 @@ export async function POST(
 
     if (!isOwner && !memberData) {
       return unauthorized('You do not have access to this project');
+    }
+
+    // Check if organization has access to AI Task Generator
+    const orgContext = await getOrganizationContext(supabase, session.user.id);
+    if (!orgContext) {
+      return unauthorized('Organization not found');
+    }
+
+    const hasAccess = await hasFeatureAccess(
+      supabase,
+      orgContext.organization.id,
+      'ai_task_generator_enabled'
+    );
+
+    if (!hasAccess) {
+      return unauthorized('AI Task Generator is not enabled for your organization');
     }
 
     // Parse request body

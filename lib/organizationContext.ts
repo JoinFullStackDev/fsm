@@ -27,6 +27,7 @@ export interface PackageFeatures {
   max_users: number | null;
   max_templates: number | null;
   ai_features_enabled: boolean;
+  ai_task_generator_enabled: boolean;
   export_features_enabled: boolean;
   ops_tool_enabled: boolean;
   analytics_enabled: boolean;

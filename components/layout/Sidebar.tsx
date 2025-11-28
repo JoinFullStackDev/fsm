@@ -888,7 +888,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                 },
               }}
             >
-              <ListItemText primary="All Projects" />
+              <ListItemText primary="View All" />
             </MenuItem>
             <Divider sx={{ borderColor: theme.palette.divider }} />
             {projects.map((project) => (
@@ -983,7 +983,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                 },
               }}
             >
-              <ListItemText primary="All Templates" />
+              <ListItemText primary="View All" />
             </MenuItem>
             {templates.length > 0 && (
               <>
@@ -1082,7 +1082,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                 },
               }}
             >
-              <ListItemText primary="All Projects" />
+              <ListItemText primary="View All" />
             </MenuItem>
             {projectManagementProjects.length > 0 && (
               <>
