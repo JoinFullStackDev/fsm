@@ -19,11 +19,13 @@ import {
   Security as SecurityIcon,
   Person as PersonIcon,
   Logout as LogoutIcon,
+  RocketLaunch as RocketLaunchIcon,
 } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useRole } from '@/lib/hooks/useRole';
 import NotificationBell from '@/components/notifications/NotificationBell';
 import NotificationDrawer from '@/components/notifications/NotificationDrawer';
+import WelcomeTour from '@/components/ui/WelcomeTour';
 import type { User } from '@/types/project';
 
 interface TopBarProps {
@@ -40,6 +42,7 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
+  const [welcomeTourOpen, setWelcomeTourOpen] = useState(false);
 
   const loadUser = useCallback(async () => {
     try {
@@ -119,6 +122,18 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           {!loading && (
             <>
+              <IconButton
+                onClick={() => setWelcomeTourOpen(true)}
+                sx={{
+                  color: theme.palette.text.primary,
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+                title="Welcome Tour"
+              >
+                <RocketLaunchIcon />
+              </IconButton>
               <NotificationBell onOpenDrawer={() => setNotificationDrawerOpen(true)} />
               <IconButton
                 onClick={handleMenuOpen}
@@ -237,6 +252,11 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
       <NotificationDrawer
         open={notificationDrawerOpen}
         onClose={() => setNotificationDrawerOpen(false)}
+      />
+      <WelcomeTour
+        open={welcomeTourOpen}
+        onClose={() => setWelcomeTourOpen(false)}
+        onComplete={() => setWelcomeTourOpen(false)}
       />
     </AppBar>
   );
