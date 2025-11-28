@@ -27,7 +27,7 @@ import {
   Button,
   CircularProgress,
 } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { useTheme, alpha } from '@mui/material/styles';
 import { format, parseISO } from 'date-fns';
 import {
   MoreVert as MoreVertIcon,
@@ -40,6 +40,7 @@ import {
   Delete as DeleteIcon,
   ChevronRight as ChevronRightIcon,
   ExpandMore as ChevronDownIcon,
+  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import type { ProjectTask, ProjectTaskExtended, TaskStatus, TaskPriority, User } from '@/types/project';
 import { DEFAULT_PHASE_NAMES, STATUS_COLORS, PRIORITY_COLORS } from '@/lib/constants';
@@ -92,6 +93,7 @@ export default function TaskTable({
   const [selectedTaskForAction, setSelectedTaskForAction] = useState<(ProjectTask | ProjectTaskExtended) | null>(null);
   const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set());
   const [subtasksMap, setSubtasksMap] = useState<Map<string, (ProjectTask | ProjectTaskExtended)[]>>(new Map());
+  const [addingSubtaskTo, setAddingSubtaskTo] = useState<string | null>(null);
   
   // Inline editing state
   const [editingField, setEditingField] = useState<{
@@ -256,6 +258,8 @@ export default function TaskTable({
   }, [onTaskUpdate]);
 
   const handleQuickStatusToggle = useCallback((task: ProjectTask) => {
+    // Use the actual task status, not the aggregate display status
+    // This ensures we toggle from the real status, not the calculated aggregate
     const statusOrder: TaskStatus[] = ['todo', 'in_progress', 'done'];
     const currentIndex = statusOrder.indexOf(task.status);
     const nextStatus = currentIndex < statusOrder.length - 1 ? statusOrder[currentIndex + 1] : 'todo';
@@ -268,6 +272,18 @@ export default function TaskTable({
     value: any
   ) => {
     if (!onTaskUpdate) return;
+
+    // Find the actual task to get its real status (not the aggregate display status)
+    const actualTask = filteredAndSortedTasks.find(t => t.id === taskId);
+    if (!actualTask) return;
+
+    // For status updates on parent tasks, ensure we're not accidentally using aggregate status
+    // Only update if the value is actually different from the current task status
+    if (field === 'status' && value === actualTask.status) {
+      // No change needed, just close the editor
+      setEditingField(null);
+      return;
+    }
 
     const updates: Partial<ProjectTask> = {};
     if (field === 'assignee') {
@@ -285,7 +301,7 @@ export default function TaskTable({
     await onTaskUpdate(taskId, updates);
     setEditingField(null);
     setEditingDateValue('');
-  }, [onTaskUpdate]);
+  }, [onTaskUpdate, filteredAndSortedTasks]);
 
   const formatDateForInput = useCallback((dateString: string | null): string => {
     if (!dateString) return '';
@@ -695,7 +711,8 @@ export default function TaskTable({
                   const subtasks = subtasksMap.get(task.id) || [];
                   const isExpanded = expandedParents.has(task.id);
                   const aggregateInfo = subtasks.length > 0 ? getParentTaskAggregateInfo(task, subtasks) : null;
-                  const displayStatus = aggregateInfo ? aggregateInfo.status : task.status;
+                  // Always use the actual task.status for the status chip display
+                  // The aggregate info is shown in the tooltip badge next to the status
 
                   return (
                     <React.Fragment key={task.id}>
@@ -738,12 +755,12 @@ export default function TaskTable({
                             ) : (
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                 <Chip
-                                  label={displayStatus.replace('_', ' ')}
+                                  label={task.status.replace('_', ' ')}
                                   size="small"
                                   sx={{
-                                    backgroundColor: `${STATUS_COLORS[displayStatus]}20`,
-                                    color: STATUS_COLORS[displayStatus],
-                                    border: `1px solid ${STATUS_COLORS[displayStatus]}40`,
+                                    backgroundColor: `${STATUS_COLORS[task.status]}20`,
+                                    color: STATUS_COLORS[task.status],
+                                    border: `1px solid ${STATUS_COLORS[task.status]}40`,
                                     fontWeight: 500,
                                     cursor: 'pointer',
                                   }}
@@ -756,16 +773,29 @@ export default function TaskTable({
                                     handleQuickStatusToggle(task);
                                   }}
                                 />
-                                {aggregateInfo && (
-                                  <Chip
-                                    label={aggregateInfo.summary}
-                                    size="small"
-                                    sx={{
-                                      height: 20,
-                                      fontSize: '0.7rem',
-                                      bgcolor: 'action.hover',
-                                    }}
-                                  />
+                                {aggregateInfo && subtasks.length > 0 && (
+                                  <Tooltip title={aggregateInfo.summary} arrow>
+                                    <Box
+                                      component="span"
+                                      sx={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        minWidth: 20,
+                                        height: 20,
+                                        px: 0.5,
+                                        fontSize: '0.7rem',
+                                        fontWeight: 500,
+                                        color: '#000',
+                                        bgcolor: '#fff',
+                                        borderRadius: '50%',
+                                        cursor: 'help',
+                                        border: `1px solid ${theme.palette.divider}`,
+                                      }}
+                                    >
+                                      {subtasks.length}
+                                    </Box>
+                                  </Tooltip>
                                 )}
                               </Box>
                             )}
@@ -1066,19 +1096,216 @@ export default function TaskTable({
                   </TableCell>
                 </TableRow>
                 
-                {/* Subtask Panel - shown when expanded */}
-                {isExpanded && (
+                {/* Subtask Rows - shown when expanded */}
+                {isExpanded && subtasks.map((subtask) => {
+                  const assignee = (subtask as ProjectTaskExtended).assignee;
+                  return (
+                    <TableRow
+                      key={subtask.id}
+                      onClick={() => onTaskClick(subtask)}
+                      sx={{
+                        cursor: 'pointer',
+                        bgcolor: alpha(theme.palette.common.black, 0.05),
+                        '&:hover': {
+                          bgcolor: alpha(theme.palette.common.black, 0.08),
+                        },
+                      }}
+                    >
+                      {visibleColumns.status && (
+                        <TableCell>
+                          <Chip
+                            label={subtask.status.replace('_', ' ')}
+                            size="small"
+                            sx={{
+                              height: 24,
+                              fontSize: '0.75rem',
+                              bgcolor: `${STATUS_COLORS[subtask.status]}20`,
+                              color: STATUS_COLORS[subtask.status],
+                              border: `1px solid ${STATUS_COLORS[subtask.status]}40`,
+                            }}
+                          />
+                        </TableCell>
+                      )}
+                      {visibleColumns.title && (
+                        <TableCell sx={{ pl: 4 }}>
+                          <Typography variant="body2" fontWeight={500} noWrap>
+                            {subtask.title}
+                          </Typography>
+                        </TableCell>
+                      )}
+                      {visibleColumns.phase && (
+                        <TableCell>
+                          {subtask.phase_number ? (
+                            <Chip
+                              label={getPhaseName(subtask.phase_number)}
+                              size="small"
+                              sx={{
+                                height: 24,
+                                fontSize: '0.75rem',
+                                bgcolor: theme.palette.action.hover,
+                                color: theme.palette.text.primary,
+                              }}
+                            />
+                          ) : (
+                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+                              -
+                            </Typography>
+                          )}
+                        </TableCell>
+                      )}
+                      {visibleColumns.priority && (
+                        <TableCell>
+                          <Chip
+                            label={subtask.priority}
+                            size="small"
+                            sx={{
+                              height: 24,
+                              fontSize: '0.75rem',
+                              bgcolor: `${PRIORITY_COLORS[subtask.priority]}20`,
+                              color: PRIORITY_COLORS[subtask.priority],
+                              border: `1px solid ${PRIORITY_COLORS[subtask.priority]}40`,
+                            }}
+                          />
+                        </TableCell>
+                      )}
+                      {visibleColumns.assignee && (
+                        <TableCell>
+                          {assignee ? (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <Avatar
+                                src={assignee.avatar_url || undefined}
+                                sx={{ width: 24, height: 24, fontSize: '0.75rem' }}
+                              >
+                                {(assignee.name || assignee.email || 'U').substring(0, 2).toUpperCase()}
+                              </Avatar>
+                              <Typography variant="body2" sx={{ fontSize: '0.875rem' }} noWrap>
+                                {assignee.name || assignee.email}
+                              </Typography>
+                            </Box>
+                          ) : (
+                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem', fontStyle: 'italic' }}>
+                              Unassigned
+                            </Typography>
+                          )}
+                        </TableCell>
+                      )}
+                      {visibleColumns.startDate && (
+                        <TableCell>
+                          {subtask.start_date ? (
+                            <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                              {new Date(subtask.start_date).toLocaleDateString()}
+                            </Typography>
+                          ) : (
+                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+                              -
+                            </Typography>
+                          )}
+                        </TableCell>
+                      )}
+                      {visibleColumns.dueDate && (
+                        <TableCell>
+                          {subtask.due_date ? (
+                            <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                              {new Date(subtask.due_date).toLocaleDateString()}
+                            </Typography>
+                          ) : (
+                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+                              -
+                            </Typography>
+                          )}
+                        </TableCell>
+                      )}
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
+                          {subtask.status !== 'done' && (
+                            <IconButton
+                              size="small"
+                              onClick={async () => {
+                                if (onTaskUpdate) {
+                                  await onTaskUpdate(subtask.id, { status: 'done' });
+                                  handleSubtaskUpdated(subtask.id, { status: 'done' });
+                                }
+                              }}
+                              title="Mark as done"
+                              sx={{
+                                p: 0.5,
+                                color: theme.palette.success.main,
+                                '&:hover': {
+                                  bgcolor: `${theme.palette.success.main}20`,
+                                },
+                              }}
+                            >
+                              <CheckCircleIcon fontSize="small" />
+                            </IconButton>
+                          )}
+                          {onTaskDelete && (
+                            <IconButton
+                              size="small"
+                              onClick={async () => {
+                                if (confirm('Are you sure you want to delete this subtask?')) {
+                                  await onTaskDelete(subtask.id);
+                                  handleSubtaskDeleted(subtask.id);
+                                }
+                              }}
+                              color="error"
+                              title="Delete subtask"
+                              sx={{ p: 0.5 }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          )}
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {/* Add Subtask Form Row */}
+                {isExpanded && addingSubtaskTo === task.id && (
                   <TableRow>
                     <TableCell colSpan={Object.values(visibleColumns).filter(Boolean).length + 1} sx={{ p: 0, borderBottom: 'none' }}>
                       <SubtaskPanel
                         parentTaskId={task.id}
+                        parentTask={task}
                         projectId={projectId}
                         subtasks={subtasks}
                         projectMembers={projectMembers}
-                        onSubtaskCreated={handleSubtaskCreated}
+                        onSubtaskCreated={(subtask) => {
+                          handleSubtaskCreated(subtask);
+                          setAddingSubtaskTo(null);
+                        }}
                         onSubtaskUpdated={handleSubtaskUpdated}
                         onSubtaskDeleted={handleSubtaskDeleted}
+                        onSubtaskClick={onTaskClick}
+                        phaseNames={phaseNames}
+                        visibleColumns={visibleColumns}
+                        onCancel={() => setAddingSubtaskTo(null)}
                       />
+                    </TableCell>
+                  </TableRow>
+                )}
+                {/* Add Subtask Button Row */}
+                {isExpanded && addingSubtaskTo !== task.id && (
+                  <TableRow
+                    sx={{
+                      bgcolor: alpha(theme.palette.common.black, 0.05),
+                    }}
+                  >
+                    <TableCell colSpan={Object.values(visibleColumns).filter(Boolean).length + 1} sx={{ pl: 4, py: 0.5 }}>
+                      <Tooltip title="Add Subtask" arrow>
+                        <IconButton
+                          size="small"
+                          onClick={() => setAddingSubtaskTo(task.id)}
+                          sx={{
+                            color: theme.palette.text.secondary,
+                            '&:hover': {
+                              color: theme.palette.text.primary,
+                              bgcolor: theme.palette.action.hover,
+                            },
+                          }}
+                        >
+                          <AddIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
                 )}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Container,
@@ -23,6 +23,7 @@ export default function SignInPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [rateLimitCooldown, setRateLimitCooldown] = useState<number | null>(null);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +53,9 @@ export default function SignInPage() {
         
         // Check for rate limiting
         if (signInError.message.includes('rate limit') || signInError.message.includes('too many requests') || signInError.status === 429) {
-          setError('Too many login attempts. Please wait a few minutes before trying again.');
+          // Set cooldown timer (15 minutes = 900 seconds)
+          setRateLimitCooldown(900);
+          setError('Too many login attempts. Please wait 15 minutes before trying again.');
         } else if (signInError.message.includes('Email not confirmed') || signInError.message.includes('email_not_confirmed')) {
           setError('Please confirm your email before signing in. Check your inbox for the confirmation link.');
         } else if (signInError.message.includes('Invalid login credentials') || signInError.message.includes('invalid_credentials')) {
@@ -186,6 +189,22 @@ export default function SignInPage() {
     }
   };
 
+  // Countdown timer for rate limit cooldown
+  useEffect(() => {
+    if (rateLimitCooldown !== null && rateLimitCooldown > 0) {
+      const interval = setInterval(() => {
+        setRateLimitCooldown((prev) => {
+          if (prev === null || prev <= 1) {
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [rateLimitCooldown]);
+
   return (
     <Box
       sx={{
@@ -236,6 +255,13 @@ export default function SignInPage() {
               }}
             >
               {error}
+              {rateLimitCooldown !== null && rateLimitCooldown > 0 && (
+                <Box sx={{ mt: 1 }}>
+                  <Typography variant="body2">
+                    Please wait: {Math.floor(rateLimitCooldown / 60)}:{(rateLimitCooldown % 60).toString().padStart(2, '0')}
+                  </Typography>
+                </Box>
+              )}
               {error.includes('confirm your email') && (
                 <Box sx={{ mt: 1 }}>
                   <Button
@@ -352,9 +378,11 @@ export default function SignInPage() {
                   color: theme.palette.text.secondary,
                 },
               }}
-              disabled={loading}
+              disabled={loading || (rateLimitCooldown !== null && rateLimitCooldown > 0)}
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? 'Signing in...' : rateLimitCooldown !== null && rateLimitCooldown > 0 
+                ? `Please wait ${Math.floor(rateLimitCooldown / 60)}:${(rateLimitCooldown % 60).toString().padStart(2, '0')}`
+                : 'Sign In'}
             </Button>
             <Typography variant="body2" align="center" sx={{ mt: 2, color: theme.palette.text.secondary }}>
               <Link
