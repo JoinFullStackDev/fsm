@@ -38,6 +38,13 @@ export const AVAILABLE_MODULES: ModuleDefinition[] = [
     category: 'AI',
   },
   {
+    key: 'ai_task_generator_enabled',
+    name: 'AI Task Generator',
+    description: 'AI-powered task generation from prompts and PRDs',
+    icon: 'AutoAwesome',
+    category: 'AI',
+  },
+  {
     key: 'export_features_enabled',
     name: 'Export Features',
     description: 'Export projects as Blueprint bundles and Cursor bundles',

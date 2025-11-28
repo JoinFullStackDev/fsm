@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import {
   Dialog,
   DialogTitle,
@@ -32,7 +33,18 @@ import {
   ZoomOut as ZoomOutIcon,
   FitScreen as FitScreenIcon,
 } from '@mui/icons-material';
-import Editor from '@monaco-editor/react';
+// Dynamically import Monaco Editor to reduce initial bundle size
+const Editor = dynamic(
+  () => import('@monaco-editor/react'),
+  { 
+    ssr: false,
+    loading: () => (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+        <CircularProgress size={24} />
+      </Box>
+    ),
+  }
+);
 import mermaid from 'mermaid';
 import type { ERDData } from '@/types/phases';
 import { convertERDToMermaid, validateERD, createEmptyERD } from '@/lib/erd/mermaidConverter';

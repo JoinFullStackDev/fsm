@@ -61,6 +61,7 @@ const defaultFeatures: PackageFeatures = {
   max_users: null,
   max_templates: null,
   ai_features_enabled: false,
+  ai_task_generator_enabled: false,
   export_features_enabled: false,
   ops_tool_enabled: false,
   analytics_enabled: false,
@@ -342,6 +343,9 @@ export default function PackagesPage() {
                       {/* Module Features */}
                       {pkg.features?.ai_features_enabled && (
                         <Chip label="AI" size="small" color="primary" />
+                      )}
+                      {pkg.features?.ai_task_generator_enabled && (
+                        <Chip label="Task Gen" size="small" color="primary" />
                       )}
                       {pkg.features?.ops_tool_enabled && (
                         <Chip label="Ops" size="small" color="primary" />
