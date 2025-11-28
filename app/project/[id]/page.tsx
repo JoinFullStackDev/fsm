@@ -142,6 +142,7 @@ export default function ProjectPage() {
   const [exportCount, setExportCount] = useState(0);
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [members, setMembers] = useState<any[]>([]);
+  const [creator, setCreator] = useState<{ name: string | null; email: string; avatar_url?: string | null } | null>(null);
 
   useEffect(() => {
     const loadProject = async () => {
@@ -184,6 +185,23 @@ export default function ProjectPage() {
 
       setProject(projectData);
       setCompanyName(projectData.company?.name || null);
+
+      // Load creator information
+      if (projectData.owner_id) {
+        const { data: creatorData } = await supabase
+          .from('users')
+          .select('id, name, email, avatar_url')
+          .eq('id', projectData.owner_id)
+          .single();
+        
+        if (creatorData) {
+          setCreator({
+            name: creatorData.name,
+            email: creatorData.email,
+            avatar_url: creatorData.avatar_url,
+          });
+        }
+      }
 
       // Load phases with data for progress calculation (ordered by display_order)
       let phasesData = null;
@@ -537,6 +555,42 @@ export default function ProjectPage() {
                   >
                     {project.name}
                   </Typography>
+                  {creator && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          color: theme.palette.text.secondary,
+                          fontSize: '0.875rem',
+                        }}
+                      >
+                        Created by
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Avatar
+                          src={creator.avatar_url || undefined}
+                          sx={{
+                            width: 24,
+                            height: 24,
+                            bgcolor: theme.palette.primary.main,
+                            fontSize: '0.75rem',
+                          }}
+                        >
+                          {creator.name?.[0]?.toUpperCase() || creator.email[0]?.toUpperCase() || 'U'}
+                        </Avatar>
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            color: theme.palette.text.primary,
+                            fontSize: '0.875rem',
+                            fontWeight: 500,
+                          }}
+                        >
+                          {creator.name || creator.email}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )}
                   <Typography 
                     variant="body1" 
                     sx={{ 

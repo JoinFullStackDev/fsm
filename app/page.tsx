@@ -37,8 +37,9 @@ import FeatureCard from '@/components/landing/FeatureCard';
 import PricingCard from '@/components/landing/PricingCard';
 import MockDashboard from '@/components/landing/MockDashboard';
 import ProcessStepper from '@/components/landing/ProcessStepper';
-import MockTableSection from '@/components/landing/MockTableSection';
 import LandingHeader from '@/components/landing/LandingHeader';
+import InteractiveMockUI from '@/components/landing/InteractiveMockUI';
+import SeeItInActionDashboard from '@/components/landing/SeeItInActionDashboard';
 import type { PackageFeatures } from '@/lib/organizationContext';
 
 interface Package {
@@ -221,7 +222,7 @@ export default function HomePage() {
         </Box>
 
         {/* Feature Highlight Strip */}
-        <Box sx={{ py: { xs: 6, md: 10 } }}>
+        {/* <Box sx={{ py: { xs: 6, md: 10 } }}>
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -260,7 +261,7 @@ export default function HomePage() {
               </Grid>
             ))}
           </Grid>
-        </Box>
+        </Box> */}
 
         {/* How It Works / Process Section */}
         <Box
@@ -275,7 +276,7 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-100px' }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: 0.3 }}
           >
             <Typography
               variant="h2"
@@ -286,7 +287,7 @@ export default function HomePage() {
                 mb: 1,
               }}
             >
-              How It Works
+              Everything You Need
             </Typography>
             <Typography
               variant="h6"
@@ -294,42 +295,14 @@ export default function HomePage() {
               color="text.secondary"
               sx={{ mb: 6, maxWidth: '700px', mx: 'auto' }}
             >
-              Six phases, one complete system
+              Powerful features to accelerate your product development
             </Typography>
           </motion.div>
           <ProcessStepper />
         </Box>
 
-        {/* Mock Lists / Tables Section */}
-        <Box sx={{ py: { xs: 6, md: 10 } }}>
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-100px' }}
-            transition={{ duration: 0.6 }}
-          >
-            <Typography
-              variant="h2"
-              align="center"
-              sx={{
-                fontSize: { xs: '2rem', md: '3rem' },
-                fontWeight: 700,
-                mb: 1,
-              }}
-            >
-              See It In Action
-            </Typography>
-            <Typography
-              variant="h6"
-              align="center"
-              color="text.secondary"
-              sx={{ mb: 6, maxWidth: '700px', mx: 'auto' }}
-            >
-              AI auto-generates documents and organizes work, saving hours for your team
-            </Typography>
-          </motion.div>
-          <MockTableSection />
-        </Box>
+        {/* Interactive Mock UI Banner - Hero Moment */}
+        <InteractiveMockUI />
 
         {/* Comparison Table Section */}
         <Box sx={{ py: { xs: 6, md: 10 }, mt: 4 }}>
@@ -399,12 +372,13 @@ export default function HomePage() {
                   <TableCell 
                     sx={{ 
                       width: '30%', 
-                      minWidth: 200,
+                      minWidth: { xs: 180, md: 200 },
                       position: 'sticky', 
                       left: 0, 
-                      backgroundColor: alpha(theme.palette.primary.main, 0.1), 
+                      backgroundColor: theme.palette.background.default, 
                       zIndex: 2,
                       boxShadow: '2px 0 4px rgba(0,0,0,0.1)',
+                      fontSize: { xs: '0.875rem', md: '1rem' },
                     }}
                   >
                     Feature
@@ -463,10 +437,11 @@ export default function HomePage() {
                         left: 0,
                         backgroundColor: index % 2 === 0
                           ? theme.palette.background.paper
-                          : alpha(theme.palette.action.hover, 0.05),
+                          : theme.palette.background.default,
                         zIndex: 1,
                         boxShadow: '2px 0 4px rgba(0,0,0,0.1)',
-                        minWidth: 200,
+                        minWidth: { xs: 180, md: 200 },
+                        fontSize: { xs: '0.75rem', md: '0.875rem' },
                       }}
                     >
                       {row.feature}
@@ -716,6 +691,7 @@ export default function HomePage() {
                   pkg={pkg}
                   isPopular={index === 1} // Mark second package as popular
                   delay={index * 0.1}
+                  index={index}
                 />
               ))}
             </Box>
@@ -771,6 +747,9 @@ export default function HomePage() {
             </Box>
           </motion.div>
         </Box>
+
+        {/* See It In Action Dashboard */}
+        <SeeItInActionDashboard />
 
         {/* Final CTA Section */}
         <Box

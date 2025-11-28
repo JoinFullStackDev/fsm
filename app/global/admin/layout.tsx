@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   Box,
@@ -13,6 +13,7 @@ import {
   Typography,
   Divider,
   CircularProgress,
+  useMediaQuery,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -26,7 +27,9 @@ import {
   People as PeopleIcon,
 } from '@mui/icons-material';
 import { useRole } from '@/lib/hooks/useRole';
+import { createSupabaseClient } from '@/lib/supabaseClient';
 import TopBar from '@/components/layout/TopBar';
+import type { UserPreferences } from '@/types/project';
 
 const DRAWER_WIDTH = 280;
 
@@ -38,14 +41,72 @@ export default function GlobalAdminLayout({ children }: GlobalAdminLayoutProps) 
   const router = useRouter();
   const pathname = usePathname();
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { isSuperAdmin, loading: roleLoading } = useRole();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarLoading, setSidebarLoading] = useState(true);
+  const preferenceRef = useRef<boolean | null>(null);
 
   useEffect(() => {
     if (!roleLoading && !isSuperAdmin) {
       router.push('/dashboard');
     }
   }, [isSuperAdmin, roleLoading, router]);
+
+  useEffect(() => {
+    const loadSidebarPreference = async () => {
+      try {
+        const supabase = createSupabaseClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          // Default to collapsed on mobile, open on desktop
+          setSidebarOpen(!isMobile);
+          setSidebarLoading(false);
+          return;
+        }
+
+        const { data: userData } = await supabase
+          .from('users')
+          .select('preferences')
+          .eq('auth_id', session.user.id)
+          .single();
+
+        if (userData?.preferences && typeof userData.preferences === 'object') {
+          const preferences = userData.preferences as UserPreferences;
+          const defaultOpen = preferences.sidebar?.defaultOpen ?? true;
+          preferenceRef.current = defaultOpen;
+          // On mobile, always default to collapsed; on desktop, use preference
+          setSidebarOpen(isMobile ? false : defaultOpen);
+        } else {
+          preferenceRef.current = true;
+          // Default to collapsed on mobile, open on desktop
+          setSidebarOpen(!isMobile);
+        }
+      } catch (error) {
+        console.error('Error loading sidebar preference:', error);
+        preferenceRef.current = true;
+        // Default to collapsed on mobile, open on desktop
+        setSidebarOpen(!isMobile);
+      } finally {
+        setSidebarLoading(false);
+      }
+    };
+
+    loadSidebarPreference();
+  }, []); // Only run once on mount
+
+  // Update sidebar state when mobile breakpoint changes
+  useEffect(() => {
+    if (!sidebarLoading) {
+      // On mobile, always collapse; on desktop, use stored preference
+      if (isMobile) {
+        setSidebarOpen(false);
+      } else if (preferenceRef.current !== null) {
+        setSidebarOpen(preferenceRef.current);
+      }
+    }
+  }, [isMobile, sidebarLoading]);
 
   if (roleLoading) {
     return (
