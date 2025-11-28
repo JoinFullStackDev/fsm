@@ -68,7 +68,7 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
       setNotifications(data.notifications || []);
       setUnreadCount(data.unreadCount || 0);
     } catch (error) {
-      console.error('[NotificationDrawer] Error loading notifications:', error);
+      // Error loading notifications
     } finally {
       setLoading(false);
     }
@@ -122,7 +122,7 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
 
       subscriptionRef.current = channel;
     } catch (error) {
-      console.error('[NotificationDrawer] Error setting up subscription:', error);
+      // Error setting up subscription
     }
   }, [supabase]);
 
@@ -151,7 +151,7 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
-      console.error('[NotificationDrawer] Error marking as read:', error);
+      // Error marking as read
     }
   };
 
@@ -187,7 +187,7 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
         setUnreadCount((prev) => Math.max(0, prev - 1));
       }
     } catch (error) {
-      console.error('[NotificationDrawer] Error deleting notification:', error);
+      // Error deleting notification
     } finally {
       setDeletingId(null);
       setMenuAnchor(null);
@@ -221,7 +221,7 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch (error) {
-      console.error('[NotificationDrawer] Error marking all as read:', error);
+      // Error marking all as read
     } finally {
       setMarkingAllRead(false);
     }

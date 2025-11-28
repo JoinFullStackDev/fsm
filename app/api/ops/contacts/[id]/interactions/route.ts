@@ -174,8 +174,6 @@ export async function POST(
         details: activityError?.details,
         hint: activityError?.hint,
       });
-      // Log to console for debugging
-      console.error('[INTERACTION ACTIVITY FEED ERROR]', activityError);
       // Don't fail the request, but log the error
     }
 

@@ -108,7 +108,7 @@ export default function TaskComments({
         setComments(data.comments || []);
       }
     } catch (error) {
-      console.error('Failed to load comments:', error);
+      // Failed to load comments
     } finally {
       setLoading(false);
     }
@@ -123,15 +123,11 @@ export default function TaskComments({
   }, [taskId, loadComments]);
 
   const handleMentionSelect = (userId: string, userName: string) => {
-    console.log('[TaskComments] Mention selected:', { userId, userName });
     // Add user to mentioned list if not already present
     setMentionedUserIds((prev) => {
       if (!prev.includes(userId)) {
-        const updated = [...prev, userId];
-        console.log('[TaskComments] Updated mentionedUserIds:', updated);
-        return updated;
+        return [...prev, userId];
       }
-      console.log('[TaskComments] User already in mentions list');
       return prev;
     });
   };
@@ -139,20 +135,12 @@ export default function TaskComments({
   const handleSubmit = async () => {
     if (!taskId || !newComment.trim()) return;
 
-    console.log('[TaskComments] Submitting comment:', {
-      taskId,
-      contentLength: newComment.length,
-      mentionedUserIds,
-      mentionedUserIdsCount: mentionedUserIds.length,
-    });
-
     setSubmitting(true);
     try {
       const requestBody = {
         content: newComment,
         mentioned_user_ids: mentionedUserIds,
       };
-      console.log('[TaskComments] Request body:', requestBody);
 
       const response = await fetch(`/api/projects/tasks/${taskId}/comments`, {
         method: 'POST',
@@ -170,7 +158,7 @@ export default function TaskComments({
         }
       }
     } catch (error) {
-      console.error('Failed to add comment:', error);
+      // Failed to add comment
     } finally {
       setSubmitting(false);
     }
@@ -196,7 +184,7 @@ export default function TaskComments({
         }
       }
     } catch (error) {
-      console.error('Failed to update comment:', error);
+      // Failed to update comment
     }
   };
 
@@ -215,7 +203,7 @@ export default function TaskComments({
         }
       }
     } catch (error) {
-      console.error('Failed to delete comment:', error);
+      // Failed to delete comment
     }
     setMenuAnchor(null);
   };

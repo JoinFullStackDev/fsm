@@ -17,6 +17,7 @@ import {
   Paper,
   MenuList,
   MenuItem,
+  Tooltip,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -469,34 +470,43 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
         <List sx={{ pt: 1 }}>
         {/* Dashboard */}
         <ListItem disablePadding>
-          <ListItemButton
-            onClick={() => handleNavigate('/dashboard')}
-            selected={isActive('/dashboard')}
-            sx={{
-              minHeight: 48,
-              '&.Mui-selected': {
-                backgroundColor: theme.palette.action.hover,
-                borderLeft: `1px solid ${theme.palette.text.primary}`,
+          <Tooltip
+            title="Dashboard"
+            placement="right"
+            arrow
+            disableHoverListener={open}
+            disableFocusListener={open}
+            disableTouchListener={open}
+          >
+            <ListItemButton
+              onClick={() => handleNavigate('/dashboard')}
+              selected={isActive('/dashboard')}
+              sx={{
+                minHeight: 48,
+                '&.Mui-selected': {
+                  backgroundColor: theme.palette.action.hover,
+                  borderLeft: `1px solid ${theme.palette.text.primary}`,
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                },
                 '&:hover': {
                   backgroundColor: theme.palette.action.hover,
                 },
-              },
-              '&:hover': {
-                backgroundColor: theme.palette.action.hover,
-              },
-            }}
-          >
-            <ListItemIcon
-              sx={{
-                minWidth: 40,
-                justifyContent: 'center',
-                color: isActive('/dashboard') ? theme.palette.text.primary : theme.palette.text.secondary,
               }}
             >
-              <DashboardIcon />
-            </ListItemIcon>
-            {open && <ListItemText primary="Dashboard" />}
-          </ListItemButton>
+              <ListItemIcon
+                sx={{
+                  minWidth: 40,
+                  justifyContent: 'center',
+                  color: isActive('/dashboard') ? theme.palette.text.primary : theme.palette.text.secondary,
+                }}
+              >
+                <DashboardIcon />
+              </ListItemIcon>
+              {open && <ListItemText primary="Dashboard" />}
+            </ListItemButton>
+          </Tooltip>
         </ListItem>
 
         {/* Projects */}
@@ -692,98 +702,125 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
 
             {/* Companies */}
             <ListItem disablePadding>
-              <ListItemButton
-                onClick={() => handleNavigate('/ops/companies')}
-                selected={isActive('/ops/companies')}
-                sx={{
-                  minHeight: 48,
-                  '&.Mui-selected': {
-                    backgroundColor: theme.palette.action.hover,
-                    borderLeft: `1px solid ${theme.palette.text.primary}`,
+              <Tooltip
+                title="Companies"
+                placement="right"
+                arrow
+                disableHoverListener={open}
+                disableFocusListener={open}
+                disableTouchListener={open}
+              >
+                <ListItemButton
+                  onClick={() => handleNavigate('/ops/companies')}
+                  selected={isActive('/ops/companies')}
+                  sx={{
+                    minHeight: 48,
+                    '&.Mui-selected': {
+                      backgroundColor: theme.palette.action.hover,
+                      borderLeft: `1px solid ${theme.palette.text.primary}`,
+                      '&:hover': {
+                        backgroundColor: theme.palette.action.hover,
+                      },
+                    },
                     '&:hover': {
                       backgroundColor: theme.palette.action.hover,
                     },
-                  },
-                  '&:hover': {
-                    backgroundColor: theme.palette.action.hover,
-                  },
-                }}
-              >
-                <ListItemIcon
-                  sx={{
-                    minWidth: 40,
-                    justifyContent: 'center',
-                    color: isActive('/ops/companies') ? theme.palette.text.primary : theme.palette.text.secondary,
                   }}
                 >
-                  <BusinessIcon />
-                </ListItemIcon>
-                {open && <ListItemText primary="Companies" />}
-              </ListItemButton>
+                  <ListItemIcon
+                    sx={{
+                      minWidth: 40,
+                      justifyContent: 'center',
+                      color: isActive('/ops/companies') ? theme.palette.text.primary : theme.palette.text.secondary,
+                    }}
+                  >
+                    <BusinessIcon />
+                  </ListItemIcon>
+                  {open && <ListItemText primary="Companies" />}
+                </ListItemButton>
+              </Tooltip>
             </ListItem>
 
             {/* Opportunities */}
             <ListItem disablePadding>
-              <ListItemButton
-                onClick={() => handleNavigate('/ops/opportunities')}
-                selected={isActive('/ops/opportunities')}
-                sx={{
-                  minHeight: 48,
-                  '&.Mui-selected': {
-                    backgroundColor: theme.palette.action.hover,
-                    borderLeft: `1px solid ${theme.palette.text.primary}`,
+              <Tooltip
+                title="Opportunities"
+                placement="right"
+                arrow
+                disableHoverListener={open}
+                disableFocusListener={open}
+                disableTouchListener={open}
+              >
+                <ListItemButton
+                  onClick={() => handleNavigate('/ops/opportunities')}
+                  selected={isActive('/ops/opportunities')}
+                  sx={{
+                    minHeight: 48,
+                    '&.Mui-selected': {
+                      backgroundColor: theme.palette.action.hover,
+                      borderLeft: `1px solid ${theme.palette.text.primary}`,
+                      '&:hover': {
+                        backgroundColor: theme.palette.action.hover,
+                      },
+                    },
                     '&:hover': {
                       backgroundColor: theme.palette.action.hover,
                     },
-                  },
-                  '&:hover': {
-                    backgroundColor: theme.palette.action.hover,
-                  },
-                }}
-              >
-                <ListItemIcon
-                  sx={{
-                    minWidth: 40,
-                    justifyContent: 'center',
-                    color: isActive('/ops/opportunities') ? theme.palette.text.primary : theme.palette.text.secondary,
                   }}
                 >
-                  <TrendingUpIcon />
-                </ListItemIcon>
-                {open && <ListItemText primary="Opportunities" />}
-              </ListItemButton>
+                  <ListItemIcon
+                    sx={{
+                      minWidth: 40,
+                      justifyContent: 'center',
+                      color: isActive('/ops/opportunities') ? theme.palette.text.primary : theme.palette.text.secondary,
+                    }}
+                  >
+                    <TrendingUpIcon />
+                  </ListItemIcon>
+                  {open && <ListItemText primary="Opportunities" />}
+                </ListItemButton>
+              </Tooltip>
             </ListItem>
 
             {/* Contacts */}
             <ListItem disablePadding>
-              <ListItemButton
-                onClick={() => handleNavigate('/ops/contacts')}
-                selected={isActive('/ops/contacts')}
-                sx={{
-                  minHeight: 48,
-                  '&.Mui-selected': {
-                    backgroundColor: theme.palette.action.hover,
-                    borderLeft: `1px solid ${theme.palette.text.primary}`,
+              <Tooltip
+                title="Contacts"
+                placement="right"
+                arrow
+                disableHoverListener={open}
+                disableFocusListener={open}
+                disableTouchListener={open}
+              >
+                <ListItemButton
+                  onClick={() => handleNavigate('/ops/contacts')}
+                  selected={isActive('/ops/contacts')}
+                  sx={{
+                    minHeight: 48,
+                    '&.Mui-selected': {
+                      backgroundColor: theme.palette.action.hover,
+                      borderLeft: `1px solid ${theme.palette.text.primary}`,
+                      '&:hover': {
+                        backgroundColor: theme.palette.action.hover,
+                      },
+                    },
                     '&:hover': {
                       backgroundColor: theme.palette.action.hover,
                     },
-                  },
-                  '&:hover': {
-                    backgroundColor: theme.palette.action.hover,
-                  },
-                }}
-              >
-                <ListItemIcon
-                  sx={{
-                    minWidth: 40,
-                    justifyContent: 'center',
-                    color: isActive('/ops/contacts') ? theme.palette.text.primary : theme.palette.text.secondary,
                   }}
                 >
-                  <ContactsIcon />
-                </ListItemIcon>
-                {open && <ListItemText primary="Contacts" />}
-              </ListItemButton>
+                  <ListItemIcon
+                    sx={{
+                      minWidth: 40,
+                      justifyContent: 'center',
+                      color: isActive('/ops/contacts') ? theme.palette.text.primary : theme.palette.text.secondary,
+                    }}
+                  >
+                    <ContactsIcon />
+                  </ListItemIcon>
+                  {open && <ListItemText primary="Contacts" />}
+                </ListItemButton>
+              </Tooltip>
             </ListItem>
           </>
         )}
@@ -1087,58 +1124,67 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
       <Box sx={{ borderTop: `1px solid ${theme.palette.divider}`, flexShrink: 0 }}>
         <List>
           <ListItem disablePadding>
-            <ListItemButton
-              onClick={() => handleNavigate('/my-tasks')}
-              selected={isActive('/my-tasks')}
-              sx={{
-                minHeight: 48,
-                position: 'relative',
-                '&.Mui-selected': {
-                  backgroundColor: theme.palette.action.hover,
-                  borderLeft: `1px solid ${theme.palette.text.primary}`,
+            <Tooltip
+              title="My Tasks"
+              placement="right"
+              arrow
+              disableHoverListener={open}
+              disableFocusListener={open}
+              disableTouchListener={open}
+            >
+              <ListItemButton
+                onClick={() => handleNavigate('/my-tasks')}
+                selected={isActive('/my-tasks')}
+                sx={{
+                  minHeight: 48,
+                  position: 'relative',
+                  '&.Mui-selected': {
+                    backgroundColor: theme.palette.action.hover,
+                    borderLeft: `1px solid ${theme.palette.text.primary}`,
+                    '&:hover': {
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                  },
                   '&:hover': {
                     backgroundColor: theme.palette.action.hover,
                   },
-                },
-                '&:hover': {
-                  backgroundColor: theme.palette.action.hover,
-                },
-              }}
-            >
-              <ListItemIcon
-                sx={{
-                  minWidth: open ? 40 : 40,
-                  justifyContent: 'center',
-                  color: isActive('/my-tasks') ? theme.palette.text.primary : theme.palette.text.secondary,
                 }}
               >
-                <ScheduleIcon />
-              </ListItemIcon>
-              {open && (
-                <>
-                  <ListItemText primary="My Tasks" />
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      ml: 'auto',
-                      mr: 1,
-                      minWidth: 20,
-                      height: 20,
-                      borderRadius: '10px',
-                      backgroundColor: theme.palette.text.primary,
-                      color: theme.palette.background.default,
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      px: 0.75,
-                    }}
-                  >
-                    {myTasksCount}
-                  </Box>
-                </>
-              )}
-            </ListItemButton>
+                <ListItemIcon
+                  sx={{
+                    minWidth: open ? 40 : 40,
+                    justifyContent: 'center',
+                    color: isActive('/my-tasks') ? theme.palette.text.primary : theme.palette.text.secondary,
+                  }}
+                >
+                  <ScheduleIcon />
+                </ListItemIcon>
+                {open && (
+                  <>
+                    <ListItemText primary="My Tasks" />
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        ml: 'auto',
+                        mr: 1,
+                        minWidth: 20,
+                        height: 20,
+                        borderRadius: '10px',
+                        backgroundColor: theme.palette.text.primary,
+                        color: theme.palette.background.default,
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        px: 0.75,
+                      }}
+                    >
+                      {myTasksCount}
+                    </Box>
+                  </>
+                )}
+              </ListItemButton>
+            </Tooltip>
           </ListItem>
         </List>
       </Box>

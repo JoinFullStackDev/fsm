@@ -71,7 +71,6 @@ export async function POST(
       .single();
 
     if (createError || !newTemplate) {
-      console.error('Error creating duplicate template:', createError);
       return NextResponse.json(
         { error: `Failed to create duplicate template: ${createError?.message}` },
         { status: 500 }

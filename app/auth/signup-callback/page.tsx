@@ -71,10 +71,6 @@ function SignupCallbackPageContent() {
           const errorData = await orgResponse.json();
           // If organization creation failed, try to find it by name as fallback
           // This handles edge cases where organization exists but API returned error
-          console.warn('[SignupCallback] Organization creation failed, attempting to find existing:', {
-            error: errorData.message,
-            organizationName,
-          });
           
           // For now, throw the error - the API should handle idempotency
           // But if it's a duplicate error, we should be able to continue
@@ -170,7 +166,7 @@ function SignupCallbackPageContent() {
               });
               
               if (!customerUpdateResponse.ok) {
-                console.warn('[SignupCallback] Failed to update customer ID (may already be set)');
+                // Failed to update customer ID (may already be set)
               }
 
               // IDEMPOTENCY: Check if subscription already exists before creating
@@ -180,7 +176,6 @@ function SignupCallbackPageContent() {
                 const subData = await existingSubResponse.json();
                 if (subData.subscription && subData.subscription.stripe_subscription_id === subscription_id) {
                   subscriptionExists = true;
-                  console.log('[SignupCallback] Subscription already exists, skipping creation:', subscription_id);
                 }
               }
 
@@ -232,7 +227,7 @@ function SignupCallbackPageContent() {
                   const errorData = await subCreateResponse.json();
                   // If subscription already exists, that's okay (webhook created it)
                   if (!errorData.error?.includes('already has')) {
-                    console.warn('[SignupCallback] Failed to create subscription:', errorData);
+                    // Failed to create subscription
                   }
                 }
               }
@@ -252,15 +247,14 @@ function SignupCallbackPageContent() {
                 const statusError = await statusUpdateResponse.json();
                 // If status update was skipped (already active), that's fine
                 if (statusError.skipped) {
-                  console.log('[SignupCallback] Organization status update skipped (already active)');
+                  // Organization status update skipped (already active)
                 } else {
-                  console.warn('[SignupCallback] Failed to update organization status:', statusError);
+                  // Failed to update organization status
                 }
               }
             }
           }
         } catch (subError) {
-          console.warn('[SignupCallback] Failed to create subscription record:', subError);
           // Non-critical, continue - webhook will handle it
         }
 
@@ -269,7 +263,6 @@ function SignupCallbackPageContent() {
         sessionStorage.removeItem('selectedPackageId');
         router.push('/dashboard');
       } catch (err) {
-        console.error('[SignupCallback] Error:', err);
         setError(err instanceof Error ? err.message : 'An error occurred');
         setLoading(false);
         sessionStorage.removeItem('signup_data');

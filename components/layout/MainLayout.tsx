@@ -63,7 +63,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
     };
 
     loadSidebarPreference();
-  }, []); // Only run once on mount
+  }, [isMobile]); // Run when isMobile changes
 
   // Update sidebar state when mobile breakpoint changes
   useEffect(() => {

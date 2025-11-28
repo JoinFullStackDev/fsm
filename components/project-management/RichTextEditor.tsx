@@ -17,7 +17,6 @@ const ReactQuill = dynamic(
         (window as any).Quill = mod.default.Quill;
       } catch (e) {
         // Fallback if Quill is not available
-        console.warn('Quill not available on default export');
       }
     }
     return mod;
@@ -58,9 +57,7 @@ export default function RichTextEditor({
 
   // Debug: log when projectMembers changes (only in development)
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development' && projectMembers.length > 0) {
-      console.log('[RichTextEditor] Project members available:', projectMembers.length, projectMembers.map(m => m.name || m.email));
-    }
+    // Project members tracking removed
   }, [projectMembers]);
 
   const modules = useMemo(
@@ -109,64 +106,21 @@ export default function RichTextEditor({
 
   // Debug: log mention menu state (after all dependencies are defined)
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      const willRender = showMentions && filteredMembers.length > 0 && !!menuPortalContainer;
-      console.log('[RichTextEditor] Mention state:', { 
-        showMentions, 
-        filteredMembersCount: filteredMembers.length, 
-        mentionQuery,
-        position: mentionPosition,
-        hasPortal: !!menuPortalContainer,
-        willRender,
-        menuItems: filteredMembers.map(m => m.name || m.email)
-      });
-      
-      if (willRender) {
-        console.log('[RichTextEditor] Menu should be visible at:', mentionPosition);
-        // Check if element exists in DOM
-        setTimeout(() => {
-          const menuElement = document.querySelector('[data-mention-menu]');
-          if (menuElement) {
-            const rect = menuElement.getBoundingClientRect();
-            const computedStyle = window.getComputedStyle(menuElement as Element);
-            console.log('[RichTextEditor] Menu element found in DOM:', {
-              exists: true,
-              rect,
-              display: computedStyle.display,
-              visibility: computedStyle.visibility,
-              opacity: computedStyle.opacity,
-              zIndex: computedStyle.zIndex,
-              position: computedStyle.position
-            });
-          } else {
-            console.warn('[RichTextEditor] Menu element NOT found in DOM!');
-          }
-        }, 100);
-      }
-    }
+    // Mention menu state tracking removed
   }, [showMentions, filteredMembers.length, mentionQuery, mentionPosition, menuPortalContainer, filteredMembers]);
 
   const insertMention = useCallback((member: User) => {
-    console.log('[RichTextEditor] insertMention called:', { 
-      memberId: member.id, 
-      memberName: member.name || member.email,
-      hasOnMentionSelect: !!onMentionSelect 
-    });
-
     if (!quillRef.current) {
-      console.warn('[RichTextEditor] No quillRef.current');
       return;
     }
 
     const quill = quillRef.current.getEditor();
     if (!quill) {
-      console.warn('[RichTextEditor] No quill instance');
       return;
     }
 
     const selection = quill.getSelection();
     if (!selection) {
-      console.warn('[RichTextEditor] No selection');
       return;
     }
 
@@ -175,7 +129,6 @@ export default function RichTextEditor({
     const atIndex = text.lastIndexOf('@');
 
     if (atIndex === -1) {
-      console.warn('[RichTextEditor] No @ found in text');
       return;
     }
 
@@ -197,10 +150,7 @@ export default function RichTextEditor({
     setMentionQuery('');
 
     if (onMentionSelect) {
-      console.log('[RichTextEditor] Calling onMentionSelect callback');
       onMentionSelect(member.id, member.name || member.email);
-    } else {
-      console.warn('[RichTextEditor] onMentionSelect callback not provided');
     }
   }, [onMentionSelect]);
 
@@ -211,7 +161,6 @@ export default function RichTextEditor({
     
     const findQuillInstance = () => {
       if (retryCount >= maxRetries) {
-        console.warn('[RichTextEditor] Could not find Quill instance after max retries');
         return;
       }
       
@@ -256,29 +205,11 @@ export default function RichTextEditor({
       if (quillInstance) {
         // Verify it's a valid Quill instance
         if (typeof quillInstance.getSelection === 'function' && typeof quillInstance.getText === 'function') {
-          console.log('[RichTextEditor] Quill instance found and stored');
           quillRef.current = { 
             getEditor: () => quillInstance,
           };
           setEditorReady(true);
           return;
-        } else {
-          console.warn('[RichTextEditor] Found __quill but missing methods:', {
-            hasGetSelection: typeof quillInstance.getSelection === 'function',
-            hasGetText: typeof quillInstance.getText === 'function',
-            type: typeof quillInstance,
-            keys: Object.keys(quillInstance || {}).slice(0, 10)
-          });
-        }
-      } else {
-        // Log what we found for debugging
-        if (quillEditorElement) {
-          console.log('[RichTextEditor] No __quill found, checking element:', {
-            has__quill: !!quillEditorElement.__quill,
-            parentHas__quill: !!quillEditorElement.parentElement?.__quill,
-            className: quillEditorElement.className,
-            parentClassName: quillEditorElement.parentElement?.className
-          });
         }
       }
       
@@ -310,7 +241,6 @@ export default function RichTextEditor({
           if (quillInstance && typeof quillInstance.getSelection === 'function') {
             quillRef.current = { getEditor: () => quillInstance };
             setEditorReady(true);
-            console.log('[RichTextEditor] Quill instance found on user interaction');
           }
         }
       }
@@ -552,9 +482,6 @@ export default function RichTextEditor({
                         quillRef.current = { getEditor: () => quill as any };
                         setEditorReady(true);
                       }
-                      console.log('[RichTextEditor] Found Quill via __quill property');
-                    } else {
-                      console.warn('[RichTextEditor] __quill exists but missing methods');
                     }
                   }
                 }
@@ -563,14 +490,12 @@ export default function RichTextEditor({
               if (quill) {
                 // Check if it's actually a Quill instance
                 if (typeof quill.getSelection !== 'function') {
-                  console.error('[RichTextEditor] Quill instance is invalid:', quill);
                   // Try to get the actual Quill instance
                   if (quill.quill && typeof quill.quill.getSelection === 'function') {
                     quill = quill.quill;
                   } else if (quill.getEditor && typeof quill.getEditor === 'function') {
                     quill = quill.getEditor();
                   } else {
-                    console.error('[RichTextEditor] Cannot access Quill methods');
                     return;
                   }
                 }
@@ -580,25 +505,14 @@ export default function RichTextEditor({
                   const text = quill.getText(0, selection.index);
                   const atIndex = text.lastIndexOf('@');
                   
-                  console.log('[RichTextEditor] Checking for mention:', { 
-                    text, 
-                    atIndex, 
-                    selectionIndex: selection.index,
-                    projectMembersCount: projectMembers.length 
-                  });
-                  
                   if (atIndex !== -1) {
                     const textAfterAt = text.substring(atIndex + 1);
-                    console.log('[RichTextEditor] Text after @:', textAfterAt);
                     
                     if (!textAfterAt.includes(' ') && !textAfterAt.includes('\n')) {
                       const query = textAfterAt.trim();
                       setMentionQuery(query);
                       
-                      console.log('[RichTextEditor] Mention detected:', { query, projectMembersCount: projectMembers.length });
-                      
                       if (projectMembers.length > 0) {
-                        console.log('[RichTextEditor] Setting showMentions to TRUE');
                         setShowMentions(true);
                         const bounds = quill.getBounds(selection.index, true);
                         if (bounds) {
@@ -610,29 +524,21 @@ export default function RichTextEditor({
                             left: editorRect.left + bounds.left,
                           };
                           
-                          console.log('[RichTextEditor] Setting mention position:', position);
                           setMentionPosition(position);
-                        } else {
-                          console.warn('[RichTextEditor] Could not get bounds');
                         }
                       } else {
-                        console.log('[RichTextEditor] No project members, hiding mentions');
                         setShowMentions(false);
                       }
                     } else {
-                      console.log('[RichTextEditor] Space or newline found after @, hiding mentions');
                       setShowMentions(false);
                     }
                   } else {
-                    console.log('[RichTextEditor] No @ found, hiding mentions');
                     setShowMentions(false);
                   }
                 } else {
-                  console.log('[RichTextEditor] No selection, hiding mentions');
                   setShowMentions(false);
                 }
               } else {
-                console.log('[RichTextEditor] No quill instance found - trying again in 100ms');
                 // Retry after a longer delay - try multiple locations for __quill
                 setTimeout(() => {
                   const quillEditorElement = containerRef.current?.querySelector('.ql-editor') as any;
@@ -654,15 +560,11 @@ export default function RichTextEditor({
                     if (quillInstance && typeof quillInstance.getSelection === 'function') {
                       quillRef.current = { getEditor: () => quillInstance };
                       setEditorReady(true);
-                      console.log('[RichTextEditor] Quill instance found on retry');
-                    } else {
-                      console.log('[RichTextEditor] Still no valid Quill instance found, element:', quillEditorElement);
                     }
                   }
                 }, 100);
               }
             } catch (error) {
-              console.error('[RichTextEditor] Error in onChange:', error);
               setShowMentions(false);
             }
           }, 50);

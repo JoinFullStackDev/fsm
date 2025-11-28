@@ -47,30 +47,29 @@ export default function TaskMergeDialog({
 
   useEffect(() => {
     if (open && existingTaskId) {
+      const loadExistingTask = async () => {
+        setLoading(true);
+        try {
+          const { data, error } = await supabase
+            .from('project_tasks')
+            .select('*')
+            .eq('id', existingTaskId)
+            .single();
+
+          if (error) {
+            console.error('[Task Merge Dialog] Error loading task:', error);
+          } else {
+            setExistingTask(data as ProjectTask);
+          }
+        } catch (error) {
+          console.error('[Task Merge Dialog] Error:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
       loadExistingTask();
     }
-  }, [open, existingTaskId]);
-
-  const loadExistingTask = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('project_tasks')
-        .select('*')
-        .eq('id', existingTaskId)
-        .single();
-
-      if (error) {
-        console.error('[Task Merge Dialog] Error loading task:', error);
-      } else {
-        setExistingTask(data as ProjectTask);
-      }
-    } catch (error) {
-      console.error('[Task Merge Dialog] Error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [open, existingTaskId, supabase]);
 
   const handleConfirm = () => {
     if (previewTask.previewId) {

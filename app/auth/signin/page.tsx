@@ -31,8 +31,6 @@ export default function SignInPage() {
     setError(null);
     setLoading(true);
 
-    console.log('[SignIn] Attempting sign-in for:', email);
-
     try {
       // Single sign-in attempt to avoid rate limiting
       const result = await supabase.auth.signInWithPassword({
@@ -44,13 +42,6 @@ export default function SignInPage() {
       const signInError = result.error;
 
       if (signInError) {
-        console.error('[SignIn] Sign-in error:', signInError);
-        console.error('[SignIn] Error details:', {
-          message: signInError.message,
-          status: signInError.status,
-          name: signInError.name,
-        });
-        
         // Check for rate limiting
         if (signInError.message.includes('rate limit') || signInError.message.includes('too many requests') || signInError.status === 429) {
           // Set cooldown timer (15 minutes = 900 seconds)
@@ -70,9 +61,6 @@ export default function SignInPage() {
       const data = signInData;
 
       if (data && data.user) {
-        console.log('Auth successful, user ID:', data.user.id);
-        console.log('Email confirmed:', data.user.email_confirmed_at);
-
         // Verify user record exists in users table
         // Single attempt to avoid rate limiting
         const userResult = await supabase
@@ -84,10 +72,7 @@ export default function SignInPage() {
         let userData = userResult.data;
         let userError = userResult.error;
 
-        console.log('User record lookup:', { userData, userError });
-
         if (userError || !userData) {
-          console.warn('User record not found, attempting to create via API...');
           // User record doesn't exist - create it via API route (server-side, can use admin client)
           try {
             const createResponse = await fetch('/api/auth/create-user-record', {
@@ -107,16 +92,13 @@ export default function SignInPage() {
 
             const { user: createdUser } = await createResponse.json();
             userData = createdUser;
-            console.log('User record created successfully:', userData);
           } catch (createErr) {
-            console.error('Failed to create user record:', createErr);
             setError(`Account exists but user record is missing. Error: ${createErr instanceof Error ? createErr.message : 'Unknown error'}. Please contact support.`);
             setLoading(false);
             return;
           }
         } else if (userData && !userData.organization_id) {
           // User exists but doesn't have an organization_id - assign them via API
-          console.log('User exists but missing organization_id, assigning via API...');
           try {
             const assignResponse = await fetch('/api/auth/create-user-record', {
               method: 'POST',
@@ -133,28 +115,22 @@ export default function SignInPage() {
               userData = updatedUser;
             }
           } catch (assignErr) {
-            console.error('Failed to assign organization:', assignErr);
             // Non-critical error - continue with signin
           }
         }
         
         // Update last_active_at if we have userData
         if (userData) {
-          console.log('User record found:', userData);
-          
           // Update last_active_at (this marks that they've logged in)
           // Don't auto-activate - admin must activate them manually after first login
           await supabase
             .from('users')
             .update({ last_active_at: new Date().toISOString() })
             .eq('id', userData.id);
-          
-          console.log('User last_active_at updated');
         }
 
       // Verify session is established (single check)
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      console.log('Session check:', { session: !!session, sessionError });
 
       // Store debug info in localStorage so it persists across redirects
       localStorage.setItem('signin_debug', JSON.stringify({
@@ -167,13 +143,11 @@ export default function SignInPage() {
       }));
 
       if (!session) {
-        console.error('No session after sign-in!');
         setError('Session not established. Please try again.');
         setLoading(false);
         return;
       }
 
-      console.log('Session confirmed, redirecting to dashboard...');
       // Use router.push for client-side navigation (smoother than window.location)
       // Refresh router to ensure session is available on the dashboard
       router.refresh();
@@ -183,7 +157,6 @@ export default function SignInPage() {
         setLoading(false);
       }
     } catch (err) {
-      console.error('Unexpected error during sign-in:', err);
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
       setLoading(false);
     }

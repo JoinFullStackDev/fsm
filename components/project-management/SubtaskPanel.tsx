@@ -239,7 +239,7 @@ export default function SubtaskPanel({
     if (onCancel && !isAdding) {
       setIsAdding(true);
     }
-  }, [onCancel]);
+  }, [onCancel, isAdding]);
 
   return (
     <Box

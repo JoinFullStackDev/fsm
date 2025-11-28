@@ -68,7 +68,6 @@ export async function middleware(request: NextRequest) {
         }
       } catch (refreshError) {
         // Ignore refresh errors - session might not be ready yet
-        console.log('[Middleware] Session refresh attempt (non-critical):', refreshError instanceof Error ? refreshError.message : 'Unknown error');
       }
     }
   }
@@ -77,17 +76,6 @@ export async function middleware(request: NextRequest) {
   // Initialize as null, will be populated only for routes that need it
   let user: any = null;
   let userError: any = null;
-
-  // Log session check in middleware (for debugging)
-  if (request.nextUrl.pathname.startsWith('/dashboard')) {
-    console.log('[Middleware] Dashboard access check:', {
-      hasSession: !!currentSession,
-      userId: currentSession?.user?.id,
-      sessionError: sessionError?.message,
-      path: request.nextUrl.pathname,
-      authCookies: authCookies.length,
-    });
-  }
 
   // Protect global admin routes (super admin only)
   // These routes need getUser() for role verification
@@ -154,28 +142,15 @@ export async function middleware(request: NextRequest) {
       userError = userResult.error;
     }
     
-    console.log('[Middleware] Admin route access check:', {
-      path: request.nextUrl.pathname,
-      hasUser: !!user,
-      hasSession: !!currentSession,
-      userId: user?.id || currentSession?.user?.id,
-      userEmail: user?.email || currentSession?.user?.email,
-      authCookies: authCookies.length,
-      userError: userError?.message,
-    });
-
     // Use authenticated user if available, otherwise fall back to session
     const currentUserId = user?.id || currentSession?.user?.id;
     
     if (!currentUserId) {
-      console.log('[Middleware] No user or session for admin route');
       // If we have auth cookies, let it through for client-side check
       // Otherwise redirect to signin
       if (authCookies.length > 0) {
-        console.log('[Middleware] Auth cookies present, allowing through for client-side check');
         return response;
       }
-      console.log('[Middleware] No user/session and no auth cookies, redirecting to signin');
       return NextResponse.redirect(new URL('/auth/signin', request.url));
     }
 
@@ -186,51 +161,36 @@ export async function middleware(request: NextRequest) {
       .eq('auth_id', currentUserId)
       .single();
 
-    console.log('[Middleware] Admin role check result:', {
-      userData,
-      dbUserError: dbUserError?.message,
-      queryAuthId: currentUserId,
-    });
-
     if (dbUserError) {
-      console.error('[Middleware] Error checking admin role:', dbUserError);
       // If user not found by auth_id, try by email as fallback
       const userEmail = user?.email || currentSession?.user?.email;
       if (userEmail) {
-        console.log('[Middleware] Trying fallback lookup by email:', userEmail);
         const { data: emailUserData, error: emailError } = await supabase
           .from('users')
           .select('id, email, role, auth_id, is_super_admin')
           .eq('email', userEmail)
           .single();
         
-        console.log('[Middleware] Email lookup result:', { emailUserData, emailError: emailError?.message });
-        
         // Only allow admins with super_admin flag
         if (emailUserData && emailUserData.role === 'admin' && emailUserData.is_super_admin) {
-          console.log('[Middleware] Found super admin user by email, allowing access');
           return response; // Allow access
         }
       }
       // If error checking role, let client-side handle it (don't block)
       // Client-side will check role and redirect if needed
-      console.log('[Middleware] Error checking admin role, allowing through for client-side check');
       return response;
     }
 
     if (!userData) {
-      console.log('[Middleware] No user data found, allowing through for client-side check');
       return response;
     }
 
     // Allow admins (both organization admins and super admins) to access admin routes
     // Individual pages handle their own access control (super admin vs organization admin)
     if (userData.role !== 'admin') {
-      console.log('[Middleware] User is not an admin (role:', userData.role, '), redirecting to dashboard');
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
 
-    console.log('[Middleware] Admin access granted, role:', userData.role, 'is_super_admin:', userData.is_super_admin);
     return response; // Explicitly allow access
   }
 
@@ -270,24 +230,20 @@ export async function middleware(request: NextRequest) {
       
       // Only redirect if not coming from sign-in
       if (!isFromSignIn) {
-        console.log('[Middleware] No auth cookies, redirecting to signin');
         return NextResponse.redirect(new URL('/auth/signin', request.url));
       }
       
       // Coming from sign-in but no cookies yet - let it through for client-side check
-      console.log('[Middleware] Coming from sign-in with no cookies, allowing through for client-side check');
       return response;
     }
     
     // Auth cookies exist - check session (already fetched above)
     if (!currentSession) {
       // Auth cookies exist but no session - let client-side handle it (no getUser call needed)
-      console.log('[Middleware] Auth cookies present but no session, allowing through for client-side session check');
       return response;
     }
     
     // Session exists, allow access
-    console.log('[Middleware] Session found, allowing access to:', request.nextUrl.pathname);
   }
 
   return response;

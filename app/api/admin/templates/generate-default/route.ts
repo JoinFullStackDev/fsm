@@ -113,11 +113,8 @@ export async function POST(request: NextRequest) {
         .insert(allFieldConfigs);
 
       if (configsError) {
-        console.error('Failed to create field configs:', configsError);
         // Don't fail the request, but log the error
         // Field configs can be added later via the builder
-      } else {
-        console.log(`Successfully created ${allFieldConfigs.length} field configurations`);
       }
     }
 
@@ -127,7 +124,6 @@ export async function POST(request: NextRequest) {
       field_configs_count: allFieldConfigs.length,
     });
   } catch (error) {
-    console.error('Error generating default template:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
