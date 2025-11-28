@@ -173,8 +173,11 @@ export interface ProjectTask {
   dependencies: string[];
   ai_generated: boolean;
   ai_analysis_id: string | null;
+  parent_task_id: string | null;
   created_at: string;
   updated_at: string;
+  // Optional field for nested loading (not in database, for UI convenience)
+  subtasks?: ProjectTask[];
 }
 
 export interface ProjectTaskWithAssignee extends ProjectTask {
