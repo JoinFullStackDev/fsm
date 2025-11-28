@@ -105,7 +105,6 @@ Create a professional markdown document with clear sections, proper formatting, 
         project.name
       );
     } catch (error) {
-      console.error('AI generation failed for concept summary, using fallback:', error);
       conceptSummary = `# Concept Summary\n\n## Problem Statement\n${phase1.problem_statement || 'Not defined'}\n\n## Target Users\n${phase1.target_users?.join('\n- ') || 'Not defined'}\n\n## Why Now / Market Timing\n${phase1.why_now || 'Not defined'}\n\n## Value Hypothesis\n${phase1.value_hypothesis || 'Not defined'}\n\n## Initial Features\n${phase1.initial_features?.join('\n- ') || 'Not defined'}`;
     }
   } else {
@@ -129,7 +128,6 @@ Create a professional markdown document that analyzes each constraint, risk, and
         project.name
       );
     } catch (error) {
-      console.error('AI generation failed for RAC summary, using fallback:', error);
       racSummary = `# Risks, Assumptions, Constraints\n\n## Constraints\n${phase1.constraints?.join('\n- ') || 'None defined'}\n\n## Risks\n${phase1.risks?.join('\n- ') || 'None defined'}\n\n## Assumptions\n${phase1.assumptions?.join('\n- ') || 'None defined'}`;
     }
   } else {
@@ -153,7 +151,6 @@ Create a professional markdown document that analyzes technical feasibility, res
         project.name
       );
     } catch (error) {
-      console.error('AI generation failed for feasibility, using fallback:', error);
       highLevelFeasibility = `# High-Level Feasibility\n\n${phase1.feasibility_notes || 'Not defined'}\n\n## Timeline\n${phase1.high_level_timeline || 'Not defined'}`;
     }
   } else {
@@ -177,7 +174,6 @@ Create a professional markdown document that defines measurable business outcome
         project.name
       );
     } catch (error) {
-      console.error('AI generation failed for outcomes/KPIs, using fallback:', error);
       outcomesAndKPIs = `# Business Outcomes & KPIs\n\n## Business Outcomes\n${phase2.business_outcomes?.join('\n- ') || 'None defined'}\n\n## KPIs\n${phase2.kpis?.join('\n- ') || 'None defined'}`;
     }
   } else {
@@ -203,7 +199,6 @@ Create a professional markdown document that organizes features by release phase
         project.name
       );
     } catch (error) {
-      console.error('AI generation failed for roadmap, using fallback:', error);
       outcomeRoadmap = `# Outcome Roadmap\n\n## MVP Features\n${phase2.scored_features?.filter(f => f.mvp_group === 'mvp').map(f => `- ${f.title}`).join('\n') || 'None defined'}\n\n## V2 Features\n${phase2.scored_features?.filter(f => f.mvp_group === 'v2').map(f => `- ${f.title}`).join('\n') || 'None defined'}\n\n## V3 Features\n${phase2.scored_features?.filter(f => f.mvp_group === 'v3').map(f => `- ${f.title}`).join('\n') || 'None defined'}`;
     }
   } else {

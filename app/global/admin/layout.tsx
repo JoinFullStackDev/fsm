@@ -14,6 +14,7 @@ import {
   Divider,
   CircularProgress,
   useMediaQuery,
+  Tooltip,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -94,7 +95,7 @@ export default function GlobalAdminLayout({ children }: GlobalAdminLayoutProps) 
     };
 
     loadSidebarPreference();
-  }, []); // Only run once on mount
+  }, [isMobile]); // Run when isMobile changes
 
   // Update sidebar state when mobile breakpoint changes
   useEffect(() => {
@@ -190,41 +191,50 @@ export default function GlobalAdminLayout({ children }: GlobalAdminLayoutProps) 
             const active = isActive(item.path);
             return (
               <ListItem key={item.path} disablePadding>
-                <ListItemButton
-                  onClick={() => handleNavigate(item.path)}
-                  sx={{
-                    minHeight: 48,
-                    justifyContent: sidebarOpen ? 'initial' : 'center',
-                    px: 2.5,
-                    backgroundColor: active ? theme.palette.action.selected : 'transparent',
-                    '&:hover': {
-                      backgroundColor: active
-                        ? theme.palette.action.selected
-                        : theme.palette.action.hover,
-                    },
-                  }}
+                <Tooltip
+                  title={item.label}
+                  placement="right"
+                  arrow
+                  disableHoverListener={sidebarOpen}
+                  disableFocusListener={sidebarOpen}
+                  disableTouchListener={sidebarOpen}
                 >
-                  <ListItemIcon
+                  <ListItemButton
+                    onClick={() => handleNavigate(item.path)}
                     sx={{
-                      minWidth: 0,
-                      mr: sidebarOpen ? 3 : 'auto',
-                      justifyContent: 'center',
-                      color: active ? theme.palette.primary.main : theme.palette.text.secondary,
+                      minHeight: 48,
+                      justifyContent: sidebarOpen ? 'initial' : 'center',
+                      px: 2.5,
+                      backgroundColor: active ? theme.palette.action.selected : 'transparent',
+                      '&:hover': {
+                        backgroundColor: active
+                          ? theme.palette.action.selected
+                          : theme.palette.action.hover,
+                      },
                     }}
                   >
-                    <Icon />
-                  </ListItemIcon>
-                  {sidebarOpen && (
-                    <ListItemText
-                      primary={item.label}
-                      primaryTypographyProps={{
-                        fontSize: '0.875rem',
-                        fontWeight: active ? 600 : 400,
-                        color: active ? theme.palette.text.primary : theme.palette.text.secondary,
+                    <ListItemIcon
+                      sx={{
+                        minWidth: 0,
+                        mr: sidebarOpen ? 3 : 'auto',
+                        justifyContent: 'center',
+                        color: active ? theme.palette.primary.main : theme.palette.text.secondary,
                       }}
-                    />
-                  )}
-                </ListItemButton>
+                    >
+                      <Icon />
+                    </ListItemIcon>
+                    {sidebarOpen && (
+                      <ListItemText
+                        primary={item.label}
+                        primaryTypographyProps={{
+                          fontSize: '0.875rem',
+                          fontWeight: active ? 600 : 400,
+                          color: active ? theme.palette.text.primary : theme.palette.text.secondary,
+                        }}
+                      />
+                    )}
+                  </ListItemButton>
+                </Tooltip>
               </ListItem>
             );
           })}

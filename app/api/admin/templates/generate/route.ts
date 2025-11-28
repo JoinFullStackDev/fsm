@@ -172,7 +172,6 @@ Respond ONLY with valid JSON matching this exact structure:
         apiKey
       );
     } catch (parseError) {
-      console.error('[Template Generator] JSON parsing error:', parseError);
       // If parsing fails, try to get the raw response for debugging
       return NextResponse.json(
         {
@@ -246,7 +245,6 @@ Respond ONLY with valid JSON matching this exact structure:
       },
     });
   } catch (error) {
-    console.error('AI template generation error:', error);
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Failed to generate template',

@@ -19,13 +19,10 @@ export function createSupabaseClient() {
   
   const client = createBrowserClient(supabaseUrl, supabaseAnonKey);
   
-  // Set up auth state change listener for debugging (only once)
+  // Set up auth state change listener (only once)
   if (typeof window !== 'undefined' && !listenerAttached) {
     client.auth.onAuthStateChange((event, session) => {
-      // Only log non-INITIAL_SESSION events to reduce noise
-      if (event !== 'INITIAL_SESSION') {
-        console.log('[Auth State Change]', { event, hasSession: !!session, userId: session?.user?.id });
-      }
+      // Auth state change handler
     });
     listenerAttached = true;
   }

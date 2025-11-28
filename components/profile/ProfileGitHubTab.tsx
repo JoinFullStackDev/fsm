@@ -81,23 +81,18 @@ export default function ProfileGitHubTab() {
         .single();
 
       if (error) {
-        console.error('[Profile GitHub] Disconnect error:', error);
-        console.error('[Profile GitHub] Update data:', updateData);
         showError('Failed to disconnect GitHub: ' + error.message);
         return;
       }
 
       if (!updatedData) {
-        console.error('[Profile GitHub] Update returned no data');
         showError('Failed to disconnect GitHub: Update returned no data. Check RLS policies.');
         return;
       }
 
-      console.log('[Profile GitHub] Successfully updated:', updatedData);
       showSuccess('GitHub disconnected successfully');
       await loadProfile();
     } catch (err) {
-      console.error('[Profile GitHub] Disconnect error:', err);
       showError('Failed to disconnect GitHub: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
   };

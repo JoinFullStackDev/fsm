@@ -56,7 +56,6 @@ export async function PATCH(
 
     return NextResponse.json({ comment });
   } catch (error) {
-    console.error('[Task Comments] Error:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to update comment' },
       { status: 500 }
@@ -100,7 +99,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('[Task Comments] Error:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to delete comment' },
       { status: 500 }

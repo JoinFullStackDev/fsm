@@ -112,15 +112,6 @@ function SignUpPageContent() {
       if (response.ok) {
         const data = await response.json();
         const loadedPackages = data.packages || [];
-        console.log('[SignupPage] Loaded packages:', loadedPackages.length, 'packages');
-        console.log('[SignupPage] Package names:', loadedPackages.map((p: Package) => p.name).join(', '));
-        if (loadedPackages.length > 0) {
-          console.log('[SignupPage] First package details:', {
-            name: loadedPackages[0].name,
-            price: loadedPackages[0].price_per_user_monthly,
-            features: loadedPackages[0].features,
-          });
-        }
         setPackages(loadedPackages);
         
         // Check if package was pre-selected
@@ -133,7 +124,7 @@ function SignUpPageContent() {
         }
       }
     } catch (err) {
-      console.error('Failed to load packages:', err);
+      // Failed to load packages
     } finally {
       setLoadingPackages(false);
     }
@@ -168,12 +159,6 @@ function SignUpPageContent() {
       setLoading(false);
       return;
     }
-
-    console.log('[SignupPage] Starting signup with package:', {
-      id: selectedPackage.id,
-      name: selectedPackage.name,
-      price: selectedPackage.price_per_user_monthly,
-    });
 
     try {
       // Store signup data in sessionStorage for use after payment
@@ -259,7 +244,7 @@ function SignUpPageContent() {
               }),
             });
           } catch (subError) {
-            console.warn('Failed to create subscription:', subError);
+            // Failed to create subscription
           }
 
           sessionStorage.removeItem('signup_data');
@@ -357,7 +342,7 @@ function SignUpPageContent() {
               }),
             });
           } catch (subError) {
-            console.warn('Failed to create subscription:', subError);
+            // Failed to create subscription
           }
 
           sessionStorage.removeItem('signup_data');
@@ -443,7 +428,6 @@ function SignUpPageContent() {
         setError(errorData.message || 'Failed to create checkout session');
       }
     } catch (checkoutError) {
-      console.error('Checkout error:', checkoutError);
       setError('Failed to create checkout session');
     } finally {
       setLoading(false);
@@ -624,7 +608,6 @@ function SignUpPageContent() {
                                 >
                                   <Card
                                     onClick={() => {
-                                      console.log('[SignupPage] Package selected:', pkg.name, pkg.id, pkg.price_per_user_monthly);
                                       setSelectedPackage(pkg);
                                     }}
                                     sx={{

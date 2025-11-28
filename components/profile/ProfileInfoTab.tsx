@@ -116,8 +116,6 @@ export default function ProfileInfoTab() {
       const fileName = `${session.user.id}-${Date.now()}.${fileExt}`;
       const filePath = fileName;
 
-      console.log('[Avatar Upload] Uploading file:', fileName, 'Size:', avatarFile.size);
-
       // First, try to delete old avatar if it exists
       if (profile.avatar_url) {
         try {
@@ -130,12 +128,10 @@ export default function ProfileInfoTab() {
               .remove([oldFileName]);
             
             if (deleteError) {
-              console.warn('[Avatar Upload] Failed to delete old avatar:', deleteError);
               // Continue anyway - not critical
             }
           }
         } catch (err) {
-          console.warn('[Avatar Upload] Error deleting old avatar:', err);
           // Continue anyway
         }
       }
@@ -150,20 +146,15 @@ export default function ProfileInfoTab() {
         });
 
       if (uploadError) {
-        console.error('[Avatar Upload] Upload error:', uploadError);
         showError('Failed to upload avatar: ' + uploadError.message);
         setSaving(false);
         return;
       }
 
-      console.log('[Avatar Upload] Upload successful:', uploadData);
-
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
-
-      console.log('[Avatar Upload] Public URL:', publicUrl);
 
       // Update user record with new avatar URL
       const { data: updatedData, error: updateError } = await supabase
@@ -174,20 +165,16 @@ export default function ProfileInfoTab() {
         .single();
 
       if (updateError) {
-        console.error('[Avatar Upload] Update error:', updateError);
         showError('Failed to update avatar: ' + updateError.message);
         setSaving(false);
         return;
       }
 
       if (!updatedData) {
-        console.error('[Avatar Upload] Update returned no data');
         showError('Failed to update avatar: Update returned no data. Check RLS policies.');
         setSaving(false);
         return;
       }
-
-      console.log('[Avatar Upload] Successfully updated user:', updatedData);
       
       // Update local state
       setProfile({ ...profile, avatar_url: publicUrl });
@@ -195,7 +182,6 @@ export default function ProfileInfoTab() {
       setAvatarFile(null);
       showSuccess('Avatar uploaded successfully!');
     } catch (err) {
-      console.error('[Avatar Upload] Unexpected error:', err);
       showError('Failed to upload avatar: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setSaving(false);
@@ -228,25 +214,20 @@ export default function ProfileInfoTab() {
         .single();
 
       if (updateError) {
-        console.error('[Profile Info] Update error:', updateError);
-        console.error('[Profile Info] Update data:', updateData);
         showError('Failed to save profile: ' + updateError.message);
         setSaving(false);
         return;
       }
 
       if (!updatedData) {
-        console.error('[Profile Info] Update returned no data');
         showError('Failed to save profile: Update returned no data. Check RLS policies.');
         setSaving(false);
         return;
       }
 
-      console.log('[Profile Info] Successfully updated:', updatedData);
       showSuccess('Profile updated successfully!');
       await loadProfile();
     } catch (err) {
-      console.error('[Profile Info] Save error:', err);
       showError('Failed to save profile: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setSaving(false);

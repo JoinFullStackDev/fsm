@@ -121,7 +121,7 @@ export default function TemplateBuilderPage() {
       .order('display_order', { ascending: true });
 
     if (phasesError) {
-      console.error('Error loading phases:', phasesError);
+      // Error loading phases
     }
 
     const loadedPhases = (phasesData || phases) as TemplatePhase[];
@@ -141,7 +141,7 @@ export default function TemplateBuilderPage() {
       .order('display_order', { ascending: true });
 
     if (configsError) {
-      console.error('Error loading field configs:', configsError);
+      // Error loading field configs
     }
 
     // Organize fields by phase - use actual phase numbers from loaded phases
@@ -315,7 +315,6 @@ export default function TemplateBuilderPage() {
           
           // Explicitly verify id is NOT in the object
           if ('id' in cleanField || cleanField.id !== undefined || cleanField.id === null) {
-            console.error(`[TemplateBuilder] ERROR: Field ${field.field_key} in phase ${phase} has id!`, cleanField);
             delete cleanField.id;
           }
           if ('created_at' in cleanField) {
@@ -325,16 +324,6 @@ export default function TemplateBuilderPage() {
           allFields.push(cleanField as TemplateFieldConfig);
         });
       }
-      
-      // Log all fields to verify no id
-      console.log('[TemplateBuilder] All fields after initial cleanup:', allFields.map(f => ({
-        key: f.field_key,
-        phase: f.phase_number,
-        hasId: 'id' in f,
-        idValue: (f as any).id,
-      })));
-
-      console.log('[TemplateBuilder] Saving fields with display_order:', allFields.map(f => ({ key: f.field_key, order: f.display_order })));
 
       // Get existing field configs to determine which to update vs insert
       const { data: existingFields, error: fetchError } = await supabase
@@ -354,8 +343,6 @@ export default function TemplateBuilderPage() {
           existingFieldsMap.set(key, field.id);
         }
       });
-      
-      console.log('[TemplateBuilder] Existing fields map:', Array.from(existingFieldsMap.entries()));
 
       // Separate fields into updates and inserts
       const fieldsToUpdate: any[] = [];
@@ -394,16 +381,9 @@ export default function TemplateBuilderPage() {
         delete cleanField.id;
         delete cleanField.created_at;
         
-        // For table fields, log extra details
+        // For table fields, extra validation
         if (isTableField) {
-          console.log(`[TemplateBuilder] Processing TABLE field: ${field.field_key}`, {
-            existingId,
-            hasIdInCleanField: 'id' in cleanField,
-            cleanFieldKeys: Object.keys(cleanField),
-            originalFieldKeys: Object.keys(field),
-            originalFieldHasId: 'id' in field,
-            originalFieldIdValue: (field as any).id,
-          });
+          // Table field validation
         }
         
         // Ensure existingId is actually a valid UUID string, not null or undefined
@@ -414,20 +394,10 @@ export default function TemplateBuilderPage() {
           // Insert new field (absolutely no id)
           // Triple-check cleanField doesn't have id
           if ('id' in cleanField || cleanField.id !== undefined || cleanField.id === null) {
-            console.error(`[TemplateBuilder] ERROR: cleanField for ${field.field_key} has id before push!`, cleanField);
             delete cleanField.id;
           }
           if ('created_at' in cleanField) {
             delete cleanField.created_at;
-          }
-          
-          // For table fields, verify one more time
-          if (isTableField) {
-            console.log(`[TemplateBuilder] Adding TABLE field to insert: ${field.field_key}`, {
-              keys: Object.keys(cleanField),
-              hasId: 'id' in cleanField,
-              idValue: cleanField.id,
-            });
           }
           
           fieldsToInsert.push(cleanField);
@@ -449,7 +419,6 @@ export default function TemplateBuilderPage() {
           .in('id', idsToDelete);
 
         if (deleteError) {
-          console.warn('[TemplateBuilder] Error deleting removed fields:', deleteError);
           // Don't throw - continue with updates/inserts
         }
       }
@@ -464,22 +433,15 @@ export default function TemplateBuilderPage() {
             .eq('id', id);
 
           if (updateError) {
-            console.error(`[TemplateBuilder] Error updating field ${field.field_key}:`, updateError);
             throw new Error(`Failed to update field ${field.field_key}: ${updateError.message}`);
           }
         }
-        console.log('[TemplateBuilder] Updated', fieldsToUpdate.length, 'existing fields');
       }
 
       // Insert new fields
       if (fieldsToInsert.length > 0) {
         // Triple-check: Create completely new objects with only allowed fields
         const cleanedInserts = fieldsToInsert.map((f, index) => {
-          // Log if id was present (shouldn't be, but check)
-          if ('id' in f || f.id !== undefined || f.id === null) {
-            console.error(`[TemplateBuilder] Field ${index} (${f.field_key}) had id:`, f.id, 'Full field:', f);
-          }
-          
           // Create a completely new object with only the fields we want
           const cleaned: Record<string, any> = {
             template_id: f.template_id,
@@ -502,7 +464,6 @@ export default function TemplateBuilderPage() {
           
           // Explicitly verify id is NOT in the object
           if ('id' in cleaned) {
-            console.error(`[TemplateBuilder] ERROR: id found in cleaned object for ${f.field_key}!`);
             delete cleaned.id;
           }
           if ('created_at' in cleaned) {
@@ -538,43 +499,21 @@ export default function TemplateBuilderPage() {
 
           // Explicitly verify id is NOT in the object
           if ('id' in final || final.id !== undefined || final.id === null) {
-            console.error(`[TemplateBuilder] CRITICAL: Field ${idx} (${f.field_key}) has id in final object!`, final);
             delete final.id;
           }
           if ('created_at' in final) {
             delete final.created_at;
           }
 
-          // Log the actual object being sent
-          console.log(`[TemplateBuilder] Final insert object for ${f.field_key}:`, {
-            keys: Object.keys(final),
-            hasId: 'id' in final,
-            idValue: final.id,
-            fullObject: JSON.stringify(final),
-          });
-
           return final;
         });
-
-        console.log('[TemplateBuilder] Inserting', finalInserts.length, 'new fields:', finalInserts.map(f => ({ 
-          key: f.field_key, 
-          type: f.field_type, 
-          phase: f.phase_number,
-          hasId: 'id' in f,
-          keys: Object.keys(f)
-        })));
 
         // Final verification - throw error if any field has id
         finalInserts.forEach((f, idx) => {
           if ('id' in f || f.id !== undefined || f.id === null) {
-            console.error(`[TemplateBuilder] CRITICAL: Field ${idx} (${f.field_key}) still has id after all cleaning!`, f);
-            console.error(`[TemplateBuilder] Full object:`, JSON.stringify(f, null, 2));
             throw new Error(`Field ${f.field_key} still contains id field - this should not happen!`);
           }
         });
-
-        // Log the exact payload being sent
-        console.log('[TemplateBuilder] Final payload being sent to Supabase:', JSON.stringify(finalInserts, null, 2));
 
         // Use a helper function to remove any null/undefined values that might cause issues
         const sanitizedInserts = finalInserts.map(f => {
@@ -591,8 +530,6 @@ export default function TemplateBuilderPage() {
           delete sanitized.created_at;
           return sanitized;
         });
-
-        console.log('[TemplateBuilder] Sanitized payload:', JSON.stringify(sanitizedInserts, null, 2));
 
         // Use JSON stringify/parse with a replacer to absolutely ensure id is removed
         const finalPayload = JSON.parse(
@@ -616,14 +553,6 @@ export default function TemplateBuilderPage() {
           return clean;
         });
 
-        console.log('[TemplateBuilder] Ultra-clean payload:', JSON.stringify(ultraCleanPayload, null, 2));
-        console.log('[TemplateBuilder] Checking for id in payload:', ultraCleanPayload.map((f: any) => ({
-          field_key: f.field_key,
-          hasId: 'id' in f,
-          idValue: f.id,
-          allKeys: Object.keys(f)
-        })));
-
         // Use a raw insert approach - insert one at a time to isolate the problem
         const insertedData: any[] = [];
         for (let i = 0; i < ultraCleanPayload.length; i++) {
@@ -633,12 +562,6 @@ export default function TemplateBuilderPage() {
           // For table fields, create a completely new object with ONLY allowed keys
           let finalField: any;
           if (isTableField) {
-            console.log(`[TemplateBuilder] TABLE FIELD DETECTED: ${field.field_key}`, {
-              originalKeys: Object.keys(field),
-              originalHasId: 'id' in field,
-              originalIdValue: field.id,
-            });
-            
             // Build from scratch - only include these exact keys
             finalField = {
               template_id: field.template_id,
@@ -660,32 +583,17 @@ export default function TemplateBuilderPage() {
             
             // Explicitly verify no id
             if ('id' in finalField || finalField.id !== undefined || finalField.id === null) {
-              console.error(`[TemplateBuilder] CRITICAL: TABLE field ${field.field_key} finalField has id!`, finalField);
               delete finalField.id;
             }
             delete finalField.created_at;
-            
-            console.log(`[TemplateBuilder] TABLE field final object:`, {
-              keys: Object.keys(finalField),
-              hasId: 'id' in finalField,
-              idValue: finalField.id,
-              fullObject: JSON.stringify(finalField, null, 2),
-            });
           } else {
             finalField = field;
             
             // One final check for non-table fields
             if ('id' in finalField || finalField.id !== undefined || finalField.id === null) {
-              console.error(`[TemplateBuilder] CRITICAL: Field ${i} (${field.field_key}) STILL has id!`, finalField);
               throw new Error(`Field ${field.field_key} has id field - cannot insert`);
             }
           }
-          
-          console.log(`[TemplateBuilder] Inserting field ${i + 1}/${ultraCleanPayload.length}: ${field.field_key}`, {
-            keys: Object.keys(finalField),
-            hasId: 'id' in finalField,
-            isTable: isTableField,
-          });
           
           // Use RPC call to insert, which gives us more control
           // First, verify the payload one more time
@@ -710,13 +618,6 @@ export default function TemplateBuilderPage() {
           delete cleanInsertPayload.id;
           delete cleanInsertPayload.created_at;
           
-          console.log(`[TemplateBuilder] Final insert payload for ${field.field_key}:`, {
-            keys: Object.keys(cleanInsertPayload),
-            hasId: 'id' in cleanInsertPayload,
-            idValue: cleanInsertPayload.id,
-            payload: JSON.stringify(cleanInsertPayload, null, 2),
-          });
-          
           // Use .insert() with explicit type cast to any to bypass TypeScript type checking
           const { data, error: singleError } = await supabase
             .from('template_field_configs')
@@ -725,8 +626,6 @@ export default function TemplateBuilderPage() {
             .single();
           
           if (singleError) {
-            console.error(`[TemplateBuilder] Error inserting field ${field.field_key}:`, singleError);
-            console.error(`[TemplateBuilder] Field data that failed:`, JSON.stringify(finalField, null, 2));
             throw new Error(`Failed to insert field ${field.field_key}: ${singleError.message}`);
           }
           
@@ -734,8 +633,6 @@ export default function TemplateBuilderPage() {
             insertedData.push(data);
           }
         }
-
-        console.log('[TemplateBuilder] Successfully inserted', insertedData.length, 'new fields');
       }
 
       // Update template's updated_at timestamp to signal changes
@@ -745,13 +642,12 @@ export default function TemplateBuilderPage() {
         .eq('id', templateId);
 
       if (updateError) {
-        console.warn('Failed to update template timestamp:', updateError);
+        // Failed to update template timestamp
       }
 
       showSuccess(`Template saved successfully! ${allFields.length} field(s) configured. Changes will appear in projects using this template.`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      console.error('[TemplateBuilder] Save error:', err);
       showError(`Failed to save template: ${errorMessage}`);
     } finally {
       setSaving(false);

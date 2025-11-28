@@ -62,7 +62,6 @@ export async function GET(
     );
 
     if (passwordError) {
-      console.error('[Admin Users] Error updating password:', passwordError);
       return NextResponse.json(
         { error: 'Failed to generate invite password: ' + passwordError.message },
         { status: 500 }
@@ -87,7 +86,6 @@ export async function GET(
       temporaryPassword,
     });
   } catch (error) {
-    console.error('[Admin Users] Unexpected error:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }

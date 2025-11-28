@@ -37,10 +37,8 @@ export async function exportToSVG(mermaidElementId: string): Promise<string> {
 
   // STEP 1: Inline ALL computed styles into the original SVG BEFORE cloning
   // This ensures all CSS rules (from stylesheets) are converted to explicit attributes
-  console.log('[ERD Export] Step 1: Inlining computed styles into original SVG');
   
   const originalTextElements = svgElement.querySelectorAll('text, tspan');
-  console.log(`[ERD Export] Found ${originalTextElements.length} text elements in original SVG`);
   
   originalTextElements.forEach((textEl, idx) => {
     // Skip empty text elements
@@ -50,21 +48,6 @@ export async function exportToSVG(mermaidElementId: string): Promise<string> {
     
     // Get ALL computed styles from the element
     const computedStyle = window.getComputedStyle(textEl as Element);
-    
-    // Log first few for debugging
-    if (idx < 3) {
-      console.log(`[ERD Export] Original text ${idx} computed styles:`, {
-        content: textEl.textContent.substring(0, 20),
-        fill: computedStyle.fill,
-        color: computedStyle.color,
-        fontFamily: computedStyle.fontFamily,
-        fontSize: computedStyle.fontSize,
-        fontWeight: computedStyle.fontWeight,
-        opacity: computedStyle.opacity,
-        visibility: computedStyle.visibility,
-        display: computedStyle.display,
-      });
-    }
     
     // Helper to check if color is dark (matches background)
     const isDarkColor = (color: string): boolean => {
@@ -154,8 +137,6 @@ export async function exportToSVG(mermaidElementId: string): Promise<string> {
     }
   });
   
-  console.log('[ERD Export] Step 1 complete: All computed styles inlined');
-  
   // Now clone the SVG (which now has all styles inlined)
   const clonedSvg = svgElement.cloneNode(true) as SVGElement;
   
@@ -217,24 +198,10 @@ export async function exportToSVG(mermaidElementId: string): Promise<string> {
     
     // Find all text elements (including those in groups) and ensure they have fill
     const textElements = reprocessedSvg.querySelectorAll('text, tspan');
-    console.log(`[ERD Export] Processing ${textElements.length} text elements`);
     
     textElements.forEach((textEl, idx) => {
-      // Log first few for debugging
-      if (idx < 3) {
-        console.log(`[ERD Export] Processing text ${idx}:`, {
-          tag: textEl.tagName,
-          content: textEl.textContent,
-          fill: textEl.getAttribute('fill'),
-          style: textEl.getAttribute('style'),
-        });
-      }
-      
-      // Skip empty text elements (but log them)
+      // Skip empty text elements
       if (!textEl.textContent || textEl.textContent.trim() === '') {
-        if (idx < 3) {
-          console.log(`[ERD Export] Skipping empty text element ${idx}`);
-        }
         return;
       }
       
@@ -353,23 +320,6 @@ export async function exportToSVG(mermaidElementId: string): Promise<string> {
       }
     });
     
-    // Debug: Log text element count and info
-    const finalTextElements = reprocessedSvg.querySelectorAll('text, tspan');
-    console.log(`[ERD Export] Found ${finalTextElements.length} text elements in SVG`);
-    finalTextElements.forEach((textEl, idx) => {
-      if (idx < 5) { // Log first 5 for debugging
-        console.log(`[ERD Export] Text ${idx}:`, {
-          content: textEl.textContent?.substring(0, 20),
-          fill: textEl.getAttribute('fill'),
-          x: textEl.getAttribute('x'),
-          y: textEl.getAttribute('y'),
-          fontSize: textEl.getAttribute('font-size'),
-          visibility: textEl.getAttribute('visibility'),
-          display: textEl.getAttribute('display'),
-        });
-      }
-    });
-    
     // Also check for any groups that might contain text and set fill on them too
     const groups = reprocessedSvg.querySelectorAll('g');
     groups.forEach((group) => {
@@ -381,7 +331,6 @@ export async function exportToSVG(mermaidElementId: string): Promise<string> {
     });
     
     // STEP 2: Add CSS stylesheet as fallback for any remaining class-based styles
-    console.log('[ERD Export] Step 2: Adding CSS stylesheet fallback');
     
     // Extract relevant CSS rules from document stylesheets
     let cssRules = '';
@@ -425,11 +374,10 @@ export async function exportToSVG(mermaidElementId: string): Promise<string> {
           }
         } catch (e) {
           // Cross-origin stylesheet, skip
-          console.log('[ERD Export] Skipping cross-origin stylesheet');
         }
       }
     } catch (e) {
-      console.log('[ERD Export] Error extracting CSS rules:', e);
+      // Error extracting CSS rules
     }
     
     // Add a style tag with the extracted CSS rules
@@ -445,8 +393,6 @@ export async function exportToSVG(mermaidElementId: string): Promise<string> {
       } else {
         reprocessedSvg.appendChild(styleElement);
       }
-      
-      console.log('[ERD Export] Added CSS stylesheet with', cssRules.split('\n').length, 'rules');
     } else {
       // Add a minimal style tag as fallback
       const styleElement = reprocessedDoc.createElement('style');
@@ -464,12 +410,10 @@ export async function exportToSVG(mermaidElementId: string): Promise<string> {
       } else {
         reprocessedSvg.appendChild(styleElement);
       }
-      console.log('[ERD Export] Added minimal CSS fallback');
     }
     
     // Re-serialize
     svgString = serializer.serializeToString(reprocessedSvg);
-    console.log('[ERD Export] Step 2 complete: CSS stylesheet added');
   }
 
   // Add XML declaration and namespace if not present
@@ -514,7 +458,6 @@ export async function exportToPNG(mermaidElementId: string): Promise<Blob> {
 
   try {
     // STEP 3: Ensure all computed styles are inlined before html2canvas processes
-    console.log('[ERD Export PNG] Inlining computed styles before capture');
     
     // Inline styles in the SVG before html2canvas processes it
     const svgForCapture = container.querySelector('svg') as SVGElement | null;

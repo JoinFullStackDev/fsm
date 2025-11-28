@@ -21,7 +21,6 @@ export async function createServerSupabaseClient() {
           cookieStore.set(name, value, options);
         } catch (error) {
           // Ignore errors - cookies might be read-only in some contexts
-          console.log('[Supabase Server] Cookie set error (non-critical):', error instanceof Error ? error.message : 'Unknown error');
         }
       },
       remove(name: string, options: any) {
@@ -29,7 +28,6 @@ export async function createServerSupabaseClient() {
           cookieStore.set(name, '', { ...options, expires: new Date(0) });
         } catch (error) {
           // Ignore errors - cookies might be read-only in some contexts
-          console.log('[Supabase Server] Cookie remove error (non-critical):', error instanceof Error ? error.message : 'Unknown error');
         }
       },
     },

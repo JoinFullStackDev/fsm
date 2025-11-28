@@ -157,26 +157,21 @@ export default function ProfilePreferencesTab() {
         .single();
 
       if (updateError) {
-        console.error('[Profile Preferences] Update error:', updateError);
-        console.error('[Profile Preferences] Update data:', updateData);
         showError('Failed to save preferences: ' + updateError.message);
         setSaving(false);
         return;
       }
 
       if (!updatedData) {
-        console.error('[Profile Preferences] Update returned no data');
         showError('Failed to save preferences: Update returned no data. Check RLS policies.');
         setSaving(false);
         return;
       }
 
-      console.log('[Profile Preferences] Successfully updated:', updatedData);
       showSuccess('Preferences saved successfully!');
       // Reload profile to get updated data
       await loadProfile();
     } catch (err) {
-      console.error('[Profile Preferences] Save error:', err);
       showError('Failed to save preferences: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setSaving(false);

@@ -28,7 +28,6 @@ export async function ensurePhasesExist(
     .eq('is_active', true);
 
   if (phasesError) {
-    console.error('[ensurePhasesExist] Error checking existing phases:', phasesError);
     return [];
   }
 
@@ -44,7 +43,6 @@ export async function ensurePhasesExist(
     .eq('template_id', templateId);
 
   if (configsError) {
-    console.error('[ensurePhasesExist] Error checking field configs:', configsError);
     return [];
   }
 
@@ -80,11 +78,9 @@ export async function ensurePhasesExist(
     .select();
 
   if (insertError) {
-    console.error('[ensurePhasesExist] Error creating phases:', insertError);
     return [];
   }
 
-  console.log(`[ensurePhasesExist] Created ${createdPhases?.length || 0} phases for template ${templateId}`);
   return (createdPhases || []) as TemplatePhase[];
 }
 
