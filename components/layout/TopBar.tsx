@@ -20,6 +20,7 @@ import {
   Person as PersonIcon,
   Logout as LogoutIcon,
   RocketLaunch as RocketLaunchIcon,
+  Menu as MenuIcon,
 } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useRole } from '@/lib/hooks/useRole';
@@ -115,7 +116,23 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
         zIndex: (theme) => theme.zIndex.drawer + 1,
       }}
     >
-      <Toolbar sx={{ justifyContent: 'flex-end', minHeight: '64px !important', gap: 2 }}>
+      <Toolbar sx={{ justifyContent: 'space-between', minHeight: '64px !important', gap: 2 }}>
+        {/* Left side - Menu toggle */}
+        {onSidebarToggle && (
+          <IconButton
+            onClick={onSidebarToggle}
+            sx={{
+              color: theme.palette.text.primary,
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+              },
+            }}
+            aria-label="toggle sidebar"
+          >
+            <MenuIcon />
+          </IconButton>
+        )}
+
         {/* Scrolling Todo Bar - takes up center/left space */}
 
         {/* Right side icons */}
@@ -135,6 +152,7 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
                 <RocketLaunchIcon />
               </IconButton>
               <NotificationBell onOpenDrawer={() => setNotificationDrawerOpen(true)} />
+              <Box sx={{ width: 8 }} /> {/* Spacer between bell and user icon */}
               <IconButton
                 onClick={handleMenuOpen}
                 sx={{

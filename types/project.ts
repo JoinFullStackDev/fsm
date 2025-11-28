@@ -42,6 +42,9 @@ export interface UserPreferences {
     enabled?: boolean;
     model?: string;
   };
+  sidebar?: {
+    defaultOpen?: boolean; // Default sidebar state (true = open, false = collapsed)
+  };
 }
 
 export interface AdminSetting {

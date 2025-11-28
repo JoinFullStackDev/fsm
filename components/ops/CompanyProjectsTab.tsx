@@ -5,14 +5,13 @@ import { useRouter } from 'next/navigation';
 import {
   Box,
   Typography,
-  Button,
   CircularProgress,
   Alert,
   IconButton,
   Chip,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { Add as AddIcon, OpenInNew as OpenIcon, Delete as DeleteIcon, Folder as FolderIcon } from '@mui/icons-material';
+import { OpenInNew as OpenIcon, Delete as DeleteIcon, Folder as FolderIcon } from '@mui/icons-material';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import type { Project } from '@/types/project';
 import SortableTable from '@/components/dashboard/SortableTable';
@@ -57,10 +56,6 @@ export default function CompanyProjectsTab({ companyId }: CompanyProjectsTabProp
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
-
-  const handleCreateProject = () => {
-    router.push(`/project/new?company_id=${companyId}`);
-  };
 
   const handleOpenProject = (project: Project, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -203,31 +198,13 @@ export default function CompanyProjectsTab({ companyId }: CompanyProjectsTabProp
         >
           Projects
         </Typography>
-        <Button
-          variant="outlined"
-          startIcon={<AddIcon />}
-          onClick={handleCreateProject}
-          sx={{
-            borderColor: theme.palette.text.primary,
-            color: theme.palette.text.primary,
-            fontWeight: 600,
-            '&:hover': {
-              borderColor: theme.palette.text.secondary,
-              backgroundColor: theme.palette.action.hover,
-            },
-          }}
-        >
-          Create Project
-        </Button>
       </Box>
 
       {projects.length === 0 ? (
         <EmptyState
           icon={<FolderIcon sx={{ fontSize: 64 }} />}
           title="No projects yet"
-          description="Create a project to get started."
-          actionLabel="Create Project"
-          onAction={handleCreateProject}
+          description="Projects are created by converting opportunities."
         />
       ) : (
         <SortableTable

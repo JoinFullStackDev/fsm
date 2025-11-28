@@ -39,6 +39,9 @@ export default function ProfilePreferencesTab() {
     ai: {
       enabled: true,
     },
+    sidebar: {
+      defaultOpen: true,
+    },
   });
 
   const loadProfile = useCallback(async () => {
@@ -74,6 +77,9 @@ export default function ProfilePreferencesTab() {
         },
         ai: {
           enabled: true,
+        },
+        sidebar: {
+          defaultOpen: true,
         },
         ...user.preferences,
       });
@@ -354,6 +360,47 @@ export default function ProfilePreferencesTab() {
               label="Enable AI Suggestions"
               sx={{ color: theme.palette.text.primary }}
             />
+          </Box>
+        </Grid>
+
+        <Grid item xs={12}>
+          <Box
+            sx={{
+              p: 3,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
+            }}
+          >
+            <Typography variant="h6" sx={{ mb: 2, color: theme.palette.text.primary, fontWeight: 600 }}>
+              Interface Settings
+            </Typography>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={preferences.sidebar?.defaultOpen ?? true}
+                  onChange={(e) =>
+                    setPreferences({
+                      ...preferences,
+                      sidebar: {
+                        ...preferences.sidebar,
+                        defaultOpen: e.target.checked,
+                      },
+                    })
+                  }
+                  sx={{
+                    '& .MuiSwitch-switchBase.Mui-checked': {
+                      color: theme.palette.text.primary,
+                    },
+                  }}
+                />
+              }
+              label="Sidebar Open by Default"
+              sx={{ color: theme.palette.text.primary }}
+            />
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 1, ml: 4 }}>
+              On mobile devices, the sidebar will always default to collapsed regardless of this setting.
+            </Typography>
           </Box>
         </Grid>
       </Grid>

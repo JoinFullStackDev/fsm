@@ -109,12 +109,26 @@ export async function PUT(
 
     // Create activity feed item
     try {
+      // Get user information for the activity feed message
+      let userDisplayName = 'Unknown user';
+      if (session?.user?.id) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('name, email')
+          .eq('auth_id', session.user.id)
+          .single();
+        
+        if (userData) {
+          userDisplayName = userData.name || userData.email || 'Unknown user';
+        }
+      }
+
       await createActivityFeedItem(supabase, {
         company_id: existingTask.company_id,
         related_entity_id: id,
         related_entity_type: 'task',
         event_type: 'task_updated',
-        message: `Task "${task.title}" was updated`,
+        message: `Task "${task.title}" was updated by ${userDisplayName}`,
       });
     } catch (activityError) {
       logger.error('Error creating activity feed item:', activityError);

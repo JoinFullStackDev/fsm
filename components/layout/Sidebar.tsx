@@ -25,8 +25,6 @@ import {
   FolderOpen as FolderOpenIcon,
   Description as DescriptionIcon,
   Article as ArticleIcon,
-  ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon,
   Assignment as AssignmentIcon,
   Schedule as ScheduleIcon,
   Business as BusinessIcon,
@@ -465,44 +463,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
             )
           )}
         </Box>
-        {open && (
-          <IconButton
-            onClick={onToggle}
-            sx={{
-              color: theme.palette.text.primary,
-              '&:hover': {
-                backgroundColor: theme.palette.action.hover,
-              },
-            }}
-          >
-            <ChevronLeftIcon />
-          </IconButton>
-        )}
       </Box>
-
-      {/* Collapse button when sidebar is collapsed */}
-      {!open && (
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'center',
-            padding: '8px',
-            borderBottom: `1px solid ${theme.palette.divider}`,
-          }}
-        >
-          <IconButton
-            onClick={onToggle}
-            sx={{
-              color: theme.palette.text.primary,
-              '&:hover': {
-                backgroundColor: theme.palette.action.hover,
-              },
-            }}
-          >
-            <ChevronRightIcon />
-          </IconButton>
-        </Box>
-      )}
 
       <Box sx={{ flex: 1, overflowY: 'auto' }}>
         <List sx={{ pt: 1 }}>

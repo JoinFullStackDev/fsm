@@ -4,6 +4,7 @@ import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { unauthorized, badRequest, internalError } from '@/lib/utils/apiErrors';
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import logger from '@/lib/utils/logger';
+import { getStripeClient } from '@/lib/stripe/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,6 +56,106 @@ export async function GET(request: NextRequest) {
       } else if (anySubError && anySubError.code !== 'PGRST116') {
         logger.error('[Subscription API] Error loading any subscription:', anySubError);
         subError = anySubError;
+      }
+    }
+
+    // If subscription has a Stripe subscription ID, sync latest data from Stripe
+    if (subscription && subscription.stripe_subscription_id) {
+      try {
+        const stripe = await getStripeClient();
+        if (stripe) {
+          const stripeSubscription = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id);
+          const subscriptionData = stripeSubscription as any;
+          
+          // Convert Unix timestamps to ISO strings
+          let periodStart = subscriptionData.current_period_start 
+            ? new Date(subscriptionData.current_period_start * 1000).toISOString()
+            : subscription.current_period_start;
+          let periodEnd = subscriptionData.current_period_end 
+            ? new Date(subscriptionData.current_period_end * 1000).toISOString()
+            : subscription.current_period_end;
+          
+          // Validate and correct period end date if it seems wrong (e.g., year instead of month)
+          // For monthly subscriptions, period_end should be approximately 1 month from period_start
+          if (periodStart && periodEnd) {
+            const startDate = new Date(periodStart);
+            const endDate = new Date(periodEnd);
+            const daysDiff = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+            
+            // If the period is more than 35 days, it's likely wrong for a monthly subscription
+            // Calculate correct end date: 1 month from start
+            if (daysDiff > 35) {
+              logger.warn('[Subscription API] Subscription period seems incorrect, correcting:', {
+                subscriptionId: subscription.id,
+                originalPeriodStart: periodStart,
+                originalPeriodEnd: periodEnd,
+                daysDiff,
+              });
+              
+              // Calculate 1 month from start date
+              const correctedEndDate = new Date(startDate);
+              correctedEndDate.setMonth(correctedEndDate.getMonth() + 1);
+              periodEnd = correctedEndDate.toISOString();
+              
+              logger.info('[Subscription API] Corrected period end date:', {
+                original: endDate.toISOString(),
+                corrected: periodEnd,
+              });
+            }
+          }
+          
+          // Check if dates have changed before updating
+          const oldPeriodStart = subscription.current_period_start;
+          const oldPeriodEnd = subscription.current_period_end;
+          const oldStatus = subscription.status;
+          const newStatus = stripeSubscription.status as 'active' | 'canceled' | 'past_due' | 'trialing';
+          
+          // Always update subscription object with latest dates from Stripe for response
+          subscription.current_period_start = periodStart;
+          subscription.current_period_end = periodEnd;
+          subscription.status = newStatus;
+          subscription.cancel_at_period_end = subscriptionData.cancel_at_period_end || false;
+          
+          // Update database if dates or status have changed
+          if (periodStart !== oldPeriodStart || periodEnd !== oldPeriodEnd || newStatus !== oldStatus) {
+            logger.info('[Subscription API] Syncing subscription dates from Stripe:', {
+              subscriptionId: subscription.id,
+              oldPeriodStart,
+              newPeriodStart: periodStart,
+              oldPeriodEnd,
+              newPeriodEnd: periodEnd,
+              oldStatus,
+              newStatus,
+            });
+            
+            const { data: updatedSub, error: updateError } = await adminClient
+              .from('subscriptions')
+              .update({
+                current_period_start: periodStart,
+                current_period_end: periodEnd,
+                status: newStatus,
+                cancel_at_period_end: subscriptionData.cancel_at_period_end || false,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', subscription.id)
+              .select()
+              .single();
+            
+            if (!updateError && updatedSub) {
+              subscription = updatedSub;
+            } else if (updateError) {
+              logger.error('[Subscription API] Error updating subscription dates:', updateError);
+            }
+          }
+        } else {
+          logger.warn('[Subscription API] Stripe client not available, using database data');
+        }
+      } catch (stripeError) {
+        logger.warn('[Subscription API] Error syncing from Stripe (continuing with DB data):', {
+          error: stripeError instanceof Error ? stripeError.message : 'Unknown error',
+          subscriptionId: subscription?.id,
+        });
+        // Continue with database data if Stripe sync fails
       }
     }
 

@@ -15,7 +15,7 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import LoadingSkeleton from '@/components/ui/LoadingSkeleton';
-import { NavigateNext as NavigateNextIcon, Refresh as RefreshIcon } from '@mui/icons-material';
+import { NavigateNext as NavigateNextIcon, Refresh as RefreshIcon, AutoAwesome as AutoAwesomeIcon } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import TaskTable from '@/components/project-management/TaskTable';
 import TaskDetailSheet from '@/components/project-management/TaskDetailSheet';
@@ -25,9 +25,12 @@ import GanttChart from '@/components/project-management/GanttChart';
 import KanbanBoard from '@/components/project-management/KanbanBoard';
 import GenerateReportForm, { type ReportType, type ReportFormat } from '@/components/project-management/GenerateReportForm';
 import ReportsList from '@/components/project-management/ReportsList';
+import TaskGeneratorModal from '@/components/project-management/TaskGeneratorModal';
+import TaskPreviewTable from '@/components/project-management/TaskPreviewTable';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import type { ProjectTask, ProjectTaskExtended, Project } from '@/types/project';
 import type { User } from '@/types/project';
+import type { PreviewTask, TaskMerge } from '@/types/taskGenerator';
 
 export default function ProjectTaskManagementPage() {
   const theme = useTheme();
@@ -51,6 +54,10 @@ export default function ProjectTaskManagementPage() {
   const [reportsRefreshTrigger, setReportsRefreshTrigger] = useState(0);
   const taskIdProcessedRef = useRef<string | null>(null);
   const { showSuccess, showError } = useNotification();
+  const [taskGeneratorOpen, setTaskGeneratorOpen] = useState(false);
+  const [previewTasks, setPreviewTasks] = useState<PreviewTask[]>([]);
+  const [previewSummary, setPreviewSummary] = useState<string | undefined>();
+  const [showPreview, setShowPreview] = useState(false);
 
   const loadTasks = useCallback(async () => {
     // Load tasks with assignee info
@@ -395,6 +402,24 @@ export default function ProjectTaskManagementPage() {
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Button
+            variant="contained"
+            startIcon={<AutoAwesomeIcon />}
+            onClick={() => setTaskGeneratorOpen(true)}
+            size="small"
+            sx={{
+              height: '32px',
+              minHeight: '32px',
+              backgroundColor: 'primary.main',
+              color: '#000',
+              fontSize: '0.75rem',
+              '&:hover': {
+                backgroundColor: 'primary.light',
+              },
+            }}
+          >
+            Generate Tasks
+          </Button>
+          <Button
             variant="outlined"
             startIcon={<RefreshIcon />}
             onClick={handleReAnalyze}
@@ -437,19 +462,72 @@ export default function ProjectTaskManagementPage() {
       )}
 
       {/* View Content */}
-      {view === 'table' && (
-        <ErrorBoundary>
-          <TaskTable
-            tasks={tasks}
-            loading={analyzing}
-            onTaskClick={handleTaskClick}
-            onTaskUpdate={handleTaskUpdate}
-            onTaskDelete={handleTaskDelete}
-            projectId={projectId}
-            projectMembers={projectMembers}
-            phaseNames={phaseNames}
-          />
-        </ErrorBoundary>
+      {showPreview ? (
+        <TaskPreviewTable
+          tasks={previewTasks}
+          phaseNames={phaseNames}
+          summary={previewSummary}
+          onInject={async (selectedTasks, merges) => {
+            try {
+              const response = await fetch(`/api/projects/${projectId}/generate-tasks/inject`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  tasks: selectedTasks.map((t) => ({
+                    task: t,
+                    selected: true,
+                  })),
+                  merges,
+                }),
+              });
+
+              if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to inject tasks');
+              }
+
+              const result = await response.json();
+              showSuccess(`Successfully created ${result.created} tasks and merged ${result.merged} tasks!`);
+
+              // Reload tasks
+              const loadedTasks = await loadTasks();
+              setTasks(loadedTasks);
+
+              // Close preview
+              setShowPreview(false);
+              setPreviewTasks([]);
+              setPreviewSummary(undefined);
+            } catch (err) {
+              showError(err instanceof Error ? err.message : 'Failed to inject tasks');
+            }
+          }}
+          onRegenerate={() => {
+            setShowPreview(false);
+            setTaskGeneratorOpen(true);
+          }}
+          onBack={() => {
+            setShowPreview(false);
+            setPreviewTasks([]);
+            setPreviewSummary(undefined);
+          }}
+        />
+      ) : (
+        <>
+          {view === 'table' && (
+            <ErrorBoundary>
+              <TaskTable
+                tasks={tasks}
+                loading={analyzing}
+                onTaskClick={handleTaskClick}
+                onTaskUpdate={handleTaskUpdate}
+                onTaskDelete={handleTaskDelete}
+                projectId={projectId}
+                projectMembers={projectMembers}
+                phaseNames={phaseNames}
+              />
+            </ErrorBoundary>
+          )}
+        </>
       )}
       {view === 'gantt' && (
         <GanttChart tasks={tasks} onTaskClick={handleTaskClick} phaseNames={phaseNames} />
@@ -526,6 +604,18 @@ export default function ProjectTaskManagementPage() {
         onDelete={selectedTask?.id ? handleTaskDelete : undefined}
       />
 
+      {/* Task Generator Modal */}
+      <TaskGeneratorModal
+        open={taskGeneratorOpen}
+        onClose={() => setTaskGeneratorOpen(false)}
+        onPreviewGenerated={(tasks, summary) => {
+          setPreviewTasks(tasks);
+          setPreviewSummary(summary);
+          setShowPreview(true);
+          setTaskGeneratorOpen(false);
+        }}
+        projectId={projectId}
+      />
     </Container>
   );
 }

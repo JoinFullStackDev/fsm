@@ -15,7 +15,14 @@ import {
   useTheme,
   alpha,
 } from '@mui/material';
-import { CheckCircle as CheckCircleIcon } from '@mui/icons-material';
+import { 
+  CheckCircle as CheckCircleIcon,
+  Star as StarIcon,
+  Rocket as RocketIcon,
+  Business as BusinessIcon,
+  WorkspacePremium as PremiumIcon,
+  AutoAwesome as EnterpriseIcon,
+} from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
 import type { PackageFeatures } from '@/lib/organizationContext';
 
@@ -31,11 +38,27 @@ interface PricingCardProps {
   pkg: Package;
   isPopular?: boolean;
   delay?: number;
+  index?: number;
 }
 
-export default function PricingCard({ pkg, isPopular = false, delay = 0 }: PricingCardProps) {
+export default function PricingCard({ pkg, isPopular = false, delay = 0, index = 0 }: PricingCardProps) {
   const theme = useTheme();
   const router = useRouter();
+
+  // Get icon and color tint based on index
+  const getPlanDetails = (index: number) => {
+    const plans = [
+      { icon: StarIcon, color: theme.palette.warning.main, tint: alpha(theme.palette.warning.main, 0.05) },
+      { icon: RocketIcon, color: theme.palette.primary.main, tint: alpha(theme.palette.primary.main, 0.05) },
+      { icon: BusinessIcon, color: theme.palette.info.main, tint: alpha(theme.palette.info.main, 0.05) },
+      { icon: PremiumIcon, color: theme.palette.secondary.main, tint: alpha(theme.palette.secondary.main, 0.05) },
+      { icon: EnterpriseIcon, color: theme.palette.success.main, tint: alpha(theme.palette.success.main, 0.05) },
+    ];
+    return plans[index % plans.length];
+  };
+
+  const planDetails = getPlanDetails(index);
+  const PlanIcon = planDetails.icon;
 
   const getFeatureList = (features: PackageFeatures) => {
     const list: string[] = [];
@@ -83,7 +106,8 @@ export default function PricingCard({ pkg, isPopular = false, delay = 0 }: Prici
       whileInView={{ opacity: 1, x: 0 }}
       viewport={{ once: true, margin: '-100px' }}
       transition={{ duration: 0.5, delay, ease: 'easeOut' }}
-      whileHover={{ scale: 1.03, y: -8 }}
+      whileHover={{ scale: 1.05, y: -12 }}
+      style={{ height: '100%' }}
     >
       <Card
         sx={{
@@ -92,42 +116,75 @@ export default function PricingCard({ pkg, isPopular = false, delay = 0 }: Prici
           flexDirection: 'column',
           position: 'relative',
           background: isPopular
-            ? `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.background.paper, 0.9)} 100%)`
-            : `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)} 0%, ${alpha(theme.palette.background.paper, 0.6)} 100%)`,
+            ? `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.12)} 0%, ${alpha(theme.palette.background.paper, 0.95)} 100%)`
+            : `linear-gradient(135deg, ${planDetails.tint} 0%, ${alpha(theme.palette.background.paper, 0.9)} 100%)`,
           border: isPopular
             ? `2px solid ${theme.palette.primary.main}`
-            : `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+            : `1px solid ${alpha(planDetails.color, 0.3)}`,
           borderRadius: 3,
-          transition: 'all 0.3s ease',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          boxShadow: `0 4px 16px ${alpha(planDetails.color, 0.1)}`,
           '&:hover': {
-            boxShadow: `0 12px 48px ${alpha(theme.palette.primary.main, isPopular ? 0.3 : 0.15)}`,
+            boxShadow: `0 16px 64px ${alpha(planDetails.color, isPopular ? 0.4 : 0.25)}`,
+            borderColor: isPopular ? theme.palette.primary.main : planDetails.color,
           },
         }}
       >
         {isPopular && (
-          <Chip
-            label="Most Popular"
-            color="primary"
-            size="small"
-            sx={{
-              position: 'absolute',
-              top: 16,
-              right: 16,
-              fontWeight: 600,
-            }}
-          />
+          <motion.div
+            initial={{ scale: 0, rotate: -180 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: 'spring', stiffness: 200, delay: delay + 0.2 }}
+          >
+            <Chip
+              icon={<StarIcon sx={{ fontSize: 16 }} />}
+              label="Most Popular"
+              color="primary"
+              size="small"
+              sx={{
+                position: 'absolute',
+                top: 5,
+                right: 8,
+                fontWeight: 700,
+                fontSize: '0.75rem',
+                boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`,
+                zIndex: 1,
+              }}
+            />
+          </motion.div>
         )}
-        <CardContent sx={{ flexGrow: 1, p: 2, display: 'flex', flexDirection: 'column' }}>
-          <Typography variant="h6" gutterBottom sx={{ fontWeight: 700, mb: 1, fontSize: '1rem' }}>
-            {pkg.name}
-          </Typography>
+        <CardContent sx={{ flexGrow: 1, p: 2.5, pt: isPopular ? 4.5 : 2.5, display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+            <motion.div
+              whileHover={{ rotate: [0, -10, 10, -10, 0], scale: 1.1 }}
+              transition={{ duration: 0.5 }}
+            >
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 48,
+                  height: 48,
+                  borderRadius: 2,
+                  backgroundColor: alpha(planDetails.color, 0.1),
+                  border: `2px solid ${alpha(planDetails.color, 0.3)}`,
+                }}
+              >
+                <PlanIcon sx={{ fontSize: 28, color: planDetails.color }} />
+              </Box>
+            </motion.div>
+            <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.1rem', flex: 1 }}>
+              {pkg.name}
+            </Typography>
+          </Box>
           <Box sx={{ mb: 2 }}>
             <Typography
               variant="h4"
               sx={{
                 fontWeight: 800,
                 display: 'inline',
-                color: theme.palette.primary.main,
+                color: planDetails.color,
                 fontSize: '1.5rem',
               }}
             >
