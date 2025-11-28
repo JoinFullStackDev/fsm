@@ -70,14 +70,40 @@ export async function PUT(
       tags,
       notes,
       dependencies,
+      parent_task_id,
     } = body;
 
-    // Get current task to check if assignee changed
+    // Get current task to check if assignee changed and validate parent_task_id
     const { data: currentTask } = await supabase
       .from('project_tasks')
-      .select('assignee_id, title')
+      .select('assignee_id, title, project_id, parent_task_id')
       .eq('id', params.taskId)
       .single();
+
+    // Validate parent_task_id if being updated
+    if (parent_task_id !== undefined && parent_task_id !== null) {
+      // Prevent self-reference
+      if (parent_task_id === params.taskId) {
+        return badRequest('Task cannot be its own parent');
+      }
+
+      // Check that parent task exists and belongs to same project
+      const { data: parentTask, error: parentError } = await supabase
+        .from('project_tasks')
+        .select('id, project_id, parent_task_id')
+        .eq('id', parent_task_id)
+        .eq('project_id', currentTask?.project_id)
+        .single();
+
+      if (parentError || !parentTask) {
+        return badRequest('Parent task not found or does not belong to this project');
+      }
+
+      // Validate one-level nesting: parent task cannot already have a parent
+      if (parentTask.parent_task_id) {
+        return badRequest('Subtasks cannot have subtasks. Only one level of nesting is supported.');
+      }
+    }
 
     const updateData: any = {};
 
@@ -92,6 +118,7 @@ export async function PUT(
     if (tags !== undefined) updateData.tags = tags;
     if (notes !== undefined) updateData.notes = notes;
     if (dependencies !== undefined) updateData.dependencies = dependencies;
+    if (parent_task_id !== undefined) updateData.parent_task_id = parent_task_id;
 
     const { data: task, error } = await supabase
       .from('project_tasks')

@@ -9,6 +9,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const searchParams = request.nextUrl.searchParams;
+  const includeSubtasks = searchParams.get('include_subtasks') === 'true';
   try {
     const supabase = await createServerSupabaseClient();
     const { data: { session } } = await supabase.auth.getSession();
@@ -26,15 +28,38 @@ export async function GET(
       .eq('project_id', params.id)
       .order('created_at', { ascending: false });
 
+    if (error) {
+      logger.error('Error loading tasks:', error);
+      return internalError('Failed to load tasks', { error: error.message });
+    }
+
     // Transform the data to flatten assignee
     const transformedTasks = tasks?.map((task: any) => ({
       ...task,
       assignee: task.assignee || null,
     })) || [];
 
-    if (error) {
-      logger.error('Error loading tasks:', error);
-      return internalError('Failed to load tasks', { error: error.message });
+    // If includeSubtasks is true, group tasks by parent and nest subtasks
+    if (includeSubtasks) {
+      const parentTasks = transformedTasks.filter((task: any) => !task.parent_task_id);
+      const subtasksByParent = new Map<string, any[]>();
+
+      transformedTasks.forEach((task: any) => {
+        if (task.parent_task_id) {
+          if (!subtasksByParent.has(task.parent_task_id)) {
+            subtasksByParent.set(task.parent_task_id, []);
+          }
+          subtasksByParent.get(task.parent_task_id)!.push(task);
+        }
+      });
+
+      // Attach subtasks to parent tasks
+      const tasksWithSubtasks = parentTasks.map((task: any) => ({
+        ...task,
+        subtasks: subtasksByParent.get(task.id) || [],
+      }));
+
+      return NextResponse.json(tasksWithSubtasks);
     }
 
     return NextResponse.json(transformedTasks);
@@ -115,10 +140,31 @@ export async function POST(
       tags,
       notes,
       dependencies,
+      parent_task_id,
     } = body;
 
     if (!title || !title.trim()) {
       return badRequest('Task title is required');
+    }
+
+    // Validate parent_task_id if provided
+    if (parent_task_id) {
+      // Check that parent task exists and belongs to same project
+      const { data: parentTask, error: parentError } = await supabase
+        .from('project_tasks')
+        .select('id, project_id, parent_task_id')
+        .eq('id', parent_task_id)
+        .eq('project_id', params.id)
+        .single();
+
+      if (parentError || !parentTask) {
+        return badRequest('Parent task not found or does not belong to this project');
+      }
+
+      // Validate one-level nesting: parent task cannot already have a parent
+      if (parentTask.parent_task_id) {
+        return badRequest('Subtasks cannot have subtasks. Only one level of nesting is supported.');
+      }
     }
 
     const { data: task, error } = await supabase
@@ -136,6 +182,7 @@ export async function POST(
         tags: tags || [],
         notes: notes || null,
         dependencies: dependencies || [],
+        parent_task_id: parent_task_id || null,
         ai_generated: false,
         ai_analysis_id: null,
       })

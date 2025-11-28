@@ -181,6 +181,7 @@ Focus on actionable, specific tasks that directly address the user's prompt.`;
         status: task.status,
         priority: task.priority,
         assignee_id: null,
+        parent_task_id: null,
         start_date: null, // Can be set by user in preview
         due_date: task.due_date,
         tags: task.tags || [],

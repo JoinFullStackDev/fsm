@@ -60,7 +60,7 @@ export default function ProjectTaskManagementPage() {
   const [showPreview, setShowPreview] = useState(false);
 
   const loadTasks = useCallback(async () => {
-    // Load tasks with assignee info
+    // Load tasks with assignee info and include subtasks
     console.log(`[Task Management] Loading tasks for project: ${projectId}`);
     const { data: tasksData, error: tasksError } = await supabase
       .from('project_tasks')

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useDebounce } from '@/lib/hooks/useDebounce';
 import {
   Box,
@@ -38,9 +38,13 @@ import {
   ArrowUpward as ArrowUpwardIcon,
   ArrowDownward as ArrowDownwardIcon,
   Delete as DeleteIcon,
+  ChevronRight as ChevronRightIcon,
+  ExpandMore as ChevronDownIcon,
 } from '@mui/icons-material';
 import type { ProjectTask, ProjectTaskExtended, TaskStatus, TaskPriority, User } from '@/types/project';
 import { DEFAULT_PHASE_NAMES, STATUS_COLORS, PRIORITY_COLORS } from '@/lib/constants';
+import { getParentTaskAggregateInfo } from '@/lib/utils/taskAggregates';
+import SubtaskPanel from './SubtaskPanel';
 
 interface TaskTableProps {
   tasks: (ProjectTask | ProjectTaskExtended)[];
@@ -86,6 +90,8 @@ export default function TaskTable({
   const [columnMenuAnchor, setColumnMenuAnchor] = useState<HTMLElement | null>(null);
   const [actionMenuAnchor, setActionMenuAnchor] = useState<HTMLElement | null>(null);
   const [selectedTaskForAction, setSelectedTaskForAction] = useState<(ProjectTask | ProjectTaskExtended) | null>(null);
+  const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set());
+  const [subtasksMap, setSubtasksMap] = useState<Map<string, (ProjectTask | ProjectTaskExtended)[]>>(new Map());
   
   // Inline editing state
   const [editingField, setEditingField] = useState<{
@@ -102,8 +108,9 @@ export default function TaskTable({
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
 
-  const filteredAndSortedTasks = useMemo(() => {
-    let result = tasks.filter((task) => {
+  // Group tasks by parent (parent tasks first, then subtasks)
+  const { parentTasks, subtasksByParent } = useMemo(() => {
+    const allTasks = tasks.filter((task) => {
       const matchesSearch =
         task.title.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
         (task.description || '').toLowerCase().includes(debouncedSearchTerm.toLowerCase());
@@ -113,9 +120,24 @@ export default function TaskTable({
       return matchesSearch && matchesStatus && matchesPhase && matchesPriority;
     });
 
-    // Apply sorting
+    const parents: (ProjectTask | ProjectTaskExtended)[] = [];
+    const subtasksMap = new Map<string, (ProjectTask | ProjectTaskExtended)[]>();
+
+    allTasks.forEach((task) => {
+      if (!task.parent_task_id) {
+        parents.push(task);
+      } else {
+        if (!subtasksMap.has(task.parent_task_id)) {
+          subtasksMap.set(task.parent_task_id, []);
+        }
+        subtasksMap.get(task.parent_task_id)!.push(task);
+      }
+    });
+
+    // Apply sorting to parent tasks
+    let sortedParents = parents;
     if (sortField && sortDirection) {
-      result = [...result].sort((a, b) => {
+      sortedParents = [...parents].sort((a, b) => {
         let aValue: any;
         let bValue: any;
 
@@ -158,8 +180,15 @@ export default function TaskTable({
       });
     }
 
-    return result;
+    return { parentTasks: sortedParents, subtasksByParent: subtasksMap };
   }, [tasks, debouncedSearchTerm, statusFilter, phaseFilter, priorityFilter, sortField, sortDirection]);
+
+  // Update subtasks map when it changes
+  useEffect(() => {
+    setSubtasksMap(subtasksByParent);
+  }, [subtasksByParent]);
+
+  const filteredAndSortedTasks = parentTasks; // For backward compatibility with existing code
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -293,6 +322,73 @@ export default function TaskTable({
       handleActionMenuClose();
     }
   }, [selectedTaskForAction, onTaskDelete, handleActionMenuClose]);
+
+  const handleToggleExpand = useCallback((taskId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    const newExpanded = new Set(expandedParents);
+    if (newExpanded.has(taskId)) {
+      newExpanded.delete(taskId);
+    } else {
+      newExpanded.add(taskId);
+      // Initialize with empty array immediately for responsive UI
+      if (!subtasksMap.has(taskId)) {
+        const newMap = new Map(subtasksMap);
+        newMap.set(taskId, []);
+        setSubtasksMap(newMap);
+        
+        // Then fetch actual subtasks
+        fetch(`/api/projects/${projectId}/tasks/${taskId}/subtasks`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (Array.isArray(data)) {
+              setSubtasksMap((prevMap) => {
+                const updatedMap = new Map(prevMap);
+                updatedMap.set(taskId, data);
+                return updatedMap;
+              });
+            }
+          })
+          .catch((err) => {
+            console.error('Error loading subtasks:', err);
+          });
+      }
+    }
+    setExpandedParents(newExpanded);
+  }, [expandedParents, subtasksMap, projectId]);
+
+  const handleSubtaskCreated = useCallback((subtask: ProjectTask | ProjectTaskExtended) => {
+    const parentId = subtask.parent_task_id!;
+    const newMap = new Map(subtasksMap);
+    const existing = newMap.get(parentId) || [];
+    newMap.set(parentId, [...existing, subtask]);
+    setSubtasksMap(newMap);
+  }, [subtasksMap]);
+
+  const handleSubtaskUpdated = useCallback((subtaskId: string, updates: Partial<ProjectTask>) => {
+    const newMap = new Map(subtasksMap);
+    for (const [parentId, subtasks] of newMap.entries()) {
+      const index = subtasks.findIndex((s) => s.id === subtaskId);
+      if (index >= 0) {
+        const updated = [...subtasks];
+        updated[index] = { ...updated[index], ...updates };
+        newMap.set(parentId, updated);
+        setSubtasksMap(newMap);
+        break;
+      }
+    }
+  }, [subtasksMap]);
+
+  const handleSubtaskDeleted = useCallback((subtaskId: string) => {
+    const newMap = new Map(subtasksMap);
+    for (const [parentId, subtasks] of newMap.entries()) {
+      const filtered = subtasks.filter((s) => s.id !== subtaskId);
+      if (filtered.length !== subtasks.length) {
+        newMap.set(parentId, filtered);
+        setSubtasksMap(newMap);
+        break;
+      }
+    }
+  }, [subtasksMap]);
 
   if (loading) {
     return (
@@ -594,80 +690,110 @@ export default function TaskTable({
                 </TableCell>
               </TableRow>
             ) : (
-              filteredAndSortedTasks.map((task) => (
-                <TableRow
-                  key={task.id}
-                  onClick={() => onTaskClick(task)}
-                  sx={{
-                    cursor: 'pointer',
-                    borderBottom: `1px solid ${theme.palette.divider}`,
-                    '&:hover': {
-                      backgroundColor: theme.palette.action.hover,
-                    },
-                  }}
-                >
-                  {visibleColumns.status && (
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      {editingField?.taskId === task.id && editingField?.field === 'status' ? (
-                        <FormControl size="small" sx={{ minWidth: 120 }}>
-                          <Select
-                            value={task.status}
-                            onChange={(e) => handleFieldUpdate(task.id, 'status', e.target.value)}
-                            onBlur={() => setEditingField(null)}
-                            autoFocus
-                            sx={{
-                              color: theme.palette.text.primary,
-                              backgroundColor: theme.palette.action.hover,
-                              '& .MuiOutlinedInput-notchedOutline': {
-                                borderColor: theme.palette.divider,
-                              },
-                              '& .MuiSvgIcon-root': {
-                                color: theme.palette.text.primary,
-                              },
-                            }}
-                          >
-                            <MenuItem value="todo">To Do</MenuItem>
-                            <MenuItem value="in_progress">In Progress</MenuItem>
-                            <MenuItem value="done">Done</MenuItem>
-                            <MenuItem value="archived">Archived</MenuItem>
-                          </Select>
-                        </FormControl>
-                      ) : (
-                        <Chip
-                          label={task.status.replace('_', ' ')}
-                          size="small"
-                          sx={{
-                            backgroundColor: `${STATUS_COLORS[task.status]}20`,
-                            color: STATUS_COLORS[task.status],
-                            border: `1px solid ${STATUS_COLORS[task.status]}40`,
-                            fontWeight: 500,
-                            cursor: 'pointer',
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingField({ taskId: task.id, field: 'status' });
-                          }}
-                          onDoubleClick={(e) => {
-                            e.stopPropagation();
-                            handleQuickStatusToggle(task);
-                          }}
-                        />
-                      )}
-                    </TableCell>
-                  )}
-                  {visibleColumns.title && (
-                    <TableCell>
-                      <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontWeight: 500 }}>
-                        {task.title}
-                      </Typography>
-                      {task.description && (
-                        <Typography variant="caption" sx={{ color: theme.palette.text.secondary, display: 'block', mt: 0.5 }}>
-                          {task.description.substring(0, 60)}
-                          {task.description.length > 60 ? '...' : ''}
-                        </Typography>
-                      )}
-                    </TableCell>
-                  )}
+              <>
+                {filteredAndSortedTasks.map((task) => {
+                  const subtasks = subtasksMap.get(task.id) || [];
+                  const isExpanded = expandedParents.has(task.id);
+                  const aggregateInfo = subtasks.length > 0 ? getParentTaskAggregateInfo(task, subtasks) : null;
+                  const displayStatus = aggregateInfo ? aggregateInfo.status : task.status;
+
+                  return (
+                    <React.Fragment key={task.id}>
+                      <TableRow
+                        onClick={() => onTaskClick(task)}
+                        sx={{
+                          cursor: 'pointer',
+                          borderBottom: `1px solid ${theme.palette.divider}`,
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        }}
+                      >
+                        {visibleColumns.status && (
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            {editingField?.taskId === task.id && editingField?.field === 'status' ? (
+                              <FormControl size="small" sx={{ minWidth: 120 }}>
+                                <Select
+                                  value={task.status}
+                                  onChange={(e) => handleFieldUpdate(task.id, 'status', e.target.value)}
+                                  onBlur={() => setEditingField(null)}
+                                  autoFocus
+                                  sx={{
+                                    color: theme.palette.text.primary,
+                                    backgroundColor: theme.palette.action.hover,
+                                    '& .MuiOutlinedInput-notchedOutline': {
+                                      borderColor: theme.palette.divider,
+                                    },
+                                    '& .MuiSvgIcon-root': {
+                                      color: theme.palette.text.primary,
+                                    },
+                                  }}
+                                >
+                                  <MenuItem value="todo">To Do</MenuItem>
+                                  <MenuItem value="in_progress">In Progress</MenuItem>
+                                  <MenuItem value="done">Done</MenuItem>
+                                  <MenuItem value="archived">Archived</MenuItem>
+                                </Select>
+                              </FormControl>
+                            ) : (
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <Chip
+                                  label={displayStatus.replace('_', ' ')}
+                                  size="small"
+                                  sx={{
+                                    backgroundColor: `${STATUS_COLORS[displayStatus]}20`,
+                                    color: STATUS_COLORS[displayStatus],
+                                    border: `1px solid ${STATUS_COLORS[displayStatus]}40`,
+                                    fontWeight: 500,
+                                    cursor: 'pointer',
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingField({ taskId: task.id, field: 'status' });
+                                  }}
+                                  onDoubleClick={(e) => {
+                                    e.stopPropagation();
+                                    handleQuickStatusToggle(task);
+                                  }}
+                                />
+                                {aggregateInfo && (
+                                  <Chip
+                                    label={aggregateInfo.summary}
+                                    size="small"
+                                    sx={{
+                                      height: 20,
+                                      fontSize: '0.7rem',
+                                      bgcolor: 'action.hover',
+                                    }}
+                                  />
+                                )}
+                              </Box>
+                            )}
+                          </TableCell>
+                        )}
+                        {visibleColumns.title && (
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <IconButton
+                                size="small"
+                                onClick={(e) => handleToggleExpand(task.id, e)}
+                                sx={{ p: 0.5 }}
+                                title={isExpanded ? 'Collapse subtasks' : 'Expand to view/add subtasks'}
+                              >
+                                {isExpanded ? (
+                                  <ChevronDownIcon fontSize="small" />
+                                ) : (
+                                  <ChevronRightIcon fontSize="small" />
+                                )}
+                              </IconButton>
+                              <Box sx={{ flex: 1 }}>
+                                <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontWeight: 500 }}>
+                                  {task.title}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </TableCell>
+                        )}
                   {visibleColumns.phase && (
                     <TableCell>
                       {task.phase_number ? (
@@ -939,7 +1065,27 @@ export default function TaskTable({
                     </IconButton>
                   </TableCell>
                 </TableRow>
-              ))
+                
+                {/* Subtask Panel - shown when expanded */}
+                {isExpanded && (
+                  <TableRow>
+                    <TableCell colSpan={Object.values(visibleColumns).filter(Boolean).length + 1} sx={{ p: 0, borderBottom: 'none' }}>
+                      <SubtaskPanel
+                        parentTaskId={task.id}
+                        projectId={projectId}
+                        subtasks={subtasks}
+                        projectMembers={projectMembers}
+                        onSubtaskCreated={handleSubtaskCreated}
+                        onSubtaskUpdated={handleSubtaskUpdated}
+                        onSubtaskDeleted={handleSubtaskDeleted}
+                      />
+                    </TableCell>
+                  </TableRow>
+                )}
+              </React.Fragment>
+                  );
+                })}
+              </>
             )}
           </TableBody>
         </Table>
