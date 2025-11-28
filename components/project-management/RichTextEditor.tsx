@@ -9,14 +9,27 @@ import type { User } from '@/types/project';
 
 // Dynamically import ReactQuill to avoid SSR issues
 const ReactQuill = dynamic(
-  () => import('react-quill').then((mod) => {
+  async () => {
+    const mod = await import('react-quill');
     // Make Quill available globally for finding instances
     if (typeof window !== 'undefined') {
-      (window as any).Quill = mod.default.Quill || require('quill');
+      try {
+        (window as any).Quill = mod.default.Quill;
+      } catch (e) {
+        // Fallback if Quill is not available
+        console.warn('Quill not available on default export');
+      }
     }
     return mod;
-  }),
-  { ssr: false }
+  },
+  { 
+    ssr: false,
+    loading: () => (
+      <Box sx={{ p: 2, textAlign: 'center', color: 'text.secondary' }}>
+        Loading editor...
+      </Box>
+    )
+  }
 );
 import 'react-quill/dist/quill.snow.css';
 

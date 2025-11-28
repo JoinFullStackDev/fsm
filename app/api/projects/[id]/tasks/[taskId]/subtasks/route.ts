@@ -82,7 +82,7 @@ export async function POST(
     // Verify parent task exists and user has access
     const { data: parentTask, error: parentError } = await supabase
       .from('project_tasks')
-      .select('id, project_id, parent_task_id')
+      .select('id, project_id, parent_task_id, phase_number')
       .eq('id', params.taskId)
       .eq('project_id', params.id)
       .single();
@@ -107,11 +107,21 @@ export async function POST(
       due_date,
       tags,
       notes,
+      phase_number, // Allow override, but default to parent's phase
+      dependencies, // Allow override, but default to parent task
     } = body;
 
     if (!title || !title.trim()) {
       return badRequest('Task title is required');
     }
+
+    // Auto-set phase from parent if not provided
+    const subtaskPhaseNumber = phase_number !== undefined ? phase_number : parentTask.phase_number;
+    
+    // Auto-set dependency on parent task if not provided
+    const subtaskDependencies = dependencies !== undefined 
+      ? dependencies 
+      : (parentTask.id ? [parentTask.id] : []);
 
     // Create subtask
     const { data: subtask, error } = await supabase
@@ -121,7 +131,7 @@ export async function POST(
         parent_task_id: params.taskId,
         title,
         description: description || null,
-        phase_number: null, // Subtasks inherit phase from parent conceptually
+        phase_number: subtaskPhaseNumber,
         status: status || 'todo',
         priority: priority || 'medium',
         assignee_id: assignee_id || null,
@@ -129,7 +139,7 @@ export async function POST(
         due_date: due_date || null,
         tags: tags || [],
         notes: notes || null,
-        dependencies: [],
+        dependencies: subtaskDependencies,
         ai_generated: false,
         ai_analysis_id: null,
       })
