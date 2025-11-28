@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Dialog,
   DialogTitle,
@@ -29,6 +30,7 @@ import {
   ListItemText,
   ListItemIcon,
   Grid,
+  alpha,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -64,106 +66,179 @@ interface WelcomeTourProps {
 
 // Animated mock components
 const MockDashboard = ({ theme }: { theme: any }) => {
-  const [pulse, setPulse] = useState(true);
+  const [highlighted, setHighlighted] = useState(0);
   
   useEffect(() => {
-    const interval = setInterval(() => setPulse(p => !p), 2000);
+    const interval = setInterval(() => {
+      setHighlighted((prev) => (prev + 1) % 4);
+    }, 1500);
     return () => clearInterval(interval);
   }, []);
 
+  const cards = [
+    { label: 'Projects', count: '12', icon: <FolderIcon /> },
+    { label: 'Templates', count: '5', icon: <BuildIcon /> },
+  ];
+
+  const projects = [
+    { name: 'My First Project', status: 'In Progress', progress: 65 },
+    { name: 'Product Launch', status: 'Planning', progress: 30 },
+  ];
+
   return (
-    <Box
-      sx={{
-        backgroundColor: theme.palette.background.paper,
-        borderRadius: 2,
-        p: 3,
-        border: `2px solid ${theme.palette.divider}`,
-        position: 'relative',
-        overflow: 'hidden',
-        width: '100%',
-        maxWidth: '600px',
-      }}
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.5 }}
     >
-      <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-        <Box
-          sx={{
-            flex: 1,
-            height: 60,
-            backgroundColor: theme.palette.action.hover,
-            borderRadius: 1,
-            border: `1px solid ${theme.palette.divider}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            animation: pulse ? 'pulse 2s ease-in-out infinite' : 'none',
-            '@keyframes pulse': {
-              '0%, 100%': { opacity: 1 },
-              '50%': { opacity: 0.6 },
-            },
-          }}
-        >
-          <Typography variant="caption" sx={{ color: theme.palette.text.primary }}>
-            Projects
-          </Typography>
-        </Box>
-        <Box
-          sx={{
-            flex: 1,
-            height: 60,
-            backgroundColor: theme.palette.action.hover,
-            borderRadius: 1,
-            border: `1px solid ${theme.palette.divider}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Typography variant="caption" sx={{ color: theme.palette.text.primary }}>
-            Templates
-          </Typography>
-        </Box>
-      </Box>
       <Box
         sx={{
-          height: 40,
-          backgroundColor: theme.palette.action.hover,
-          borderRadius: 1,
-          border: `1px solid ${theme.palette.divider}`,
-          display: 'flex',
-          alignItems: 'center',
-          px: 2,
-          mb: 1,
+          backgroundColor: theme.palette.background.paper,
+          borderRadius: 3,
+          p: 3,
+          border: `2px solid ${theme.palette.divider}`,
+          position: 'relative',
+          overflow: 'hidden',
+          width: '100%',
+          maxWidth: '600px',
+          boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.1)}`,
         }}
       >
-        <Typography variant="caption" sx={{ color: theme.palette.text.primary }}>
-          My First Project
-        </Typography>
+        {/* Animated background gradient */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '100%',
+            background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, transparent 100%)`,
+            pointerEvents: 'none',
+          }}
+        />
+        
+        <Box sx={{ display: 'flex', gap: 2, mb: 3, position: 'relative', zIndex: 1 }}>
+          {cards.map((card, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ 
+                opacity: 1, 
+                y: 0,
+                scale: highlighted === index ? 1.05 : 1,
+                boxShadow: highlighted === index 
+                  ? `0 4px 20px ${alpha(theme.palette.primary.main, 0.3)}`
+                  : 'none',
+              }}
+              transition={{ 
+                delay: index * 0.1,
+                duration: 0.5,
+                repeat: highlighted === index ? Infinity : 0,
+                repeatType: 'reverse',
+              }}
+            >
+              <Card
+                sx={{
+                  flex: 1,
+                  backgroundColor: highlighted === index 
+                    ? alpha(theme.palette.primary.main, 0.1)
+                    : theme.palette.action.hover,
+                  border: `2px solid ${
+                    highlighted === index 
+                      ? theme.palette.primary.main 
+                      : theme.palette.divider
+                  }`,
+                  borderRadius: 2,
+                  p: 2,
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  {card.icon}
+                  <Typography variant="caption" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+                    {card.label}
+                  </Typography>
+                </Box>
+                <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 700 }}>
+                  {card.count}
+                </Typography>
+              </Card>
+            </motion.div>
+          ))}
+        </Box>
+        
+        <Box sx={{ position: 'relative', zIndex: 1 }}>
+          {projects.map((project, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ 
+                opacity: 1, 
+                x: 0,
+                borderColor: highlighted === index + 2 
+                  ? theme.palette.primary.main 
+                  : theme.palette.divider,
+              }}
+              transition={{ delay: 0.3 + index * 0.1, duration: 0.4 }}
+            >
+              <Card
+                sx={{
+                  mb: 2,
+                  backgroundColor: theme.palette.action.hover,
+                  border: `2px solid ${
+                    highlighted === index + 2 
+                      ? theme.palette.primary.main 
+                      : theme.palette.divider
+                  }`,
+                  borderRadius: 2,
+                  p: 2,
+                  transition: 'all 0.3s ease',
+                }}
+              >
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+                    {project.name}
+                  </Typography>
+                  <Chip 
+                    label={project.status} 
+                    size="small" 
+                    sx={{ 
+                      backgroundColor: alpha(theme.palette.primary.main, 0.2),
+                      color: theme.palette.text.primary,
+                      fontSize: '0.7rem',
+                    }} 
+                  />
+                </Box>
+                <LinearProgress
+                  variant="determinate"
+                  value={project.progress}
+                  sx={{
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                    '& .MuiLinearProgress-bar': {
+                      backgroundColor: theme.palette.primary.main,
+                      borderRadius: 3,
+                    },
+                  }}
+                />
+              </Card>
+            </motion.div>
+          ))}
+        </Box>
       </Box>
-      <Box
-        sx={{
-          height: 40,
-          backgroundColor: theme.palette.action.hover,
-          borderRadius: 1,
-          border: `1px solid ${theme.palette.divider}`,
-          display: 'flex',
-          alignItems: 'center',
-          px: 2,
-        }}
-      >
-        <Typography variant="caption" sx={{ color: theme.palette.text.primary }}>
-          Product Launch
-        </Typography>
-      </Box>
-    </Box>
+    </motion.div>
   );
 };
 
 const MockTemplateBuilder = ({ theme }: { theme: any }) => {
-  const [typing, setTyping] = useState('Project Name');
+  const fields = ['Project Name', 'Description', 'Category'];
+  const [typing, setTyping] = useState('');
   const [fieldIndex, setFieldIndex] = useState(0);
+  const [activePhase, setActivePhase] = useState(0);
   
   useEffect(() => {
-    const fields = ['Project Name', 'Description', 'Category'];
     let charIndex = 0;
     let currentField = fields[0];
     
@@ -172,7 +247,6 @@ const MockTemplateBuilder = ({ theme }: { theme: any }) => {
         setTyping(currentField.substring(0, charIndex + 1));
         charIndex++;
       } else {
-        // Finished typing, wait then switch to next field
         setTimeout(() => {
           setFieldIndex((i) => {
             const nextIndex = (i + 1) % fields.length;
@@ -186,362 +260,635 @@ const MockTemplateBuilder = ({ theme }: { theme: any }) => {
     }, 100);
     
     return () => clearInterval(typeInterval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActivePhase((p) => (p + 1) % 6);
+    }, 1200);
+    return () => clearInterval(interval);
+  }, []);
+
+  const phases = ['Phase 1', 'Phase 2', 'Phase 3', 'Phase 4', 'Phase 5', 'Phase 6'];
+
   return (
-    <Box
-      sx={{
-        backgroundColor: theme.palette.background.paper,
-        borderRadius: 2,
-        p: 3,
-        border: `2px solid ${theme.palette.divider}`,
-        width: '100%',
-        maxWidth: '600px',
-      }}
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.5 }}
     >
-      <Box sx={{ mb: 2 }}>
-        <Typography variant="caption" sx={{ color: theme.palette.text.primary, mb: 1, display: 'block', fontWeight: 600 }}>
-          Template Builder
-        </Typography>
-        <Box
-          sx={{
-            height: 32,
-            backgroundColor: theme.palette.action.hover,
-            borderRadius: 1,
-            border: `1px solid ${theme.palette.divider}`,
-            display: 'flex',
-            alignItems: 'center',
-            px: 1,
-          }}
-        >
-          <Typography variant="caption" sx={{ color: theme.palette.text.primary }}>
-            {typing || 'Project Name'}
-            <Box
-              component="span"
-              sx={{
-                display: 'inline-block',
-                width: 2,
-                height: 14,
-                backgroundColor: theme.palette.text.primary,
-                ml: 0.5,
-                animation: 'blink 1s infinite',
-                '@keyframes blink': {
-                  '0%, 100%': { opacity: 1 },
-                  '50%': { opacity: 0 },
-                },
-              }}
-            />
+      <Box
+        sx={{
+          backgroundColor: theme.palette.background.paper,
+          borderRadius: 3,
+          p: 3,
+          border: `2px solid ${theme.palette.divider}`,
+          width: '100%',
+          maxWidth: '600px',
+          boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.1)}`,
+        }}
+      >
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="body2" sx={{ color: theme.palette.text.primary, mb: 1.5, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <BuildIcon sx={{ fontSize: 18 }} />
+            Template Builder
           </Typography>
+          <motion.div
+            key={fieldIndex}
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Box
+              sx={{
+                height: 40,
+                backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                borderRadius: 2,
+                border: `2px solid ${theme.palette.primary.main}`,
+                display: 'flex',
+                alignItems: 'center',
+                px: 2,
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+            >
+              <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontFamily: 'monospace' }}>
+                {typing || fields[fieldIndex]}
+                <motion.span
+                  animate={{ opacity: [1, 0, 1] }}
+                  transition={{ duration: 1, repeat: Infinity }}
+                  style={{
+                    display: 'inline-block',
+                    width: 2,
+                    height: 16,
+                    backgroundColor: theme.palette.text.primary,
+                    marginLeft: 4,
+                  }}
+                />
+              </Typography>
+            </Box>
+          </motion.div>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          {phases.map((phase, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ 
+                opacity: 1, 
+                scale: 1,
+                backgroundColor: activePhase === index 
+                  ? alpha(theme.palette.primary.main, 0.2)
+                  : theme.palette.action.hover,
+                borderColor: activePhase === index 
+                  ? theme.palette.primary.main 
+                  : theme.palette.divider,
+              }}
+              transition={{ 
+                delay: index * 0.05,
+                duration: 0.3,
+              }}
+            >
+              <Chip 
+                label={phase} 
+                size="small" 
+                sx={{ 
+                  backgroundColor: activePhase === index 
+                    ? alpha(theme.palette.primary.main, 0.2)
+                    : theme.palette.action.hover,
+                  color: theme.palette.text.primary,
+                  border: `2px solid ${
+                    activePhase === index 
+                      ? theme.palette.primary.main 
+                      : theme.palette.divider
+                  }`,
+                  fontWeight: activePhase === index ? 600 : 400,
+                  transition: 'all 0.3s ease',
+                }} 
+              />
+            </motion.div>
+          ))}
         </Box>
       </Box>
-      <Box sx={{ display: 'flex', gap: 1 }}>
-        <Chip label="Phase 1" size="small" sx={{ backgroundColor: theme.palette.action.hover, color: theme.palette.text.primary, border: `1px solid ${theme.palette.divider}` }} />
-        <Chip label="Phase 2" size="small" sx={{ backgroundColor: theme.palette.action.hover, color: theme.palette.text.primary, border: `1px solid ${theme.palette.divider}` }} />
-        <Chip label="Phase 3" size="small" sx={{ backgroundColor: theme.palette.action.hover, color: theme.palette.text.primary, border: `1px solid ${theme.palette.divider}` }} />
-      </Box>
-    </Box>
+    </motion.div>
   );
 };
 
 const MockProjectForm = ({ theme }: { theme: any }) => {
-  const [progress, setProgress] = useState(0);
+  const [focused, setFocused] = useState(0);
   
   useEffect(() => {
     const interval = setInterval(() => {
-      setProgress((p) => (p >= 100 ? 0 : p + 10));
-    }, 300);
+      setFocused((f) => (f + 1) % 3);
+    }, 1500);
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <Box
-      sx={{
-        backgroundColor: theme.palette.background.paper,
-        borderRadius: 2,
-        p: 2,
-        border: `2px solid ${theme.palette.divider}`,
-      }}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
     >
-      <Box sx={{ mb: 2 }}>
-        <Typography variant="caption" sx={{ color: theme.palette.text.secondary, mb: 1, display: 'block' }}>
-          Project Name
-        </Typography>
-        <Box
-          sx={{
-            height: 36,
-            backgroundColor: theme.palette.action.hover,
-            borderRadius: 1,
-            border: `1px solid ${theme.palette.divider}`,
-            display: 'flex',
-            alignItems: 'center',
-            px: 1.5,
-          }}
-        >
-          <Typography variant="caption" sx={{ color: theme.palette.text.primary }}>
-            My New Project
-          </Typography>
-        </Box>
-      </Box>
-      <Box sx={{ mb: 2 }}>
-        <Typography variant="caption" sx={{ color: theme.palette.text.secondary, mb: 1, display: 'block' }}>
-          Template
-        </Typography>
-        <Box
-          sx={{
-            height: 36,
-            backgroundColor: theme.palette.action.hover,
-            borderRadius: 1,
-            border: `1px solid ${theme.palette.divider}`,
-            display: 'flex',
-            alignItems: 'center',
-            px: 1.5,
-            justifyContent: 'space-between',
-          }}
-        >
-          <Typography variant="caption" sx={{ color: theme.palette.text.primary }}>
-            Select Template...
-          </Typography>
-          <PlayArrowIcon sx={{ fontSize: 16, color: theme.palette.text.primary }} />
-        </Box>
-      </Box>
-      <Button
-        size="small"
-        variant="contained"
+      <Box
         sx={{
           backgroundColor: theme.palette.background.paper,
-          color: theme.palette.text.primary,
+          borderRadius: 3,
+          p: 3,
+          border: `2px solid ${theme.palette.divider}`,
           width: '100%',
-          border: `1px solid ${theme.palette.divider}`,
-          '&:hover': { 
-            backgroundColor: theme.palette.action.hover,
-            borderColor: theme.palette.text.primary,
-          },
+          maxWidth: '600px',
+          boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.1)}`,
         }}
       >
-        Create Project
-      </Button>
-    </Box>
+        <Box sx={{ mb: 2.5 }}>
+          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, mb: 1, display: 'block', fontWeight: 500 }}>
+            Project Name
+          </Typography>
+          <motion.div
+            animate={{
+              borderColor: focused === 0 ? theme.palette.primary.main : theme.palette.divider,
+              backgroundColor: focused === 0 
+                ? alpha(theme.palette.primary.main, 0.1)
+                : theme.palette.action.hover,
+            }}
+            transition={{ duration: 0.3 }}
+          >
+            <Box
+              sx={{
+                height: 40,
+                borderRadius: 2,
+                border: `2px solid ${focused === 0 ? theme.palette.primary.main : theme.palette.divider}`,
+                display: 'flex',
+                alignItems: 'center',
+                px: 2,
+                transition: 'all 0.3s ease',
+              }}
+            >
+              <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
+                My New Project
+              </Typography>
+            </Box>
+          </motion.div>
+        </Box>
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, mb: 1, display: 'block', fontWeight: 500 }}>
+            Template
+          </Typography>
+          <motion.div
+            animate={{
+              borderColor: focused === 1 ? theme.palette.primary.main : theme.palette.divider,
+              backgroundColor: focused === 1 
+                ? alpha(theme.palette.primary.main, 0.1)
+                : theme.palette.action.hover,
+            }}
+            transition={{ duration: 0.3 }}
+          >
+            <Box
+              sx={{
+                height: 40,
+                borderRadius: 2,
+                border: `2px solid ${focused === 1 ? theme.palette.primary.main : theme.palette.divider}`,
+                display: 'flex',
+                alignItems: 'center',
+                px: 2,
+                justifyContent: 'space-between',
+                transition: 'all 0.3s ease',
+              }}
+            >
+              <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
+                Select Template...
+              </Typography>
+              <PlayArrowIcon sx={{ fontSize: 18, color: theme.palette.text.primary }} />
+            </Box>
+          </motion.div>
+        </Box>
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          animate={{
+            backgroundColor: focused === 2 
+              ? theme.palette.primary.main
+              : theme.palette.background.paper,
+            color: focused === 2 
+              ? theme.palette.background.default
+              : theme.palette.text.primary,
+          }}
+          transition={{ duration: 0.3 }}
+        >
+          <Button
+            size="medium"
+            variant="contained"
+            fullWidth
+            sx={{
+              backgroundColor: focused === 2 
+                ? theme.palette.primary.main
+                : theme.palette.background.paper,
+              color: focused === 2 
+                ? theme.palette.background.default
+                : theme.palette.text.primary,
+              border: `2px solid ${focused === 2 ? theme.palette.primary.main : theme.palette.divider}`,
+              fontWeight: 600,
+              py: 1.5,
+              transition: 'all 0.3s ease',
+              '&:hover': { 
+                backgroundColor: theme.palette.primary.main,
+                color: theme.palette.background.default,
+                borderColor: theme.palette.primary.main,
+              },
+            }}
+          >
+            Create Project
+          </Button>
+        </motion.div>
+      </Box>
+    </motion.div>
   );
 };
 
 const MockProjectDashboard = ({ theme }: { theme: any }) => {
   const [activePhase, setActivePhase] = useState(0);
+  const [progressValues, setProgressValues] = useState([100, 80, 60, 40, 20, 0]);
   
   useEffect(() => {
     const interval = setInterval(() => {
-      setActivePhase((p) => (p + 1) % 6);
-    }, 1500);
+      setActivePhase((p) => {
+        const next = (p + 1) % 6;
+        // Animate progress when phase becomes active
+        setProgressValues((prev) => {
+          const newValues = [...prev];
+          if (next < prev.length) {
+            newValues[next] = Math.min(prev[next] + 5, 100);
+          }
+          return newValues;
+        });
+        return next;
+      });
+    }, 2000);
     return () => clearInterval(interval);
   }, []);
 
   const phases = [
-    { name: 'Concept Framing', progress: 100 },
-    { name: 'Product Strategy', progress: 80 },
-    { name: 'Rapid Prototype', progress: 60 },
-    { name: 'Analysis', progress: 40 },
-    { name: 'Build Accelerator', progress: 20 },
-    { name: 'QA & Hardening', progress: 0 },
+    { name: 'Concept Framing', icon: <RocketLaunchIcon sx={{ fontSize: 16 }} /> },
+    { name: 'Product Strategy', icon: <AutoAwesomeIcon sx={{ fontSize: 16 }} /> },
+    { name: 'Rapid Prototype', icon: <BuildIcon sx={{ fontSize: 16 }} /> },
+    { name: 'Analysis', icon: <DescriptionIcon sx={{ fontSize: 16 }} /> },
+    { name: 'Build Accelerator', icon: <CodeIcon sx={{ fontSize: 16 }} /> },
+    { name: 'QA & Hardening', icon: <CheckCircleIcon sx={{ fontSize: 16 }} /> },
   ];
 
   return (
-    <Box
-      sx={{
-        backgroundColor: theme.palette.background.paper,
-        borderRadius: 2,
-        p: 3,
-        border: `2px solid ${theme.palette.divider}`,
-        width: '100%',
-        maxWidth: '600px',
-      }}
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.5 }}
     >
-      <Typography variant="caption" sx={{ color: theme.palette.text.primary, mb: 2, display: 'block', fontWeight: 600 }}>
-        Project Phases
-      </Typography>
-      {phases.map((phase, index) => (
-        <Box
-          key={index}
-          sx={{
-            mb: 1.5,
-            opacity: index === activePhase ? 1 : 0.6,
-            transform: index === activePhase ? 'scale(1.02)' : 'scale(1)',
-            transition: 'all 0.3s ease',
-          }}
-        >
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-            <Typography variant="caption" sx={{ color: theme.palette.text.primary }}>
-              {phase.name}
-            </Typography>
-            <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-              {phase.progress}%
-            </Typography>
-          </Box>
-          <LinearProgress
-            variant="determinate"
-            value={phase.progress}
-            sx={{
-              height: 6,
-              borderRadius: 3,
-              backgroundColor: theme.palette.action.hover,
-              '& .MuiLinearProgress-bar': {
-                backgroundColor: theme.palette.text.primary,
-              },
+      <Box
+        sx={{
+          backgroundColor: theme.palette.background.paper,
+          borderRadius: 3,
+          p: 3,
+          border: `2px solid ${theme.palette.divider}`,
+          width: '100%',
+          maxWidth: '600px',
+          boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.1)}`,
+        }}
+      >
+        <Typography variant="body2" sx={{ color: theme.palette.text.primary, mb: 3, display: 'flex', alignItems: 'center', gap: 1, fontWeight: 600 }}>
+          <DashboardIcon sx={{ fontSize: 20 }} />
+          Project Phases
+        </Typography>
+        {phases.map((phase, index) => (
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ 
+              opacity: index === activePhase ? 1 : 0.5,
+              x: 0,
+              scale: index === activePhase ? 1.02 : 1,
             }}
-          />
-        </Box>
-      ))}
-    </Box>
+            transition={{ 
+              delay: index * 0.1,
+              duration: 0.4,
+            }}
+          >
+            <Card
+              sx={{
+                mb: 2,
+                backgroundColor: index === activePhase 
+                  ? alpha(theme.palette.primary.main, 0.1)
+                  : theme.palette.action.hover,
+                border: `2px solid ${
+                  index === activePhase 
+                    ? theme.palette.primary.main 
+                    : theme.palette.divider
+                }`,
+                borderRadius: 2,
+                p: 2,
+                transition: 'all 0.3s ease',
+              }}
+            >
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  {phase.icon}
+                  <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontWeight: index === activePhase ? 600 : 400 }}>
+                    {phase.name}
+                  </Typography>
+                </Box>
+                <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600 }}>
+                  {progressValues[index]}%
+                </Typography>
+              </Box>
+              <LinearProgress
+                variant="determinate"
+                value={progressValues[index]}
+                sx={{
+                  height: 8,
+                  borderRadius: 4,
+                  backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                  '& .MuiLinearProgress-bar': {
+                    backgroundColor: index === activePhase 
+                      ? theme.palette.primary.main
+                      : theme.palette.text.primary,
+                    borderRadius: 4,
+                  },
+                }}
+              />
+            </Card>
+          </motion.div>
+        ))}
+      </Box>
+    </motion.div>
   );
 };
 
 const MockExportDialog = ({ theme }: { theme: any }) => {
   const [exporting, setExporting] = useState(false);
+  const [progress, setProgress] = useState(0);
   
   useEffect(() => {
     const interval = setInterval(() => {
       setExporting((e) => !e);
-    }, 2000);
+      if (!exporting) {
+        setProgress(0);
+      }
+    }, 2500);
     return () => clearInterval(interval);
-  }, []);
+  }, [exporting]);
+
+  useEffect(() => {
+    if (exporting) {
+      const progressInterval = setInterval(() => {
+        setProgress((p) => Math.min(p + 10, 100));
+      }, 200);
+      return () => clearInterval(progressInterval);
+    }
+  }, [exporting]);
+
+  const files = [
+    { name: 'phase-1.json', icon: <DescriptionIcon /> },
+    { name: 'phase-2.json', icon: <DescriptionIcon /> },
+    { name: 'cursor-prompt.md', icon: <CodeIcon /> },
+  ];
 
   return (
-    <Box
-      sx={{
-        backgroundColor: theme.palette.background.paper,
-        borderRadius: 2,
-        p: 3,
-        border: `2px solid ${theme.palette.divider}`,
-        width: '100%',
-        maxWidth: '600px',
-      }}
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.5 }}
     >
-      <Typography variant="caption" sx={{ color: theme.palette.text.primary, mb: 2, display: 'block', fontWeight: 600 }}>
-        Export Blueprint Bundle
-      </Typography>
-      <Box sx={{ mb: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-          <FolderIcon sx={{ fontSize: 16, color: theme.palette.text.primary }} />
-          <Typography variant="caption" sx={{ color: theme.palette.text.primary }}>
-            blueprint-bundle.zip
-          </Typography>
-          {exporting && (
-            <Box
-              sx={{
-                ml: 'auto',
-                width: 12,
-                height: 12,
-                borderRadius: '50%',
-                backgroundColor: theme.palette.text.primary,
-                animation: 'pulse 1s infinite',
-                '@keyframes pulse': {
-                  '0%, 100%': { opacity: 1, transform: 'scale(1)' },
-                  '50%': { opacity: 0.5, transform: 'scale(1.2)' },
-                },
-              }}
-            />
-          )}
-        </Box>
-        <List dense sx={{ pl: 2 }}>
-          <ListItem sx={{ py: 0.25 }}>
-            <ListItemIcon sx={{ minWidth: 24 }}>
-              <DescriptionIcon sx={{ fontSize: 14, color: theme.palette.text.secondary }} />
-            </ListItemIcon>
-            <ListItemText
-              primary={<Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>phase-1.json</Typography>}
-            />
-          </ListItem>
-          <ListItem sx={{ py: 0.25 }}>
-            <ListItemIcon sx={{ minWidth: 24 }}>
-              <DescriptionIcon sx={{ fontSize: 14, color: theme.palette.text.secondary }} />
-            </ListItemIcon>
-            <ListItemText
-              primary={<Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>phase-2.json</Typography>}
-            />
-          </ListItem>
-          <ListItem sx={{ py: 0.25 }}>
-            <ListItemIcon sx={{ minWidth: 24 }}>
-              <CodeIcon sx={{ fontSize: 14, color: theme.palette.text.secondary }} />
-            </ListItemIcon>
-            <ListItemText
-              primary={<Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>cursor-prompt.md</Typography>}
-            />
-          </ListItem>
-        </List>
-      </Box>
-      <Button
-        size="small"
-        variant="contained"
-        startIcon={<DownloadIcon />}
+      <Box
         sx={{
           backgroundColor: theme.palette.background.paper,
-          color: theme.palette.text.primary,
+          borderRadius: 3,
+          p: 3,
+          border: `2px solid ${theme.palette.divider}`,
           width: '100%',
-          border: `1px solid ${theme.palette.divider}`,
-          '&:hover': { 
-            backgroundColor: theme.palette.action.hover,
-            borderColor: theme.palette.text.primary,
-          },
+          maxWidth: '600px',
+          boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.1)}`,
         }}
       >
-        {exporting ? 'Exporting...' : 'Download Bundle'}
-      </Button>
-    </Box>
+        <Typography variant="body2" sx={{ color: theme.palette.text.primary, mb: 3, display: 'flex', alignItems: 'center', gap: 1, fontWeight: 600 }}>
+          <DownloadIcon sx={{ fontSize: 20 }} />
+          Export Blueprint Bundle
+        </Typography>
+        <Box sx={{ mb: 3 }}>
+          <motion.div
+            animate={{
+              backgroundColor: exporting 
+                ? alpha(theme.palette.primary.main, 0.1)
+                : theme.palette.action.hover,
+              borderColor: exporting 
+                ? theme.palette.primary.main 
+                : theme.palette.divider,
+            }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card
+              sx={{
+                p: 2,
+                border: `2px solid ${exporting ? theme.palette.primary.main : theme.palette.divider}`,
+                borderRadius: 2,
+                mb: 2,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <FolderIcon sx={{ fontSize: 20, color: theme.palette.text.primary }} />
+                <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontWeight: 500, flex: 1 }}>
+                  blueprint-bundle.zip
+                </Typography>
+                {exporting && (
+                  <motion.div
+                    animate={{ scale: [1, 1.2, 1], opacity: [1, 0.7, 1] }}
+                    transition={{ duration: 1, repeat: Infinity }}
+                  >
+                    <Box
+                      sx={{
+                        width: 16,
+                        height: 16,
+                        borderRadius: '50%',
+                        backgroundColor: theme.palette.primary.main,
+                      }}
+                    />
+                  </motion.div>
+                )}
+              </Box>
+              {exporting && (
+                <LinearProgress
+                  variant="determinate"
+                  value={progress}
+                  sx={{
+                    mt: 2,
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                    '& .MuiLinearProgress-bar': {
+                      backgroundColor: theme.palette.primary.main,
+                      borderRadius: 3,
+                    },
+                  }}
+                />
+              )}
+            </Card>
+          </motion.div>
+          <Box sx={{ pl: 1 }}>
+            {files.map((file, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 0.5 }}>
+                  <Box sx={{ color: theme.palette.text.secondary }}>
+                    {file.icon}
+                  </Box>
+                  <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                    {file.name}
+                  </Typography>
+                </Box>
+              </motion.div>
+            ))}
+          </Box>
+        </Box>
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <Button
+            size="medium"
+            variant="contained"
+            fullWidth
+            startIcon={<DownloadIcon />}
+            sx={{
+              backgroundColor: exporting 
+                ? theme.palette.primary.main
+                : theme.palette.background.paper,
+              color: exporting 
+                ? theme.palette.background.default
+                : theme.palette.text.primary,
+              border: `2px solid ${exporting ? theme.palette.primary.main : theme.palette.divider}`,
+              fontWeight: 600,
+              py: 1.5,
+              transition: 'all 0.3s ease',
+              '&:hover': { 
+                backgroundColor: theme.palette.primary.main,
+                color: theme.palette.background.default,
+                borderColor: theme.palette.primary.main,
+              },
+            }}
+          >
+            {exporting ? `Exporting... ${progress}%` : 'Download Bundle'}
+          </Button>
+        </motion.div>
+      </Box>
+    </motion.div>
   );
 };
 
 const MockKeyboard = ({ theme }: { theme: any }) => {
   const [pressedKey, setPressedKey] = useState<string | null>(null);
+  const [activeShortcut, setActiveShortcut] = useState(0);
   
   useEffect(() => {
-    const keys = ['Ctrl', 'S', 'K'];
+    const shortcuts = [
+      { keys: ['Ctrl', 'S'], action: 'Save phase data' },
+      { keys: ['Ctrl', 'K'], action: 'Show shortcuts' },
+      { keys: ['Esc'], action: 'Close dialogs' },
+    ];
     let keyIndex = 0;
     const interval = setInterval(() => {
-      setPressedKey(keys[keyIndex]);
-      setTimeout(() => setPressedKey(null), 300);
-      keyIndex = (keyIndex + 1) % keys.length;
-    }, 1000);
+      const shortcut = shortcuts[activeShortcut];
+      setPressedKey(shortcut.keys[keyIndex]);
+      setTimeout(() => setPressedKey(null), 200);
+      keyIndex = (keyIndex + 1) % shortcut.keys.length;
+      if (keyIndex === 0) {
+        setTimeout(() => {
+          setActiveShortcut((s) => (s + 1) % shortcuts.length);
+        }, 1000);
+      }
+    }, 600);
     return () => clearInterval(interval);
-  }, []);
+  }, [activeShortcut]);
+
+  const shortcuts = [
+    { keys: ['Ctrl', 'S'], action: 'Save phase data' },
+    { keys: ['Ctrl', 'K'], action: 'Show shortcuts' },
+    { keys: ['Esc'], action: 'Close dialogs' },
+  ];
+
+  const currentShortcut = shortcuts[activeShortcut];
 
   return (
-    <Box
-      sx={{
-        backgroundColor: theme.palette.background.paper,
-        borderRadius: 2,
-        p: 3,
-        border: `2px solid ${theme.palette.divider}`,
-        width: '100%',
-        maxWidth: '600px',
-      }}
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.5 }}
     >
-      <Typography variant="caption" sx={{ color: theme.palette.text.primary, mb: 2, display: 'block', fontWeight: 600 }}>
-        Keyboard Shortcuts
-      </Typography>
-      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
-        {['Ctrl', 'S'].map((key, index) => (
-          <Box
-            key={index}
-            sx={{
-              px: 2,
-              py: 1,
-              backgroundColor: pressedKey === key ? theme.palette.text.primary : theme.palette.action.hover,
-              borderRadius: 1,
-              border: `1px solid ${theme.palette.divider}`,
-              transform: pressedKey === key ? 'scale(0.95)' : 'scale(1)',
-              transition: 'all 0.1s ease',
-            }}
-          >
-            <Typography variant="caption" sx={{ color: pressedKey === key ? theme.palette.background.default : theme.palette.text.primary, fontWeight: 600 }}>
-              {key}
-            </Typography>
-          </Box>
-        ))}
-        <Box sx={{ width: '100%', textAlign: 'center', mt: 1 }}>
-          <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-            Save phase data
-          </Typography>
+      <Box
+        sx={{
+          backgroundColor: theme.palette.background.paper,
+          borderRadius: 3,
+          p: 3,
+          border: `2px solid ${theme.palette.divider}`,
+          width: '100%',
+          maxWidth: '600px',
+          boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.1)}`,
+        }}
+      >
+        <Typography variant="body2" sx={{ color: theme.palette.text.primary, mb: 3, display: 'flex', alignItems: 'center', gap: 1, fontWeight: 600 }}>
+          <KeyboardIcon sx={{ fontSize: 20 }} />
+          Keyboard Shortcuts
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center', mb: 2 }}>
+          {currentShortcut.keys.map((key, index) => (
+            <motion.div
+              key={`${activeShortcut}-${index}`}
+              animate={{
+                scale: pressedKey === key ? 0.9 : 1,
+                backgroundColor: pressedKey === key 
+                  ? theme.palette.primary.main
+                  : theme.palette.action.hover,
+                color: pressedKey === key 
+                  ? theme.palette.background.default
+                  : theme.palette.text.primary,
+              }}
+              transition={{ duration: 0.1 }}
+            >
+              <Box
+                sx={{
+                  px: 2.5,
+                  py: 1.5,
+                  borderRadius: 2,
+                  border: `2px solid ${
+                    pressedKey === key 
+                      ? theme.palette.primary.main
+                      : theme.palette.divider
+                  }`,
+                  minWidth: 60,
+                  textAlign: 'center',
+                }}
+              >
+                <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: 'monospace' }}>
+                  {key}
+                </Typography>
+              </Box>
+            </motion.div>
+          ))}
         </Box>
+        <motion.div
+          key={activeShortcut}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary, textAlign: 'center', fontWeight: 500 }}>
+            {currentShortcut.action}
+          </Typography>
+        </motion.div>
       </Box>
-    </Box>
+    </motion.div>
   );
 };
 
@@ -553,24 +900,51 @@ const getTourSteps = (theme: any): TourStep[] => [
     mockComponent: <MockDashboard theme={theme} />,
     content: (
       <Box>
-        <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 2, textAlign: 'center', fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif' }}>
-          Welcome to The FullStack Method™ App
-        </Typography>
-        <Typography variant="body1" sx={{ color: theme.palette.text.primary, mb: 2, textAlign: 'center' }}>
-          Transform how you build products with our AI-accelerated project management platform.
-        </Typography>
-        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
-          • Work through 6 structured phases from concept to launch
-        </Typography>
-        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
-          • Create reusable templates to accelerate future projects
-        </Typography>
-        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
-          • Generate structured blueprints optimized for AI coding tools
-        </Typography>
-        <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-          • Collaborate with your team using role-based access control
-        </Typography>
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 2, textAlign: 'center', fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif' }}>
+            Welcome to The FullStack Method™ App
+          </Typography>
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <Typography variant="body1" sx={{ color: theme.palette.text.primary, mb: 3, textAlign: 'center' }}>
+            Transform how you build products with our AI-accelerated project management platform.
+          </Typography>
+        </motion.div>
+        {[
+          'Work through 6 structured phases from concept to launch',
+          'Create reusable templates to accelerate future projects',
+          'Generate structured blueprints optimized for AI coding tools',
+          'Collaborate with your team using role-based access control',
+        ].map((item, index) => (
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 + index * 0.1 }}
+          >
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box
+                component="span"
+                sx={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  backgroundColor: theme.palette.primary.main,
+                  flexShrink: 0,
+                }}
+              />
+              {item}
+            </Typography>
+          </motion.div>
+        ))}
       </Box>
     ),
   },
@@ -865,33 +1239,58 @@ export default function WelcomeTour({ open, onClose, onComplete }: WelcomeTourPr
             <Step key={index}>
               <StepLabel
                 StepIconComponent={() => (
-                  <Box
-                    sx={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: '50%',
+                  <motion.div
+                    animate={{
+                      scale: index === activeStep ? [1, 1.1, 1] : 1,
                       backgroundColor:
                         index === activeStep
                           ? theme.palette.text.primary
                           : index < activeStep
                           ? theme.palette.text.primary
                           : theme.palette.action.hover,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: index <= activeStep ? theme.palette.background.default : theme.palette.text.secondary,
-                      fontWeight: 600,
-                      border: index === activeStep ? `2px solid ${theme.palette.text.primary}` : `1px solid ${theme.palette.divider}`,
+                    }}
+                    transition={{
+                      scale: { duration: 0.3 },
+                      backgroundColor: { duration: 0.3 },
                     }}
                   >
-                    {index < activeStep ? (
-                      <CheckCircleIcon fontSize="small" />
-                    ) : (
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {step.icon}
-                      </Box>
-                    )}
-                  </Box>
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '50%',
+                        backgroundColor:
+                          index === activeStep
+                            ? theme.palette.text.primary
+                            : index < activeStep
+                            ? theme.palette.text.primary
+                            : theme.palette.action.hover,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: index <= activeStep ? theme.palette.background.default : theme.palette.text.secondary,
+                        fontWeight: 600,
+                        border: index === activeStep ? `2px solid ${theme.palette.text.primary}` : `1px solid ${theme.palette.divider}`,
+                        boxShadow: index === activeStep 
+                          ? `0 4px 20px ${alpha(theme.palette.primary.main, 0.3)}`
+                          : 'none',
+                      }}
+                    >
+                      {index < activeStep ? (
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ type: 'spring', stiffness: 200 }}
+                        >
+                          <CheckCircleIcon fontSize="small" />
+                        </motion.div>
+                      ) : (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {step.icon}
+                        </Box>
+                      )}
+                    </Box>
+                  </motion.div>
                 )}
                 sx={{
                   '& .MuiStepLabel-label': {
@@ -903,33 +1302,62 @@ export default function WelcomeTour({ open, onClose, onComplete }: WelcomeTourPr
                 {step.title}
               </StepLabel>
               <StepContent>
-                <Paper
-                  sx={{
-                    p: 2,
-                    backgroundColor: theme.palette.background.paper,
-                    border: `2px solid ${theme.palette.divider}`,
-                    borderRadius: 2,
-                  }}
-                >
-                  {index === activeStep && step.mockComponent ? (
-                    <Grid container spacing={3} sx={{ alignItems: 'center' }}>
-                      <Grid item xs={12} md={7}>
-                        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
-                          {step.mockComponent}
-                        </Box>
-                      </Grid>
-                      <Grid item xs={12} md={5}>
-                        <Box sx={{ maxWidth: '400px', mx: { xs: 'auto', md: 0 } }}>
-                          {step.content}
-                        </Box>
-                      </Grid>
-                    </Grid>
-                  ) : (
-                    <Box>
-                      {step.content}
-                    </Box>
+                <AnimatePresence mode="wait">
+                  {index === activeStep && (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.4 }}
+                    >
+                      <Paper
+                        sx={{
+                          p: 3,
+                          backgroundColor: theme.palette.background.paper,
+                          border: `2px solid ${theme.palette.divider}`,
+                          borderRadius: 3,
+                          boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.1)}`,
+                        }}
+                      >
+                        {step.mockComponent ? (
+                          <Grid container spacing={3} sx={{ alignItems: 'center' }}>
+                            <Grid item xs={12} md={7}>
+                              <motion.div
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ delay: 0.2, duration: 0.5 }}
+                              >
+                                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '250px' }}>
+                                  {step.mockComponent}
+                                </Box>
+                              </motion.div>
+                            </Grid>
+                            <Grid item xs={12} md={5}>
+                              <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.3, duration: 0.5 }}
+                              >
+                                <Box sx={{ maxWidth: '400px', mx: { xs: 'auto', md: 0 } }}>
+                                  {step.content}
+                                </Box>
+                              </motion.div>
+                            </Grid>
+                          </Grid>
+                        ) : (
+                          <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2, duration: 0.5 }}
+                          >
+                            {step.content}
+                          </motion.div>
+                        )}
+                      </Paper>
+                    </motion.div>
                   )}
-                </Paper>
+                </AnimatePresence>
               </StepContent>
             </Step>
           ))}
@@ -968,22 +1396,27 @@ export default function WelcomeTour({ open, onClose, onComplete }: WelcomeTourPr
         >
           Back
         </Button>
-        <Button
-          onClick={handleNext}
-          variant="contained"
-          sx={{
-            backgroundColor: theme.palette.background.paper,
-            color: theme.palette.text.primary,
-            fontWeight: 600,
-            border: `1px solid ${theme.palette.divider}`,
-            '&:hover': {
-              backgroundColor: theme.palette.action.hover,
-              borderColor: theme.palette.text.primary,
-            },
-          }}
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
         >
-          {activeStep === TOUR_STEPS.length - 1 ? 'Get Started' : 'Next'}
-        </Button>
+          <Button
+            onClick={handleNext}
+            variant="contained"
+            sx={{
+              backgroundColor: theme.palette.background.paper,
+              color: theme.palette.text.primary,
+              fontWeight: 600,
+              border: `1px solid ${theme.palette.divider}`,
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+                borderColor: theme.palette.text.primary,
+              },
+            }}
+          >
+            {activeStep === TOUR_STEPS.length - 1 ? 'Get Started' : 'Next'}
+          </Button>
+        </motion.div>
       </DialogActions>
     </Dialog>
   );
