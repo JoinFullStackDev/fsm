@@ -26,15 +26,16 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Business as BusinessIcon,
   AttachMoney as AttachMoneyIcon,
   CheckCircle as CheckCircleIcon,
-  Info as InfoIcon,
   Contacts as ContactsIcon,
   Assignment as AssignmentIcon,
   History as HistoryIcon,
@@ -42,6 +43,8 @@ import {
   Language as LanguageIcon,
   LocationOn as LocationIcon,
   Work as WorkIcon,
+  ExpandMore as ExpandMoreIcon,
+  Business as BusinessIcon,
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useNotification } from '@/components/providers/NotificationProvider';
@@ -319,16 +322,27 @@ export default function OpportunityDetailPage() {
         >
           <ArrowBackIcon />
         </IconButton>
-        <Typography
-          variant="h4"
-          sx={{
-            flex: 1,
-            fontWeight: 600,
-            color: theme.palette.text.primary,
-          }}
-        >
-          {opportunity.name}
-        </Typography>
+        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: 600,
+              color: theme.palette.text.primary,
+            }}
+          >
+            {opportunity.name}
+          </Typography>
+          <Chip
+            label={`Updated ${new Date(opportunity.updated_at).toLocaleDateString()}`}
+            size="small"
+            sx={{
+              backgroundColor: theme.palette.action.hover,
+              color: theme.palette.text.secondary,
+              border: `1px solid ${theme.palette.divider}`,
+              fontSize: '0.75rem',
+            }}
+          />
+        </Box>
         {opportunity.status !== 'lost' && opportunity.status !== 'converted' && (
           <Button
             variant="contained"
@@ -379,7 +393,240 @@ export default function OpportunityDetailPage() {
         </Button>
       </Box>
 
-      {/* Opportunity Overview Cards */}
+      {/* Company Information Accordion */}
+      {companyId && companyLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4, mb: 3 }}>
+          <CircularProgress />
+        </Box>
+      ) : companyId && company ? (
+        <Accordion
+          defaultExpanded={false}
+          sx={{
+            mb: 3,
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
+            '&:before': {
+              display: 'none',
+            },
+          }}
+        >
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon sx={{ color: theme.palette.text.primary }} />}
+            sx={{
+              px: 3,
+              py: 2,
+              '& .MuiAccordionSummary-content': {
+                alignItems: 'center',
+                gap: 1,
+              },
+            }}
+          >
+            <BusinessIcon sx={{ color: theme.palette.text.primary }} />
+            <Typography
+              variant="h6"
+              component="a"
+              href={`/ops/companies/${company.id}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                router.push(`/ops/companies/${company.id}`);
+              }}
+              sx={{
+                color: theme.palette.text.primary,
+                fontWeight: 600,
+                textDecoration: 'none',
+                '&:hover': {
+                  textDecoration: 'underline',
+                },
+              }}
+            >
+              {company.name}
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails sx={{ px: 3, pb: 3 }}>
+            <Grid container spacing={3}>
+              <Grid item xs={12} sm={6} md={4}>
+                <Box>
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
+                    Company Name
+                  </Typography>
+                  <Typography
+                    variant="body1"
+                    component="a"
+                    href={`/ops/companies/${company.id}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      router.push(`/ops/companies/${company.id}`);
+                    }}
+                    sx={{
+                      color: theme.palette.text.primary,
+                      textDecoration: 'none',
+                      '&:hover': {
+                        textDecoration: 'underline',
+                      },
+                    }}
+                  >
+                    {company.name}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <Box>
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
+                    Status
+                  </Typography>
+                  <Chip
+                    label={company.status.charAt(0).toUpperCase() + company.status.slice(1)}
+                    size="small"
+                    color={company.status === 'active' ? 'success' : 'default'}
+                  />
+                </Box>
+              </Grid>
+              {company.company_size && (
+                <Grid item xs={12} sm={6} md={4}>
+                  <Box>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
+                      Company Size
+                    </Typography>
+                    <Typography variant="body1" sx={{ color: theme.palette.text.primary }}>
+                      {company.company_size}
+                    </Typography>
+                  </Box>
+                </Grid>
+              )}
+              {company.industry && (
+                <Grid item xs={12} sm={6} md={4}>
+                  <Box>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
+                      Industry
+                    </Typography>
+                    <Typography variant="body1" sx={{ color: theme.palette.text.primary }}>
+                      {company.industry}
+                    </Typography>
+                  </Box>
+                </Grid>
+              )}
+              {company.revenue_band && (
+                <Grid item xs={12} sm={6} md={4}>
+                  <Box>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
+                      Revenue Band
+                    </Typography>
+                    <Typography variant="body1" sx={{ color: theme.palette.text.primary }}>
+                      {company.revenue_band}
+                    </Typography>
+                  </Box>
+                </Grid>
+              )}
+              {company.website && (
+                <Grid item xs={12} sm={6} md={4}>
+                  <Box>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
+                      Website
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <LanguageIcon sx={{ fontSize: 16, color: theme.palette.text.secondary }} />
+                      <Typography
+                        variant="body1"
+                        component="a"
+                        href={company.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{
+                          color: theme.palette.text.primary,
+                          textDecoration: 'none',
+                          '&:hover': {
+                            textDecoration: 'underline',
+                          },
+                        }}
+                      >
+                        {company.website}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Grid>
+              )}
+              {(company.address_street || company.address_city || company.address_state || company.address_zip) && (
+                <Grid item xs={12}>
+                  <Box>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
+                      Address
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
+                      <LocationIcon sx={{ fontSize: 16, color: theme.palette.text.secondary, mt: 0.5 }} />
+                      <Typography variant="body1" sx={{ color: theme.palette.text.primary }}>
+                        {[
+                          company.address_street,
+                          company.address_city,
+                          company.address_state,
+                          company.address_zip,
+                        ]
+                          .filter(Boolean)
+                          .join(', ')}
+                        {company.address_country && `, ${company.address_country}`}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Grid>
+              )}
+              {(company.contacts_count !== undefined || company.opportunities_count !== undefined || company.projects_count !== undefined) && (
+                <Grid item xs={12}>
+                  <Divider sx={{ my: 2 }} />
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      color: theme.palette.text.primary,
+                      fontWeight: 600,
+                      mb: 2,
+                    }}
+                  >
+                    Connections
+                  </Typography>
+                  <Grid container spacing={2}>
+                    {company.contacts_count !== undefined && (
+                      <Grid item xs={12} sm={4}>
+                        <Box>
+                          <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
+                            Contacts
+                          </Typography>
+                          <Typography variant="h5" sx={{ color: theme.palette.text.primary }}>
+                            {company.contacts_count || 0}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    )}
+                    {company.opportunities_count !== undefined && (
+                      <Grid item xs={12} sm={4}>
+                        <Box>
+                          <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
+                            Opportunities
+                          </Typography>
+                          <Typography variant="h5" sx={{ color: theme.palette.text.primary }}>
+                            {company.opportunities_count || 0}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    )}
+                    {company.projects_count !== undefined && (
+                      <Grid item xs={12} sm={4}>
+                        <Box>
+                          <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
+                            Projects
+                          </Typography>
+                          <Typography variant="h5" sx={{ color: theme.palette.text.primary }}>
+                            {company.projects_count || 0}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    )}
+                  </Grid>
+                </Grid>
+              )}
+            </Grid>
+          </AccordionDetails>
+        </Accordion>
+      ) : null}
+
+      {/* Opportunity Details Cards */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Paper
@@ -428,7 +675,7 @@ export default function OpportunityDetailPage() {
                 Value
               </Typography>
               <Typography
-                variant="h5"
+                variant="h6"
                 sx={{
                   color: '#4CAF50',
                   fontWeight: 600,
@@ -443,32 +690,22 @@ export default function OpportunityDetailPage() {
             </Paper>
           </Grid>
         )}
-        {opportunity.company && (
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper
-              sx={{
-                p: 2,
-                backgroundColor: theme.palette.background.paper,
-                border: `1px solid ${theme.palette.divider}`,
-                cursor: 'pointer',
-                '&:hover': {
-                  borderColor: theme.palette.text.secondary,
-                },
-              }}
-              onClick={() => router.push(`/ops/companies/${opportunity.company!.id}`)}
-            >
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
-                Company
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <BusinessIcon sx={{ fontSize: 20, color: theme.palette.text.primary }} />
-                <Typography variant="body1" sx={{ color: theme.palette.text.primary }}>
-                  {opportunity.company.name}
-                </Typography>
-              </Box>
-            </Paper>
-          </Grid>
-        )}
+        <Grid item xs={12} sm={6} md={opportunity.value ? 3 : 4}>
+          <Paper
+            sx={{
+              p: 2,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+            }}
+          >
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+              Created
+            </Typography>
+            <Typography variant="body1" sx={{ color: theme.palette.text.primary }}>
+              {new Date(opportunity.created_at).toLocaleDateString()}
+            </Typography>
+          </Paper>
+        </Grid>
       </Grid>
 
       {/* Tabs */}
@@ -490,8 +727,6 @@ export default function OpportunityDetailPage() {
                 },
               }}
             >
-              <Tab icon={<InfoIcon />} iconPosition="start" label="Overview" />
-              <Tab icon={<BusinessIcon />} iconPosition="start" label="Company Details" />
               <Tab icon={<ContactsIcon />} iconPosition="start" label="Contacts" />
               <Tab icon={<AssignmentIcon />} iconPosition="start" label="Tasks" />
               <Tab icon={<HistoryIcon />} iconPosition="start" label="Activity" />
@@ -501,367 +736,18 @@ export default function OpportunityDetailPage() {
 
           {/* Tab Panels */}
           <TabPanel value={activeTab} index={0}>
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <Paper
-                  sx={{
-                    p: 3,
-                    backgroundColor: theme.palette.background.paper,
-                    border: `1px solid ${theme.palette.divider}`,
-                  }}
-                >
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      color: theme.palette.text.primary,
-                      fontWeight: 600,
-                      mb: 2,
-                    }}
-                  >
-                    Opportunity Details
-                  </Typography>
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
-                        Status
-                      </Typography>
-                      <Chip
-                        label={opportunity.status.charAt(0).toUpperCase() + opportunity.status.slice(1)}
-                        color={getStatusColor(opportunity.status) as any}
-                        size="small"
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
-                        Source
-                      </Typography>
-                      <Typography variant="body1" sx={{ color: theme.palette.text.primary }}>
-                        {opportunity.source || 'Manual'}
-                      </Typography>
-                    </Grid>
-                    {opportunity.value && (
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
-                          Value
-                        </Typography>
-                        <Typography
-                          variant="h5"
-                          sx={{
-                            color: '#4CAF50',
-                            fontWeight: 600,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 0.5,
-                          }}
-                        >
-                          <AttachMoneyIcon fontSize="small" />
-                          {opportunity.value.toLocaleString()}
-                        </Typography>
-                      </Grid>
-                    )}
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
-                        Created
-                      </Typography>
-                      <Typography variant="body1" sx={{ color: theme.palette.text.primary }}>
-                        {new Date(opportunity.created_at).toLocaleDateString()}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                      <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
-                        Updated
-                      </Typography>
-                      <Typography variant="body1" sx={{ color: theme.palette.text.primary }}>
-                        {new Date(opportunity.updated_at).toLocaleDateString()}
-                      </Typography>
-                    </Grid>
-                  </Grid>
-                </Paper>
-              </Grid>
-              {company && (
-                <Grid item xs={12} md={6}>
-                  <Paper
-                    sx={{
-                      p: 3,
-                      backgroundColor: theme.palette.background.paper,
-                      border: `1px solid ${theme.palette.divider}`,
-                    }}
-                  >
-                    <Typography
-                      variant="h6"
-                      sx={{
-                        color: theme.palette.text.primary,
-                        fontWeight: 600,
-                        mb: 2,
-                      }}
-                    >
-                      Company Summary
-                    </Typography>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <Box>
-                        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
-                          Company Name
-                        </Typography>
-                        <Typography variant="body1" sx={{ color: theme.palette.text.primary }}>
-                          {company.name}
-                        </Typography>
-                      </Box>
-                      {company.company_size && (
-                        <Box>
-                          <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
-                            Company Size
-                          </Typography>
-                          <Typography variant="body1" sx={{ color: theme.palette.text.primary }}>
-                            {company.company_size}
-                          </Typography>
-                        </Box>
-                      )}
-                      {company.industry && (
-                        <Box>
-                          <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
-                            Industry
-                          </Typography>
-                          <Typography variant="body1" sx={{ color: theme.palette.text.primary }}>
-                            {company.industry}
-                          </Typography>
-                        </Box>
-                      )}
-                      {company.website && (
-                        <Box>
-                          <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
-                            Website
-                          </Typography>
-                          <Typography
-                            variant="body1"
-                            component="a"
-                            href={company.website}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            sx={{
-                              color: theme.palette.text.primary,
-                              textDecoration: 'none',
-                              '&:hover': {
-                                textDecoration: 'underline',
-                              },
-                            }}
-                          >
-                            {company.website}
-                          </Typography>
-                        </Box>
-                      )}
-                    </Box>
-                  </Paper>
-                </Grid>
-              )}
-            </Grid>
-          </TabPanel>
-
-          <TabPanel value={activeTab} index={1}>
-            {companyLoading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                <CircularProgress />
-              </Box>
-            ) : company ? (
-              <Paper
-                sx={{
-                  p: 3,
-                  backgroundColor: theme.palette.background.paper,
-                  border: `1px solid ${theme.palette.divider}`,
-                }}
-              >
-                <Typography
-                  variant="h6"
-                  sx={{
-                    color: theme.palette.text.primary,
-                    fontWeight: 600,
-                    mb: 3,
-                  }}
-                >
-                  Company Information
-                </Typography>
-                <Grid container spacing={3}>
-                  <Grid item xs={12} sm={6} md={4}>
-                    <Box>
-                      <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
-                        Company Name
-                      </Typography>
-                      <Typography variant="body1" sx={{ color: theme.palette.text.primary }}>
-                        {company.name}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={4}>
-                    <Box>
-                      <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
-                        Status
-                      </Typography>
-                      <Chip
-                        label={company.status.charAt(0).toUpperCase() + company.status.slice(1)}
-                        size="small"
-                        color={company.status === 'active' ? 'success' : 'default'}
-                      />
-                    </Box>
-                  </Grid>
-                  {company.company_size && (
-                    <Grid item xs={12} sm={6} md={4}>
-                      <Box>
-                        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
-                          Company Size
-                        </Typography>
-                        <Typography variant="body1" sx={{ color: theme.palette.text.primary }}>
-                          {company.company_size}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  )}
-                  {company.industry && (
-                    <Grid item xs={12} sm={6} md={4}>
-                      <Box>
-                        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
-                          Industry
-                        </Typography>
-                        <Typography variant="body1" sx={{ color: theme.palette.text.primary }}>
-                          {company.industry}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  )}
-                  {company.revenue_band && (
-                    <Grid item xs={12} sm={6} md={4}>
-                      <Box>
-                        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
-                          Revenue Band
-                        </Typography>
-                        <Typography variant="body1" sx={{ color: theme.palette.text.primary }}>
-                          {company.revenue_band}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  )}
-                  {company.website && (
-                    <Grid item xs={12} sm={6} md={4}>
-                      <Box>
-                        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
-                          Website
-                        </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <LanguageIcon sx={{ fontSize: 16, color: theme.palette.text.secondary }} />
-                          <Typography
-                            variant="body1"
-                            component="a"
-                            href={company.website}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            sx={{
-                              color: theme.palette.text.primary,
-                              textDecoration: 'none',
-                              '&:hover': {
-                                textDecoration: 'underline',
-                              },
-                            }}
-                          >
-                            {company.website}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </Grid>
-                  )}
-                  {(company.address_street || company.address_city || company.address_state || company.address_zip) && (
-                    <Grid item xs={12}>
-                      <Box>
-                        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
-                          Address
-                        </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
-                          <LocationIcon sx={{ fontSize: 16, color: theme.palette.text.secondary, mt: 0.5 }} />
-                          <Typography variant="body1" sx={{ color: theme.palette.text.primary }}>
-                            {[
-                              company.address_street,
-                              company.address_city,
-                              company.address_state,
-                              company.address_zip,
-                            ]
-                              .filter(Boolean)
-                              .join(', ')}
-                            {company.address_country && `, ${company.address_country}`}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </Grid>
-                  )}
-                  {(company.contacts_count !== undefined || company.opportunities_count !== undefined || company.projects_count !== undefined) && (
-                    <Grid item xs={12}>
-                      <Divider sx={{ my: 2 }} />
-                      <Typography
-                        variant="h6"
-                        sx={{
-                          color: theme.palette.text.primary,
-                          fontWeight: 600,
-                          mb: 2,
-                        }}
-                      >
-                        Connections
-                      </Typography>
-                      <Grid container spacing={2}>
-                        {company.contacts_count !== undefined && (
-                          <Grid item xs={12} sm={4}>
-                            <Box>
-                              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
-                                Contacts
-                              </Typography>
-                              <Typography variant="h5" sx={{ color: theme.palette.text.primary }}>
-                                {company.contacts_count || 0}
-                              </Typography>
-                            </Box>
-                          </Grid>
-                        )}
-                        {company.opportunities_count !== undefined && (
-                          <Grid item xs={12} sm={4}>
-                            <Box>
-                              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
-                                Opportunities
-                              </Typography>
-                              <Typography variant="h5" sx={{ color: theme.palette.text.primary }}>
-                                {company.opportunities_count || 0}
-                              </Typography>
-                            </Box>
-                          </Grid>
-                        )}
-                        {company.projects_count !== undefined && (
-                          <Grid item xs={12} sm={4}>
-                            <Box>
-                              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
-                                Projects
-                              </Typography>
-                              <Typography variant="h5" sx={{ color: theme.palette.text.primary }}>
-                                {company.projects_count || 0}
-                              </Typography>
-                            </Box>
-                          </Grid>
-                        )}
-                      </Grid>
-                    </Grid>
-                  )}
-                </Grid>
-              </Paper>
-            ) : (
-              <Alert severity="info">Company details not available</Alert>
-            )}
-          </TabPanel>
-
-          <TabPanel value={activeTab} index={2}>
             <CompanyContactsTab companyId={companyId} />
           </TabPanel>
 
-          <TabPanel value={activeTab} index={3}>
+          <TabPanel value={activeTab} index={1}>
             <CompanyTasksTab companyId={companyId} />
           </TabPanel>
 
-          <TabPanel value={activeTab} index={4}>
+          <TabPanel value={activeTab} index={2}>
             <CompanyActivityTab companyId={companyId} />
           </TabPanel>
 
-          <TabPanel value={activeTab} index={5}>
+          <TabPanel value={activeTab} index={3}>
             {companyLoading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                 <CircularProgress />
