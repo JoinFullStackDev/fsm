@@ -36,40 +36,53 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  // Check for auth cookies first (before trying to refresh)
+  // Check for auth cookies first (before making any auth calls)
   const allCookies = cookieStore.getAll();
   const authCookies = allCookies.filter(c => 
     c.name.includes('supabase') || c.name.includes('sb-') || c.name.includes('auth')
   );
 
-  // Try to refresh session if we have auth cookies (but don't fail if it doesn't work)
-  // This is important after sign-in when cookies are being set
-  if (authCookies.length > 0) {
-    try {
-      await supabase.auth.refreshSession();
-    } catch (refreshError) {
-      // Ignore refresh errors - session might not be ready yet
-      console.log('[Middleware] Session refresh attempt (non-critical):', refreshError instanceof Error ? refreshError.message : 'Unknown error');
-    }
-  }
-  
-  // Get user - this authenticates with Supabase Auth server (more secure than getSession)
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-  
-  // Get session for compatibility
+  // Get session first (cookie-based, no network call)
   const {
     data: { session },
     error: sessionError,
   } = await supabase.auth.getSession();
 
+  // Conditionally refresh session only if needed
+  // Refresh if: session is missing AND auth cookies exist, OR session is expiring soon (< 5 minutes)
+  let currentSession = session;
+  if (authCookies.length > 0) {
+    const needsRefresh = !currentSession || (currentSession.expires_at && (() => {
+      const expiresAt = new Date(currentSession.expires_at * 1000);
+      const fiveMinutesFromNow = new Date(Date.now() + 5 * 60 * 1000);
+      return expiresAt <= fiveMinutesFromNow;
+    })());
+    
+    if (needsRefresh) {
+      try {
+        await supabase.auth.refreshSession();
+        // Re-fetch session after refresh
+        const refreshed = await supabase.auth.getSession();
+        if (refreshed.data?.session) {
+          currentSession = refreshed.data.session;
+        }
+      } catch (refreshError) {
+        // Ignore refresh errors - session might not be ready yet
+        console.log('[Middleware] Session refresh attempt (non-critical):', refreshError instanceof Error ? refreshError.message : 'Unknown error');
+      }
+    }
+  }
+  
+  // Lazy-load getUser() - only call when needed for admin routes
+  // Initialize as null, will be populated only for routes that need it
+  let user: any = null;
+  let userError: any = null;
+
   // Log session check in middleware (for debugging)
   if (request.nextUrl.pathname.startsWith('/dashboard')) {
     console.log('[Middleware] Dashboard access check:', {
-      hasSession: !!session,
-      userId: session?.user?.id,
+      hasSession: !!currentSession,
+      userId: currentSession?.user?.id,
       sessionError: sessionError?.message,
       path: request.nextUrl.pathname,
       authCookies: authCookies.length,
@@ -77,8 +90,16 @@ export async function middleware(request: NextRequest) {
   }
 
   // Protect global admin routes (super admin only)
+  // These routes need getUser() for role verification
   if (request.nextUrl.pathname.startsWith('/global/admin')) {
-    const currentUserId = user?.id || session?.user?.id;
+    // Call getUser() only when needed for admin routes
+    if (!user) {
+      const userResult = await supabase.auth.getUser();
+      user = userResult.data?.user;
+      userError = userResult.error;
+    }
+    
+    const currentUserId = user?.id || currentSession?.user?.id;
     
     if (!currentUserId) {
       if (authCookies.length > 0) {
@@ -95,7 +116,7 @@ export async function middleware(request: NextRequest) {
       .single();
 
     if (dbUserError) {
-      const userEmail = user?.email || session?.user?.email;
+      const userEmail = user?.email || currentSession?.user?.email;
       if (userEmail) {
         const { data: emailUserData } = await supabase
           .from('users')
@@ -126,18 +147,25 @@ export async function middleware(request: NextRequest) {
   // Protect admin routes
   // Exclude /admin/templates routes - they handle their own access control based on package settings
   if (request.nextUrl.pathname.startsWith('/admin') && !request.nextUrl.pathname.startsWith('/admin/templates')) {
+    // Call getUser() only when needed for admin routes
+    if (!user) {
+      const userResult = await supabase.auth.getUser();
+      user = userResult.data?.user;
+      userError = userResult.error;
+    }
+    
     console.log('[Middleware] Admin route access check:', {
       path: request.nextUrl.pathname,
       hasUser: !!user,
-      hasSession: !!session,
-      userId: user?.id || session?.user?.id,
-      userEmail: user?.email || session?.user?.email,
+      hasSession: !!currentSession,
+      userId: user?.id || currentSession?.user?.id,
+      userEmail: user?.email || currentSession?.user?.email,
       authCookies: authCookies.length,
       userError: userError?.message,
     });
 
     // Use authenticated user if available, otherwise fall back to session
-    const currentUserId = user?.id || session?.user?.id;
+    const currentUserId = user?.id || currentSession?.user?.id;
     
     if (!currentUserId) {
       console.log('[Middleware] No user or session for admin route');
@@ -167,7 +195,7 @@ export async function middleware(request: NextRequest) {
     if (dbUserError) {
       console.error('[Middleware] Error checking admin role:', dbUserError);
       // If user not found by auth_id, try by email as fallback
-      const userEmail = user?.email || session?.user?.email;
+      const userEmail = user?.email || currentSession?.user?.email;
       if (userEmail) {
         console.log('[Middleware] Trying fallback lookup by email:', userEmail);
         const { data: emailUserData, error: emailError } = await supabase
@@ -208,7 +236,14 @@ export async function middleware(request: NextRequest) {
 
   // For /admin/templates routes, just check authentication and let the page handle access control
   if (request.nextUrl.pathname.startsWith('/admin/templates')) {
-    const currentUserId = user?.id || session?.user?.id;
+    // Call getUser() for auth check
+    if (!user) {
+      const userResult = await supabase.auth.getUser();
+      user = userResult.data?.user;
+      userError = userResult.error;
+    }
+    
+    const currentUserId = user?.id || currentSession?.user?.id;
     
     if (!currentUserId) {
       // If we have auth cookies, let it through for client-side check
@@ -223,51 +258,36 @@ export async function middleware(request: NextRequest) {
   }
 
   // Protect dashboard and project routes
-  // Note: We're more lenient here - let client-side handle the session check
-  // This prevents redirect loops when cookies haven't propagated yet
+  // Early exit optimization: if no auth cookies exist, redirect immediately (skip all auth calls)
   if (
     request.nextUrl.pathname.startsWith('/dashboard') ||
     request.nextUrl.pathname.startsWith('/project')
   ) {
-    if (!session && !user) {
-      // Check if this is a redirect from sign-in (allow it to pass through)
+    // Early exit: no auth cookies means no session, redirect immediately
+    if (authCookies.length === 0) {
       const referer = request.headers.get('referer');
       const isFromSignIn = referer?.includes('/auth/signin');
       
-      // Check for auth cookies that might indicate a session exists
-      // (authCookies already defined above)
-      
-      console.log('[Middleware] No session/user for protected route:', {
-        path: request.nextUrl.pathname,
-        referer,
-        isFromSignIn,
-        hasAuthCookies: authCookies.length > 0,
-        cookieNames: cookieStore.getAll().map(c => c.name),
-        hasUser: !!user,
-        hasSession: !!session,
-      });
-      
-      // ALWAYS let it through if we have auth cookies - session might not be ready yet
-      // Client-side will handle the actual session check and redirect if needed
-      if (authCookies.length > 0) {
-        console.log('[Middleware] Auth cookies present, allowing through for client-side session check');
-        return response;
-      }
-      
-      // Only redirect if no auth cookies and not from sign-in
+      // Only redirect if not coming from sign-in
       if (!isFromSignIn) {
-        console.log('[Middleware] No auth cookies and not from sign-in, redirecting to signin');
+        console.log('[Middleware] No auth cookies, redirecting to signin');
         return NextResponse.redirect(new URL('/auth/signin', request.url));
       }
       
-      // Coming from sign-in but no cookies yet - let it through anyway
-      // The client-side will handle the redirect if session doesn't establish
-      console.log('[Middleware] Coming from sign-in, allowing through for client-side check');
+      // Coming from sign-in but no cookies yet - let it through for client-side check
+      console.log('[Middleware] Coming from sign-in with no cookies, allowing through for client-side check');
       return response;
     }
     
-    // If we have a session or user, allow access
-    console.log('[Middleware] Session/user found, allowing access to:', request.nextUrl.pathname);
+    // Auth cookies exist - check session (already fetched above)
+    if (!currentSession) {
+      // Auth cookies exist but no session - let client-side handle it (no getUser call needed)
+      console.log('[Middleware] Auth cookies present but no session, allowing through for client-side session check');
+      return response;
+    }
+    
+    // Session exists, allow access
+    console.log('[Middleware] Session found, allowing access to:', request.nextUrl.pathname);
   }
 
   return response;
