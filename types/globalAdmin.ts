@@ -126,6 +126,7 @@ export interface AddonControls {
     opsTool: boolean | null;
     analytics: boolean | null;
     apiAccess: boolean | null;
+    customDashboards: boolean | null;
   };
   custom_limits: {
     max_projects: number | null;

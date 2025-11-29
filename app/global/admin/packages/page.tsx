@@ -66,6 +66,7 @@ const defaultFeatures: PackageFeatures = {
   ops_tool_enabled: false,
   analytics_enabled: false,
   api_access_enabled: false,
+  custom_dashboards_enabled: false,
   support_level: 'community',
 };
 

@@ -245,6 +245,19 @@ export async function hasAPIAccess(
 }
 
 /**
+ * Check if organization has access to custom dashboards
+ * @param supabase - Supabase client instance
+ * @param organizationId - Organization ID
+ * @returns True if custom dashboards are enabled
+ */
+export async function hasCustomDashboards(
+  supabase: SupabaseClient,
+  organizationId: string
+): Promise<boolean> {
+  return hasFeatureAccess(supabase, organizationId, 'custom_dashboards_enabled');
+}
+
+/**
  * Get organization's support level
  * @param supabase - Supabase client instance
  * @param organizationId - Organization ID
@@ -286,10 +299,11 @@ export async function getAllLimits(
     opsTool: boolean;
     analytics: boolean;
     apiAccess: boolean;
+    customDashboards: boolean;
   };
   supportLevel: 'community' | 'email' | 'priority' | 'dedicated' | null;
 }> {
-  const [projects, users, templates, ai, export_, opsTool, analytics, apiAccess, supportLevel] =
+  const [projects, users, templates, ai, export_, opsTool, analytics, apiAccess, customDashboards, supportLevel] =
     await Promise.all([
       canCreateProject(supabase, organizationId),
       canAddUser(supabase, organizationId),
@@ -299,6 +313,7 @@ export async function getAllLimits(
       hasOpsTool(supabase, organizationId),
       hasAnalytics(supabase, organizationId),
       hasAPIAccess(supabase, organizationId),
+      hasCustomDashboards(supabase, organizationId),
       getSupportLevel(supabase, organizationId),
     ]);
 
@@ -312,6 +327,7 @@ export async function getAllLimits(
       opsTool,
       analytics,
       apiAccess,
+      customDashboards,
     },
     supportLevel,
   };

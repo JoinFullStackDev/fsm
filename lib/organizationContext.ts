@@ -32,6 +32,7 @@ export interface PackageFeatures {
   ops_tool_enabled: boolean;
   analytics_enabled: boolean;
   api_access_enabled: boolean;
+  custom_dashboards_enabled: boolean;
   support_level: 'community' | 'email' | 'priority' | 'dedicated';
 }
 

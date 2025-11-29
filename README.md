@@ -208,6 +208,10 @@ Deployment is handled internally via Vercel:
 /migrations          # Database migration scripts
 ```
 
+## 📚 Documentation
+
+- **[Dashboard Cron Setup](./DASHBOARD_CRON_SETUP.md)** - Configure scheduled dashboard reports
+
 ## ✨ Features
 
 ### Authentication & User Management

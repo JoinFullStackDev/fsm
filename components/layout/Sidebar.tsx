@@ -31,6 +31,7 @@ import {
   Business as BusinessIcon,
   Contacts as ContactsIcon,
   TrendingUp as TrendingUpIcon,
+  DashboardCustomize as DashboardCustomizeIcon,
 } from '@mui/icons-material';
 import { useRole } from '@/lib/hooks/useRole';
 import { useOrganization } from '@/components/providers/OrganizationProvider';
@@ -293,6 +294,9 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
     }
     if (path === '/ops/contacts') {
       return pathname === '/ops/contacts';
+    }
+    if (path === '/dashboards') {
+      return pathname?.startsWith('/dashboards');
     }
     return pathname === path;
   };
@@ -677,6 +681,68 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
               {open && <ListItemText primary="Templates" />}
             </ListItemButton>
           </ListItem>
+        )}
+
+        {/* Custom Dashboards Section - Only show if custom_dashboards_enabled is true */}
+        {features?.custom_dashboards_enabled === true && (
+          <>
+            <Divider sx={{ my: 1, borderColor: theme.palette.divider }} />
+            {open && (
+              <Box sx={{ px: 2, py: 1 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: theme.palette.text.secondary,
+                    textTransform: 'uppercase',
+                    letterSpacing: 1,
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  Dashboards
+                </Typography>
+              </Box>
+            )}
+            <ListItem disablePadding>
+              <Tooltip
+                title="Dashboards"
+                placement="right"
+                arrow
+                disableHoverListener={open}
+                disableFocusListener={open}
+                disableTouchListener={open}
+              >
+                <ListItemButton
+                  onClick={() => handleNavigate('/dashboards')}
+                  selected={isActive('/dashboards')}
+                  sx={{
+                    minHeight: 48,
+                    '&.Mui-selected': {
+                      backgroundColor: theme.palette.action.hover,
+                      borderLeft: `1px solid ${theme.palette.text.primary}`,
+                      '&:hover': {
+                        backgroundColor: theme.palette.action.hover,
+                      },
+                    },
+                    '&:hover': {
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                  }}
+                >
+                  <ListItemIcon
+                    sx={{
+                      minWidth: 40,
+                      justifyContent: 'center',
+                      color: isActive('/dashboards') ? theme.palette.text.primary : theme.palette.text.secondary,
+                    }}
+                  >
+                    <DashboardCustomizeIcon />
+                  </ListItemIcon>
+                  {open && <ListItemText primary="Dashboards" />}
+                </ListItemButton>
+              </Tooltip>
+            </ListItem>
+          </>
         )}
 
         {/* Ops Tool Section - Only show if ops_tool_enabled is true */}

@@ -1,0 +1,111 @@
+/* React Grid Layout Styles */
+.react-grid-layout {
+  position: relative;
+}
+
+.react-grid-item {
+  transition: all 200ms ease;
+  transition-property: left, top, width, height;
+}
+
+.react-grid-item.cssTransforms {
+  transition-property: transform, width, height;
+}
+
+.react-grid-item.resizing {
+  transition: none;
+  z-index: 1;
+  will-change: width, height;
+}
+
+.react-grid-item.react-draggable-dragging {
+  transition: none;
+  z-index: 1000 !important;
+  will-change: transform;
+  opacity: 0.8;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.react-grid-item.dropping {
+  visibility: hidden;
+}
+
+.react-grid-item.react-grid-placeholder {
+  background: rgba(25, 118, 210, 0.2);
+  opacity: 0.2;
+  transition-duration: 100ms;
+  z-index: 2;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -o-user-select: none;
+  user-select: none;
+  border-radius: 4px;
+}
+
+.react-resizable-handle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background-repeat: no-repeat;
+  background-origin: content-box;
+  box-sizing: border-box;
+  background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNiIgaGVpZ2h0PSI2IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxnIGZpbGw9IiM5OTkiIGZpbGwtcnVsZT0iZXZlbm9kZCI+PHBhdGggZD0ibTEzIDEzIDItMiAyIDJ2M2gtM3oiLz48L2c+PC9zdmc+');
+  background-position: bottom right;
+  padding: 0 3px 3px 0;
+  background-size: 20px 20px;
+  cursor: se-resize;
+}
+
+.react-resizable-handle-se {
+  bottom: 0;
+  right: 0;
+  cursor: se-resize;
+}
+
+.react-resizable-handle-sw {
+  bottom: 0;
+  left: 0;
+  cursor: sw-resize;
+}
+
+.react-resizable-handle-ne {
+  top: 0;
+  right: 0;
+  cursor: ne-resize;
+}
+
+.react-resizable-handle-nw {
+  top: 0;
+  left: 0;
+  cursor: nw-resize;
+}
+
+.react-resizable-handle-e {
+  top: 50%;
+  right: 0;
+  margin-top: -10px;
+  cursor: ew-resize;
+}
+
+.react-resizable-handle-w {
+  top: 50%;
+  left: 0;
+  margin-top: -10px;
+  cursor: ew-resize;
+}
+
+.react-resizable-handle-n {
+  top: 0;
+  left: 50%;
+  margin-left: -10px;
+  cursor: ns-resize;
+}
+
+.react-resizable-handle-s {
+  bottom: 0;
+  left: 50%;
+  margin-left: -10px;
+  cursor: ns-resize;
+}
+
