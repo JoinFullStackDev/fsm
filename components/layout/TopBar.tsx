@@ -21,6 +21,7 @@ import {
   Logout as LogoutIcon,
   RocketLaunch as RocketLaunchIcon,
   Menu as MenuIcon,
+  Dashboard as DashboardIcon,
 } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useRole } from '@/lib/hooks/useRole';
@@ -212,6 +213,18 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
             </Box>
           )}
           <Divider sx={{ borderColor: theme.palette.divider }} />
+          <MenuItem
+            onClick={() => handleNavigate('/dashboard')}
+            sx={{
+              color: 'text.primary',
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+              },
+            }}
+          >
+            <DashboardIcon fontSize="small" sx={{ mr: 1.5 }} />
+            Dashboard
+          </MenuItem>
           {!roleLoading && isSuperAdmin && (
             <MenuItem
               onClick={() => handleNavigate('/global/admin')}

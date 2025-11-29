@@ -76,14 +76,17 @@ Format your response as JSON with this structure:
       projectData: { name: projectName },
     }, apiKey, projectName);
 
+    // Handle both string and metadata response types
+    const responseText = typeof response === 'string' ? response : response.text;
+
     // Parse JSON response
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     let reportContent: ReportContent;
     if (jsonMatch) {
       reportContent = JSON.parse(jsonMatch[0]) as ReportContent;
     } else {
       // Fallback: try to extract structured content
-      reportContent = parseStructuredContent(response);
+      reportContent = parseStructuredContent(responseText);
     }
 
     // Enhance executive summary with actual task names if they're missing
@@ -174,12 +177,15 @@ Format your response as JSON with this structure:
       projectData: { name: projectName },
     }, apiKey, projectName);
 
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    // Handle both string and metadata response types
+    const responseText = typeof response === 'string' ? response : response.text;
+
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     let reportContent: ReportContent;
     if (jsonMatch) {
       reportContent = JSON.parse(jsonMatch[0]) as ReportContent;
     } else {
-      reportContent = parseStructuredContent(response);
+      reportContent = parseStructuredContent(responseText);
     }
 
     // Enhance executive summary with actual task names if they're missing
@@ -265,12 +271,15 @@ Format your response as JSON with this structure:
       projectData: { name: projectName },
     }, apiKey, projectName);
 
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    // Handle both string and metadata response types
+    const responseText = typeof response === 'string' ? response : response.text;
+
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     let reportContent: ReportContent;
     if (jsonMatch) {
       reportContent = JSON.parse(jsonMatch[0]) as ReportContent;
     } else {
-      reportContent = parseStructuredContent(response);
+      reportContent = parseStructuredContent(responseText);
     }
 
     // Enhance executive summary with actual task names if they're missing

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import GenerateTemplatePage from '../page';
 import { useRole } from '@/lib/hooks/useRole';
 import { useNotification } from '@/components/providers/NotificationProvider';
+import { useOrganization } from '@/components/providers/OrganizationProvider';
 
 // Mock dependencies
 jest.mock('next/navigation', () => ({
@@ -17,6 +18,11 @@ jest.mock('@/lib/hooks/useRole', () => ({
 
 jest.mock('@/components/providers/NotificationProvider', () => ({
   useNotification: jest.fn(),
+}));
+
+jest.mock('@/components/providers/OrganizationProvider', () => ({
+  useOrganization: jest.fn(),
+  OrganizationProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 jest.mock('@/lib/supabaseClient', () => ({
@@ -55,6 +61,17 @@ describe('GenerateTemplatePage', () => {
     (useNotification as jest.Mock).mockReturnValue({
       showSuccess: mockShowSuccess,
       showError: mockShowError,
+    });
+    (useOrganization as jest.Mock).mockReturnValue({
+      features: {
+        ai_features_enabled: true, // Enable AI features for tests
+      },
+      loading: false,
+      organization: null,
+      subscription: null,
+      package: null,
+      error: null,
+      refresh: jest.fn(),
     });
   });
 

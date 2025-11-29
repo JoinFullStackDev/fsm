@@ -36,6 +36,10 @@ export default function SystemSettingsPage() {
   const [showTestPublishable, setShowTestPublishable] = useState(false);
   const [showLiveSecret, setShowLiveSecret] = useState(false);
   const [showLivePublishable, setShowLivePublishable] = useState(false);
+  
+  // SendGrid key states
+  const [sendGridApiKey, setSendGridApiKey] = useState('');
+  const [showSendGridApiKey, setShowSendGridApiKey] = useState(false);
 
   const loadConnections = useCallback(async () => {
     try {
@@ -53,6 +57,14 @@ export default function SystemSettingsPage() {
         setTestPublishableKey(stripeConnection.config.test_publishable_key || '');
         setLiveSecretKey(stripeConnection.config.live_secret_key || '');
         setLivePublishableKey(stripeConnection.config.live_publishable_key || '');
+      }
+      
+      // Load SendGrid API key if connection exists (note: it's encrypted, so we don't show it)
+      // Users will need to re-enter it if they want to change it
+      const emailConnection = data.connections?.email;
+      if (emailConnection?.config?.api_key) {
+        // Don't set the actual key since it's encrypted - just indicate it's configured
+        setSendGridApiKey(''); // Leave empty, user needs to enter new key to update
       }
     } catch (err) {
       showError('Failed to load system connections');
@@ -124,6 +136,68 @@ export default function SystemSettingsPage() {
     }
   };
 
+  const handleSaveSendGridKeys = async () => {
+    if (!sendGridApiKey || !sendGridApiKey.trim()) {
+      showError('Please enter a SendGrid API key');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const response = await fetch('/api/global/admin/system/connections/email', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          api_key: sendGridApiKey.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save SendGrid API key');
+      }
+
+      showSuccess('SendGrid API key saved successfully');
+      setSendGridApiKey(''); // Clear the field after saving
+      // Wait for connections to reload before finishing
+      await loadConnections();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to save SendGrid API key');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTestEmailConnection = async () => {
+    setTesting({ ...testing, email: true });
+    try {
+      const response = await fetch('/api/global/admin/system/connections/email/test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Connection test failed');
+      }
+      
+      const data = await response.json();
+      if (data.success) {
+        showSuccess('SendGrid connection test successful');
+      } else {
+        showError(data.error || 'Connection test failed');
+      }
+      loadConnections();
+    } catch (err) {
+      showError('SendGrid connection test failed');
+    } finally {
+      setTesting({ ...testing, email: false });
+    }
+  };
+
 
   if (loading) {
     return (
@@ -135,6 +209,8 @@ export default function SystemSettingsPage() {
 
   const stripeConnection = connections.stripe;
   const stripeStatus = stripeConnection?.last_test_status;
+  const emailConnection = connections.email;
+  const emailStatus = emailConnection?.last_test_status;
 
   return (
     <Box>
@@ -313,12 +389,85 @@ export default function SystemSettingsPage() {
 
         <Grid item xs={12}>
           <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Email Configuration
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-              Email service configuration coming soon...
-            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
+                Email Configuration (SendGrid)
+              </Typography>
+              {emailStatus && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  {emailStatus === 'success' ? (
+                    <CheckCircleIcon sx={{ color: theme.palette.success.main, fontSize: 20 }} />
+                  ) : emailStatus === 'failed' ? (
+                    <ErrorIcon sx={{ color: theme.palette.error.main, fontSize: 20 }} />
+                  ) : null}
+                  <Typography variant="body2" color="text.secondary">
+                    {emailStatus === 'success' ? 'Last test: Success' : 
+                     emailStatus === 'failed' ? 'Last test: Failed' : 
+                     'Not tested'}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              {emailConnection?.config?.api_key && (
+                <Grid item xs={12}>
+                  <Alert severity="success" sx={{ mb: 2 }}>
+                    SendGrid API key is configured. You can test the connection below. Enter a new key only if you want to update it.
+                  </Alert>
+                </Grid>
+              )}
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="SendGrid API Key"
+                  type={showSendGridApiKey ? 'text' : 'password'}
+                  value={sendGridApiKey}
+                  onChange={(e) => setSendGridApiKey(e.target.value)}
+                  placeholder={emailConnection?.config?.api_key ? "Enter new key to update (or leave empty to test existing)" : "SG.xxxxxxxxxxxxx"}
+                  helperText={emailConnection?.config?.api_key ? 'API key is configured. Enter a new key to update it, or leave empty and click "Test Connection" to test the existing key.' : 'Enter your SendGrid API key'}
+                  InputProps={{
+                    endAdornment: sendGridApiKey && (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() => setShowSendGridApiKey(!showSendGridApiKey)}
+                          edge="end"
+                          size="small"
+                        >
+                          {showSendGridApiKey ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid>
+
+              {/* Action Buttons */}
+              <Grid item xs={12} sx={{ mt: 2, display: 'flex', gap: 2 }}>
+                <Button
+                  variant="contained"
+                  startIcon={<SaveIcon />}
+                  onClick={handleSaveSendGridKeys}
+                  disabled={saving || !sendGridApiKey?.trim()}
+                >
+                  {saving ? 'Saving...' : 'Save API Key'}
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={handleTestEmailConnection}
+                  disabled={testing.email || (!emailConnection?.config?.api_key && !sendGridApiKey?.trim())}
+                >
+                  {testing.email ? 'Testing...' : 'Test Connection'}
+                </Button>
+              </Grid>
+              {!emailConnection?.config?.api_key && (
+                <Grid item xs={12}>
+                  <Alert severity="info" sx={{ mt: 1 }}>
+                    Please save an API key first before testing the connection.
+                  </Alert>
+                </Grid>
+              )}
+            </Grid>
           </Paper>
         </Grid>
 

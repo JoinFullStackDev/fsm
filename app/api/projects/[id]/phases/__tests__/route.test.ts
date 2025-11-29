@@ -23,9 +23,15 @@ jest.mock('next/server', () => {
 import { NextRequest } from 'next/server';
 import { GET, POST, PATCH } from '../route';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
+import { getUserOrganizationId } from '@/lib/organizationContext';
 import { createMockUser, createMockProject, createMockPhase } from '@/lib/test-helpers';
 
 jest.mock('@/lib/supabaseServer');
+jest.mock('@/lib/supabaseAdmin');
+jest.mock('@/lib/organizationContext', () => ({
+  getUserOrganizationId: jest.fn(),
+}));
 jest.mock('@/lib/utils/logger', () => ({
   __esModule: true,
   default: {
@@ -44,15 +50,24 @@ describe('/api/projects/[id]/phases', () => {
     from: jest.fn(),
   };
 
+  const mockAdminClient = {
+    from: jest.fn(),
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     (createServerSupabaseClient as jest.Mock).mockResolvedValue(mockSupabaseClient);
+    (createAdminSupabaseClient as jest.Mock).mockReturnValue(mockAdminClient);
+    (getUserOrganizationId as jest.Mock).mockResolvedValue('org-123');
   });
 
   describe('GET', () => {
     it('should return phases for project', async () => {
-      const mockUser = createMockUser();
-      const mockProject = createMockProject({ owner_id: mockUser.id });
+      const mockUser = createMockUser({ organization_id: 'org-123' });
+      const mockProject = createMockProject({ 
+        owner_id: mockUser.id,
+        organization_id: 'org-123',
+      });
       const mockPhases = [
         createMockPhase({ phase_number: 1 }),
         createMockPhase({ phase_number: 2 }),
@@ -66,20 +81,20 @@ describe('/api/projects/[id]/phases', () => {
         },
       });
 
-      const mockProjectQuery = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: mockProject,
-          error: null,
-        }),
-      };
-
       const mockUserQuery = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({
-          data: mockUser,
+          data: { id: mockUser.id, role: mockUser.role, organization_id: 'org-123', is_super_admin: false },
+          error: null,
+        }),
+      };
+
+      const mockProjectQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: { owner_id: mockProject.owner_id, organization_id: 'org-123' },
           error: null,
         }),
       };
@@ -94,9 +109,9 @@ describe('/api/projects/[id]/phases', () => {
       };
 
       mockSupabaseClient.from
-        .mockReturnValueOnce(mockProjectQuery)
-        .mockReturnValueOnce(mockUserQuery)
-        .mockReturnValueOnce(mockPhasesQuery);
+        .mockReturnValueOnce(mockUserQuery) // User lookup
+        .mockReturnValueOnce(mockProjectQuery) // Project lookup
+        .mockReturnValueOnce(mockPhasesQuery); // Phases lookup
 
       const request = new NextRequest('http://localhost:3000/api/projects/project-1/phases');
       const response = await GET(request, { params: { id: 'project-1' } });
@@ -118,8 +133,8 @@ describe('/api/projects/[id]/phases', () => {
     });
 
     it('should return 403 when user is not owner or member', async () => {
-      const mockUser = createMockUser({ id: 'user-2' });
-      const mockProject = createMockProject({ owner_id: 'user-1' });
+      const mockUser = createMockUser({ id: 'user-2', organization_id: 'org-123' });
+      const mockProject = createMockProject({ owner_id: 'user-1', organization_id: 'org-456' });
 
       mockSupabaseClient.auth.getSession.mockResolvedValue({
         data: {
@@ -129,20 +144,20 @@ describe('/api/projects/[id]/phases', () => {
         },
       });
 
-      const mockProjectQuery = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: mockProject,
-          error: null,
-        }),
-      };
-
       const mockUserQuery = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({
-          data: mockUser,
+          data: { id: mockUser.id, role: mockUser.role, organization_id: 'org-123', is_super_admin: false },
+          error: null,
+        }),
+      };
+
+      const mockProjectQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: { owner_id: mockProject.owner_id, organization_id: 'org-456' },
           error: null,
         }),
       };
@@ -157,9 +172,9 @@ describe('/api/projects/[id]/phases', () => {
       };
 
       mockSupabaseClient.from
-        .mockReturnValueOnce(mockProjectQuery)
-        .mockReturnValueOnce(mockUserQuery)
-        .mockReturnValueOnce(mockMemberQuery);
+        .mockReturnValueOnce(mockUserQuery) // User lookup
+        .mockReturnValueOnce(mockProjectQuery) // Project lookup
+        .mockReturnValueOnce(mockMemberQuery); // Member check
 
       const request = new NextRequest('http://localhost:3000/api/projects/project-1/phases');
       const response = await GET(request, { params: { id: 'project-1' } });
@@ -170,8 +185,11 @@ describe('/api/projects/[id]/phases', () => {
 
   describe('POST', () => {
     it('should create phase when user is owner', async () => {
-      const mockUser = createMockUser();
-      const mockProject = createMockProject({ owner_id: mockUser.id });
+      const mockUser = createMockUser({ organization_id: 'org-123' });
+      const mockProject = createMockProject({ 
+        owner_id: mockUser.id,
+        organization_id: 'org-123',
+      });
       const newPhase = createMockPhase({ phase_number: 3 });
 
       mockSupabaseClient.auth.getSession.mockResolvedValue({
@@ -182,35 +200,41 @@ describe('/api/projects/[id]/phases', () => {
         },
       });
 
-      const mockProjectQuery = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: { owner_id: mockProject.owner_id },
-          error: null,
-        }),
-      };
-
       const mockUserQuery = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({
-          data: { id: mockUser.id, role: mockUser.role },
+          data: { id: mockUser.id, role: mockUser.role, organization_id: 'org-123', is_super_admin: false },
+          error: null,
+        }),
+      };
+
+      const mockProjectQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: { owner_id: mockProject.owner_id, organization_id: 'org-123' },
           error: null,
         }),
       };
 
       // Mock project_members query (user is owner, so this can return null)
-      const mockMemberQuery = {
+      // The route uses .single() which returns error when not found
+      // But the route destructures { data: projectMember }, so projectMember will be null
+      // Since isOwner is true, isProjectMember will be true regardless
+      const mockMemberQuery: any = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({
           data: null,
-          error: { message: 'Not found' },
+          error: { code: 'PGRST116', message: 'Not found' },
         }),
       };
+      // Make methods chainable for: select() -> eq() -> eq() -> single()
+      mockMemberQuery.select.mockReturnValue(mockMemberQuery);
+      mockMemberQuery.eq.mockReturnValue(mockMemberQuery);
 
-      const mockExistingPhasesQuery = {
+      const mockExistingPhasesQuery: any = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         order: jest.fn().mockReturnThis(),
@@ -219,22 +243,38 @@ describe('/api/projects/[id]/phases', () => {
           error: null,
         }),
       };
+      // Make methods chainable
+      mockExistingPhasesQuery.select.mockReturnValue(mockExistingPhasesQuery);
+      mockExistingPhasesQuery.eq.mockReturnValue(mockExistingPhasesQuery);
+      mockExistingPhasesQuery.order.mockReturnValue(mockExistingPhasesQuery);
 
-      const mockInsertQuery = {
+      const mockInsertQuery: any = {
         insert: jest.fn().mockReturnThis(),
         select: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({
-          data: { ...newPhase, phase_name: 'New Phase' },
+          data: { 
+            id: 'phase-new',
+            project_id: 'project-1',
+            phase_number: 1,
+            phase_name: 'New Phase',
+            display_order: 1,
+            data: {},
+            completed: false,
+            is_active: true,
+          },
           error: null,
         }),
       };
+      // Make methods chainable
+      mockInsertQuery.insert.mockReturnValue(mockInsertQuery);
+      mockInsertQuery.select.mockReturnValue(mockInsertQuery);
 
       mockSupabaseClient.from
-        .mockReturnValueOnce(mockUserQuery)
-        .mockReturnValueOnce(mockProjectQuery)
-        .mockReturnValueOnce(mockMemberQuery)
-        .mockReturnValueOnce(mockExistingPhasesQuery)
-        .mockReturnValueOnce(mockInsertQuery);
+        .mockReturnValueOnce(mockUserQuery) // User lookup
+        .mockReturnValueOnce(mockProjectQuery) // Project lookup
+        .mockReturnValueOnce(mockMemberQuery) // Member check
+        .mockReturnValueOnce(mockExistingPhasesQuery) // Existing phases check
+        .mockReturnValueOnce(mockInsertQuery); // Phase insert
 
       const request = new NextRequest('http://localhost:3000/api/projects/project-1/phases', {
         method: 'POST',
@@ -253,8 +293,11 @@ describe('/api/projects/[id]/phases', () => {
 
   describe('PATCH', () => {
     it('should update phase', async () => {
-      const mockUser = createMockUser();
-      const mockProject = createMockProject({ owner_id: mockUser.id });
+      const mockUser = createMockUser({ organization_id: 'org-123' });
+      const mockProject = createMockProject({ 
+        owner_id: mockUser.id,
+        organization_id: 'org-123',
+      });
       const updatedPhase = createMockPhase({ completed: true });
 
       mockSupabaseClient.auth.getSession.mockResolvedValue({
@@ -265,35 +308,38 @@ describe('/api/projects/[id]/phases', () => {
         },
       });
 
-      const mockProjectQuery = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: { owner_id: mockProject.owner_id },
-          error: null,
-        }),
-      };
-
       const mockUserQuery = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({
-          data: { id: mockUser.id, role: mockUser.role },
+          data: { id: mockUser.id, role: mockUser.role, organization_id: 'org-123', is_super_admin: false },
+          error: null,
+        }),
+      };
+
+      const mockProjectQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: { owner_id: mockProject.owner_id, organization_id: 'org-123' },
           error: null,
         }),
       };
 
       // Mock project_members query (user is owner, so this can return null)
-      const mockMemberQuery = {
+      const mockMemberQuery: any = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({
           data: null,
-          error: { message: 'Not found' },
+          error: { code: 'PGRST116', message: 'Not found' },
         }),
       };
+      mockMemberQuery.select.mockReturnValue(mockMemberQuery);
+      mockMemberQuery.eq.mockReturnValue(mockMemberQuery);
 
-      const mockUpdateQuery = {
+      // Mock update query - needs to chain eq() calls
+      const mockUpdateQuery: any = {
         update: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         select: jest.fn().mockReturnThis(),
@@ -302,12 +348,14 @@ describe('/api/projects/[id]/phases', () => {
           error: null,
         }),
       };
+      // Make eq() chainable
+      mockUpdateQuery.eq.mockReturnValue(mockUpdateQuery);
 
       mockSupabaseClient.from
-        .mockReturnValueOnce(mockUserQuery)
-        .mockReturnValueOnce(mockProjectQuery)
-        .mockReturnValueOnce(mockMemberQuery)
-        .mockReturnValueOnce(mockUpdateQuery);
+        .mockReturnValueOnce(mockUserQuery) // User lookup
+        .mockReturnValueOnce(mockProjectQuery) // Project lookup
+        .mockReturnValueOnce(mockMemberQuery) // Member check
+        .mockReturnValueOnce(mockUpdateQuery); // Phase update (with chained eq calls)
 
       const request = new NextRequest('http://localhost:3000/api/projects/project-1/phases', {
         method: 'PATCH',

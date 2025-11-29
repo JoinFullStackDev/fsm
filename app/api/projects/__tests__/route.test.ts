@@ -23,11 +23,19 @@ jest.mock('next/server', () => {
 import { NextRequest } from 'next/server';
 import { GET, POST } from '../route';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { createMockProject, createMockUser } from '@/lib/test-helpers';
 
 jest.mock('@/lib/supabaseServer');
+jest.mock('@/lib/supabaseAdmin');
 jest.mock('@/lib/notifications', () => ({
   notifyProjectCreated: jest.fn(),
+}));
+jest.mock('@/lib/emailNotifications', () => ({
+  sendProjectCreatedEmail: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock('@/lib/packageLimits', () => ({
+  canCreateProject: jest.fn().mockResolvedValue({ allowed: true }),
 }));
 jest.mock('@/lib/utils/logger', () => ({
   __esModule: true,
@@ -42,26 +50,33 @@ jest.mock('@/lib/utils/logger', () => ({
 describe('/api/projects', () => {
   const mockSupabaseClient = {
     auth: {
-      getSession: jest.fn(),
+      getUser: jest.fn(),
     },
+    from: jest.fn(),
+  };
+
+  const mockAdminClient = {
     from: jest.fn(),
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
     (createServerSupabaseClient as jest.Mock).mockResolvedValue(mockSupabaseClient);
+    (createAdminSupabaseClient as jest.Mock).mockReturnValue(mockAdminClient);
   });
 
   describe('GET', () => {
     it('should return projects for authenticated user', async () => {
-      const mockUser = createMockUser({ role: 'engineer' }); // Non-admin user
+      const mockUser = createMockUser({ 
+        role: 'engineer',
+        organization_id: 'org-123',
+        is_super_admin: false,
+      }); // Non-admin user
       const mockProjects = [createMockProject(), createMockProject({ id: 'project-2' })];
 
-      mockSupabaseClient.auth.getSession.mockResolvedValue({
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
         data: {
-          session: {
-            user: { id: 'auth-123' },
-          },
+          user: { id: 'auth-123', email: 'test@example.com' },
         },
       });
 
@@ -69,7 +84,12 @@ describe('/api/projects', () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({
-          data: { id: mockUser.id, role: mockUser.role },
+          data: { 
+            id: mockUser.id, 
+            role: mockUser.role,
+            organization_id: mockUser.organization_id,
+            is_super_admin: mockUser.is_super_admin,
+          },
           error: null,
         }),
       };
@@ -100,9 +120,9 @@ describe('/api/projects', () => {
       });
 
       // Mock the from() calls in order as they appear in the route:
-      // 1. users table (line 20 - for user lookup)
-      // 2. projects table (line 37 - start projects query with select)
-      // 3. project_members table (line 50 - to check membership, inside else block)
+      // 1. users table (line 27 - for user lookup with regular client)
+      // 2. projects table (line 71 - start projects query with select)
+      // 3. project_members table (line 90 - to check membership, inside else block)
       mockSupabaseClient.from
         .mockReturnValueOnce(mockUserQuery) // 1. users table
         .mockReturnValueOnce(mockProjectsQueryBuilder) // 2. projects table (called first, before project_members check)
@@ -123,8 +143,8 @@ describe('/api/projects', () => {
     });
 
     it('should return 401 for unauthenticated requests', async () => {
-      mockSupabaseClient.auth.getSession.mockResolvedValue({
-        data: { session: null },
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: null },
       });
 
       const request = new NextRequest('http://localhost:3000/api/projects');
@@ -136,11 +156,9 @@ describe('/api/projects', () => {
     });
 
     it('should return 404 when user not found', async () => {
-      mockSupabaseClient.auth.getSession.mockResolvedValue({
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
         data: {
-          session: {
-            user: { id: 'auth-123' },
-          },
+          user: { id: 'auth-123', email: 'test@example.com' },
         },
       });
 
@@ -153,7 +171,17 @@ describe('/api/projects', () => {
         }),
       };
 
+      const mockAdminUserQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Not found' },
+        }),
+      };
+
       mockSupabaseClient.from.mockReturnValue(mockUserQuery);
+      mockAdminClient.from.mockReturnValue(mockAdminUserQuery);
 
       const request = new NextRequest('http://localhost:3000/api/projects');
       const response = await GET(request);
@@ -165,27 +193,34 @@ describe('/api/projects', () => {
 
   describe('POST', () => {
     it('should create project with valid data', async () => {
-      const mockUser = createMockUser();
+      const mockUser = createMockUser({ 
+        organization_id: 'org-123',
+        email: 'test@example.com',
+        name: 'Test User',
+      });
       const newProject = createMockProject({ name: 'New Project' });
 
-      mockSupabaseClient.auth.getSession.mockResolvedValue({
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
         data: {
-          session: {
-            user: { id: 'auth-123' },
-          },
+          user: { id: 'auth-123', email: 'test@example.com' },
         },
       });
 
-      const mockUserQuery = {
+      const mockAdminUserQuery = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({
-          data: mockUser,
+          data: {
+            id: mockUser.id,
+            organization_id: mockUser.organization_id,
+            email: mockUser.email,
+            name: mockUser.name,
+          },
           error: null,
         }),
       };
 
-      const mockProjectQuery = {
+      const mockAdminProjectQuery = {
         insert: jest.fn().mockReturnThis(),
         select: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({
@@ -204,10 +239,12 @@ describe('/api/projects', () => {
         }),
       };
 
+      // The route uses admin client for both user lookup and project insert
+      mockAdminClient.from
+        .mockReturnValueOnce(mockAdminUserQuery) // User lookup
+        .mockReturnValueOnce(mockAdminProjectQuery); // Project insert
       mockSupabaseClient.from
-        .mockReturnValueOnce(mockUserQuery)
-        .mockReturnValueOnce(mockProjectQuery)
-        .mockReturnValueOnce(mockCreatorQuery);
+        .mockReturnValueOnce(mockCreatorQuery); // Creator lookup for notifications
 
       const request = new NextRequest('http://localhost:3000/api/projects', {
         method: 'POST',
@@ -225,11 +262,9 @@ describe('/api/projects', () => {
     });
 
     it('should return 400 when name is missing', async () => {
-      mockSupabaseClient.auth.getSession.mockResolvedValue({
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
         data: {
-          session: {
-            user: { id: 'auth-123' },
-          },
+          user: { id: 'auth-123', email: 'test@example.com' },
         },
       });
 
@@ -248,8 +283,8 @@ describe('/api/projects', () => {
     });
 
     it('should return 401 for unauthenticated requests', async () => {
-      mockSupabaseClient.auth.getSession.mockResolvedValue({
-        data: { session: null },
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: null },
       });
 
       const request = new NextRequest('http://localhost:3000/api/projects', {

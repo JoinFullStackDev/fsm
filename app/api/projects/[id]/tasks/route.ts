@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { unauthorized, badRequest, internalError, notFound } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
+import { notifyTaskAssigned } from '@/lib/notifications';
+import { sendTaskAssignedEmail } from '@/lib/emailNotifications';
 import type { ProjectTask } from '@/types/project';
 
 // GET - List all tasks for a project
@@ -199,6 +201,51 @@ export async function POST(
 
     if (!task) {
       return internalError('Task was not created');
+    }
+
+    // Send notifications if task is assigned
+    if (task.assignee_id) {
+      // Get project info
+      const { data: project } = await supabase
+        .from('projects')
+        .select('name')
+        .eq('id', params.id)
+        .single();
+
+      // Get assigner info
+      const { data: assigner } = await supabase
+        .from('users')
+        .select('id, name')
+        .eq('auth_id', session.user.id)
+        .single();
+
+      if (project && assigner) {
+        const taskLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/project/${params.id}?task=${task.id}`;
+
+        // Send in-app notification
+        notifyTaskAssigned(
+          task.assignee_id,
+          task.id,
+          task.title,
+          params.id,
+          project.name,
+          assigner.id,
+          assigner.name
+        ).catch((err) => {
+          logger.error('[Task POST] Error creating notification:', err);
+        });
+
+        // Send email notification
+        sendTaskAssignedEmail(
+          task.assignee_id,
+          task.title,
+          project.name,
+          assigner.name || 'Someone',
+          taskLink
+        ).catch((err) => {
+          logger.error('[Task POST] Error sending email notification:', err);
+        });
+      }
     }
 
     // Transform to flatten assignee

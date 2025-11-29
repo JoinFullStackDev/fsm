@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { notifyTaskAssigned } from '@/lib/notifications';
+import { sendTaskAssignedEmail, sendTaskUpdatedEmail } from '@/lib/emailNotifications';
 import { unauthorized, notFound, internalError, badRequest } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 
@@ -162,6 +163,8 @@ export async function PUT(
         .single();
 
       if (project && assigner) {
+        const taskLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/project/${params.id}?task=${params.taskId}`;
+
         // Create notification asynchronously (don't wait for it)
         notifyTaskAssigned(
           assignee_id,
@@ -174,6 +177,45 @@ export async function PUT(
         ).catch((err) => {
           logger.error('[Task Update] Error creating notification:', err);
         });
+
+        // Send email notification
+        sendTaskAssignedEmail(
+          assignee_id,
+          task.title,
+          project.name,
+          assigner.name || 'Someone',
+          taskLink
+        ).catch((err) => {
+          logger.error('[Task Update] Error sending email notification:', err);
+        });
+      }
+    }
+
+    // Send email notification for other updates (status, priority changes) if assignee exists
+    if (task.assignee_id && (status !== undefined || priority !== undefined)) {
+      const { data: project } = await supabase
+        .from('projects')
+        .select('name')
+        .eq('id', params.id)
+        .single();
+
+      if (project) {
+        const taskLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/project/${params.id}?task=${params.taskId}`;
+        const updateDetails: string[] = [];
+        if (status !== undefined) updateDetails.push(`Status changed to ${status}`);
+        if (priority !== undefined) updateDetails.push(`Priority changed to ${priority}`);
+
+        if (updateDetails.length > 0) {
+          sendTaskUpdatedEmail(
+            task.assignee_id,
+            task.title,
+            project.name,
+            updateDetails.join(', '),
+            taskLink
+          ).catch((err) => {
+            logger.error('[Task Update] Error sending task updated email:', err);
+          });
+        }
       }
     }
 

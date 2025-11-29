@@ -23,9 +23,15 @@ jest.mock('next/server', () => {
 import { NextRequest } from 'next/server';
 import { GET, PUT, DELETE } from '../route';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
+import { getUserOrganizationId } from '@/lib/organizationContext';
 import { createMockProject, createMockUser } from '@/lib/test-helpers';
 
 jest.mock('@/lib/supabaseServer');
+jest.mock('@/lib/supabaseAdmin');
+jest.mock('@/lib/organizationContext', () => ({
+  getUserOrganizationId: jest.fn(),
+}));
 jest.mock('@/lib/utils/logger', () => ({
   __esModule: true,
   default: {
@@ -44,14 +50,20 @@ describe('/api/projects/[id]', () => {
     from: jest.fn(),
   };
 
+  const mockAdminClient = {
+    from: jest.fn(),
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     (createServerSupabaseClient as jest.Mock).mockResolvedValue(mockSupabaseClient);
+    (createAdminSupabaseClient as jest.Mock).mockReturnValue(mockAdminClient);
+    (getUserOrganizationId as jest.Mock).mockResolvedValue('org-123');
   });
 
   describe('GET', () => {
     it('should return project with phases', async () => {
-      const mockProject = createMockProject();
+      const mockProject = createMockProject({ organization_id: 'org-123' });
       const mockPhases = [
         { phase_number: 1, phase_name: 'Phase 1', completed: false },
         { phase_number: 2, phase_name: 'Phase 2', completed: false },
@@ -65,11 +77,20 @@ describe('/api/projects/[id]', () => {
         },
       });
 
+      const mockUserQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: { id: 'user-1', role: 'engineer', organization_id: 'org-123', is_super_admin: false },
+          error: null,
+        }),
+      };
+
       const mockProjectQuery = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({
-          data: mockProject,
+          data: { ...mockProject, organization_id: 'org-123' },
           error: null,
         }),
       };
@@ -84,8 +105,9 @@ describe('/api/projects/[id]', () => {
       };
 
       mockSupabaseClient.from
-        .mockReturnValueOnce(mockProjectQuery)
-        .mockReturnValueOnce(mockPhasesQuery);
+        .mockReturnValueOnce(mockUserQuery) // User lookup
+        .mockReturnValueOnce(mockProjectQuery) // Project lookup
+        .mockReturnValueOnce(mockPhasesQuery); // Phases lookup
 
       const request = new NextRequest('http://localhost:3000/api/projects/project-1');
       const response = await GET(request, { params: { id: 'project-1' } });
@@ -105,6 +127,15 @@ describe('/api/projects/[id]', () => {
         },
       });
 
+      const mockUserQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: { id: 'user-1', role: 'engineer', organization_id: 'org-123', is_super_admin: false },
+          error: null,
+        }),
+      };
+
       const mockProjectQuery = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -114,7 +145,9 @@ describe('/api/projects/[id]', () => {
         }),
       };
 
-      mockSupabaseClient.from.mockReturnValue(mockProjectQuery);
+      mockSupabaseClient.from
+        .mockReturnValueOnce(mockUserQuery)
+        .mockReturnValueOnce(mockProjectQuery);
 
       const request = new NextRequest('http://localhost:3000/api/projects/project-1');
       const response = await GET(request, { params: { id: 'project-1' } });
@@ -139,8 +172,8 @@ describe('/api/projects/[id]', () => {
 
   describe('PUT', () => {
     it('should update project', async () => {
-      const mockUser = createMockUser();
-      const mockProject = createMockProject();
+      const mockUser = createMockUser({ organization_id: 'org-123' });
+      const mockProject = createMockProject({ organization_id: 'org-123' });
       const updatedProject = { ...mockProject, name: 'Updated Name' };
 
       mockSupabaseClient.auth.getSession.mockResolvedValue({
@@ -150,6 +183,24 @@ describe('/api/projects/[id]', () => {
           },
         },
       });
+
+      const mockUserQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: { id: mockUser.id, role: mockUser.role, organization_id: 'org-123', is_super_admin: false },
+          error: null,
+        }),
+      };
+
+      const mockProjectCheckQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: { id: 'project-1', template_id: null, organization_id: 'org-123' },
+          error: null,
+        }),
+      };
 
       const mockUpdateQuery = {
         update: jest.fn().mockReturnThis(),
@@ -161,7 +212,10 @@ describe('/api/projects/[id]', () => {
         }),
       };
 
-      mockSupabaseClient.from.mockReturnValue(mockUpdateQuery);
+      mockSupabaseClient.from
+        .mockReturnValueOnce(mockUserQuery) // User lookup
+        .mockReturnValueOnce(mockProjectCheckQuery) // Project check
+        .mockReturnValueOnce(mockUpdateQuery); // Update
 
       const request = new NextRequest('http://localhost:3000/api/projects/project-1', {
         method: 'PUT',
@@ -186,8 +240,20 @@ describe('/api/projects/[id]', () => {
         },
       });
 
+      const mockUserQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: { id: 'user-1', role: 'engineer', organization_id: 'org-123', is_super_admin: false },
+          error: null,
+        }),
+      };
+
       let callCount = 0;
       mockSupabaseClient.from.mockImplementation((table: string) => {
+        if (table === 'users') {
+          return mockUserQuery;
+        }
         if (table === 'projects') {
           callCount++;
           // First call: check if project exists (should succeed)
@@ -196,7 +262,7 @@ describe('/api/projects/[id]', () => {
               select: jest.fn().mockReturnThis(),
               eq: jest.fn().mockReturnThis(),
               single: jest.fn().mockResolvedValue({
-                data: { id: 'project-1', template_id: null },
+                data: { id: 'project-1', template_id: null, organization_id: 'org-123' },
                 error: null,
               }),
             };
@@ -239,7 +305,7 @@ describe('/api/projects/[id]', () => {
 
   describe('DELETE', () => {
     it('should delete project when user is admin', async () => {
-      const mockUser = createMockUser({ role: 'admin' });
+      const mockUser = createMockUser({ role: 'admin', organization_id: 'org-123' });
 
       mockSupabaseClient.auth.getSession.mockResolvedValue({
         data: {
@@ -253,7 +319,16 @@ describe('/api/projects/[id]', () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({
-          data: mockUser,
+          data: { id: mockUser.id, role: mockUser.role, organization_id: 'org-123', is_super_admin: false },
+          error: null,
+        }),
+      };
+
+      const mockProjectQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: { id: 'project-1', organization_id: 'org-123' },
           error: null,
         }),
       };
@@ -267,8 +342,9 @@ describe('/api/projects/[id]', () => {
       };
 
       mockSupabaseClient.from
-        .mockReturnValueOnce(mockUserQuery)
-        .mockReturnValueOnce(mockDeleteQuery);
+        .mockReturnValueOnce(mockUserQuery) // User lookup
+        .mockReturnValueOnce(mockProjectQuery) // Project check
+        .mockReturnValueOnce(mockDeleteQuery); // Delete
 
       const request = new NextRequest('http://localhost:3000/api/projects/project-1', {
         method: 'DELETE',

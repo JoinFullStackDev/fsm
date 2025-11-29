@@ -172,6 +172,7 @@ export default function UserDetailSlideout({
           width: drawerWidth,
           maxWidth: '90vw',
           backgroundColor: theme.palette.background.paper,
+          transform: 'translateY(60px) !important',
         },
       }}
     >

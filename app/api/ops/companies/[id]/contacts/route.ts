@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { getUserOrganizationId } from '@/lib/organizationContext';
+import { sendContactAddedEmail } from '@/lib/emailNotifications';
 import { unauthorized, notFound, internalError, badRequest, forbidden } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 import { createLeadFromContact } from '@/lib/ops/leads';
@@ -237,6 +238,37 @@ export async function POST(
     } catch (activityError) {
       logger.error('Error creating activity feed item:', activityError);
       // Don't fail the request if activity feed creation fails
+    }
+
+    // Send email notifications to organization admins
+    const { data: orgAdmins } = await supabase
+      .from('users')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .eq('role', 'admin');
+
+    if (orgAdmins) {
+      const contactName = `${contact.first_name} ${contact.last_name}`;
+      const { data: company } = await supabase
+        .from('companies')
+        .select('name')
+        .eq('id', companyId)
+        .single();
+
+      const contactLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/ops/companies/${companyId}/contacts/${contact.id}`;
+      
+      for (const admin of orgAdmins) {
+        if (admin.id !== userData.id) {
+          sendContactAddedEmail(
+            admin.id,
+            contactName,
+            company?.name || 'Unknown Company',
+            contactLink
+          ).catch((err) => {
+            logger.error('[Contact] Error sending email to admin:', err);
+          });
+        }
+      }
     }
 
     return NextResponse.json(contact, { status: 201 });

@@ -4,6 +4,7 @@ import { unauthorized, notFound, internalError, badRequest, forbidden } from '@/
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { hasOpsTool } from '@/lib/packageLimits';
 import logger from '@/lib/utils/logger';
+import { sendCompanyAddedEmail } from '@/lib/emailNotifications';
 import type { Company, CompanyWithCounts } from '@/types/ops';
 
 export const dynamic = 'force-dynamic';
@@ -124,6 +125,17 @@ export async function POST(request: NextRequest) {
       return forbidden('Ops Tool is not available for your subscription plan');
     }
 
+    // Get user record
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('auth_id', session.user.id)
+      .single();
+
+    if (userError || !userData) {
+      return notFound('User');
+    }
+
     const body = await request.json();
     const {
       name, status, notes,
@@ -161,6 +173,28 @@ export async function POST(request: NextRequest) {
     if (companyError) {
       logger.error('Error creating company:', companyError);
       return internalError('Failed to create company', { error: companyError.message });
+    }
+
+    // Send email notifications to organization admins
+    const { data: orgAdmins } = await supabase
+      .from('users')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .eq('role', 'admin');
+
+    if (orgAdmins) {
+      const companyLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/ops/companies/${company.id}`;
+      for (const admin of orgAdmins) {
+        if (admin.id !== userData.id) {
+          sendCompanyAddedEmail(
+            admin.id,
+            company.name,
+            companyLink
+          ).catch((err) => {
+            logger.error('[Company] Error sending email to admin:', err);
+          });
+        }
+      }
     }
 
     return NextResponse.json(company, { status: 201 });

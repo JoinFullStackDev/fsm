@@ -28,18 +28,29 @@ export default function ForgotPasswordPage() {
     setError(null);
     setLoading(true);
 
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset-password`,
-    });
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
 
-    if (resetError) {
-      setError(resetError.message);
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || data.message || 'Failed to send reset email');
+        setLoading(false);
+        return;
+      }
+
+      setSuccess(true);
+    } catch (err) {
+      setError('An error occurred. Please try again.');
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setSuccess(true);
-    setLoading(false);
   };
 
   return (
