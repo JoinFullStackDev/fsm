@@ -101,7 +101,7 @@ export default function NotificationBell({ onOpenDrawer }: NotificationBellProps
             table: 'notifications',
             filter: `user_id=eq.${userData.id}`,
           },
-          (payload) => {
+          (payload: any) => {
             if (payload.eventType === 'INSERT') {
               // New notification
               const newNotification = payload.new as Notification;

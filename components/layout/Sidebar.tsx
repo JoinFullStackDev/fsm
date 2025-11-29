@@ -208,7 +208,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
           .eq('user_id', userData.id);
 
         const allProjectIds = new Set<string>();
-        (ownedProjects || []).forEach((p) => allProjectIds.add(p.id));
+        (ownedProjects || []).forEach((p: any) => allProjectIds.add(p.id));
         (memberProjects || []).forEach((mp: any) => allProjectIds.add(mp.project_id));
 
         if (allProjectIds.size === 0) {
@@ -232,7 +232,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
           .not('due_date', 'is', null);
 
         if (tasksData) {
-          const filteredTasks = tasksData.filter((task) => {
+          const filteredTasks = tasksData.filter((task: any) => {
             if (!task.due_date) return false;
             const dueDate = new Date(task.due_date);
             dueDate.setHours(0, 0, 0, 0);

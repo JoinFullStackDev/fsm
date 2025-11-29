@@ -110,7 +110,7 @@ export default function AdminAnalyticsTab() {
         .select('created_at')
         .eq('organization_id', organizationId);
       
-      const newUsersThisMonth = usersData?.filter(u => 
+      const newUsersThisMonth = usersData?.filter((u: any) =>
         new Date(u.created_at) >= startOfMonth
       ).length || 0;
 
@@ -122,7 +122,7 @@ export default function AdminAnalyticsTab() {
         .select('id')
         .eq('organization_id', organizationId);
       
-      const projectIds = orgProjects?.map(p => p.id) || [];
+      const projectIds = orgProjects?.map((p: any) => p.id) || [];
       
       let filteredExports: any[] = [];
       if (projectIds.length > 0) {
@@ -153,7 +153,7 @@ export default function AdminAnalyticsTab() {
         .select('id')
         .eq('organization_id', organizationId);
       
-      const userIds = orgUsers?.map(u => u.id) || [];
+      const userIds = orgUsers?.map((u: any) => u.id) || [];
       
       let filteredAiActivity: any[] = [];
       if (userIds.length > 0) {

@@ -110,7 +110,7 @@ export default function MyTasksPage() {
       }
 
       // Filter tasks to only include those with due dates in the next 2 weeks
-      const filteredTasks = (tasksData || []).filter((task) => {
+      const filteredTasks = (tasksData || []).filter((task: ProjectTask) => {
         if (!task.due_date) return false;
         const dueDate = startOfDay(parseISO(task.due_date));
         return (

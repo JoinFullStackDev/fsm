@@ -277,7 +277,7 @@ export default function NewProjectPage() {
 
         // Create phases from template (copying all metadata)
         if (templatePhases && templatePhases.length > 0) {
-          templatePhases.forEach((templatePhase) => {
+          templatePhases.forEach((templatePhase: any) => {
             phaseInserts.push({
               project_id: projectData.id,
               phase_number: templatePhase.phase_number,

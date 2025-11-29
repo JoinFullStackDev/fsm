@@ -143,7 +143,7 @@ export default function ProjectTaskManagementPage() {
       // Create phase names map
       const phaseNamesMap: Record<number, string> = {};
       if (!phasesError && phasesData) {
-        phasesData.forEach((phase) => {
+        phasesData.forEach((phase: { phase_number: number; phase_name: string }) => {
           phaseNamesMap[phase.phase_number] = phase.phase_name;
         });
       }
