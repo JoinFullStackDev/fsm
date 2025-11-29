@@ -200,31 +200,37 @@ describe('/api/projects/[id]/phases', () => {
         },
       });
 
-      const mockUserQuery = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
+      const mockUserQuery: any = {
+        select: jest.fn(),
+        eq: jest.fn(),
         single: jest.fn().mockResolvedValue({
           data: { id: mockUser.id, role: mockUser.role, organization_id: 'org-123', is_super_admin: false },
           error: null,
         }),
       };
+      // Make methods chainable
+      mockUserQuery.select.mockReturnValue(mockUserQuery);
+      mockUserQuery.eq.mockReturnValue(mockUserQuery);
 
-      const mockProjectQuery = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
+      const mockProjectQuery: any = {
+        select: jest.fn(),
+        eq: jest.fn(),
         single: jest.fn().mockResolvedValue({
           data: { owner_id: mockProject.owner_id, organization_id: 'org-123' },
           error: null,
         }),
       };
+      // Make methods chainable
+      mockProjectQuery.select.mockReturnValue(mockProjectQuery);
+      mockProjectQuery.eq.mockReturnValue(mockProjectQuery);
 
       // Mock project_members query (user is owner, so this can return null)
       // The route uses .single() which returns error when not found
       // But the route destructures { data: projectMember }, so projectMember will be null
       // Since isOwner is true, isProjectMember will be true regardless
       const mockMemberQuery: any = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
+        select: jest.fn(),
+        eq: jest.fn(),
         single: jest.fn().mockResolvedValue({
           data: null,
           error: { code: 'PGRST116', message: 'Not found' },
@@ -235,22 +241,22 @@ describe('/api/projects/[id]/phases', () => {
       mockMemberQuery.eq.mockReturnValue(mockMemberQuery);
 
       const mockExistingPhasesQuery: any = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        order: jest.fn().mockReturnThis(),
+        select: jest.fn(),
+        eq: jest.fn(),
+        order: jest.fn(),
         limit: jest.fn().mockResolvedValue({
           data: [],
           error: null,
         }),
       };
-      // Make methods chainable
+      // Make methods chainable: select() -> eq() -> order() -> limit()
       mockExistingPhasesQuery.select.mockReturnValue(mockExistingPhasesQuery);
       mockExistingPhasesQuery.eq.mockReturnValue(mockExistingPhasesQuery);
       mockExistingPhasesQuery.order.mockReturnValue(mockExistingPhasesQuery);
 
       const mockInsertQuery: any = {
-        insert: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
+        insert: jest.fn(),
+        select: jest.fn(),
         single: jest.fn().mockResolvedValue({
           data: { 
             id: 'phase-new',
@@ -265,12 +271,25 @@ describe('/api/projects/[id]/phases', () => {
           error: null,
         }),
       };
-      // Make methods chainable
+      // Make methods chainable: insert() -> select() -> single()
       mockInsertQuery.insert.mockReturnValue(mockInsertQuery);
       mockInsertQuery.select.mockReturnValue(mockInsertQuery);
 
+      // Mock admin client's from() in case it's called (even though user lookup should succeed)
+      const mockAdminUserQuery: any = {
+        select: jest.fn(),
+        eq: jest.fn(),
+        single: jest.fn().mockResolvedValue({
+          data: { id: mockUser.id, role: mockUser.role, organization_id: 'org-123', is_super_admin: false },
+          error: null,
+        }),
+      };
+      mockAdminUserQuery.select.mockReturnValue(mockAdminUserQuery);
+      mockAdminUserQuery.eq.mockReturnValue(mockAdminUserQuery);
+      mockAdminClient.from.mockReturnValue(mockAdminUserQuery);
+
       mockSupabaseClient.from
-        .mockReturnValueOnce(mockUserQuery) // User lookup
+        .mockReturnValueOnce(mockUserQuery) // User lookup (should succeed, so admin client won't be called)
         .mockReturnValueOnce(mockProjectQuery) // Project lookup
         .mockReturnValueOnce(mockMemberQuery) // Member check
         .mockReturnValueOnce(mockExistingPhasesQuery) // Existing phases check
@@ -285,6 +304,10 @@ describe('/api/projects/[id]/phases', () => {
 
       const response = await POST(request, { params: { id: 'project-1' } });
       const data = await response.json();
+
+      if (response.status !== 201) {
+        console.error('POST test error:', JSON.stringify(data, null, 2));
+      }
 
       expect(response.status).toBe(201);
       expect(data.phase_name).toBe('New Phase');
@@ -308,51 +331,73 @@ describe('/api/projects/[id]/phases', () => {
         },
       });
 
-      const mockUserQuery = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
+      const mockUserQuery: any = {
+        select: jest.fn(),
+        eq: jest.fn(),
         single: jest.fn().mockResolvedValue({
           data: { id: mockUser.id, role: mockUser.role, organization_id: 'org-123', is_super_admin: false },
           error: null,
         }),
       };
+      // Make methods chainable
+      mockUserQuery.select.mockReturnValue(mockUserQuery);
+      mockUserQuery.eq.mockReturnValue(mockUserQuery);
 
-      const mockProjectQuery = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
+      const mockProjectQuery: any = {
+        select: jest.fn(),
+        eq: jest.fn(),
         single: jest.fn().mockResolvedValue({
           data: { owner_id: mockProject.owner_id, organization_id: 'org-123' },
           error: null,
         }),
       };
+      // Make methods chainable
+      mockProjectQuery.select.mockReturnValue(mockProjectQuery);
+      mockProjectQuery.eq.mockReturnValue(mockProjectQuery);
 
       // Mock project_members query (user is owner, so this can return null)
       const mockMemberQuery: any = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
+        select: jest.fn(),
+        eq: jest.fn(),
         single: jest.fn().mockResolvedValue({
           data: null,
           error: { code: 'PGRST116', message: 'Not found' },
         }),
       };
+      // Make methods chainable
       mockMemberQuery.select.mockReturnValue(mockMemberQuery);
       mockMemberQuery.eq.mockReturnValue(mockMemberQuery);
 
-      // Mock update query - needs to chain eq() calls
+      // Mock update query - needs to chain: update() -> eq() -> eq() -> select() -> single()
       const mockUpdateQuery: any = {
-        update: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
+        update: jest.fn(),
+        eq: jest.fn(),
+        select: jest.fn(),
         single: jest.fn().mockResolvedValue({
           data: { ...updatedPhase, phase_name: 'Updated Phase Name' },
           error: null,
         }),
       };
-      // Make eq() chainable
+      // Make all methods chainable - each returns the mock object
+      mockUpdateQuery.update.mockReturnValue(mockUpdateQuery);
       mockUpdateQuery.eq.mockReturnValue(mockUpdateQuery);
+      mockUpdateQuery.select.mockReturnValue(mockUpdateQuery);
+
+      // Mock admin client's from() in case it's called (even though user lookup should succeed)
+      const mockAdminUserQuery: any = {
+        select: jest.fn(),
+        eq: jest.fn(),
+        single: jest.fn().mockResolvedValue({
+          data: { id: mockUser.id, role: mockUser.role, organization_id: 'org-123', is_super_admin: false },
+          error: null,
+        }),
+      };
+      mockAdminUserQuery.select.mockReturnValue(mockAdminUserQuery);
+      mockAdminUserQuery.eq.mockReturnValue(mockAdminUserQuery);
+      mockAdminClient.from.mockReturnValue(mockAdminUserQuery);
 
       mockSupabaseClient.from
-        .mockReturnValueOnce(mockUserQuery) // User lookup
+        .mockReturnValueOnce(mockUserQuery) // User lookup (should succeed, so admin client won't be called)
         .mockReturnValueOnce(mockProjectQuery) // Project lookup
         .mockReturnValueOnce(mockMemberQuery) // Member check
         .mockReturnValueOnce(mockUpdateQuery); // Phase update (with chained eq calls)
@@ -367,6 +412,10 @@ describe('/api/projects/[id]/phases', () => {
 
       const response = await PATCH(request, { params: { id: 'project-1' } });
       const data = await response.json();
+
+      if (response.status !== 200) {
+        console.error('PATCH test error:', JSON.stringify(data, null, 2));
+      }
 
       expect(response.status).toBe(200);
       expect(data.phase_name).toBe('Updated Phase Name');
