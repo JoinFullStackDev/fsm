@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { setupAuth } from './helpers/auth';
 
 test.describe('Project Creation', () => {
   test.beforeEach(async ({ page }) => {
-    // Note: In a real test, you would set up authentication here
-    // For now, we'll test the UI flow assuming authentication is handled
+    // Set up authentication before accessing protected routes
+    await setupAuth(page);
     await page.goto('/dashboard');
   });
 

@@ -1,7 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { setupAuth } from './helpers/auth';
 
 test.describe('Notifications', () => {
   test.beforeEach(async ({ page }) => {
+    // Set up authentication before accessing protected routes
+    await setupAuth(page);
     // Mock notifications API
     await page.route('**/api/notifications**', async (route) => {
       await route.fulfill({
