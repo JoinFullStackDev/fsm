@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Container,
   Box,
@@ -13,26 +13,36 @@ import {
   Card,
   CardContent,
 } from '@mui/material';
-import { createSupabaseClient } from '@/lib/supabaseClient';
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const router = useRouter();
-  // Get search params from URL directly to avoid static generation issues
-  const getSearchParam = (key: string) => {
-    if (typeof window === 'undefined') return null;
-    const params = new URLSearchParams(window.location.search);
-    return params.get(key);
-  };
-  const supabase = createSupabaseClient();
+  const searchParams = useSearchParams();
+  const token = searchParams.get('token');
+  
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [tokenValid, setTokenValid] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!token) {
+      setError('Invalid reset link. Please request a new password reset.');
+      setTokenValid(false);
+    } else {
+      setTokenValid(true);
+    }
+  }, [token]);
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (!token) {
+      setError('Invalid reset link. Please request a new password reset.');
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError('Passwords do not match');
@@ -46,20 +56,31 @@ export default function ResetPasswordPage() {
 
     setLoading(true);
 
-    const { error: resetError } = await supabase.auth.updateUser({
-      password,
-    });
+    try {
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token, password }),
+      });
 
-    if (resetError) {
-      setError(resetError.message);
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || data.message || 'Failed to reset password');
+        setLoading(false);
+        return;
+      }
+
+      setSuccess(true);
+      setTimeout(() => {
+        router.push('/auth/signin');
+      }, 2000);
+    } catch (err) {
+      setError('An error occurred. Please try again.');
       setLoading(false);
-      return;
     }
-
-    setSuccess(true);
-    setTimeout(() => {
-      router.push('/dashboard');
-    }, 2000);
   };
 
   return (
@@ -79,8 +100,14 @@ export default function ResetPasswordPage() {
               Reset Password
             </Typography>
             <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 3 }}>
-              FullStack Method™ App
+              Enter your new password
             </Typography>
+
+            {!token && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                Invalid reset link. Please request a new password reset.
+              </Alert>
+            )}
 
             {error && (
               <Alert severity="error" sx={{ mb: 2 }}>
@@ -90,7 +117,7 @@ export default function ResetPasswordPage() {
 
             {success && (
               <Alert severity="success" sx={{ mb: 2 }}>
-                Password reset successfully! Redirecting...
+                Password reset successfully! Redirecting to sign in...
               </Alert>
             )}
 
@@ -121,7 +148,7 @@ export default function ResetPasswordPage() {
                 fullWidth
                 variant="contained"
                 sx={{ mt: 3, mb: 2 }}
-                disabled={loading || success}
+                disabled={loading || success || !token}
               >
                 {loading ? 'Resetting...' : 'Reset Password'}
               </Button>
@@ -135,6 +162,37 @@ export default function ResetPasswordPage() {
         </Card>
       </Box>
     </Container>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={
+      <Container maxWidth="sm">
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '100vh',
+          }}
+        >
+          <Card sx={{ width: '100%' }}>
+            <CardContent>
+              <Typography variant="h4" component="h1" gutterBottom align="center">
+                Reset Password
+              </Typography>
+              <Typography variant="body2" color="text.secondary" align="center">
+                Loading...
+              </Typography>
+            </CardContent>
+          </Card>
+        </Box>
+      </Container>
+    }>
+      <ResetPasswordForm />
+    </Suspense>
   );
 }
 

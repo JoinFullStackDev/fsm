@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { sendPushNotification } from '@/lib/pushNotifications';
+import { sendEmailWithRetry, isEmailConfigured } from '@/lib/emailService';
 import logger from '@/lib/utils/logger';
 import type { NotificationType, NotificationMetadata } from '@/types/project';
 
@@ -19,10 +20,10 @@ export async function createNotification(
     const supabase = await createServerSupabaseClient();
     const adminClient = createAdminSupabaseClient();
 
-    // Check user preferences for in-app notifications
+    // Check user preferences for in-app and email notifications
     const { data: user } = await adminClient
       .from('users')
-      .select('preferences')
+      .select('preferences, email, name')
       .eq('id', userId)
       .single();
 
@@ -30,6 +31,21 @@ export async function createNotification(
     if (user?.preferences?.notifications?.inApp === false) {
       logger.debug('[Notifications] Skipping notification - user has in-app notifications disabled:', userId);
       return null;
+    }
+
+    // Check if email notifications are enabled (default to true if not set)
+    const emailEnabled = user?.preferences?.notifications?.email !== false;
+    
+    // Send email notification if enabled and email service is configured (non-blocking)
+    if (emailEnabled && user?.email) {
+      isEmailConfigured().then((configured) => {
+        if (configured) {
+          // Email sending will be handled by specific notification functions
+          // This is just a placeholder for future email integration
+        }
+      }).catch((error) => {
+        logger.error('[Notifications] Error checking email configuration:', error);
+      });
     }
 
     logger.debug('[Notifications] Attempting to create notification:', {

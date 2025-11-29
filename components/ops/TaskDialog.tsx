@@ -133,6 +133,7 @@ export default function TaskDialog({
           width: { xs: '100%', sm: '75%', md: '600px' },
           backgroundColor: theme.palette.background.default,
           borderLeft: `2px solid ${theme.palette.divider}`,
+          transform: 'translateY(60px) !important',
         },
       }}
     >

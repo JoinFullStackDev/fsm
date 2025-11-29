@@ -306,6 +306,7 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
           width: { xs: '100%', sm: '75%', md: '50%' },
           backgroundColor: theme.palette.background.paper,
           borderLeft: `1px solid ${theme.palette.divider}`,
+          transform: 'translateY(60px) !important',
         },
       }}
     >

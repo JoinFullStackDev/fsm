@@ -121,9 +121,12 @@ If no timeline information is found, return empty strings. Be thorough - search 
           projectName
         );
         
+        // Handle both wrapped and unwrapped results
+        const timelines = 'result' in timelineResult ? timelineResult.result : timelineResult;
+        
         // Use extracted timelines
-        phase1Timeline = timelineResult.planning_timeline || timelineResult.overall_timeline || '';
-        phase5Timeline = timelineResult.build_timeline || '';
+        phase1Timeline = timelines.planning_timeline || timelines.overall_timeline || '';
+        phase5Timeline = timelines.build_timeline || '';
         
         // If still no timeline, try a simpler text-based search as fallback
         if (!phase1Timeline && !phase5Timeline) {
@@ -421,6 +424,9 @@ REMINDER: Every task must have both start_date and due_date calculated from the 
       projectName
     );
 
+    // Handle both wrapped and unwrapped results
+    const analysisResult = 'result' in result ? result.result : result;
+
     // Parse timeline to extract phase durations (for fallback calculation)
     const phaseDurations: Record<number, number> = {};
     let totalDaysFromPhases = 0;
@@ -509,15 +515,15 @@ REMINDER: Every task must have both start_date and due_date calculated from the 
     const effectiveTotalDays = totalProjectDays || totalDaysFromPhases || 180; // Default to 6 months if nothing found
 
     // Group tasks by phase for better date distribution
-    const tasksByPhase = result.tasks.reduce((acc, task) => {
+    const tasksByPhase = analysisResult.tasks.reduce((acc, task) => {
       const phase = task.phase_number || 1;
       if (!acc[phase]) acc[phase] = [];
       acc[phase].push(task);
       return acc;
-    }, {} as Record<number, typeof result.tasks>);
+    }, {} as Record<number, typeof analysisResult.tasks>);
 
     // Ensure all tasks have required fields
-    const validatedTasks = result.tasks.map((task, index) => {
+    const validatedTasks = analysisResult.tasks.map((task, index) => {
       // Parse start_date if provided
       let startDate: string | null = null;
       if (task.start_date) {
@@ -707,7 +713,7 @@ REMINDER: Every task must have both start_date and due_date calculated from the 
     });
 
     return {
-      ...result,
+      ...analysisResult,
       tasks: validatedTasks,
     };
   } catch (error) {

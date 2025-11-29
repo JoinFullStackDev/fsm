@@ -129,8 +129,11 @@ Return ONLY a JSON object with this format:
       reason?: string;
     }>(prompt, {}, apiKey);
 
+    // Handle both wrapped and unwrapped results
+    const similarityResult = 'result' in result ? result.result : result;
+
     // Clamp similarity to 0-1 range
-    return Math.max(0, Math.min(1, result.similarity || 0));
+    return Math.max(0, Math.min(1, similarityResult.similarity || 0));
   } catch (error) {
     logger.error('[Task Similarity] Error calculating semantic similarity:', error);
     // Fallback to string similarity if AI fails

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { notifyProjectCreated } from '@/lib/notifications';
+import { sendProjectCreatedEmail } from '@/lib/emailNotifications';
 import { unauthorized, notFound, internalError, badRequest, forbidden } from '@/lib/utils/apiErrors';
 import { getUserOrganizationId, validateOrganizationAccess } from '@/lib/organizationContext';
 import { canCreateProject } from '@/lib/packageLimits';
@@ -405,14 +406,28 @@ export async function POST(request: NextRequest) {
         .eq('id', userData.id)
         .single();
 
+      const creatorName = creator?.name || null;
+      const projectLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/project/${project.id}`;
+
+      // Send in-app notification
       notifyProjectCreated(
         project.owner_id,
         userData.id,
         project.id,
         project.name,
-        creator?.name || null
+        creatorName
       ).catch((err) => {
         logger.error('[Project] Error creating notification:', err);
+      });
+
+      // Send email notification (non-blocking)
+      sendProjectCreatedEmail(
+        project.owner_id,
+        project.name,
+        creatorName || 'Someone',
+        projectLink
+      ).catch((err) => {
+        logger.error('[Project] Error sending email notification:', err);
       });
     }
 

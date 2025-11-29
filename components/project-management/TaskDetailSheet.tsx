@@ -194,6 +194,7 @@ export default function TaskDetailSheet({
           width: { xs: '100%', sm: '75%', md: '60%' },
           backgroundColor: theme.palette.background.paper,
           borderLeft: `1px solid ${theme.palette.divider}`,
+          transform: 'translateY(60px) !important',
         },
       }}
     >

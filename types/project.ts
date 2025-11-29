@@ -58,13 +58,41 @@ export interface AdminSetting {
   created_at: string;
 }
 
+export interface AIUsageMetadata {
+  // Existing fields (backward compatible)
+  structured?: boolean;
+  prompt_length?: number;
+  has_context?: boolean;
+  has_phase_data?: boolean;
+  
+  // Enhanced tracking fields
+  full_prompt_length?: number;
+  response_length?: number;
+  model?: string;
+  response_time_ms?: number;
+  input_tokens?: number;
+  output_tokens?: number;
+  total_tokens?: number;
+  estimated_cost?: number;
+  error?: string;
+  error_type?: string;
+  feature_type?: string; // 'ai_generate', 'project_analyze', 'tasks_generated', etc.
+  
+  // Additional context fields
+  analysis_type?: string;
+  tasks_generated?: number;
+  is_default_template?: boolean;
+  count?: number;
+  source?: string;
+}
+
 export interface ActivityLog {
   id: string;
   user_id?: string | null;
   action_type: string;
   resource_type?: string | null;
   resource_id?: string | null;
-  metadata?: any; // JSONB
+  metadata?: AIUsageMetadata | any; // JSONB - can be AIUsageMetadata or other metadata
   ip_address?: string | null;
   user_agent?: string | null;
   created_at: string;

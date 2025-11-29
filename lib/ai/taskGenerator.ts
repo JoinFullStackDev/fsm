@@ -52,9 +52,12 @@ If relative dates are found, calculate them from today's date: ${new Date().toIS
       earliest: string | null;
     }>(prompt, {}, apiKey);
 
+    // Handle both wrapped and unwrapped results
+    const dateResult = 'result' in result ? result.result : result;
+
     return {
-      dueDate: result.earliest || null,
-      extractedDates: result.dates || [],
+      dueDate: dateResult.earliest || null,
+      extractedDates: dateResult.dates || [],
     };
   } catch (error) {
     logger.error('[Task Generator] Error extracting dates:', error);
@@ -161,8 +164,11 @@ Focus on actionable, specific tasks that directly address the user's prompt.`;
       },
     }, apiKey, projectName);
 
+    // Handle both wrapped and unwrapped results
+    const taskResult = 'result' in result ? result.result : result;
+
     // Convert to PreviewTask format
-    const previewTasks: PreviewTask[] = result.tasks.map((task, index) => {
+    const previewTasks: PreviewTask[] = taskResult.tasks.map((task, index) => {
       // Build notes JSONB structure
       const notesData: Record<string, any> = {
         requirements: task.requirements || [],
@@ -214,7 +220,7 @@ Focus on actionable, specific tasks that directly address the user's prompt.`;
 
     return {
       tasks: previewTasks,
-      summary: result.summary,
+      summary: taskResult.summary,
     };
   } catch (error) {
     logger.error('[Task Generator] Error generating tasks:', error);

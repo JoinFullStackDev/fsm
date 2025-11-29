@@ -748,6 +748,7 @@ export default function ContactDetailSlideout({
           width: { xs: '100%', sm: '75%', md: '700px' },
           backgroundColor: theme.palette.background.default,
           borderLeft: `2px solid ${theme.palette.divider}`,
+          transform: 'translateY(60px) !important',
         },
       }}
     >

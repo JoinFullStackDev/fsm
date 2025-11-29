@@ -284,16 +284,31 @@ export async function POST(
           projectId: params.id,
         });
 
-        // Create activity log entry for batch creation
+        // Create activity log entry for batch creation with enhanced metadata
         try {
+          // Estimate usage for task generation (tasks were generated via AI earlier in the flow)
+          const estimatedPromptLength = JSON.stringify(selectedTasks).length + 1000; // Base prompt overhead
+          const estimatedResponseLength = JSON.stringify(insertedTasks).length;
+          const estimatedInputTokens = Math.ceil(estimatedPromptLength / 4);
+          const estimatedOutputTokens = Math.ceil(estimatedResponseLength / 4);
+          const estimatedCost = (estimatedInputTokens * 0.075 / 1_000_000) + (estimatedOutputTokens * 0.30 / 1_000_000);
+          
           await supabase.from('activity_logs').insert({
             user_id: userData.id,
             action_type: 'tasks_generated',
             resource_type: 'project',
             resource_id: params.id,
             metadata: {
+              feature_type: 'tasks_generated',
               count: createdCount,
               source: 'ai-task-generator',
+              full_prompt_length: estimatedPromptLength,
+              response_length: estimatedResponseLength,
+              model: 'gemini-2.5-flash',
+              input_tokens: estimatedInputTokens,
+              output_tokens: estimatedOutputTokens,
+              total_tokens: estimatedInputTokens + estimatedOutputTokens,
+              estimated_cost: estimatedCost,
             },
           });
         } catch (activityError) {

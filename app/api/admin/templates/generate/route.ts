@@ -164,13 +164,20 @@ Respond ONLY with valid JSON matching this exact structure:
     // Generate structured response
     let result: GeneratedTemplate;
     try {
-      result = await generateStructuredAIResponse<GeneratedTemplate>(
+      const response = await generateStructuredAIResponse<GeneratedTemplate>(
         prompt,
         {
           context: 'Generate project template structure',
         },
-        apiKey
+        apiKey,
+        undefined,
+        false // Don't return metadata for template generation
       );
+      
+      // Handle response (should be just GeneratedTemplate when returnMetadata is false)
+      result = typeof response === 'object' && 'result' in response 
+        ? (response as any).result 
+        : response as GeneratedTemplate;
     } catch (parseError) {
       // If parsing fails, try to get the raw response for debugging
       return NextResponse.json(

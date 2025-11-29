@@ -83,7 +83,7 @@ export async function generateBlueprintBundle(
   let conceptSummary: string;
   if (useAI) {
     try {
-      conceptSummary = await generateAIResponse(
+      const conceptResponse = await generateAIResponse(
         `Create a comprehensive, professional Concept Summary document for the project "${project.name}". 
 
 Use all the following information to create a well-structured, detailed summary:
@@ -104,6 +104,7 @@ Create a professional markdown document with clear sections, proper formatting, 
         apiKey,
         project.name
       );
+      conceptSummary = typeof conceptResponse === 'string' ? conceptResponse : conceptResponse.text;
     } catch (error) {
       conceptSummary = `# Concept Summary\n\n## Problem Statement\n${phase1.problem_statement || 'Not defined'}\n\n## Target Users\n${phase1.target_users?.join('\n- ') || 'Not defined'}\n\n## Why Now / Market Timing\n${phase1.why_now || 'Not defined'}\n\n## Value Hypothesis\n${phase1.value_hypothesis || 'Not defined'}\n\n## Initial Features\n${phase1.initial_features?.join('\n- ') || 'Not defined'}`;
     }
@@ -115,7 +116,7 @@ Create a professional markdown document with clear sections, proper formatting, 
   let racSummary: string;
   if (useAI) {
     try {
-      racSummary = await generateAIResponse(
+      const racResponse = await generateAIResponse(
         `Create a comprehensive Risks, Assumptions, and Constraints (RAC) analysis document for the project "${project.name}".
 
 Constraints: ${phase1.constraints?.join(', ') || 'None defined'}
@@ -127,6 +128,7 @@ Create a professional markdown document that analyzes each constraint, risk, and
         apiKey,
         project.name
       );
+      racSummary = typeof racResponse === 'string' ? racResponse : racResponse.text;
     } catch (error) {
       racSummary = `# Risks, Assumptions, Constraints\n\n## Constraints\n${phase1.constraints?.join('\n- ') || 'None defined'}\n\n## Risks\n${phase1.risks?.join('\n- ') || 'None defined'}\n\n## Assumptions\n${phase1.assumptions?.join('\n- ') || 'None defined'}`;
     }
@@ -138,7 +140,7 @@ Create a professional markdown document that analyzes each constraint, risk, and
   let highLevelFeasibility: string;
   if (useAI) {
     try {
-      highLevelFeasibility = await generateAIResponse(
+      const feasibilityResponse = await generateAIResponse(
         `Create a comprehensive High-Level Feasibility Analysis document for the project "${project.name}".
 
 Feasibility Notes: ${phase1.feasibility_notes || 'Not defined'}
@@ -150,6 +152,7 @@ Create a professional markdown document that analyzes technical feasibility, res
         apiKey,
         project.name
       );
+      highLevelFeasibility = typeof feasibilityResponse === 'string' ? feasibilityResponse : feasibilityResponse.text;
     } catch (error) {
       highLevelFeasibility = `# High-Level Feasibility\n\n${phase1.feasibility_notes || 'Not defined'}\n\n## Timeline\n${phase1.high_level_timeline || 'Not defined'}`;
     }
@@ -161,7 +164,7 @@ Create a professional markdown document that analyzes technical feasibility, res
   let outcomesAndKPIs: string;
   if (useAI) {
     try {
-      outcomesAndKPIs = await generateAIResponse(
+      const outcomesResponse = await generateAIResponse(
         `Create a comprehensive Business Outcomes & KPIs document for the project "${project.name}".
 
 Business Outcomes: ${phase2.business_outcomes?.join(', ') || 'None defined'}
@@ -173,6 +176,7 @@ Create a professional markdown document that defines measurable business outcome
         apiKey,
         project.name
       );
+      outcomesAndKPIs = typeof outcomesResponse === 'string' ? outcomesResponse : outcomesResponse.text;
     } catch (error) {
       outcomesAndKPIs = `# Business Outcomes & KPIs\n\n## Business Outcomes\n${phase2.business_outcomes?.join('\n- ') || 'None defined'}\n\n## KPIs\n${phase2.kpis?.join('\n- ') || 'None defined'}`;
     }
@@ -184,7 +188,7 @@ Create a professional markdown document that defines measurable business outcome
   let outcomeRoadmap: string;
   if (useAI) {
     try {
-      outcomeRoadmap = await generateAIResponse(
+      const roadmapResponse = await generateAIResponse(
         `Create a comprehensive Outcome Roadmap document for the project "${project.name}".
 
 MVP Features: ${phase2.scored_features?.filter(f => f.mvp_group === 'mvp').map(f => f.title).join(', ') || 'None'}
@@ -198,6 +202,7 @@ Create a professional markdown document that organizes features by release phase
         apiKey,
         project.name
       );
+      outcomeRoadmap = typeof roadmapResponse === 'string' ? roadmapResponse : roadmapResponse.text;
     } catch (error) {
       outcomeRoadmap = `# Outcome Roadmap\n\n## MVP Features\n${phase2.scored_features?.filter(f => f.mvp_group === 'mvp').map(f => `- ${f.title}`).join('\n') || 'None defined'}\n\n## V2 Features\n${phase2.scored_features?.filter(f => f.mvp_group === 'v2').map(f => `- ${f.title}`).join('\n') || 'None defined'}\n\n## V3 Features\n${phase2.scored_features?.filter(f => f.mvp_group === 'v3').map(f => `- ${f.title}`).join('\n') || 'None defined'}`;
     }

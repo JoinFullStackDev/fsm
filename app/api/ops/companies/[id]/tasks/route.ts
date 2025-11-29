@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { sendTaskAssignedEmail } from '@/lib/emailNotifications';
 import { unauthorized, notFound, internalError, badRequest } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 import { createActivityFeedItem } from '@/lib/ops/activityFeed';
@@ -161,6 +162,35 @@ export async function POST(
     } catch (activityError) {
       logger.error('Error creating activity feed item:', activityError);
       // Don't fail the request if activity feed creation fails
+    }
+
+    // Send email notification if task is assigned
+    if (task.assigned_to) {
+      const { data: company } = await supabase
+        .from('companies')
+        .select('name')
+        .eq('id', companyId)
+        .single();
+
+      const { data: assigner } = await supabase
+        .from('users')
+        .select('id, name')
+        .eq('auth_id', session.user.id)
+        .single();
+
+      if (company && assigner) {
+        const taskLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/ops/companies/${companyId}?task=${task.id}`;
+        
+        sendTaskAssignedEmail(
+          task.assigned_to,
+          task.title,
+          company.name,
+          assigner.name || 'Someone',
+          taskLink
+        ).catch((err) => {
+          logger.error('[Ops Task] Error sending email notification:', err);
+        });
+      }
     }
 
     return NextResponse.json(task, { status: 201 });

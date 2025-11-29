@@ -92,9 +92,23 @@ describe('ProjectPage - Delete Functionality', () => {
         error: null,
       }),
     };
+
+    // Mock users query for creator information
+    const usersQueryBuilder = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { id: 'test-user-id', name: 'Test User', email: 'test@example.com', avatar_url: null },
+        error: null,
+      }),
+    };
+
     mockSupabaseClient.from.mockImplementation((table: string) => {
       if (table === 'projects') {
         return projectQueryBuilder;
+      }
+      if (table === 'users') {
+        return usersQueryBuilder;
       }
       if (table === 'project_phases') {
         return {

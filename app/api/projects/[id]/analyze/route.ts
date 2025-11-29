@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { analyzeProject, mergeTasks } from '@/lib/ai/projectAnalyzer';
+import { sendProjectInitiatedEmail } from '@/lib/emailNotifications';
 import logger from '@/lib/utils/logger';
 import { unauthorized, notFound, badRequest, internalError } from '@/lib/utils/apiErrors';
 import { ANALYSIS_TYPES, API_CONFIG_KEYS } from '@/lib/constants';
@@ -87,14 +88,95 @@ export async function POST(
       return badRequest('Gemini API key not configured. Please configure GOOGLE_GENAI_API_KEY environment variable or Admin Settings.');
     }
 
-    // Run AI analysis
-    const analysisResult = await analyzeProject(
-      project.name,
-      phases || [],
-      existingTasks || [],
-      apiKey,
-      isDefaultTemplate
-    );
+    const startTime = Date.now();
+    let analysisResult;
+    let error: string | undefined = undefined;
+
+    try {
+      // Run AI analysis
+      analysisResult = await analyzeProject(
+        project.name,
+        phases || [],
+        existingTasks || [],
+        apiKey,
+        isDefaultTemplate
+      );
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Unknown error';
+      logger.error('[Project Analyze] Error:', err);
+      
+      // Log error to activity logs
+      const responseTime = Date.now() - startTime;
+      Promise.resolve(
+        supabase
+          .from('activity_logs')
+          .insert({
+            user_id: userData.id,
+            action_type: 'project_analyze',
+            resource_type: 'project',
+            resource_id: params.id,
+            metadata: {
+              feature_type: 'project_analyze',
+              analysis_type: !project.initiated_at ? 'initial' : 'update',
+              tasks_generated: 0,
+              is_default_template: isDefaultTemplate,
+              model: 'gemini-2.5-flash',
+              response_time_ms: responseTime,
+              estimated_cost: 0,
+              error,
+              error_type: err instanceof Error && err.message.includes('401') ? 'authentication' :
+                          err instanceof Error && err.message.includes('429') ? 'rate_limit' : 'api_error',
+            },
+          })
+      ).catch((logError) => {
+        logger.error('[Project Analyze] Error logging AI usage:', logError);
+      });
+      
+      throw err; // Re-throw to be handled by outer catch
+    }
+
+    const responseTime = Date.now() - startTime;
+    
+    // Estimate usage (analyzeProject makes one structured AI call)
+    // We'll estimate based on the project complexity
+    const phaseDataLength = JSON.stringify(phases || []).length;
+    const existingTasksLength = JSON.stringify(existingTasks || []).length;
+    const estimatedPromptLength = project.name.length + phaseDataLength + existingTasksLength + 2000; // Base prompt overhead
+    const estimatedResponseLength = JSON.stringify(analysisResult).length;
+    
+    // Rough token estimation (1 token ≈ 4 chars)
+    const estimatedInputTokens = Math.ceil(estimatedPromptLength / 4);
+    const estimatedOutputTokens = Math.ceil(estimatedResponseLength / 4);
+    const estimatedCost = (estimatedInputTokens * 0.075 / 1_000_000) + (estimatedOutputTokens * 0.30 / 1_000_000);
+
+    // Log AI usage for project analysis with enhanced metadata (non-blocking)
+    Promise.resolve(
+      supabase
+        .from('activity_logs')
+        .insert({
+          user_id: userData.id,
+          action_type: 'project_analyze',
+          resource_type: 'project',
+          resource_id: params.id,
+          metadata: {
+            feature_type: 'project_analyze',
+            analysis_type: !project.initiated_at ? 'initial' : 'update',
+            tasks_generated: analysisResult.tasks.length,
+            is_default_template: isDefaultTemplate,
+            full_prompt_length: estimatedPromptLength,
+            response_length: estimatedResponseLength,
+            model: 'gemini-2.5-flash',
+            response_time_ms: responseTime,
+            input_tokens: estimatedInputTokens,
+            output_tokens: estimatedOutputTokens,
+            total_tokens: estimatedInputTokens + estimatedOutputTokens,
+            estimated_cost: estimatedCost,
+          },
+        })
+    ).catch((logError) => {
+      logger.error('[Project Analyze] Error logging AI usage:', logError);
+      // Don't fail the request if logging fails
+    });
 
     // Determine analysis type
     const isInitial = !project.initiated_at;
@@ -139,6 +221,40 @@ export async function POST(
           initiated_by: userData.id,
         })
         .eq('id', params.id);
+
+      // Send email notifications to project owner and members
+      const projectLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/project/${params.id}`;
+      
+      // Notify project owner
+      if (project.owner_id) {
+        sendProjectInitiatedEmail(
+          project.owner_id,
+          project.name,
+          projectLink
+        ).catch((err) => {
+          logger.error('[Project Analysis] Error sending email to owner:', err);
+        });
+      }
+
+      // Notify project members
+      const { data: members } = await supabase
+        .from('project_members')
+        .select('user_id')
+        .eq('project_id', params.id);
+
+      if (members) {
+        for (const member of members) {
+          if (member.user_id !== project.owner_id) {
+            sendProjectInitiatedEmail(
+              member.user_id,
+              project.name,
+              projectLink
+            ).catch((err) => {
+              logger.error('[Project Analysis] Error sending email to member:', err);
+            });
+          }
+        }
+      }
     }
 
     // Perform task operations in transaction-like manner

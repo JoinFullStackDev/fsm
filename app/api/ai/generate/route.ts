@@ -51,23 +51,123 @@ export async function POST(request: NextRequest) {
       return badRequest('Prompt is required');
     }
 
-    if (structured) {
-      const result = await generateStructuredAIResponse(
-        prompt,
-        options,
-        config.apiKey,
-        config.projectName
-      );
-      return NextResponse.json({ result });
-    } else {
-      const result = await generateAIResponse(
-        prompt,
-        options,
-        config.apiKey,
-        config.projectName
-      );
-      return NextResponse.json({ result });
+    // Get user record for logging
+    const { data: userData } = await supabase
+      .from('users')
+      .select('id')
+      .eq('auth_id', session.user.id)
+      .single();
+
+    const startTime = Date.now();
+    let result: any;
+    let metadata: any = null;
+    let error: string | undefined = undefined;
+
+    try {
+      if (structured) {
+        const response = await generateStructuredAIResponse(
+          prompt,
+          options,
+          config.apiKey,
+          config.projectName,
+          true // Request metadata
+        );
+        
+        // Handle metadata response
+        if (response && typeof response === 'object' && 'metadata' in response) {
+          result = (response as any).result;
+          metadata = (response as any).metadata;
+        } else {
+          result = response;
+        }
+      } else {
+        const response = await generateAIResponse(
+          prompt,
+          options,
+          config.apiKey,
+          config.projectName,
+          true // Request metadata
+        );
+        
+        // Handle metadata response
+        if (response && typeof response === 'object' && 'metadata' in response) {
+          result = (response as any).text;
+          metadata = (response as any).metadata;
+        } else {
+          result = response;
+        }
+      }
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Unknown error';
+      logger.error('[AI Generate] Error:', err);
+      
+      // Still try to log the error
+      if (userData?.id) {
+        const errorMetadata = {
+          feature_type: 'ai_generate',
+          structured,
+          prompt_length: prompt.length,
+          full_prompt_length: prompt.length,
+          response_length: 0,
+          model: 'gemini-2.5-flash',
+          response_time_ms: Date.now() - startTime,
+          estimated_cost: 0,
+          error,
+          error_type: err instanceof Error && err.message.includes('401') ? 'authentication' :
+                      err instanceof Error && err.message.includes('429') ? 'rate_limit' : 'api_error',
+          has_context: !!options?.context,
+          has_phase_data: !!options?.phaseData,
+        };
+        
+        // Fire and forget - log error asynchronously
+        (async () => {
+          try {
+            await supabase
+              .from('activity_logs')
+              .insert({
+                user_id: userData.id,
+                action_type: 'ai_generate',
+                resource_type: options?.projectId ? 'project' : null,
+                resource_id: options?.projectId || null,
+                metadata: errorMetadata,
+              });
+          } catch (logError) {
+            logger.error('[AI Generate] Error logging AI usage:', logError);
+          }
+        })();
+      }
+      
+      throw err; // Re-throw to be handled by outer catch
     }
+
+    // Log AI usage with enhanced metadata (non-blocking)
+    if (userData?.id && metadata) {
+      // Fire and forget - log usage asynchronously
+      (async () => {
+        try {
+          await supabase
+            .from('activity_logs')
+            .insert({
+              user_id: userData.id,
+              action_type: 'ai_generate',
+              resource_type: options?.projectId ? 'project' : null,
+              resource_id: options?.projectId || null,
+              metadata: {
+                ...metadata,
+                feature_type: 'ai_generate',
+                structured,
+                has_context: !!options?.context,
+                has_phase_data: !!options?.phaseData,
+              },
+            });
+        } catch (logError) {
+          logger.error('[AI Generate] Error logging AI usage:', logError);
+          // Don't fail the request if logging fails
+        }
+      })();
+    }
+
+    return NextResponse.json({ result });
   } catch (error) {
     logger.error('AI generation error:', error);
     return internalError('Failed to generate AI response', { error: error instanceof Error ? error.message : 'Unknown error' });
