@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { setupAuth } from './helpers/auth';
 
 test.describe('Export Functionality', () => {
   test.beforeEach(async ({ page }) => {
+    await setupAuth(page);
     await page.goto('/project/test-project-id');
   });
 

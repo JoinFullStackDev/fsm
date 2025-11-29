@@ -1,13 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { setupAuth, setupAdminAuth } from './helpers/auth';
 
 test.describe('Admin Functionality', () => {
-  test.beforeEach(async ({ page }) => {
-    // Note: In real tests, you would authenticate as admin
-    await page.goto('/admin');
-  });
-
   test('should restrict admin access to non-admins', async ({ page }) => {
-    // Try to access admin page without admin role
+    // Set up non-admin auth
+    await setupAuth(page, { role: 'pm' });
     await page.goto('/admin');
 
     // Should redirect or show forbidden message
@@ -18,6 +15,12 @@ test.describe('Admin Functionality', () => {
       // Or redirect to dashboard
       await expect(page).toHaveURL(/\/dashboard/);
     }
+  });
+
+  test.beforeEach(async ({ page }) => {
+    // Set up admin authentication
+    await setupAdminAuth(page);
+    await page.goto('/admin');
   });
 
   test('should display admin dashboard for admin users', async ({ page }) => {

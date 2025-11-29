@@ -1,8 +1,21 @@
 import { test, expect } from '@playwright/test';
+import { setupAuth } from './helpers/auth';
 
 test.describe('Phase Completion', () => {
   test.beforeEach(async ({ page }) => {
-    // Mock authentication and project data
+    // Set up authentication before accessing protected routes
+    await setupAuth(page);
+    // Mock project data API
+    await page.route('**/api/projects/test-project-id', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'test-project-id',
+          name: 'Test Project',
+        }),
+      });
+    });
     await page.goto('/project/test-project-id/phase/1');
   });
 
