@@ -241,7 +241,7 @@ export default function ProjectPage() {
 
       // Load template field configs if project has a template_id
       if (projectData.template_id && phasesData && phasesData.length > 0) {
-        const phaseNumbers = phasesData.map(p => p.phase_number);
+        const phaseNumbers = phasesData.map((p: any) => p.phase_number);
         const { data: configsData, error: configsError } = await supabase
           .from('template_field_configs')
           .select('phase_number, field_key')
@@ -250,7 +250,7 @@ export default function ProjectPage() {
 
         if (!configsError && configsData) {
           const configsByPhase: Record<number, Array<{ field_key: string }>> = {};
-          configsData.forEach(config => {
+          configsData.forEach((config: any) => {
             if (!configsByPhase[config.phase_number]) {
               configsByPhase[config.phase_number] = [];
             }
@@ -346,7 +346,7 @@ export default function ProjectPage() {
           .order('phase_number', { ascending: true });
 
         const phaseMap: Record<number, any> = {};
-        phasesData?.forEach((phase) => {
+        phasesData?.forEach((phase: any) => {
           phaseMap[phase.phase_number] = phase.data;
         });
 

@@ -280,7 +280,7 @@ export default function PhasePage() {
       if (phasesError) {
         logger.error('Error loading phase statuses:', phasesError);
       } else {
-        const statuses: PhaseStatus[] = (allPhases || []).map(p => ({
+        const statuses: PhaseStatus[] = (allPhases || []).map((p: any) => ({
           phase_number: p.phase_number,
           completed: p.completed,
         }));
@@ -290,7 +290,7 @@ export default function PhasePage() {
         setTotalPhases(allPhases?.length || 6);
         
         // Store phases for lookup
-        setPhases((allPhases || []).map(p => ({
+        setPhases((allPhases || []).map((p: any) => ({
           phase_number: p.phase_number,
           phase_name: p.phase_name || `Phase ${p.phase_number}`
         })));
@@ -300,7 +300,7 @@ export default function PhasePage() {
         setCanComplete(dependencyCheck.canComplete);
         
         // Create phase names map from loaded phases
-        const phaseNamesMap = (allPhases || []).reduce((acc, phase) => {
+        const phaseNamesMap = (allPhases || []).reduce((acc: Record<number, string>, phase: any) => {
           acc[phase.phase_number] = phase.phase_name || `Phase ${phase.phase_number}`;
           return acc;
         }, {} as Record<number, string>);
@@ -346,7 +346,7 @@ export default function PhasePage() {
           actualPhaseNumber: actualPhaseNumberFromDB,
           phaseName: phaseName,
           found: fieldConfigs?.length || 0,
-          fieldKeys: fieldConfigs?.map(f => f.field_key),
+          fieldKeys: fieldConfigs?.map((f: any) => f.field_key),
           error: configsError?.message
         });
 
@@ -374,8 +374,8 @@ export default function PhasePage() {
           .order('display_order', { ascending: true });
         
         if (projectPhases && projectPhases.length > 0) {
-          const projectPhaseNumbers = projectPhases.map(p => p.phase_number).sort();
-          const projectPhaseMap = new Map(projectPhases.map(p => [p.phase_number, p.phase_name]));
+          const projectPhaseNumbers = projectPhases.map((p: any) => p.phase_number).sort();
+          const projectPhaseMap = new Map(projectPhases.map((p: any) => [p.phase_number, p.phase_name]));
           logger.debug('[PhasePage] Project phase numbers:', projectPhaseNumbers);
           logger.debug('[PhasePage] Project phase names:', Array.from(projectPhaseMap.entries()));
           
@@ -389,7 +389,7 @@ export default function PhasePage() {
           
           if (allTemplatePhases && allTemplatePhases.length > 0) {
             // Group by template_id and check how well they match
-            const templateMatches = allTemplatePhases.reduce((acc, tp) => {
+            const templateMatches = allTemplatePhases.reduce((acc: any, tp: any) => {
               if (!acc[tp.template_id]) {
                 acc[tp.template_id] = {
                   phaseNumbers: new Set<number>(),
@@ -422,9 +422,10 @@ export default function PhasePage() {
                 continue; // Skip default in first pass
               }
               
-              const matchCount = match.phaseNumbers.size;
+              const matchTyped = match as any;
+              const matchCount = matchTyped.phaseNumbers.size;
               // Score: exact matches * 100 + phase count matches
-              const score = match.exactMatches * 100 + matchCount;
+              const score = matchTyped.exactMatches * 100 + matchCount;
               
               if (!bestMatch || score > bestMatch.score || (score === bestMatch.score && matchCount > bestMatch.matchCount)) {
                 bestMatch = { templateId, score, matchCount, isDefault: false };
@@ -455,7 +456,7 @@ export default function PhasePage() {
             
             logger.debug('[PhasePage] Template detection results:', {
               templateMatches: Object.fromEntries(
-                Object.entries(templateMatches).map(([id, match]) => [
+                Object.entries(templateMatches).map(([id, match]: [string, any]) => [
                   id, 
                   {
                     phases: Array.from(match.phaseNumbers),
@@ -641,7 +642,7 @@ export default function PhasePage() {
         .order('phase_number', { ascending: true });
 
       if (allPhases) {
-        const statuses: PhaseStatus[] = allPhases.map(p => ({
+        const statuses: PhaseStatus[] = allPhases.map((p: any) => ({
           phase_number: p.phase_number,
           completed: p.completed,
         }));

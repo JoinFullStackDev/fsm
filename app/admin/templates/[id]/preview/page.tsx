@@ -100,7 +100,7 @@ export default function TemplatePreviewPage() {
       initialDataByPhase[i] = {};
     }
 
-    fieldConfigs?.forEach((config) => {
+      fieldConfigs?.forEach((config: TemplateFieldConfig) => {
       if (!fieldsByPhase[config.phase_number]) {
         fieldsByPhase[config.phase_number] = [];
       }
@@ -151,11 +151,11 @@ export default function TemplatePreviewPage() {
       }
     });
 
-    groups?.forEach((group) => {
+    groups?.forEach((group: TemplateFieldGroup) => {
       if (!groupsByPhase[group.phase_number]) {
         groupsByPhase[group.phase_number] = [];
       }
-      groupsByPhase[group.phase_number].push(group as TemplateFieldGroup);
+      groupsByPhase[group.phase_number].push(group);
     });
 
     setFields(fieldsByPhase);

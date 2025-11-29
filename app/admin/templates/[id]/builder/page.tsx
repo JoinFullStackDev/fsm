@@ -155,7 +155,7 @@ export default function TemplateBuilderPage() {
     // If no phases exist yet, check field configs for phase numbers
     if (loadedPhases.length === 0 && fieldConfigs) {
       const uniquePhaseNumbers = new Set<number>();
-      fieldConfigs.forEach((config) => {
+      fieldConfigs.forEach((config: TemplateFieldConfig) => {
         if (config.phase_number) {
           uniquePhaseNumbers.add(config.phase_number);
         }
@@ -165,11 +165,11 @@ export default function TemplateBuilderPage() {
       });
     }
 
-    fieldConfigs?.forEach((config) => {
+    fieldConfigs?.forEach((config: TemplateFieldConfig) => {
       if (!fieldsByPhase[config.phase_number]) {
         fieldsByPhase[config.phase_number] = [];
       }
-      fieldsByPhase[config.phase_number].push(config as TemplateFieldConfig);
+      fieldsByPhase[config.phase_number].push(config);
     });
 
     setFields(fieldsByPhase);
@@ -336,7 +336,7 @@ export default function TemplateBuilderPage() {
       }
 
       const existingFieldsMap = new Map<string, string>();
-      existingFields?.forEach(field => {
+      existingFields?.forEach((field: TemplateFieldConfig) => {
         const key = `${field.phase_number}_${field.field_key}`;
         // Only add to map if id is a valid UUID string
         if (field.id && typeof field.id === 'string' && field.id.length > 0) {
@@ -405,14 +405,14 @@ export default function TemplateBuilderPage() {
       });
 
       // Delete fields that are no longer in the template
-      const fieldsToKeep = new Set(allFields.map(f => `${f.phase_number}_${f.field_key}`));
-      const fieldsToDelete = existingFields?.filter(f => {
+      const fieldsToKeep = new Set(allFields.map((f: TemplateFieldConfig) => `${f.phase_number}_${f.field_key}`));
+      const fieldsToDelete = existingFields?.filter((f: TemplateFieldConfig) => {
         const key = `${f.phase_number}_${f.field_key}`;
         return !fieldsToKeep.has(key);
       }) || [];
 
       if (fieldsToDelete.length > 0) {
-        const idsToDelete = fieldsToDelete.map(f => f.id);
+        const idsToDelete = fieldsToDelete.map((f: TemplateFieldConfig) => f.id).filter((id: string | undefined): id is string => !!id);
         const { error: deleteError } = await supabase
           .from('template_field_configs')
           .delete()

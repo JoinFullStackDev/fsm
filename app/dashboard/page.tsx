@@ -194,7 +194,7 @@ export default function DashboardPage() {
     };
 
     // Set up auth state listener to handle session initialization after redirect
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string, session: any) => {
       if (event === 'SIGNED_IN' && session) {
         logger.debug('Auth state changed to SIGNED_IN, reloading projects');
         loadProjects();

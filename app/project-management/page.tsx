@@ -134,7 +134,7 @@ export default function ProjectManagementPage() {
               .eq('project_id', project.id);
 
             if (tasks && tasks.length > 0) {
-              const completed = tasks.filter((t) => t.status === 'done').length;
+              const completed = tasks.filter((t: any) => t.status === 'done').length;
               progressMap[project.id] = Math.round((completed / tasks.length) * 100);
             } else {
               progressMap[project.id] = 0;

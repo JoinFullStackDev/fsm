@@ -154,7 +154,7 @@ export default function ProjectSettingsPage() {
       if (usersData) {
         // Filter out users who are already members
         const memberUserIds = new Set(membersData?.map((m: any) => m.user_id) || []);
-        setAvailableUsers(usersData.filter(u => !memberUserIds.has(u.id)) as User[]);
+        setAvailableUsers(usersData.filter((u: any) => !memberUserIds.has(u.id)) as User[]);
       }
     } catch (err) {
       console.error('Error loading members:', err);

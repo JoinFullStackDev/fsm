@@ -140,12 +140,12 @@ export default function TemplateBasedPhaseForm({
     }
 
     logger.debug('[TemplateBasedPhaseForm] Loaded', configsResult.data?.length || 0, 'field configs');
-    logger.debug('[TemplateBasedPhaseForm] Field configs:', configsResult.data?.map(f => ({ key: f.field_key, order: f.display_order })));
+    logger.debug('[TemplateBasedPhaseForm] Field configs:', configsResult.data?.map((f: any) => ({ key: f.field_key, order: f.display_order })));
 
     // Deduplicate field configs by field_key (in case of duplicates in database)
-    const uniqueFieldConfigs = (configsResult.data || []).reduce((acc: TemplateFieldConfig[], field) => {
+    const uniqueFieldConfigs = (configsResult.data || []).reduce((acc: TemplateFieldConfig[], field: any) => {
       // Check if we already have this field_key
-      const existingIndex = acc.findIndex(f => f.field_key === field.field_key);
+      const existingIndex = acc.findIndex((f: TemplateFieldConfig) => f.field_key === field.field_key);
       if (existingIndex === -1) {
         // New field, add it
         acc.push(field);
