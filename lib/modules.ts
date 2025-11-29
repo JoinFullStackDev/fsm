@@ -65,6 +65,13 @@ export const AVAILABLE_MODULES: ModuleDefinition[] = [
     icon: 'Api',
     category: 'Integration',
   },
+  {
+    key: 'custom_dashboards_enabled',
+    name: 'Custom Dashboards',
+    description: 'Build, customize, and share custom dashboards with widgets, charts, and AI insights',
+    icon: 'Dashboard',
+    category: 'Analytics',
+  },
 ];
 
 /**

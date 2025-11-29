@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import logger from '@/lib/utils/logger';
+import { AVAILABLE_MODULES } from '@/lib/modules';
 import type {
   Organization,
   Package,
@@ -139,9 +140,18 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       
       // Only apply overrides for module keys (feature flags that are booleans)
       Object.keys(overrides).forEach((key) => {
-        // Only override if it's a boolean feature in PackageFeatures
+        // Override if it's a boolean feature in PackageFeatures, OR if it's a valid module key
+        // This allows module overrides to work even if the package doesn't include the feature
         if (key in baseFeatures && typeof (baseFeatures as any)[key] === 'boolean') {
           (baseFeatures as any)[key] = overrides[key] === true;
+        } else {
+          // Check if it's a valid module key (from AVAILABLE_MODULES)
+          // This allows module overrides to work even if the package doesn't include the feature
+          const moduleExists = AVAILABLE_MODULES.some(m => m.key === key);
+          if (moduleExists) {
+            // Add the override as a new feature (for modules not in package)
+            (baseFeatures as any)[key] = overrides[key] === true;
+          }
         }
       });
     }

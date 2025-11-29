@@ -16,8 +16,9 @@ import {
   IconButton,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { CheckCircle as CheckCircleIcon, Error as ErrorIcon, Visibility, VisibilityOff, Save as SaveIcon } from '@mui/icons-material';
+import { CheckCircle as CheckCircleIcon, Error as ErrorIcon, Visibility, VisibilityOff, Save as SaveIcon, Refresh as RefreshIcon, PlayArrow as PlayArrowIcon } from '@mui/icons-material';
 import { useNotification } from '@/lib/hooks/useNotification';
+import CronStatusSection from '@/components/global-admin/CronStatusSection';
 
 export default function SystemSettingsPage() {
   const theme = useTheme();
@@ -468,6 +469,20 @@ export default function SystemSettingsPage() {
                 </Grid>
               )}
             </Grid>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12}>
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Dashboard Scheduled Reports
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Monitor and manage scheduled dashboard report subscriptions. The cron job must be configured at the infrastructure level (Vercel, external cron service, etc.). 
+              See <code>DASHBOARD_CRON_SETUP.md</code> in the project root for setup instructions.
+            </Typography>
+            
+            <CronStatusSection />
           </Paper>
         </Grid>
 
