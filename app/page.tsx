@@ -111,7 +111,7 @@ export default function HomePage() {
       }}
     >
       <LandingHeader />
-      <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
+      <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1, px: { xs: 0, md: 3 } }}>
         {/* Hero Section */}
         <Box
           sx={{

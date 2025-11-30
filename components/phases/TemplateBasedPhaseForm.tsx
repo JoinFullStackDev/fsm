@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { Grid, Box, Typography, Alert, Paper } from '@mui/material';
+import { Grid, Box, Typography, Alert, Divider } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useSupabaseClient } from '@/lib/supabaseClient';
 import type { TemplateFieldConfig, TemplateFieldGroup } from '@/types/templates';
@@ -175,7 +175,7 @@ export default function TemplateBasedPhaseForm({
     return data?.[fieldKey] ?? undefined;
   }, [data]);
 
-  const renderField = useCallback((field: TemplateFieldConfig) => {
+  const renderField = useCallback((field: TemplateFieldConfig, nextField?: TemplateFieldConfig) => {
     // Check conditional logic
     const shouldShow = evaluateConditionalLogic(field, data);
     if (!shouldShow) {
@@ -343,29 +343,19 @@ export default function TemplateBasedPhaseForm({
     return (
       <Grid 
         item 
-        xs={gridColumns} 
+        xs={12}
         key={field.id || field.field_key}
         sx={{
-          px: 1, // Add horizontal padding to all fields for consistent alignment
-          display: 'flex', // Use flexbox to ensure matching heights
+          px: { xs: 2, md: 1 },
+          display: 'flex',
+          width: '100%',
         }}
       >
-        <Paper
-          elevation={0}
+        <Box
           sx={{
-            p: 2.5,
-            mb: 2,
-            width: '100%', // Take full width of Grid item
+            width: '100%',
             display: 'flex',
             flexDirection: 'column',
-            backgroundColor: theme.palette.background.paper,
-            border: `1px solid ${theme.palette.divider}`,
-            borderRadius: 2,
-            transition: 'all 0.2s ease-in-out',
-            '&:hover': {
-              borderColor: theme.palette.text.primary,
-              backgroundColor: theme.palette.action.hover,
-            },
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
@@ -373,7 +363,7 @@ export default function TemplateBasedPhaseForm({
               variant="h3"
               component="h3"
               sx={{
-                fontSize: '1.25rem',
+                fontSize: { xs: '1.125rem', md: '1.25rem' },
                 fontWeight: 600,
                 fontFamily: 'var(--font-rubik), Rubik, sans-serif',
                 color: theme.palette.text.primary,
@@ -381,7 +371,7 @@ export default function TemplateBasedPhaseForm({
             >
               {field.field_config.label}
               {field.field_config.required && (
-                <Typography component="span" sx={{ color: theme.palette.error.main, fontSize: '1.25rem' }}>
+                <Typography component="span" sx={{ color: theme.palette.error.main, fontSize: { xs: '1.125rem', md: '1.25rem' } }}>
                   {' '}*
                 </Typography>
               )}
@@ -390,13 +380,57 @@ export default function TemplateBasedPhaseForm({
               <HelpTooltip title={field.field_config.helpText} />
             )}
           </Box>
-          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%', mb: { xs: 3, md: 2 } }}>
             {fieldElement}
           </Box>
-        </Paper>
+          {nextField && (
+            <Box
+              sx={{
+                position: 'relative',
+                mt: { xs: 2, md: 3 },
+                mb: { xs: 2, md: 3 },
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Box
+                sx={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  top: '50%',
+                  height: '1px',
+                  borderTop: `2px dotted #FFFFFF`,
+                  opacity: 0.6,
+                }}
+              />
+              <Box
+                sx={{
+                  position: 'relative',
+                  px: { xs: 2, md: 3 },
+                  backgroundColor: theme.palette.background.default,
+                }}
+              >
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: theme.palette.text.secondary,
+                    fontSize: { xs: '0.75rem', md: '0.875rem' },
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  {nextField.field_config?.label || 'Next Section'}
+                </Typography>
+              </Box>
+            </Box>
+          )}
+        </Box>
       </Grid>
     );
-  }, [data, updateField, getFieldValue, onBlur, theme.palette.action.hover, theme.palette.background.paper, theme.palette.divider, theme.palette.error.main, theme.palette.text.primary]);
+  }, [data, updateField, getFieldValue, onBlur, theme.palette.error.main, theme.palette.text.primary, theme.palette.background.default, theme.palette.divider, theme.palette.text.secondary]);
 
   if (loading) {
     return (
@@ -476,17 +510,31 @@ export default function TemplateBasedPhaseForm({
       <>
         {/* Render ungrouped fields */}
         {ungroupedFields.length > 0 && (
-          <Grid container spacing={0} sx={{ mb: 1, alignItems: 'stretch' }}>
-            {ungroupedFields
-              .map((field) => {
-                const rendered = renderField(field);
-                if (rendered === null) {
-                  logger.debug('[TemplateBasedPhaseForm] Ungrouped field not rendered:', field.field_key);
-                }
-                return rendered;
-              })
-              .filter((rendered) => rendered !== null)}
-          </Grid>
+          <Box sx={{ mb: { xs: 2, md: 1 } }}>
+            <Grid 
+              container 
+              spacing={0} 
+              sx={{ 
+                alignItems: 'stretch', 
+                width: '100%',
+              }}
+            >
+              {(() => {
+                // Filter to visible fields first
+                const visibleFields = ungroupedFields
+                  .map((field) => {
+                    const shouldShow = evaluateConditionalLogic(field, data);
+                    return shouldShow ? field : null;
+                  })
+                  .filter((field): field is TemplateFieldConfig => field !== null);
+                
+                return visibleFields.map((field, index) => {
+                  const nextField = index < visibleFields.length - 1 ? visibleFields[index + 1] : undefined;
+                  return renderField(field, nextField);
+                });
+              })()}
+            </Grid>
+          </Box>
         )}
 
         {/* Render grouped fields */}
@@ -495,36 +543,80 @@ export default function TemplateBasedPhaseForm({
           if (!group) {
             // Group not found, render as ungrouped
             return (
-              <Grid container spacing={0} key={groupId} sx={{ mb: 1, alignItems: 'stretch' }}>
-                {fields.map((field) => renderField(field))}
-              </Grid>
+              <Box key={groupId} sx={{ mb: { xs: 2, md: 1 } }}>
+                <Grid 
+                  container 
+                  spacing={0} 
+                  sx={{ 
+                    alignItems: 'stretch', 
+                    width: '100%',
+                  }}
+                >
+                  {(() => {
+                    // Filter to visible fields first
+                    const visibleFields = fields
+                      .map((field) => {
+                        const shouldShow = evaluateConditionalLogic(field, data);
+                        return shouldShow ? field : null;
+                      })
+                      .filter((field): field is TemplateFieldConfig => field !== null);
+                    
+                    return visibleFields.map((field, index) => {
+                      const nextField = index < visibleFields.length - 1 ? visibleFields[index + 1] : undefined;
+                      return renderField(field, nextField);
+                    });
+                  })()}
+                </Grid>
+              </Box>
             );
           }
 
-          const visibleFields = fields
-            .map((field) => {
+          // First, filter to get visible fields with their indices
+          const visibleFieldsWithIndices = fields
+            .map((field, originalIndex) => {
               const rendered = renderField(field);
               if (rendered === null) {
                 logger.debug('[TemplateBasedPhaseForm] Grouped field not rendered:', {
                   fieldKey: field.field_key,
                   groupId: groupId
                 });
+                return null;
               }
-              return rendered;
+              return { field, originalIndex, rendered };
             })
-            .filter((rendered) => rendered !== null);
+            .filter((item) => item !== null) as Array<{ field: TemplateFieldConfig; originalIndex: number; rendered: React.ReactNode }>;
           
-          if (visibleFields.length === 0) {
+          if (visibleFieldsWithIndices.length === 0) {
             logger.debug('[TemplateBasedPhaseForm] No visible fields in group:', groupId);
             return null; // No visible fields in this group
           }
 
+          // Render fields with next field info
+          const renderedFields = visibleFieldsWithIndices.map((item, visibleIndex) => {
+            const nextVisibleItem = visibleIndex < visibleFieldsWithIndices.length - 1 
+              ? visibleFieldsWithIndices[visibleIndex + 1] 
+              : null;
+            const nextField = nextVisibleItem ? nextVisibleItem.field : undefined;
+            
+            // Re-render with next field info
+            return renderField(item.field, nextField);
+          });
+
           return (
-            <FieldGroup key={groupId} group={group}>
-              <Grid container spacing={0} sx={{ alignItems: 'stretch' }}>
-                {visibleFields}
-              </Grid>
-            </FieldGroup>
+            <Box key={groupId} sx={{ mb: { xs: 2, md: 1 } }}>
+              <FieldGroup key={groupId} group={group}>
+                <Grid 
+                  container 
+                  spacing={0} 
+                  sx={{ 
+                    alignItems: 'stretch', 
+                    width: '100%',
+                  }}
+                >
+                  {renderedFields}
+                </Grid>
+              </FieldGroup>
+            </Box>
           );
         })}
       </>
@@ -538,12 +630,14 @@ export default function TemplateBasedPhaseForm({
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <TemplateSyncIndicator
-        templateId={templateId}
-        onRefresh={handleRefresh}
-      />
-      <Box sx={{ mt: 2 }}>
+    <Box sx={{ width: '100%' }}>
+      <Box sx={{ mb: { xs: 2, md: 3 }, mx: { xs: 2, md: 0 } }}>
+        <TemplateSyncIndicator
+          templateId={templateId}
+          onRefresh={handleRefresh}
+        />
+      </Box>
+      <Box sx={{ width: '100%' }}>
         {renderFields()}
       </Box>
     </Box>

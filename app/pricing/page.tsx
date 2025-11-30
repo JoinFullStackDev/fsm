@@ -72,7 +72,7 @@ export default function PricingPage() {
     >
       <LandingHeader />
 
-      <Container maxWidth="xl" sx={{ py: { xs: 4, md: 8 } }}>
+      <Container maxWidth="xl" sx={{ py: { xs: 4, md: 8 }, px: { xs: 0, md: 3 } }}>
         {/* Header */}
         <Box sx={{ mb: 8, textAlign: 'center' }}>
           <motion.div

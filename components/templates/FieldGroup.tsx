@@ -59,7 +59,7 @@ export default function FieldGroup({ group, children, defaultCollapsed }: FieldG
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          p: 2,
+          p: { xs: 1.5, md: 2 },
           cursor: 'pointer',
           '&:hover': {
             backgroundColor: theme.palette.action.hover,
@@ -90,7 +90,7 @@ export default function FieldGroup({ group, children, defaultCollapsed }: FieldG
         </IconButton>
       </Box>
       <Collapse in={!collapsed}>
-        <CardContent sx={{ backgroundColor: theme.palette.background.paper }}>{children}</CardContent>
+        <CardContent sx={{ backgroundColor: theme.palette.background.paper, p: { xs: 1.5, md: 2 }, '&:last-child': { pb: { xs: 1.5, md: 2 } } }}>{children}</CardContent>
       </Collapse>
     </Card>
   );

@@ -207,7 +207,7 @@ export default function TemplatePreviewPage() {
 
   return (
     <Box sx={{ pb: 4 }}>
-      <Container maxWidth="lg" sx={{ pt: 4 }}>
+      <Container maxWidth="lg" sx={{ pt: 4, px: { xs: 0, md: 3 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
           <IconButton
             onClick={() => router.push(`/admin/templates/${templateId}/builder`)}

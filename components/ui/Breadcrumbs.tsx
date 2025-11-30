@@ -43,8 +43,14 @@ export default function Breadcrumbs({ items }: BreadcrumbsProps) {
           },
         }}
       >
-        <HomeIcon sx={{ fontSize: 18, mr: 0.5 }} />
-        <Typography variant="body2" sx={{ color: '#00E5FF' }}>
+        <HomeIcon sx={{ fontSize: 18, mr: { xs: 0, md: 0.5 } }} />
+        <Typography 
+          variant="body2" 
+          sx={{ 
+            color: '#00E5FF',
+            display: { xs: 'none', md: 'block' },
+          }}
+        >
           Dashboard
         </Typography>
       </Box>

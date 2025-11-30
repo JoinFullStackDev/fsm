@@ -326,15 +326,15 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
   }, [dateRange, totalDays]);
 
   return (
-    <Box sx={{ width: '100%', height: '100%', overflow: 'auto' }}>
-      <Paper sx={{ p: 2, backgroundColor: theme.palette.background.paper, minHeight: 600, border: `1px solid ${theme.palette.divider}` }}>
+    <Box sx={{ width: '100%', height: '100%', overflow: 'auto', px: { xs: 0, md: 0 } }}>
+      <Paper sx={{ p: { xs: 1.5, md: 2 }, backgroundColor: theme.palette.background.paper, minHeight: 600, border: `1px solid ${theme.palette.divider}` }}>
         {/* Header */}
-        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box sx={{ mb: 3, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, gap: { xs: 2, md: 0 } }}>
           <Box>
-            <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 1 }}>
+            <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 1, fontSize: { xs: '1rem', md: '1.25rem' } }}>
               Gantt Chart
             </Typography>
-            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
               {viewMode === 'phases'
                 ? `${phaseData.length} phases`
                 : `${tasksWithDates.length} tasks with dates, ${tasksWithoutDates.length} without dates`}
@@ -384,8 +384,8 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
             zIndex: 10,
           }}
         >
-          <Box sx={{ width: 250, p: 1, borderRight: `1px solid ${theme.palette.divider}` }}>
-            <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600 }}>
+          <Box sx={{ width: { xs: 120, md: 250 }, p: { xs: 0.5, md: 1 }, borderRight: `1px solid ${theme.palette.divider}` }}>
+            <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, fontSize: { xs: '0.7rem', md: '0.75rem' } }}>
               {viewMode === 'phases' ? 'Phase' : 'Task'}
             </Typography>
           </Box>

@@ -340,14 +340,14 @@ export default function TemplatesPage() {
   }
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+    <Box sx={{ p: { xs: 2, md: 0 } }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 4, gap: { xs: 2, md: 0 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Typography
             variant="h4"
             component="h1"
             sx={{
-              fontSize: '1.5rem',
+              fontSize: { xs: '1.25rem', md: '1.5rem' },
               fontWeight: 600,
               color: theme.palette.text.primary,
             }}
@@ -368,16 +368,18 @@ export default function TemplatesPage() {
             />
           )}
         </Box>
-        <Box sx={{ display: 'flex', gap: 2 }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, width: { xs: '100%', md: 'auto' } }}>
           {hasAIFeatures && (
             <Button
               variant="outlined"
               startIcon={<AutoAwesomeIcon />}
               onClick={() => router.push('/admin/templates/generate')}
+              fullWidth={false}
               sx={{
                 borderColor: theme.palette.text.primary,
                 color: theme.palette.text.primary,
                 fontWeight: 600,
+                width: { xs: '100%', md: 'auto' },
                 '&:hover': {
                   borderColor: theme.palette.text.primary,
                   backgroundColor: theme.palette.action.hover,
@@ -391,10 +393,12 @@ export default function TemplatesPage() {
             variant="outlined"
             startIcon={<AddIcon />}
             onClick={() => handleOpenDialog()}
+            fullWidth={false}
             sx={{
               borderColor: theme.palette.text.primary,
               color: theme.palette.text.primary,
               fontWeight: 600,
+              width: { xs: '100%', md: 'auto' },
               '&:hover': {
                 borderColor: theme.palette.text.primary,
                 backgroundColor: theme.palette.action.hover,
@@ -423,7 +427,7 @@ export default function TemplatesPage() {
           {templates.length > 0 && (
             <Box
               sx={{
-                p: 2,
+                p: { xs: 1.5, md: 2 },
                 mb: 3,
                 backgroundColor: theme.palette.background.paper,
                 border: `1px solid ${theme.palette.divider}`,

@@ -476,7 +476,7 @@ export default function ProjectPage() {
   if (loading) {
     return (
       <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', pb: 4 }}>
-        <Container maxWidth="xl" sx={{ pt: 4, pb: 4 }}>
+        <Container maxWidth="xl" sx={{ pt: 4, pb: 4, px: { xs: 0, md: 3 } }}>
           <Skeleton variant="text" width="40%" height={48} sx={{ mb: 3 }} />
           <Skeleton variant="text" width="60%" height={24} sx={{ mb: 4 }} />
           <LoadingSkeleton variant="card" count={6} />
@@ -523,8 +523,10 @@ export default function ProjectPage() {
   return (
     <ErrorBoundary>
       <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', pb: 6 }}>
-        <Container maxWidth="xl" sx={{ pt: 4, pb: 4 }}>
-          <Breadcrumbs items={[{ label: project.name }]} />
+        <Container maxWidth="xl" sx={{ pt: { xs: 2, md: 4 }, pb: 4, px: { xs: 0, md: 3 } }}>
+          <Box sx={{ px: { xs: 2, md: 0 }, mb: { xs: 2, md: 0 } }}>
+            <Breadcrumbs items={[{ label: project.name }]} />
+          </Box>
           
           {/* Hero Section */}
           <Paper
@@ -533,15 +535,16 @@ export default function ProjectPage() {
               background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.action.hover} 100%)`,
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: 3,
-              p: 4,
-              mb: 4,
+              p: { xs: 2, md: 4 },
+              mb: { xs: 3, md: 4 },
+              mx: { xs: 2, md: 0 },
               position: 'relative',
               overflow: 'hidden',
             }}
           >
             <Box sx={{ position: 'relative', zIndex: 1 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
-                <Box sx={{ flex: 1 }}>
+              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'flex-start' }, mb: 3, gap: { xs: 2, md: 0 } }}>
+                <Box sx={{ flex: 1, width: { xs: '100%', md: 'auto' } }}>
                   <Typography
                     variant="h3"
                     component="h1"
@@ -595,9 +598,9 @@ export default function ProjectPage() {
                     variant="body1" 
                     sx={{ 
                       color: theme.palette.text.secondary, 
-                      fontSize: '1.1rem',
+                      fontSize: { xs: '1rem', md: '1.1rem' },
                       mb: 2,
-                      maxWidth: '80%',
+                      maxWidth: { xs: '100%', md: '80%' },
                     }}
                   >
                     {project.description || 'No description provided'}
@@ -640,7 +643,7 @@ export default function ProjectPage() {
                     )}
                   </Stack>
                 </Box>
-                <Box sx={{ display: 'flex', gap: 1 }}>
+                <Box sx={{ display: 'flex', gap: 1, alignSelf: { xs: 'flex-start', md: 'flex-start' } }}>
                   <Tooltip title="Settings">
                     <IconButton
                       onClick={() => router.push(`/project/${projectId}/settings`)}
@@ -678,13 +681,13 @@ export default function ProjectPage() {
 
               {/* Progress Bar */}
               <Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
                   <Typography
                     variant="h6"
                     sx={{ 
                       color: theme.palette.text.primary, 
                       fontWeight: 600,
-                      fontSize: '1.1rem',
+                      fontSize: { xs: '1rem', md: '1.1rem' },
                     }}
                   >
                     Overall Progress
@@ -694,7 +697,7 @@ export default function ProjectPage() {
                     sx={{
                       color: theme.palette.text.primary,
                       fontWeight: 700,
-                      fontSize: '1.5rem',
+                      fontSize: { xs: '1.25rem', md: '1.5rem' },
                     }}
                   >
                     {Math.round(progressPercentage)}%
@@ -728,19 +731,19 @@ export default function ProjectPage() {
           </Paper>
 
           {/* Stats Cards */}
-          <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid container spacing={{ xs: 2, md: 3 }} sx={{ mb: 4, px: { xs: 2, md: 0 } }}>
             <Grid item xs={12} sm={6} md={3}>
               <Paper
                 elevation={0}
                 sx={{
-                  p: 3,
+                  p: { xs: 2, md: 3 },
                   border: `1px solid ${theme.palette.divider}`,
                   borderRadius: 2,
                   backgroundColor: theme.palette.background.paper,
                   transition: 'all 0.2s ease',
                   '&:hover': {
-                    transform: 'translateY(-2px)',
-                    boxShadow: `0 4px 12px ${theme.palette.divider}`,
+                    transform: { xs: 'none', md: 'translateY(-2px)' },
+                    boxShadow: { xs: 'none', md: `0 4px 12px ${theme.palette.divider}` },
                   },
                 }}
               >
@@ -752,20 +755,24 @@ export default function ProjectPage() {
                         fontWeight: 700,
                         color: theme.palette.text.primary,
                         mb: 0.5,
+                        fontSize: { xs: '1.5rem', md: '2.125rem' },
                       }}
                     >
                       {completedPhases}/{totalPhases}
                     </Typography>
                     <Typography
                       variant="body2"
-                      sx={{ color: theme.palette.text.secondary }}
+                      sx={{ 
+                        color: theme.palette.text.secondary,
+                        fontSize: { xs: '0.75rem', md: '0.875rem' },
+                      }}
                     >
                       Phases Complete
                     </Typography>
                   </Box>
                   <CheckCircleIcon
                     sx={{
-                      fontSize: 40,
+                      fontSize: { xs: 32, md: 40 },
                       color: '#4CAF50',
                       opacity: 0.8,
                     }}
@@ -796,20 +803,24 @@ export default function ProjectPage() {
                         fontWeight: 700,
                         color: theme.palette.text.primary,
                         mb: 0.5,
+                        fontSize: { xs: '1.5rem', md: '2.125rem' },
                       }}
                     >
                       {memberCount}
                     </Typography>
                     <Typography
                       variant="body2"
-                      sx={{ color: theme.palette.text.secondary }}
+                      sx={{ 
+                        color: theme.palette.text.secondary,
+                        fontSize: { xs: '0.75rem', md: '0.875rem' },
+                      }}
                     >
                       Team Members
                     </Typography>
                   </Box>
                   <PeopleIcon
                     sx={{
-                      fontSize: 40,
+                      fontSize: { xs: 32, md: 40 },
                       color: theme.palette.text.primary,
                       opacity: 0.6,
                     }}
@@ -840,20 +851,24 @@ export default function ProjectPage() {
                         fontWeight: 700,
                         color: theme.palette.text.primary,
                         mb: 0.5,
+                        fontSize: { xs: '1.5rem', md: '2.125rem' },
                       }}
                     >
                       {exportCount}
                     </Typography>
                     <Typography
                       variant="body2"
-                      sx={{ color: theme.palette.text.secondary }}
+                      sx={{ 
+                        color: theme.palette.text.secondary,
+                        fontSize: { xs: '0.75rem', md: '0.875rem' },
+                      }}
                     >
                       Exports Generated
                     </Typography>
                   </Box>
                   <FileDownloadIcon
                     sx={{
-                      fontSize: 40,
+                      fontSize: { xs: 32, md: 40 },
                       color: theme.palette.text.primary,
                       opacity: 0.6,
                     }}
@@ -884,20 +899,24 @@ export default function ProjectPage() {
                         fontWeight: 700,
                         color: theme.palette.text.primary,
                         mb: 0.5,
+                        fontSize: { xs: '1.5rem', md: '2.125rem' },
                       }}
                     >
                       {project.initiated_at ? 'Active' : 'Draft'}
                     </Typography>
                     <Typography
                       variant="body2"
-                      sx={{ color: theme.palette.text.secondary }}
+                      sx={{ 
+                        color: theme.palette.text.secondary,
+                        fontSize: { xs: '0.75rem', md: '0.875rem' },
+                      }}
                     >
                       Project Status
                     </Typography>
                   </Box>
                   <TrendingUpIcon
                     sx={{
-                      fontSize: 40,
+                      fontSize: { xs: 32, md: 40 },
                       color: project.initiated_at ? '#4CAF50' : theme.palette.text.secondary,
                       opacity: 0.6,
                     }}
@@ -907,13 +926,13 @@ export default function ProjectPage() {
             </Grid>
           </Grid>
 
-          <Grid container spacing={3}>
+          <Grid container spacing={{ xs: 2, md: 3 }} sx={{ px: { xs: 2, md: 0 } }}>
             {/* Phases Section */}
             <Grid item xs={12} lg={8}>
               <Paper
                 elevation={0}
                 sx={{
-                  p: 3,
+                  p: { xs: 2, md: 3 },
                   border: `1px solid ${theme.palette.divider}`,
                   borderRadius: 3,
                   backgroundColor: theme.palette.background.paper,
@@ -926,6 +945,7 @@ export default function ProjectPage() {
                       color: theme.palette.text.primary,
                       fontWeight: 700,
                       fontFamily: 'var(--font-rubik), Rubik, sans-serif',
+                      fontSize: { xs: '1.25rem', md: '1.5rem' },
                     }}
                   >
                     Project Phases
@@ -933,7 +953,7 @@ export default function ProjectPage() {
                 </Box>
                 
                 {/* Stacked Phase Cards */}
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1, md: 1.5 } }}>
                   {phases.map((phase, index) => {
                     const phaseNumber = phase.phase_number;
                     const phaseName = phase.phase_name || `Phase ${phaseNumber}`;
@@ -974,7 +994,7 @@ export default function ProjectPage() {
                           cursor: 'pointer',
                           transition: 'all 0.2s ease',
                           borderRadius: 2,
-                          p: 2,
+                          p: { xs: 1.5, md: 2 },
                           position: 'relative',
                           ...(isFirstIncomplete && {
                             animation: 'flash 2s ease-in-out infinite',
@@ -992,7 +1012,7 @@ export default function ProjectPage() {
                           '&:hover': {
                             borderColor: completed ? '#4CAF50' : theme.palette.text.primary,
                             backgroundColor: theme.palette.action.hover,
-                            transform: 'translateX(4px)',
+                            transform: { xs: 'none', md: 'translateX(4px)' },
                           },
                         }}
                       >
@@ -1026,7 +1046,7 @@ export default function ProjectPage() {
                               sx={{
                                 fontWeight: 600,
                                 color: completed ? '#4CAF50' : theme.palette.text.primary,
-                                fontSize: '0.95rem',
+                                fontSize: { xs: '0.875rem', md: '0.95rem' },
                                 flex: 1,
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
@@ -1088,13 +1108,13 @@ export default function ProjectPage() {
 
             {/* Sidebar */}
             <Grid item xs={12} lg={4}>
-              <Stack spacing={3}>
+              <Stack spacing={{ xs: 2, md: 3 }}>
                 {/* Team Members Preview */}
                 {memberCount > 0 && (
                   <Paper
                     elevation={0}
                     sx={{
-                      p: 3,
+                      p: { xs: 2, md: 3 },
                       border: `1px solid ${theme.palette.divider}`,
                       borderRadius: 3,
                       backgroundColor: theme.palette.background.paper,
@@ -1106,6 +1126,7 @@ export default function ProjectPage() {
                         sx={{
                           color: theme.palette.text.primary,
                           fontWeight: 600,
+                          fontSize: { xs: '1rem', md: '1.25rem' },
                         }}
                       >
                         Team Members
@@ -1183,7 +1204,7 @@ export default function ProjectPage() {
                 <Paper
                   elevation={0}
                   sx={{
-                    p: 3,
+                    p: { xs: 2, md: 3 },
                     border: `1px solid ${theme.palette.divider}`,
                     borderRadius: 3,
                     backgroundColor: theme.palette.background.paper,
@@ -1195,6 +1216,7 @@ export default function ProjectPage() {
                       color: theme.palette.text.primary,
                       fontWeight: 600,
                       mb: 2,
+                      fontSize: { xs: '1rem', md: '1.25rem' },
                     }}
                   >
                     Quick Actions

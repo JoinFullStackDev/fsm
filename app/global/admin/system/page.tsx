@@ -230,13 +230,13 @@ export default function SystemSettingsPage() {
   const emailStatus = emailConnection?.last_test_status;
 
   return (
-    <Box>
+    <Box sx={{ p: { xs: 2, md: 0 } }}>
       <Typography
         variant="h4"
         component="h1"
         gutterBottom
         sx={{
-          fontSize: '1.75rem',
+          fontSize: { xs: '1.25rem', md: '1.75rem' },
           fontWeight: 600,
           color: theme.palette.text.primary,
           mb: 3,
@@ -245,10 +245,10 @@ export default function SystemSettingsPage() {
         System Settings
       </Typography>
 
-      <Grid container spacing={3}>
+      <Grid container spacing={{ xs: 2, md: 3 }}>
         <Grid item xs={12}>
-          <Paper sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Paper sx={{ p: { xs: 1.5, md: 3 } }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 2, gap: { xs: 1, md: 0 } }}>
               <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
                 Stripe Configuration
               </Typography>
@@ -376,12 +376,16 @@ export default function SystemSettingsPage() {
               </Grid>
 
               {/* Action Buttons */}
-              <Grid item xs={12} sx={{ mt: 2, display: 'flex', gap: 2 }}>
+              <Grid item xs={12} sx={{ mt: 2, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
                 <Button
                   variant="contained"
                   startIcon={<SaveIcon />}
                   onClick={handleSaveStripeKeys}
                   disabled={saving}
+                  fullWidth={false}
+                  sx={{
+                    width: { xs: '100%', sm: 'auto' },
+                  }}
                 >
                   {saving ? 'Saving...' : 'Save Keys'}
                 </Button>
@@ -389,6 +393,10 @@ export default function SystemSettingsPage() {
                   variant="outlined"
                   onClick={() => handleTestConnection('test')}
                   disabled={testing.test}
+                  fullWidth={false}
+                  sx={{
+                    width: { xs: '100%', sm: 'auto' },
+                  }}
                 >
                   {testing.test ? 'Testing...' : 'Test Connection (Test Mode)'}
                 </Button>
@@ -396,6 +404,10 @@ export default function SystemSettingsPage() {
                   variant="outlined"
                   onClick={() => handleTestConnection('live')}
                   disabled={testing.live}
+                  fullWidth={false}
+                  sx={{
+                    width: { xs: '100%', sm: 'auto' },
+                  }}
                 >
                   {testing.live ? 'Testing...' : 'Test Connection (Live Mode)'}
                 </Button>
@@ -405,8 +417,8 @@ export default function SystemSettingsPage() {
         </Grid>
 
         <Grid item xs={12}>
-          <Paper sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Paper sx={{ p: { xs: 1.5, md: 3 } }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 2, gap: { xs: 1, md: 0 } }}>
               <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
                 Email Configuration (SendGrid)
               </Typography>
@@ -472,12 +484,16 @@ export default function SystemSettingsPage() {
               </Grid>
 
               {/* Action Buttons */}
-              <Grid item xs={12} sx={{ mt: 2, display: 'flex', gap: 2 }}>
+              <Grid item xs={12} sx={{ mt: 2, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
                 <Button
                   variant="contained"
                   startIcon={<SaveIcon />}
                   onClick={handleSaveSendGridKeys}
                   disabled={saving || (!sendGridApiKey?.trim() && !senderEmail?.trim())}
+                  fullWidth={false}
+                  sx={{
+                    width: { xs: '100%', sm: 'auto' },
+                  }}
                 >
                   {saving ? 'Saving...' : 'Save Configuration'}
                 </Button>
@@ -485,6 +501,10 @@ export default function SystemSettingsPage() {
                   variant="outlined"
                   onClick={handleTestEmailConnection}
                   disabled={testing.email || (!emailConnection?.config?.api_key && !sendGridApiKey?.trim())}
+                  fullWidth={false}
+                  sx={{
+                    width: { xs: '100%', sm: 'auto' },
+                  }}
                 >
                   {testing.email ? 'Testing...' : 'Test Connection'}
                 </Button>
@@ -501,7 +521,7 @@ export default function SystemSettingsPage() {
         </Grid>
 
         <Grid item xs={12}>
-          <Paper sx={{ p: 3 }}>
+          <Paper sx={{ p: { xs: 1.5, md: 3 } }}>
             <Typography variant="h6" gutterBottom>
               Dashboard Scheduled Reports
             </Typography>
@@ -515,7 +535,7 @@ export default function SystemSettingsPage() {
         </Grid>
 
         <Grid item xs={12}>
-          <Paper sx={{ p: 3 }}>
+          <Paper sx={{ p: { xs: 1.5, md: 3 } }}>
             <Typography variant="h6" gutterBottom>
               AI Service Configuration
             </Typography>
@@ -526,7 +546,7 @@ export default function SystemSettingsPage() {
         </Grid>
 
         <Grid item xs={12}>
-          <Paper sx={{ p: 3 }}>
+          <Paper sx={{ p: { xs: 1.5, md: 3 } }}>
             <Typography variant="h6" gutterBottom>
               Storage Configuration
             </Typography>

@@ -273,7 +273,7 @@ export default function CompanyDetailPage() {
 
   if (loading) {
     return (
-      <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+      <Container maxWidth="xl" sx={{ mt: 4, mb: 4, px: { xs: 0, md: 3 } }}>
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
           <CircularProgress />
         </Box>
@@ -283,7 +283,7 @@ export default function CompanyDetailPage() {
 
   if (error || !company) {
     return (
-      <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+      <Container maxWidth="xl" sx={{ mt: 4, mb: 4, px: { xs: 0, md: 3 } }}>
         <Alert severity="error" sx={{ mt: 4 }}>
           {error || 'Company not found'}
         </Alert>
@@ -655,16 +655,33 @@ export default function CompanyDetailPage() {
           value={activeTab}
           onChange={(_, newValue) => setActiveTab(newValue)}
           variant="scrollable"
-          scrollButtons="auto"
+          scrollButtons={true}
+          allowScrollButtonsMobile
           sx={{
             '& .MuiTab-root': {
               color: theme.palette.text.secondary,
+              minHeight: { xs: 64, md: 72 },
+              fontSize: { xs: '0.75rem', md: '0.875rem' },
+              padding: { xs: '12px 16px', md: '12px 24px' },
               '&.Mui-selected': {
                 color: theme.palette.text.primary,
               },
             },
             '& .MuiTabs-indicator': {
               backgroundColor: theme.palette.text.primary,
+            },
+            '& .MuiTabs-scrollButtons': {
+              display: { xs: 'flex', md: 'flex' },
+              width: { xs: 40, md: 48 },
+              flexShrink: 0,
+              zIndex: 1,
+              position: 'relative',
+              '&.Mui-disabled': {
+                opacity: 0.3,
+              },
+              '&:not(.Mui-disabled)': {
+                opacity: 1,
+              },
             },
           }}
         >

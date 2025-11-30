@@ -213,44 +213,56 @@ export default function TaskPreviewTable({
         </Box>
       )}
 
-      <Box sx={{ mb: 2, display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-        <Button
-          variant="outlined"
-          onClick={onBack}
-          size="small"
-        >
-          Back
-        </Button>
-        <Button
-          variant="outlined"
-          onClick={onRegenerate}
-          size="small"
-        >
-          Regenerate
-        </Button>
-        <Box sx={{ flexGrow: 1 }} />
-        {someSelected && (
+      <Box sx={{ mb: 2, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 1.5, sm: 1 }, alignItems: { xs: 'stretch', sm: 'center' }, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', gap: 1, flex: { xs: '1 1 100%', sm: '0 0 auto' } }}>
           <Button
             variant="outlined"
-            color="error"
-            startIcon={<DeleteIcon />}
-            onClick={handleRemoveSelected}
+            onClick={onBack}
             size="small"
+            fullWidth={false}
+            sx={{ flex: { xs: 1, sm: '0 0 auto' } }}
           >
-            Remove Selected ({selectedTasks.size})
+            Back
           </Button>
-        )}
-        <Button
-          variant="contained"
-          onClick={handleInject}
-          disabled={selectedTasks.size === 0 || injecting}
-          sx={{
-            backgroundColor: 'primary.main',
-            color: '#000',
-          }}
-        >
-          {injecting ? 'Injecting...' : `Inject Tasks (${selectedTasks.size})`}
-        </Button>
+          <Button
+            variant="outlined"
+            onClick={onRegenerate}
+            size="small"
+            fullWidth={false}
+            sx={{ flex: { xs: 1, sm: '0 0 auto' } }}
+          >
+            Regenerate
+          </Button>
+        </Box>
+        <Box sx={{ flexGrow: { xs: 0, sm: 1 }, width: { xs: '100%', sm: 'auto' } }} />
+        <Box sx={{ display: 'flex', gap: 1, flex: { xs: '1 1 100%', sm: '0 0 auto' }, width: { xs: '100%', sm: 'auto' } }}>
+          {someSelected && (
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteIcon />}
+              onClick={handleRemoveSelected}
+              size="small"
+              fullWidth={false}
+              sx={{ flex: { xs: 1, sm: '0 0 auto' } }}
+            >
+              Remove Selected ({selectedTasks.size})
+            </Button>
+          )}
+          <Button
+            variant="contained"
+            onClick={handleInject}
+            disabled={selectedTasks.size === 0 || injecting}
+            fullWidth={false}
+            sx={{
+              backgroundColor: 'primary.main',
+              color: '#000',
+              flex: { xs: 1, sm: '0 0 auto' },
+            }}
+          >
+            {injecting ? 'Injecting...' : `Inject Tasks (${selectedTasks.size})`}
+          </Button>
+        </Box>
       </Box>
 
       <TableContainer component={Paper}>

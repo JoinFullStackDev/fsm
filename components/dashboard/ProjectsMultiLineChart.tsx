@@ -499,12 +499,13 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
     
     return (
       <>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'flex-start' }, mb: 3, gap: { xs: 2, md: 0 } }}>
           <Typography
             variant="h6"
             sx={{
               color: theme.palette.text.primary,
               fontWeight: 600,
+              fontSize: { xs: '1rem', md: '1.25rem' },
             }}
           >
             Projects & Tasks Activity Over Time
@@ -526,7 +527,8 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
                 placeholder="Select data series..."
                 size="small"
                 sx={{
-                  minWidth: 250,
+                  minWidth: { xs: '100%', md: 250 },
+                  width: { xs: '100%', md: 'auto' },
                   '& .MuiOutlinedInput-root': {
                     backgroundColor: theme.palette.action.hover,
                     color: theme.palette.text.primary,

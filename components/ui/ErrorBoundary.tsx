@@ -59,7 +59,7 @@ function ErrorDisplay({ error, onReset, onGoHome }: { error: Error | null; onRes
 
   return (
     <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', pb: 4 }}>
-      <Container maxWidth="lg" sx={{ pt: 4, pb: 4 }}>
+      <Container maxWidth="lg" sx={{ pt: 4, pb: 4, px: { xs: 0, md: 3 } }}>
         <Card
           sx={{
             backgroundColor: theme.palette.background.paper,

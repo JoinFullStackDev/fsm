@@ -354,7 +354,7 @@ export default function ProjectTaskManagementPage() {
 
   if (loading) {
     return (
-      <Container maxWidth="xl" sx={{ py: 4 }}>
+      <Container maxWidth="xl" sx={{ py: 4, px: { xs: 0, md: 3 } }}>
         <Box sx={{ py: 4 }}>
           <Skeleton variant="text" width="40%" height={48} sx={{ mb: 3 }} />
           <Skeleton variant="text" width="60%" height={24} sx={{ mb: 4 }} />
@@ -366,18 +366,18 @@ export default function ProjectTaskManagementPage() {
 
   if (error && !project) {
     return (
-      <Container maxWidth="xl" sx={{ py: 4 }}>
+      <Container maxWidth="xl" sx={{ py: 4, px: { xs: 0, md: 3 } }}>
         <Alert severity="error">{error}</Alert>
       </Container>
     );
   }
 
   return (
-    <Container maxWidth="xl" sx={{ py: 4, px: '15px' }}>
+    <Container maxWidth="xl" sx={{ py: 4, px: { xs: 0, md: 3 } }}>
       {/* Breadcrumbs */}
       <Breadcrumbs
         separator={<NavigateNextIcon fontSize="small" sx={{ color: theme.palette.text.secondary }} />}
-        sx={{ mb: 3 }}
+        sx={{ mb: 3, px: { xs: 2, md: 0 } }}
       >
         <Link
           component="button"
@@ -393,31 +393,33 @@ export default function ProjectTaskManagementPage() {
       </Breadcrumbs>
 
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 4, gap: { xs: 2, md: 0 }, px: { xs: 2, md: 0 } }}>
         <Typography
           variant="h3"
           component="h1"
           sx={{
             fontWeight: 600,
-            fontSize: '1.5rem',
+            fontSize: { xs: '1.25rem', md: '1.5rem' },
             color: theme.palette.text.primary,
           }}
         >
           {project?.name || 'Project'} - Task Management
         </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'center', gap: { xs: 2, md: 1 }, flexWrap: 'wrap', width: { xs: '100%', md: 'auto' } }}>
           {features?.ai_task_generator_enabled && (
             <Button
               variant="contained"
-              startIcon={<AutoAwesomeIcon />}
+              startIcon={<AutoAwesomeIcon sx={{ fontSize: { xs: 22, md: 18 } }} />}
               onClick={() => setTaskGeneratorOpen(true)}
               size="small"
+              fullWidth={false}
               sx={{
-                height: '32px',
-                minHeight: '32px',
+                height: { xs: '40px', md: '32px' },
+                minHeight: { xs: '40px', md: '32px' },
+                width: { xs: '100%', md: 'auto' },
                 backgroundColor: 'primary.main',
                 color: '#000',
-                fontSize: '0.75rem',
+                fontSize: { xs: '0.875rem', md: '0.75rem' },
                 '&:hover': {
                   backgroundColor: 'primary.light',
                 },
@@ -428,16 +430,18 @@ export default function ProjectTaskManagementPage() {
           )}
           <Button
             variant="outlined"
-            startIcon={<RefreshIcon />}
+            startIcon={<RefreshIcon sx={{ fontSize: { xs: 22, md: 18 } }} />}
             onClick={handleReAnalyze}
             disabled={analyzing}
             size="small"
+            fullWidth={false}
             sx={{
-              height: '32px',
-              minHeight: '32px',
+              height: { xs: '40px', md: '32px' },
+              minHeight: { xs: '40px', md: '32px' },
+              width: { xs: '100%', md: 'auto' },
               borderColor: theme.palette.text.primary,
               color: theme.palette.text.primary,
-              fontSize: '0.75rem',
+              fontSize: { xs: '0.875rem', md: '0.75rem' },
               '&:hover': {
                 borderColor: theme.palette.text.primary,
                 backgroundColor: theme.palette.action.hover,

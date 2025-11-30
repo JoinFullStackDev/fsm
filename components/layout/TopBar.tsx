@@ -12,6 +12,7 @@ import {
   Box,
   Typography,
   Divider,
+  useMediaQuery,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -38,6 +39,7 @@ interface TopBarProps {
 export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
   const router = useRouter();
   const theme = useTheme();
+  const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
   const supabase = createSupabaseClient();
   const { role, isSuperAdmin, loading: roleLoading } = useRole();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -199,6 +201,13 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
               minWidth: 200,
               backgroundColor: theme.palette.background.paper,
               border: `1px solid ${theme.palette.divider}`,
+              '& .MuiMenuItem-root': {
+                color: theme.palette.text.primary,
+                '&:hover': {
+                  backgroundColor: theme.palette.action.hover,
+                  color: theme.palette.text.primary,
+                },
+              },
             },
           }}
         >
@@ -216,54 +225,59 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
           <MenuItem
             onClick={() => handleNavigate('/dashboard')}
             sx={{
-              color: 'text.primary',
+              color: `${theme.palette.text.primary} !important`,
               '&:hover': {
                 backgroundColor: theme.palette.action.hover,
+                color: `${theme.palette.text.primary} !important`,
+              },
+              '&:focus': {
+                backgroundColor: 'transparent',
+                color: `${theme.palette.text.primary} !important`,
               },
             }}
           >
-            <DashboardIcon fontSize="small" sx={{ mr: 1.5 }} />
-            Dashboard
+            <DashboardIcon fontSize="small" sx={{ mr: isDesktop ? 1.5 : 0, color: theme.palette.text.primary }} />
+            {isDesktop && <Box component="span" sx={{ color: theme.palette.text.primary, fontSize: '0.875rem' }}>Dashboard</Box>}
           </MenuItem>
           {!roleLoading && isSuperAdmin && (
             <MenuItem
               onClick={() => handleNavigate('/global/admin')}
               sx={{
-                color: 'text.primary',
+                color: theme.palette.text.primary,
                 '&:hover': {
                   backgroundColor: theme.palette.action.hover,
                 },
               }}
             >
-              <SecurityIcon fontSize="small" sx={{ mr: 1.5 }} />
-              Super Admin
+              <SecurityIcon fontSize="small" sx={{ mr: 1.5, color: theme.palette.text.primary }} />
+              <Typography sx={{ color: theme.palette.text.primary }}>Super Admin</Typography>
             </MenuItem>
           )}
           {!roleLoading && role === 'admin' && (
             <MenuItem
               onClick={() => handleNavigate('/admin')}
               sx={{
-                color: 'text.primary',
+                color: theme.palette.text.primary,
                 '&:hover': {
                   backgroundColor: theme.palette.action.hover,
                 },
               }}
             >
-              <AdminIcon fontSize="small" sx={{ mr: 1.5 }} />
-              Admin
+              <AdminIcon fontSize="small" sx={{ mr: 1.5, color: theme.palette.text.primary }} />
+              <Typography sx={{ color: theme.palette.text.primary }}>Admin</Typography>
             </MenuItem>
           )}
           <MenuItem
             onClick={() => handleNavigate('/profile')}
             sx={{
-              color: 'text.primary',
+              color: theme.palette.text.primary,
               '&:hover': {
                 backgroundColor: theme.palette.action.hover,
               },
             }}
           >
-            <PersonIcon fontSize="small" sx={{ mr: 1.5 }} />
-            Profile
+            <PersonIcon fontSize="small" sx={{ mr: 1.5, color: theme.palette.text.primary }} />
+            <Typography sx={{ color: theme.palette.text.primary }}>Profile</Typography>
           </MenuItem>
           <Divider sx={{ borderColor: theme.palette.divider }} />
           <MenuItem
@@ -275,8 +289,8 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
               },
             }}
           >
-            <LogoutIcon fontSize="small" sx={{ mr: 1.5 }} />
-            Sign Out
+            <LogoutIcon fontSize="small" sx={{ mr: 1.5, color: theme.palette.text.primary }} />
+            <Typography sx={{ color: theme.palette.text.primary }}>Sign Out</Typography>
           </MenuItem>
         </Menu>
       </Toolbar>

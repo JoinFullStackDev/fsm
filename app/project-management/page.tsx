@@ -164,7 +164,7 @@ export default function ProjectManagementPage() {
   }
 
   return (
-    <Box>
+    <Box sx={{ p: { xs: 2, md: 0 } }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Typography
@@ -173,7 +173,7 @@ export default function ProjectManagementPage() {
             sx={{
               fontWeight: 600,
               color: theme.palette.text.primary,
-              fontSize: '1.5rem',
+              fontSize: { xs: '1.25rem', md: '1.5rem' },
             }}
           >
             Project Management

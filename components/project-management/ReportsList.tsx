@@ -108,13 +108,14 @@ export default function ReportsList({ projectId, refreshTrigger }: ReportsListPr
   }
 
   return (
-    <Box>
+    <Box sx={{ px: { xs: 0, md: 0 } }}>
       <Typography
         variant="h5"
         sx={{
           color: theme.palette.text.primary,
           fontWeight: 600,
           mb: 3,
+          fontSize: { xs: '1.25rem', md: '1.5rem' },
         }}
       >
         Generated Reports
@@ -132,6 +133,11 @@ export default function ReportsList({ projectId, refreshTrigger }: ReportsListPr
             backgroundColor: theme.palette.background.paper,
             border: `1px solid ${theme.palette.divider}`,
             borderRadius: 2,
+            overflowX: 'auto',
+            '& .MuiTableCell-root': {
+              fontSize: { xs: '0.75rem', md: '0.875rem' },
+              padding: { xs: '8px 4px', md: '16px' },
+            },
           }}
         >
           <Table>

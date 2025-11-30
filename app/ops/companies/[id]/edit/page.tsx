@@ -140,7 +140,7 @@ export default function EditCompanyPage() {
 
   if (loadingData) {
     return (
-      <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+      <Container maxWidth="md" sx={{ mt: 4, mb: 4, px: { xs: 0, md: 3 } }}>
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
           <CircularProgress sx={{ color: theme.palette.text.primary }} />
         </Box>

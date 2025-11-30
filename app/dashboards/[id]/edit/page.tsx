@@ -532,33 +532,43 @@ export default function DashboardEditorPage() {
   return (
     <DndContext collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-        <Toolbar sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
-        <IconButton onClick={() => router.push('/dashboards')} sx={{ mr: 2 }}>
+        <Toolbar sx={{ borderBottom: `1px solid ${theme.palette.divider}`, flexWrap: { xs: 'wrap', md: 'nowrap' }, gap: { xs: 1, md: 0 }, minHeight: { xs: 'auto', md: 64 }, py: { xs: 1, md: 0 } }}>
+        <IconButton onClick={() => router.push('/dashboards')} sx={{ mr: { xs: 0, md: 2 } }}>
           <ArrowBackIcon />
         </IconButton>
-        <Typography variant="h6" sx={{ flexGrow: 1 }}>
+        <Typography variant="h6" sx={{ flexGrow: 1, fontSize: { xs: '1rem', md: '1.25rem' }, width: { xs: '100%', md: 'auto' }, mb: { xs: 1, md: 0 } }}>
           {params.id === 'new' ? 'Create Dashboard' : 'Edit Dashboard'}
         </Typography>
-        {params.id === 'new' && (
+        <Box sx={{ display: 'flex', gap: 1, width: { xs: '100%', md: 'auto' }, flexDirection: { xs: 'column', md: 'row' } }}>
+          {params.id === 'new' && (
+            <Button
+              startIcon={<TemplateIcon />}
+              onClick={() => setTemplatesOpen(true)}
+              fullWidth={false}
+              sx={{
+                width: { xs: '100%', md: 'auto' },
+                mr: { xs: 0, md: 1 },
+              }}
+            >
+              Use Template
+            </Button>
+          )}
           <Button
-            startIcon={<TemplateIcon />}
-            onClick={() => setTemplatesOpen(true)}
-            sx={{ mr: 1 }}
+            startIcon={<SaveIcon />}
+            variant="contained"
+            onClick={handleSave}
+            disabled={saving || !name.trim()}
+            fullWidth={false}
+            sx={{
+              width: { xs: '100%', md: 'auto' },
+            }}
           >
-            Use Template
+            {saving ? 'Saving...' : 'Save'}
           </Button>
-        )}
-        <Button
-          startIcon={<SaveIcon />}
-          variant="contained"
-          onClick={handleSave}
-          disabled={saving || !name.trim()}
-        >
-          {saving ? 'Saving...' : 'Save'}
-        </Button>
+        </Box>
       </Toolbar>
 
-      <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
+      <Box sx={{ flexGrow: 1, overflow: 'auto', p: { xs: 2, md: 3 } }}>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
             {error}
@@ -566,7 +576,7 @@ export default function DashboardEditorPage() {
         )}
 
         <Card sx={{ mb: 3 }}>
-          <CardContent>
+          <CardContent sx={{ p: { xs: 1.5, md: 2 } }}>
             <TextField
               fullWidth
               label="Dashboard Name"
@@ -587,14 +597,18 @@ export default function DashboardEditorPage() {
         </Card>
 
         <Card>
-          <CardContent>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">Widgets</Typography>
+          <CardContent sx={{ p: { xs: 1.5, md: 2 } }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 2, gap: { xs: 2, md: 0 } }}>
+              <Typography variant="h6" sx={{ fontSize: { xs: '1rem', md: '1.25rem' } }}>Widgets</Typography>
               {params.id !== 'new' && (
                 <Button
                   variant="outlined"
                   startIcon={<AddIcon />}
                   onClick={() => setWidgetLibraryOpen(true)}
+                  fullWidth={false}
+                  sx={{
+                    width: { xs: '100%', md: 'auto' },
+                  }}
                 >
                   Add Widget
                 </Button>

@@ -420,14 +420,14 @@ export default function TaskTable({
       <Box
         sx={{
           display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
           justifyContent: 'space-between',
-          alignItems: 'center',
+          alignItems: { xs: 'stretch', md: 'center' },
           mb: 2,
-          gap: 2,
-          flexWrap: 'wrap',
+          gap: { xs: 2, md: 2 },
         }}
       >
-        <Box sx={{ display: 'flex', gap: 2, flex: 1, minWidth: 0 }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 2, sm: 2 }, flex: 1, minWidth: 0 }}>
           <TextField
             size="small"
             placeholder="Search tasks..."
@@ -441,7 +441,8 @@ export default function TaskTable({
               ),
             }}
             sx={{
-              flex: { xs: '1 1 100%', sm: '0 0 300px' },
+              width: { xs: '100%', sm: 'auto' },
+              flex: { xs: 'none', sm: '0 0 300px' },
               '& .MuiOutlinedInput-root': {
                 backgroundColor: theme.palette.action.hover,
                 color: theme.palette.text.primary,
@@ -457,7 +458,7 @@ export default function TaskTable({
               },
             }}
           />
-          <FormControl size="small" sx={{ minWidth: 120 }}>
+          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 120 }, width: { xs: '100%', sm: 'auto' } }}>
             <InputLabel sx={{ color: theme.palette.text.secondary }}>Status</InputLabel>
             <Select
               value={statusFilter}
@@ -487,7 +488,7 @@ export default function TaskTable({
               <MenuItem value="archived">Archived</MenuItem>
             </Select>
           </FormControl>
-          <FormControl size="small" sx={{ minWidth: 120 }}>
+          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 120 }, width: { xs: '100%', sm: 'auto' } }}>
             <InputLabel sx={{ color: theme.palette.text.secondary }}>Phase</InputLabel>
             <Select
               value={phaseFilter}
@@ -520,7 +521,7 @@ export default function TaskTable({
                 ))}
             </Select>
           </FormControl>
-          <FormControl size="small" sx={{ minWidth: 120 }}>
+          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 120 }, width: { xs: '100%', sm: 'auto' } }}>
             <InputLabel sx={{ color: theme.palette.text.secondary }}>Priority</InputLabel>
             <Select
               value={priorityFilter}
@@ -551,7 +552,7 @@ export default function TaskTable({
             </Select>
           </FormControl>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, width: { xs: '100%', md: 'auto' }, justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
           <Tooltip title="Column visibility">
             <IconButton
               onClick={(e) => setColumnMenuAnchor(e.currentTarget)}
@@ -565,7 +566,9 @@ export default function TaskTable({
             variant="outlined"
             startIcon={<AddIcon />}
             onClick={() => onTaskClick({} as ProjectTask)}
+            fullWidth={false}
             sx={{
+              width: { xs: '100%', md: 'auto' },
               borderColor: theme.palette.text.primary,
               color: theme.palette.text.primary,
               fontWeight: 600,
@@ -650,6 +653,10 @@ export default function TaskTable({
           borderRadius: 2,
           maxHeight: 'calc(100vh - 300px)',
           overflow: 'auto',
+          '& .MuiTableCell-root': {
+            fontSize: { xs: '0.75rem', md: '0.875rem' },
+            padding: { xs: '8px 4px', md: '16px' },
+          },
         }}
       >
         <Table stickyHeader size="small">

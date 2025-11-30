@@ -89,9 +89,12 @@ export default function MainLayout({ children }: MainLayoutProps) {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
+          p: { xs: 0, md: 3 },
           mt: '64px', // TopBar height
-          width: { sm: `calc(100% - ${sidebarOpen ? DRAWER_WIDTH : DRAWER_WIDTH_COLLAPSED}px)` },
+          width: { 
+            xs: '100%', // Full width on mobile (sidebar overlays)
+            sm: `calc(100% - ${sidebarOpen ? DRAWER_WIDTH : DRAWER_WIDTH_COLLAPSED}px)` 
+          },
           transition: 'width 0.3s ease',
           overflow: 'auto',
           backgroundColor: theme.palette.background.default,

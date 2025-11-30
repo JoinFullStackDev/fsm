@@ -229,8 +229,8 @@ export default function CompaniesPage() {
   }
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+    <Box sx={{ p: { xs: 2, md: 0 } }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 4, gap: { xs: 2, md: 0 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Typography
             variant="h4"
@@ -238,6 +238,7 @@ export default function CompaniesPage() {
             sx={{
               fontWeight: 700,
               color: theme.palette.text.primary,
+              fontSize: { xs: '1.25rem', md: '1.5rem' },
             }}
           >
             Companies
@@ -260,14 +261,16 @@ export default function CompaniesPage() {
           variant="contained"
           startIcon={<AddIcon />}
           onClick={handleCreateCompany}
+          fullWidth={false}
           sx={{
             backgroundColor: theme.palette.background.paper,
             color: theme.palette.text.primary,
             fontWeight: 600,
             border: `1px solid ${theme.palette.divider}`,
+            width: { xs: '100%', md: 'auto' },
             '&:hover': {
               backgroundColor: theme.palette.background.default,
-              transform: 'translateY(-2px)',
+              transform: { xs: 'none', md: 'translateY(-2px)' },
             },
           }}
         >
@@ -293,7 +296,7 @@ export default function CompaniesPage() {
       {companies.length > 0 && (
         <Paper
           sx={{
-            p: 2,
+            p: { xs: 1.5, md: 2 },
             mb: 3,
             backgroundColor: theme.palette.background.paper,
             border: `1px solid ${theme.palette.divider}`,

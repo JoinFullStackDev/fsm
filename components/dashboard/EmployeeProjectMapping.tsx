@@ -363,19 +363,20 @@ export default function EmployeeProjectMapping({
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 3, gap: { xs: 2, md: 0 } }}>
         <Typography
           variant="h6"
           sx={{
             color: theme.palette.text.primary,
             fontWeight: 600,
+            fontSize: { xs: '1rem', md: '1.25rem' },
           }}
         >
           {showPersonalView ? 'My Tasks' : 'Team Member Project Assignments'}
         </Typography>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, alignItems: { xs: 'stretch', sm: 'center' }, width: { xs: '100%', md: 'auto' } }}>
           {isAdminOrPM && (
-            <FormControl size="small" sx={{ minWidth: 200 }}>
+            <FormControl size="small" sx={{ minWidth: { xs: '100%', md: 200 }, width: { xs: '100%', md: 'auto' } }}>
               <InputLabel sx={{ color: theme.palette.text.secondary }}>View</InputLabel>
               <Select
                 value={viewMode}
@@ -400,7 +401,7 @@ export default function EmployeeProjectMapping({
             </FormControl>
           )}
           {showPersonalView && currentUserProjects.length > 1 && (
-            <FormControl size="small" sx={{ minWidth: 200 }}>
+            <FormControl size="small" sx={{ minWidth: { xs: '100%', md: 200 }, width: { xs: '100%', md: 'auto' } }}>
               <InputLabel sx={{ color: theme.palette.text.secondary }}>Project</InputLabel>
               <Select
                 value={selectedProjectId}

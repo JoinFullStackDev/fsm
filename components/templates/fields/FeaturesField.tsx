@@ -57,7 +57,7 @@ export default function FeaturesField({ field, value, onChange, error, phaseData
           {error}
         </Typography>
       )}
-      <Grid container spacing={2} sx={{ mb: 2 }}>
+      <Grid container spacing={{ xs: 1, md: 2 }} sx={{ mb: 2 }}>
         {features.map((feature, index) => (
           <Grid item xs={12} md={6} key={index}>
             <Card
@@ -68,7 +68,7 @@ export default function FeaturesField({ field, value, onChange, error, phaseData
                 borderRadius: 2,
               }}
             >
-              <CardContent>
+              <CardContent sx={{ p: { xs: 1.5, md: 2 }, '&:last-child': { pb: { xs: 1.5, md: 2 } } }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
                   <Typography variant="subtitle1" sx={{ color: 'primary.main', fontWeight: 600 }}>
                     Feature {index + 1}
