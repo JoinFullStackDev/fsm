@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
     const { data: { session } } = await supabase.auth.getSession();
 
     const body = await request.json();
-    const { organization_id, package_id, stripe_subscription_id, stripe_price_id, status, current_period_start, current_period_end } = body;
+    const { organization_id, package_id, stripe_subscription_id, stripe_price_id, status, current_period_start, current_period_end, billing_interval } = body;
 
     if (!organization_id) {
       return badRequest('Missing required field: organization_id');
@@ -245,6 +245,12 @@ export async function POST(request: NextRequest) {
       package_id,
       package_name: packageData.name,
       stripe_subscription_id,
+      hasStripeSubscriptionId: !!stripe_subscription_id,
+      hasSession: !!session,
+      billing_interval,
+      status,
+      hasPeriodStart: !!current_period_start,
+      hasPeriodEnd: !!current_period_end,
     });
 
     // During signup (when stripe_subscription_id is provided), allow without auth
@@ -265,20 +271,88 @@ export async function POST(request: NextRequest) {
     if (stripe_subscription_id) {
       const { data: existingSubByStripe } = await adminClient
         .from('subscriptions')
-        .select('id, organization_id, status, package_id, stripe_price_id')
+        .select('id, organization_id, status, package_id, stripe_price_id, billing_interval, current_period_start, current_period_end')
         .eq('stripe_subscription_id', stripe_subscription_id)
         .maybeSingle();
 
       if (existingSubByStripe) {
+        // CRITICAL: If subscription exists but has wrong organization_id, update it
+        if (existingSubByStripe.organization_id !== organization_id) {
+          logger.warn('[Subscription API] Subscription found with wrong organization_id, updating:', {
+            subscriptionId: existingSubByStripe.id,
+            stripeSubscriptionId: stripe_subscription_id,
+            currentOrgId: existingSubByStripe.organization_id,
+            correctOrgId: organization_id,
+          });
+          
+          // Update organization_id to correct one
+          const { error: orgUpdateError } = await adminClient
+            .from('subscriptions')
+            .update({ organization_id: organization_id })
+            .eq('id', existingSubByStripe.id);
+          
+          if (orgUpdateError) {
+            logger.error('[Subscription API] Failed to update subscription organization_id:', orgUpdateError);
+            return internalError('Failed to update subscription organization', { error: orgUpdateError.message });
+          }
+          
+          logger.info('[Subscription API] Successfully updated subscription organization_id:', {
+            subscriptionId: existingSubByStripe.id,
+            newOrgId: organization_id,
+          });
+        }
+        
         // Subscription already exists - update it with latest data
         logger.info('[Subscription API] Subscription exists by stripe_subscription_id, updating:', {
           subscriptionId: existingSubByStripe.id,
           stripeSubscriptionId: stripe_subscription_id,
+          organizationId: organization_id,
         });
 
         const subscriptionStatus = status || existingSubByStripe.status || 'active';
-        const periodStart = current_period_start || new Date().toISOString();
-        const periodEnd = current_period_end || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        
+        // Validate dates if provided
+        let periodStart: string;
+        let periodEnd: string;
+        const subscriptionBillingIntervalForUpdate = billing_interval || existingSubByStripe.billing_interval || 'month';
+        
+        if (current_period_start) {
+          const startDate = new Date(current_period_start);
+          if (startDate.getTime() === 0 || startDate.getFullYear() < 2020 || isNaN(startDate.getTime())) {
+            logger.warn('[Subscription API] Invalid current_period_start in update, using fallback');
+            periodStart = new Date().toISOString();
+          } else {
+            periodStart = current_period_start;
+          }
+        } else {
+          periodStart = existingSubByStripe.current_period_start || new Date().toISOString();
+        }
+        
+        if (current_period_end) {
+          const endDate = new Date(current_period_end);
+          if (endDate.getTime() === 0 || endDate.getFullYear() < 2020 || isNaN(endDate.getTime())) {
+            logger.warn('[Subscription API] Invalid current_period_end in update, calculating fallback');
+            const startDateObj = new Date(periodStart);
+            if (subscriptionBillingIntervalForUpdate === 'year') {
+              startDateObj.setFullYear(startDateObj.getFullYear() + 1);
+            } else {
+              startDateObj.setMonth(startDateObj.getMonth() + 1);
+            }
+            periodEnd = startDateObj.toISOString();
+          } else {
+            periodEnd = current_period_end;
+          }
+        } else {
+          periodEnd = existingSubByStripe.current_period_end || (() => {
+            const startDateObj = new Date(periodStart);
+            if (subscriptionBillingIntervalForUpdate === 'year') {
+              startDateObj.setFullYear(startDateObj.getFullYear() + 1);
+            } else {
+              startDateObj.setMonth(startDateObj.getMonth() + 1);
+            }
+            return startDateObj.toISOString();
+          })();
+        }
 
         // Build update object - always update package_id if provided, otherwise preserve existing
         const updateData: any = {
@@ -311,6 +385,15 @@ export async function POST(request: NextRequest) {
           updateData.stripe_price_id = existingSubByStripe.stripe_price_id;
         }
         
+        // Always update billing_interval if provided (important for new subscriptions)
+        if (billing_interval) {
+          updateData.billing_interval = billing_interval;
+          logger.info('[Subscription API] Updating subscription billing_interval:', {
+            subscriptionId: existingSubByStripe.id,
+            billingInterval: billing_interval,
+          });
+        }
+        
         const { data: updatedSub, error: updateError } = await adminClient
           .from('subscriptions')
           .update(updateData)
@@ -323,15 +406,24 @@ export async function POST(request: NextRequest) {
           return internalError('Failed to update subscription', { error: updateError.message });
         }
 
-        // Update organization status
+        // Update organization status to active when subscription is active/trialing
         const orgStatus = subscriptionStatus === 'active' || subscriptionStatus === 'trialing' ? 'active' : 'trial';
-        await adminClient
+        const { error: orgUpdateError } = await adminClient
           .from('organizations')
           .update({
             subscription_status: orgStatus,
             updated_at: new Date().toISOString(),
           })
           .eq('id', organization_id);
+
+        if (orgUpdateError) {
+          logger.error('[Subscription API] Error updating organization status:', orgUpdateError);
+        } else {
+          logger.info('[Subscription API] Updated organization status:', {
+            organizationId: organization_id,
+            status: orgStatus,
+          });
+        }
 
         return NextResponse.json(updatedSub, { status: 200 });
       }
@@ -340,12 +432,86 @@ export async function POST(request: NextRequest) {
     // Check if subscription already exists for this organization (active or trialing)
     const { data: existingSub } = await adminClient
       .from('subscriptions')
-      .select('id, stripe_subscription_id')
+      .select('id, stripe_subscription_id, package_id, status')
       .eq('organization_id', organization_id)
       .in('status', ['active', 'trialing'])
       .maybeSingle();
 
     if (existingSub) {
+      // If existing subscription doesn't have stripe_subscription_id, update it
+      if (stripe_subscription_id && !existingSub.stripe_subscription_id) {
+        logger.info('[Subscription API] Updating existing subscription with Stripe subscription ID:', {
+          subscriptionId: existingSub.id,
+          stripeSubscriptionId: stripe_subscription_id,
+        });
+        
+        const updateData: any = {
+          stripe_subscription_id: stripe_subscription_id,
+          updated_at: new Date().toISOString(),
+        };
+        
+        // Update package_id if provided and different
+        if (package_id && existingSub.package_id !== package_id) {
+          updateData.package_id = package_id;
+        }
+        
+        // Update stripe_price_id if provided
+        if (stripe_price_id) {
+          updateData.stripe_price_id = stripe_price_id;
+        }
+        
+        // Update billing_interval if provided
+        if (billing_interval) {
+          updateData.billing_interval = billing_interval;
+        }
+        
+        // Update status if provided
+        if (status) {
+          updateData.status = status;
+        }
+        
+        // Update dates if provided
+        if (current_period_start) {
+          updateData.current_period_start = current_period_start;
+        }
+        if (current_period_end) {
+          updateData.current_period_end = current_period_end;
+        }
+        
+        const { data: updatedSub, error: updateError } = await adminClient
+          .from('subscriptions')
+          .update(updateData)
+          .eq('id', existingSub.id)
+          .select()
+          .single();
+        
+        if (updateError) {
+          logger.error('[Subscription API] Error updating existing subscription with Stripe ID:', updateError);
+          return internalError('Failed to update subscription', { error: updateError.message });
+        }
+        
+        // Update organization status to active
+        const orgStatus = (status || updatedSub.status) === 'active' || (status || updatedSub.status) === 'trialing' ? 'active' : 'trial';
+        const { error: orgUpdateError } = await adminClient
+          .from('organizations')
+          .update({
+            subscription_status: orgStatus,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', organization_id);
+        
+        if (orgUpdateError) {
+          logger.error('[Subscription API] Error updating organization status:', orgUpdateError);
+        } else {
+          logger.info('[Subscription API] Updated organization status after subscription update:', {
+            organizationId: organization_id,
+            status: orgStatus,
+          });
+        }
+        
+        return NextResponse.json(updatedSub, { status: 200 });
+      }
+      
       // If we have a stripe_subscription_id but it doesn't match, log warning
       if (stripe_subscription_id && existingSub.stripe_subscription_id !== stripe_subscription_id) {
         logger.warn('[Subscription API] Organization has existing subscription with different Stripe ID:', {
@@ -354,14 +520,92 @@ export async function POST(request: NextRequest) {
           newStripeId: stripe_subscription_id,
         });
       }
+      
+      // If subscription already has stripe_subscription_id and it matches, return it
+      if (stripe_subscription_id && existingSub.stripe_subscription_id === stripe_subscription_id) {
+        logger.info('[Subscription API] Subscription already exists with matching Stripe ID:', {
+          subscriptionId: existingSub.id,
+          stripeSubscriptionId: stripe_subscription_id,
+        });
+        return NextResponse.json(existingSub, { status: 200 });
+      }
+      
       return badRequest('Organization already has an active or trialing subscription');
     }
 
     // Create subscription
     // Use provided dates/status if available (from Stripe), otherwise use defaults
     const subscriptionStatus = status || (stripe_subscription_id ? 'active' : 'trialing');
-    const periodStart = current_period_start || new Date().toISOString();
-    const periodEnd = current_period_end || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    // Default to 'month' if billing_interval not provided (backward compatibility)
+    const subscriptionBillingInterval = billing_interval || 'month';
+    
+    // Validate and set period dates
+    let periodStart: string;
+    let periodEnd: string;
+    
+    if (current_period_start) {
+      // Validate the provided date is not epoch 0 or invalid
+      const startDate = new Date(current_period_start);
+      if (startDate.getTime() === 0 || startDate.getFullYear() < 2020 || isNaN(startDate.getTime())) {
+        logger.warn('[Subscription API] Invalid current_period_start provided, using fallback:', {
+          providedDate: current_period_start,
+          dateValue: startDate.getTime(),
+        });
+        periodStart = new Date().toISOString();
+      } else {
+        periodStart = current_period_start;
+      }
+    } else {
+      periodStart = new Date().toISOString();
+    }
+    
+    if (current_period_end) {
+      // Validate the provided date is not epoch 0 or invalid
+      const endDate = new Date(current_period_end);
+      if (endDate.getTime() === 0 || endDate.getFullYear() < 2020 || isNaN(endDate.getTime())) {
+        logger.warn('[Subscription API] Invalid current_period_end provided, using calculated fallback:', {
+          providedDate: current_period_end,
+          dateValue: endDate.getTime(),
+        });
+        // Calculate end date based on billing interval
+        const startDateObj = new Date(periodStart);
+        if (subscriptionBillingInterval === 'year') {
+          startDateObj.setFullYear(startDateObj.getFullYear() + 1);
+        } else {
+          startDateObj.setMonth(startDateObj.getMonth() + 1);
+        }
+        periodEnd = startDateObj.toISOString();
+      } else {
+        periodEnd = current_period_end;
+      }
+    } else {
+      // Calculate end date based on billing interval
+      const startDateObj = new Date(periodStart);
+      if (subscriptionBillingInterval === 'year') {
+        startDateObj.setFullYear(startDateObj.getFullYear() + 1);
+      } else {
+        startDateObj.setMonth(startDateObj.getMonth() + 1);
+      }
+      periodEnd = startDateObj.toISOString();
+    }
+    
+    logger.info('[Subscription API] Validated subscription dates:', {
+      periodStart,
+      periodEnd,
+      billingInterval: subscriptionBillingInterval,
+      hadProvidedDates: !!(current_period_start && current_period_end),
+    });
+
+    logger.info('[Subscription API] Inserting new subscription:', {
+      organization_id,
+      package_id,
+      stripe_subscription_id: stripe_subscription_id || null,
+      stripe_price_id: stripe_price_id || null,
+      billing_interval: subscriptionBillingInterval,
+      status: subscriptionStatus,
+      current_period_start: periodStart,
+      current_period_end: periodEnd,
+    });
 
     const { data: subscription, error: subError } = await adminClient
       .from('subscriptions')
@@ -370,6 +614,7 @@ export async function POST(request: NextRequest) {
         package_id,
         stripe_subscription_id: stripe_subscription_id || null,
         stripe_price_id: stripe_price_id || null,
+        billing_interval: subscriptionBillingInterval,
         status: subscriptionStatus,
         current_period_start: periodStart,
         current_period_end: periodEnd,
@@ -379,9 +624,26 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (subError) {
-      logger.error('Error creating subscription:', subError);
+      logger.error('[Subscription API] Error creating subscription:', {
+        error: subError.message,
+        errorCode: subError.code,
+        errorDetails: subError.details,
+        organization_id,
+        package_id,
+        stripe_subscription_id,
+      });
       return internalError('Failed to create subscription', { error: subError.message });
     }
+    
+    logger.info('[Subscription API] Successfully created subscription:', {
+      subscriptionId: subscription.id,
+      organizationId: subscription.organization_id,
+      packageId: subscription.package_id,
+      stripeSubscriptionId: subscription.stripe_subscription_id,
+      status: subscription.status,
+      periodStart: subscription.current_period_start,
+      periodEnd: subscription.current_period_end,
+    });
 
     // Use packageData from earlier validation (already fetched with price_per_user_monthly)
 
@@ -389,7 +651,7 @@ export async function POST(request: NextRequest) {
     // For paid packages with Stripe subscription, set to active
     // For paid packages without Stripe subscription, keep in trial
     // Use the subscription status if provided, otherwise determine from package
-    const orgStatus = status === 'active' 
+    const orgStatus = status === 'active' || status === 'trialing'
       ? 'active'
       : (packageData && packageData.price_per_user_monthly === 0) || stripe_subscription_id
         ? 'active' 
@@ -397,16 +659,29 @@ export async function POST(request: NextRequest) {
 
     // Update organization subscription status
     // Note: organizations.subscription_status uses 'trial' (not 'trialing')
-    await adminClient
+    // When stripe_subscription_id is present, always set to active (payment was successful)
+    const finalOrgStatus = stripe_subscription_id ? 'active' : orgStatus;
+    
+    const { error: orgUpdateError } = await adminClient
       .from('organizations')
       .update({
-        subscription_status: orgStatus,
-        trial_ends_at: orgStatus === 'trial' 
+        subscription_status: finalOrgStatus,
+        trial_ends_at: finalOrgStatus === 'trial' 
           ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() 
           : null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', organization_id);
+
+    if (orgUpdateError) {
+      logger.error('[Subscription API] Error updating organization status:', orgUpdateError);
+    } else {
+      logger.info('[Subscription API] Updated organization status after subscription creation:', {
+        organizationId: organization_id,
+        status: finalOrgStatus,
+        hasStripeSubscription: !!stripe_subscription_id,
+      });
+    }
 
     return NextResponse.json(subscription, { status: 201 });
   } catch (error) {

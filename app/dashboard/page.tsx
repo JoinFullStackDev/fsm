@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Box,
@@ -33,14 +33,20 @@ import SortableTable from '@/components/dashboard/SortableTable';
 import ProjectsMultiLineChart from '@/components/dashboard/ProjectsMultiLineChart';
 import EmployeeProjectMapping from '@/components/dashboard/EmployeeProjectMapping';
 import { format } from 'date-fns';
+import { useSearchParams } from 'next/navigation';
+import { useOrganization } from '@/components/providers/OrganizationProvider';
+import CreateUserDialog from '@/components/admin/CreateUserDialog';
+import { Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText } from '@mui/material';
 import type { Project } from '@/types/project';
 import type { ProjectTask } from '@/types/project';
 import type { User } from '@/types/project';
 
-export default function DashboardPage() {
+function DashboardPageContent() {
   const theme = useTheme();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createSupabaseClient();
+  const { organization, features } = useOrganization();
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -48,10 +54,33 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showWelcomeTour, setShowWelcomeTour] = useState(false);
+  const [showInvitePrompt, setShowInvitePrompt] = useState(false);
+  const [showCreateUserDialog, setShowCreateUserDialog] = useState(false);
+  const [pendingInvites, setPendingInvites] = useState<{ quantity: number; organizationId: string } | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<'admin' | 'pm' | 'designer' | 'engineer' | null>(null);
 
   useEffect(() => {
+    // Check for pending user invites after signup
+    const inviteDataStr = sessionStorage.getItem('pending_user_invites');
+    const inviteUsers = searchParams.get('invite_users') === 'true';
+    
+    if (inviteDataStr && inviteUsers && organization) {
+      try {
+        const inviteData = JSON.parse(inviteDataStr);
+        // Verify data is not too old (max 1 hour)
+        if (Date.now() - inviteData.timestamp < 60 * 60 * 1000) {
+          setPendingInvites(inviteData);
+          setShowInvitePrompt(true);
+        } else {
+          sessionStorage.removeItem('pending_user_invites');
+        }
+      } catch (err) {
+        // Invalid data, remove it
+        sessionStorage.removeItem('pending_user_invites');
+      }
+    }
+
     // Check if user has seen the welcome tour (show first 3 times)
     const tourViewCount = parseInt(localStorage.getItem('welcomeTourViewCount') || '0', 10);
     if (tourViewCount < 3) {
@@ -84,13 +113,8 @@ export default function DashboardPage() {
 
       if (!session) {
         logger.error('No session in dashboard, redirecting to sign-in');
-        // Check for rate limiting error
-        if (sessionError?.message?.includes('rate limit') || sessionError?.status === 429) {
-          setError('Too many requests. Please wait a moment and refresh the page.');
-        } else {
-          setError('Session not found. Please try signing in again.');
-        }
-        setLoading(false);
+        // Redirect to signin immediately if no session
+        router.push('/auth/signin');
         return;
       }
 
@@ -104,8 +128,8 @@ export default function DashboardPage() {
       logger.debug('User record lookup:', { userData, userError: userError?.message });
 
       if (userError || !userData) {
-        setError('Failed to load user data');
-        setLoading(false);
+        // User doesn't exist - redirect to signin
+        router.push('/auth/signin');
         return;
       }
 
@@ -163,6 +187,16 @@ export default function DashboardPage() {
         setTasks([]);
       }
 
+      // Load all organization users (for invite prompt)
+      const { data: orgUsersData } = await supabase
+        .from('users')
+        .select('id, email, name, role')
+        .eq('organization_id', userData.organization_id || '');
+      
+      if (orgUsersData) {
+        setUsers(orgUsersData.map((u: { id: string; email?: string; name?: string; role?: string }) => ({ id: u.id }) as User));
+      }
+
       // Load project members
       const { data: membersData, error: membersError } = await supabase
         .from('project_members')
@@ -178,11 +212,14 @@ export default function DashboardPage() {
         }));
         setProjectMembers(members);
 
-        // Extract unique users
-        const uniqueUsers = Array.from(
+        // Merge project member users with existing org users (don't overwrite)
+        const projectMemberUsers = Array.from(
           new Map(members.map((m: any) => [m.user.id, m.user])).values()
         ) as User[];
-        setUsers(uniqueUsers);
+        // Merge with existing users, keeping org users as base
+        const allUsersMap = new Map(users.map(u => [u.id, u]));
+        projectMemberUsers.forEach(u => allUsersMap.set(u.id, u));
+        setUsers(Array.from(allUsersMap.values()));
       }
 
       setLoading(false);
@@ -704,7 +741,129 @@ export default function DashboardPage() {
           setShowWelcomeTour(false);
         }}
       />
+
+      {/* Invite Users Prompt */}
+      <Dialog open={showInvitePrompt} onClose={() => {
+        setShowInvitePrompt(false);
+        sessionStorage.removeItem('pending_user_invites');
+        router.push('/dashboard');
+      }} maxWidth="sm" fullWidth>
+        <DialogTitle>Invite Team Members</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            You purchased {pendingInvites?.quantity || 0} user{pendingInvites?.quantity !== 1 ? 's' : ''} for your plan. 
+            You currently have {users.length} user{users.length !== 1 ? 's' : ''} in your organization.
+            {pendingInvites && users.length < pendingInvites.quantity && (
+              <>
+                <br /><br />
+                You can invite up to {pendingInvites.quantity - users.length} more user{pendingInvites.quantity - users.length !== 1 ? 's' : ''} to your organization.
+              </>
+            )}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setShowInvitePrompt(false);
+            sessionStorage.removeItem('pending_user_invites');
+            router.push('/dashboard');
+          }}>
+            Maybe Later
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              setShowInvitePrompt(false);
+              setShowCreateUserDialog(true);
+            }}
+          >
+            Invite Users Now
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Create User Dialog */}
+      <CreateUserDialog
+        open={showCreateUserDialog}
+        onClose={() => {
+          setShowCreateUserDialog(false);
+          // Check if we've invited all users
+          if (pendingInvites && users.length + 1 >= pendingInvites.quantity) {
+            sessionStorage.removeItem('pending_user_invites');
+            setPendingInvites(null);
+          }
+        }}
+        onUserCreated={() => {
+          // User created - dialog will handle reload
+        }}
+      />
+
+      {/* Invite Users Prompt */}
+      <Dialog open={showInvitePrompt} onClose={() => {
+        setShowInvitePrompt(false);
+        sessionStorage.removeItem('pending_user_invites');
+        router.push('/dashboard');
+      }} maxWidth="sm" fullWidth>
+        <DialogTitle>Invite Team Members</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            You purchased {pendingInvites?.quantity || 0} user{pendingInvites?.quantity !== 1 ? 's' : ''} for your plan. 
+            You currently have {users.length} user{users.length !== 1 ? 's' : ''} in your organization.
+            {pendingInvites && users.length < pendingInvites.quantity && (
+              <>
+                <br /><br />
+                You can invite up to {pendingInvites.quantity - users.length} more user{pendingInvites.quantity - users.length !== 1 ? 's' : ''} to your organization.
+              </>
+            )}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setShowInvitePrompt(false);
+            sessionStorage.removeItem('pending_user_invites');
+            router.push('/dashboard');
+          }}>
+            Maybe Later
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              setShowInvitePrompt(false);
+              setShowCreateUserDialog(true);
+            }}
+          >
+            Invite Users Now
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Create User Dialog */}
+      <CreateUserDialog
+        open={showCreateUserDialog}
+        onClose={() => {
+          setShowCreateUserDialog(false);
+          // Check if we've invited all users
+          if (pendingInvites && users.length + 1 >= pendingInvites.quantity) {
+            sessionStorage.removeItem('pending_user_invites');
+            setPendingInvites(null);
+          }
+        }}
+        onUserCreated={() => {
+          // User created - dialog will handle reload
+        }}
+      />
     </>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    }>
+      <DashboardPageContent />
+    </Suspense>
   );
 }
 

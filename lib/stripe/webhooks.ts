@@ -5,6 +5,8 @@
 import { getStripeClient, isStripeConfigured } from './client';
 import { updateSubscriptionFromWebhook } from './subscriptions';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
+import { isEmailConfigured, sendEmailWithRetry } from '@/lib/emailService';
+import { getPostPaymentWelcomeTemplate } from '@/lib/emailTemplates';
 import logger from '@/lib/utils/logger';
 import type Stripe from 'stripe';
 
@@ -97,10 +99,34 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription): Pro
 
     // Create new subscription - need to find organization
     const metadata = subscription.metadata;
-    let organizationId = metadata?.organization_id;
+    let organizationId: string | null | undefined = metadata?.organization_id;
     const packageId = metadata?.package_id;
+    const isSignup = metadata?.is_signup === 'true';
 
-    // If organization_id not in metadata, try to find by customer
+    // PRIORITY 1: Use organization_id from metadata (most reliable for signups)
+    if (organizationId) {
+      // Validate organization exists
+      const { data: orgCheck } = await supabase
+        .from('organizations')
+        .select('id, name')
+        .eq('id', organizationId)
+        .maybeSingle();
+      
+      if (orgCheck) {
+        logger.info('[Stripe Webhook] Using organization_id from metadata:', {
+          organizationId,
+          organizationName: orgCheck.name,
+        });
+      } else {
+        logger.warn('[Stripe Webhook] organization_id from metadata not found in database:', {
+          organizationId,
+          subscriptionId: subscription.id,
+        });
+        organizationId = null; // Reset to try other methods
+      }
+    }
+
+    // PRIORITY 2: If organization_id not in metadata or invalid, try to find by customer
     if (!organizationId) {
       const customerId = subscription.customer 
         ? (typeof subscription.customer === 'string' ? subscription.customer : subscription.customer.id)
@@ -109,7 +135,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription): Pro
       if (customerId) {
         const { data: orgByCustomer } = await supabase
           .from('organizations')
-          .select('id')
+          .select('id, name')
           .eq('stripe_customer_id', customerId)
           .maybeSingle();
         
@@ -117,17 +143,19 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription): Pro
           organizationId = orgByCustomer.id;
           logger.info('[Stripe Webhook] Found organization by customer ID:', {
             organizationId,
+            organizationName: orgByCustomer.name,
             customerId,
           });
         }
       }
     }
 
-    // If still no organization_id and this is a signup, try to find by name
-    if (!organizationId && metadata?.is_signup === 'true' && metadata?.organization_name) {
+    // PRIORITY 3: If still no organization_id and this is a signup, try to find by name
+    // NOTE: This is less reliable as organization names may not be unique
+    if (!organizationId && isSignup && metadata?.organization_name) {
       const { data: orgByName } = await supabase
         .from('organizations')
-        .select('id')
+        .select('id, name')
         .eq('name', metadata.organization_name)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -135,22 +163,38 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription): Pro
       
       if (orgByName) {
         organizationId = orgByName.id;
-        logger.info('[Stripe Webhook] Found organization by name:', {
+        logger.info('[Stripe Webhook] Found organization by name (fallback):', {
           organizationId,
-          organizationName: metadata.organization_name,
+          organizationName: orgByName.name,
         });
       }
     }
 
-    if (!organizationId) {
-      logger.warn('[Stripe Webhook] Cannot find organization for subscription:', {
+    // If still no organization_id and this is a signup, skip webhook creation
+    // Let signup-callback handle it when organization is created
+    if (!organizationId && isSignup) {
+      logger.info('[Stripe Webhook] Skipping subscription creation for signup - organization not found yet. Signup-callback will handle it:', {
         subscriptionId: subscription.id,
         metadata,
         customerId: subscription.customer 
           ? (typeof subscription.customer === 'string' ? subscription.customer : subscription.customer.id)
           : null,
       });
-      // Don't fail - callback will handle it when organization is created
+      // Don't fail - signup-callback will create subscription when organization is ready
+      return;
+    }
+
+    // If not a signup and no organization found, log warning but don't create subscription
+    if (!organizationId) {
+      logger.warn('[Stripe Webhook] Cannot find organization for subscription:', {
+        subscriptionId: subscription.id,
+        metadata,
+        isSignup,
+        customerId: subscription.customer 
+          ? (typeof subscription.customer === 'string' ? subscription.customer : subscription.customer.id)
+          : null,
+      });
+      // Don't fail - may be handled elsewhere
       return;
     }
 
@@ -205,12 +249,28 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription): Pro
       return;
     }
 
+    // Extract billing_interval from Stripe price's recurring interval or metadata
+    let billingInterval: 'month' | 'year' | null = null;
+    const price = subscription.items.data[0]?.price;
+    if (price?.recurring?.interval) {
+      const interval = price.recurring.interval;
+      if (interval === 'month' || interval === 'year') {
+        billingInterval = interval;
+      }
+    } else if (metadata?.billing_interval) {
+      billingInterval = metadata.billing_interval as 'month' | 'year';
+    } else {
+      // Default to 'month' for backward compatibility
+      billingInterval = 'month';
+    }
+
     // Create subscription
     const { error: insertError } = await supabase.from('subscriptions').insert({
       organization_id: organizationId,
       package_id: packageData.id,
       stripe_subscription_id: subscription.id,
       stripe_price_id: subscription.items.data[0]?.price.id || null,
+      billing_interval: billingInterval,
       status: subscription.status as 'active' | 'canceled' | 'past_due' | 'trialing',
       current_period_start: subscriptionData.current_period_start 
         ? new Date(subscriptionData.current_period_start * 1000).toISOString()
@@ -344,7 +404,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session):
     const metadata = session.metadata;
     
     // For signup flow, organization might not exist yet or might be identified by name
-    let organizationId = metadata?.organization_id;
+    let organizationId: string | null | undefined = metadata?.organization_id;
     
     // If this is a signup and we don't have organization_id, try to find by name
     if (!organizationId && metadata?.is_signup === 'true' && metadata?.organization_name) {
@@ -454,6 +514,89 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session):
         organizationId,
         customerId,
       });
+    }
+
+    // Send welcome email after payment (for signup flow)
+    if (metadata?.is_signup === 'true' && metadata?.signup_email) {
+      try {
+        const emailConfigured = await isEmailConfigured();
+        if (emailConfigured) {
+          // Get organization and package details
+          const { data: orgData } = await supabase
+            .from('organizations')
+            .select('name')
+            .eq('id', organizationId)
+            .single();
+
+          const { data: subscriptionData } = await supabase
+            .from('subscriptions')
+            .select('package_id, billing_interval')
+            .eq('organization_id', organizationId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          let packageName = 'Your Selected Plan';
+          if (subscriptionData?.package_id) {
+            const { data: pkgData } = await supabase
+              .from('packages')
+              .select('name')
+              .eq('id', subscriptionData.package_id)
+              .single();
+            if (pkgData) {
+              packageName = pkgData.name;
+            }
+          }
+
+          // Get base URL for login link
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+          const loginLink = `${baseUrl}/auth/signin`;
+
+          // Note: Supabase handles email confirmation automatically
+          // We can't easily get the confirmation link, but we can mention it in the email
+          const template = await getPostPaymentWelcomeTemplate(
+            metadata.signup_name || metadata.signup_email.split('@')[0],
+            orgData?.name || metadata.organization_name || 'Your Organization',
+            packageName,
+            loginLink
+          );
+
+          const emailResult = await sendEmailWithRetry(
+            metadata.signup_email,
+            template.subject,
+            template.html,
+            template.text
+          );
+
+          if (emailResult.success) {
+            logger.info('[Stripe] Post-payment welcome email sent successfully', {
+              email: metadata.signup_email,
+              organizationId,
+              subject: template.subject,
+            });
+          } else {
+            logger.error('[Stripe] Failed to send post-payment welcome email:', {
+              email: metadata.signup_email,
+              organizationId,
+              error: emailResult.error,
+              subject: template.subject,
+            });
+          }
+        } else {
+          logger.warn('[Stripe] Email not configured, skipping post-payment welcome email', {
+            email: metadata.signup_email,
+            organizationId,
+          });
+        }
+      } catch (emailError) {
+        // Don't fail webhook if email fails, but log the error
+        logger.error('[Stripe] Error in post-payment email flow:', {
+          error: emailError instanceof Error ? emailError.message : 'Unknown error',
+          email: metadata.signup_email,
+          organizationId,
+          stack: emailError instanceof Error ? emailError.stack : undefined,
+        });
+      }
     }
   } catch (error) {
     logger.error('[Stripe] Error handling checkout session completed:', error);

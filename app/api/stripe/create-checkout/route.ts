@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { package_id, success_url, cancel_url } = body;
+    const { package_id, billing_interval = 'month', success_url, cancel_url } = body;
 
     if (!package_id || !success_url || !cancel_url) {
       return badRequest('Missing required fields: package_id, success_url, cancel_url');
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create checkout session
-    const checkoutUrl = await createCheckoutSession(organizationId, package_id, success_url, cancel_url);
+    const checkoutUrl = await createCheckoutSession(organizationId, package_id, success_url, cancel_url, billing_interval);
 
     if (!checkoutUrl) {
       return internalError('Failed to create checkout session');

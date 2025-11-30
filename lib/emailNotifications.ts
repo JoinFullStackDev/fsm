@@ -96,9 +96,27 @@ export async function sendTaskAssignedEmail(
       taskLink
     );
 
-    await sendEmailWithRetry(userEmail, template.subject, template.html, template.text);
+    const emailResult = await sendEmailWithRetry(userEmail, template.subject, template.html, template.text);
+    if (!emailResult.success) {
+      logger.error('[EmailNotifications] Failed to send task assigned email:', {
+        assigneeId,
+        userEmail,
+        error: emailResult.error,
+        subject: template.subject,
+      });
+    } else {
+      logger.info('[EmailNotifications] Task assigned email sent successfully', {
+        assigneeId,
+        userEmail,
+        subject: template.subject,
+      });
+    }
   } catch (error) {
-    logger.error('[EmailNotifications] Error sending task assigned email:', error);
+    logger.error('[EmailNotifications] Error in task assigned email flow:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      assigneeId,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     // Don't throw - email failures shouldn't break the flow
   }
 }
@@ -144,9 +162,27 @@ export async function sendTaskUpdatedEmail(
       taskLink
     );
 
-    await sendEmailWithRetry(userEmail, template.subject, template.html, template.text);
+    const emailResult = await sendEmailWithRetry(userEmail, template.subject, template.html, template.text);
+    if (!emailResult.success) {
+      logger.error('[EmailNotifications] Failed to send task updated email:', {
+        userId,
+        userEmail,
+        error: emailResult.error,
+        subject: template.subject,
+      });
+    } else {
+      logger.info('[EmailNotifications] Task updated email sent successfully', {
+        userId,
+        userEmail,
+        subject: template.subject,
+      });
+    }
   } catch (error) {
-    logger.error('[EmailNotifications] Error sending task updated email:', error);
+    logger.error('[EmailNotifications] Error in task updated email flow:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      userId,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
   }
 }
 
@@ -189,9 +225,27 @@ export async function sendProjectCreatedEmail(
       projectLink
     );
 
-    await sendEmailWithRetry(userEmail, template.subject, template.html, template.text);
+    const emailResult = await sendEmailWithRetry(userEmail, template.subject, template.html, template.text);
+    if (!emailResult.success) {
+      logger.error('[EmailNotifications] Failed to send project created email:', {
+        recipientId,
+        userEmail,
+        error: emailResult.error,
+        subject: template.subject,
+      });
+    } else {
+      logger.info('[EmailNotifications] Project created email sent successfully', {
+        recipientId,
+        userEmail,
+        subject: template.subject,
+      });
+    }
   } catch (error) {
-    logger.error('[EmailNotifications] Error sending project created email:', error);
+    logger.error('[EmailNotifications] Error in project created email flow:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      recipientId,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
   }
 }
 
@@ -232,9 +286,27 @@ export async function sendProjectInitiatedEmail(
       projectLink
     );
 
-    await sendEmailWithRetry(userEmail, template.subject, template.html, template.text);
+    const emailResult = await sendEmailWithRetry(userEmail, template.subject, template.html, template.text);
+    if (!emailResult.success) {
+      logger.error('[EmailNotifications] Failed to send project initiated email:', {
+        recipientId,
+        userEmail,
+        error: emailResult.error,
+        subject: template.subject,
+      });
+    } else {
+      logger.info('[EmailNotifications] Project initiated email sent successfully', {
+        recipientId,
+        userEmail,
+        subject: template.subject,
+      });
+    }
   } catch (error) {
-    logger.error('[EmailNotifications] Error sending project initiated email:', error);
+    logger.error('[EmailNotifications] Error in project initiated email flow:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      recipientId,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
   }
 }
 
@@ -277,9 +349,27 @@ export async function sendContactAddedEmail(
       contactLink
     );
 
-    await sendEmailWithRetry(userEmail, template.subject, template.html, template.text);
+    const emailResult = await sendEmailWithRetry(userEmail, template.subject, template.html, template.text);
+    if (!emailResult.success) {
+      logger.error('[EmailNotifications] Failed to send contact added email:', {
+        recipientId,
+        userEmail,
+        error: emailResult.error,
+        subject: template.subject,
+      });
+    } else {
+      logger.info('[EmailNotifications] Contact added email sent successfully', {
+        recipientId,
+        userEmail,
+        subject: template.subject,
+      });
+    }
   } catch (error) {
-    logger.error('[EmailNotifications] Error sending contact added email:', error);
+    logger.error('[EmailNotifications] Error in contact added email flow:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      recipientId,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
   }
 }
 
@@ -320,9 +410,27 @@ export async function sendCompanyAddedEmail(
       companyLink
     );
 
-    await sendEmailWithRetry(userEmail, template.subject, template.html, template.text);
+    const emailResult = await sendEmailWithRetry(userEmail, template.subject, template.html, template.text);
+    if (!emailResult.success) {
+      logger.error('[EmailNotifications] Failed to send company added email:', {
+        recipientId,
+        userEmail,
+        error: emailResult.error,
+        subject: template.subject,
+      });
+    } else {
+      logger.info('[EmailNotifications] Company added email sent successfully', {
+        recipientId,
+        userEmail,
+        subject: template.subject,
+      });
+    }
   } catch (error) {
-    logger.error('[EmailNotifications] Error sending company added email:', error);
+    logger.error('[EmailNotifications] Error in company added email flow:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      recipientId,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
   }
 }
 

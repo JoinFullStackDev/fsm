@@ -186,27 +186,29 @@ export default function WidgetLibrary({ open, onClose, onWidgetSelect }: WidgetL
           },
         }}
       >
-      <Box sx={{ p: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6">Widget Library</Typography>
-          <IconButton size="small" onClick={onClose}>
-            <CloseIcon />
-          </IconButton>
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', maxHeight: 'calc(100vh - 60px)' }}>
+        <Box sx={{ p: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">Widget Library</Typography>
+            <IconButton size="small" onClick={onClose}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Drag widgets to add them to your dashboard
+          </Typography>
         </Box>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          Drag widgets to add them to your dashboard
-        </Typography>
-      </Box>
 
-      <List sx={{ p: 1 }}>
-        {WIDGET_TYPES.map((widget) => (
-          <DraggableWidgetItem
-            key={widget.type}
-            widget={widget}
-            onWidgetClick={handleWidgetClick}
-          />
-        ))}
-      </List>
+        <List sx={{ p: 1, flex: 1, overflow: 'auto' }}>
+          {WIDGET_TYPES.map((widget) => (
+            <DraggableWidgetItem
+              key={widget.type}
+              widget={widget}
+              onWidgetClick={handleWidgetClick}
+            />
+          ))}
+        </List>
+      </Box>
     </Drawer>
   );
 }

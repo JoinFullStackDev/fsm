@@ -205,7 +205,7 @@ export default function OrganizationAIDetailSlideout({
         },
       }}
     >
-      <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', maxHeight: 'calc(100vh - 60px)' }}>
         {/* Header */}
         <Box
           sx={{

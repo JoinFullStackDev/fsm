@@ -198,7 +198,7 @@ export default function TaskDetailSheet({
         },
       }}
     >
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', maxHeight: 'calc(100vh - 60px)' }}>
         {/* Header */}
         <Box
           sx={{

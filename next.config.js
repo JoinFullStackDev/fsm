@@ -30,7 +30,7 @@ const nextConfig = {
         splitChunks: {
           chunks: 'all',
           cacheGroups: {
-            // Separate vendor chunks for better caching
+            // Separate vendor chunks for better caching (JS only)
             default: false,
             vendors: false,
             // Large libraries get their own chunks
@@ -39,31 +39,44 @@ const nextConfig = {
               test: /[\\/]node_modules[\\/](@monaco-editor|monaco-editor)[\\/]/,
               priority: 20,
               reuseExistingChunk: true,
+              // Exclude CSS and other non-JS assets
+              type: 'javascript/auto',
             },
             mermaid: {
               name: 'mermaid',
               test: /[\\/]node_modules[\\/]mermaid[\\/]/,
               priority: 20,
               reuseExistingChunk: true,
+              type: 'javascript/auto',
             },
             mui: {
               name: 'mui',
               test: /[\\/]node_modules[\\/]@mui[\\/]/,
               priority: 15,
               reuseExistingChunk: true,
+              type: 'javascript/auto',
             },
             pdf: {
               name: 'pdf',
               test: /[\\/]node_modules[\\/](jspdf|html2canvas)[\\/]/,
               priority: 20,
               reuseExistingChunk: true,
+              type: 'javascript/auto',
             },
-            // Common vendor chunk
+            // Common vendor chunk - JS modules only (exclude CSS)
             vendor: {
               name: 'vendor',
-              test: /[\\/]node_modules[\\/]/,
+              test: (module) => {
+                // Only include JS modules from node_modules, exclude CSS
+                return (
+                  module.resource &&
+                  /[\\/]node_modules[\\/]/.test(module.resource) &&
+                  !/\.(css|scss|sass|less|styl)$/.test(module.resource)
+                );
+              },
               priority: 10,
               reuseExistingChunk: true,
+              type: 'javascript/auto',
             },
           },
         },

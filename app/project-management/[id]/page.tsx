@@ -169,6 +169,9 @@ export default function ProjectTaskManagementPage() {
             created_at: '',
           }));
         setProjectMembers(members);
+      } else {
+        // If no project members found, set empty array
+        setProjectMembers([]);
       }
 
       setLoading(false);

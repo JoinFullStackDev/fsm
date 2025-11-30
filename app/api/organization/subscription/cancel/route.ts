@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     // Get current subscription
     const { data: subscription, error: subError } = await adminClient
       .from('subscriptions')
-      .select('id, stripe_subscription_id, status')
+      .select('id, stripe_subscription_id, status, organization_id')
       .eq('organization_id', organizationId)
       .in('status', ['active', 'trialing'])
       .order('created_at', { ascending: false })
@@ -46,12 +46,45 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (subError || !subscription) {
+      logger.error('[Cancel Subscription] No active subscription found:', {
+        organizationId,
+        error: subError?.message,
+      });
       return badRequest('No active subscription found');
+    }
+
+    // Verify subscription belongs to user's organization
+    if (subscription.organization_id !== organizationId) {
+      logger.error('[Cancel Subscription] Organization mismatch:', {
+        subscriptionId: subscription.id,
+        subscriptionOrgId: subscription.organization_id,
+        userOrgId: organizationId,
+      });
+      return badRequest('Subscription does not belong to your organization');
     }
 
     if (subscription.status === 'canceled') {
       return badRequest('Subscription is already canceled');
     }
+
+    // Require stripe_subscription_id for cancellation
+    if (!subscription.stripe_subscription_id) {
+      logger.error('[Cancel Subscription] Missing stripe_subscription_id:', {
+        subscriptionId: subscription.id,
+        organizationId,
+      });
+      return badRequest(
+        'This subscription cannot be canceled automatically. Please contact support to cancel your subscription.'
+      );
+    }
+
+    // Log cancellation attempt
+    logger.info('[Cancel Subscription] Canceling subscription:', {
+      subscriptionId: subscription.id,
+      stripeSubscriptionId: subscription.stripe_subscription_id,
+      organizationId,
+      cancelImmediately: cancel_immediately,
+    });
 
     // Cancel in Stripe
     if (subscription.stripe_subscription_id) {

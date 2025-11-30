@@ -23,7 +23,13 @@ export async function PUT(
       name,
       stripe_price_id,
       stripe_product_id,
+      pricing_model,
+      base_price_monthly,
+      base_price_yearly,
       price_per_user_monthly,
+      price_per_user_yearly,
+      stripe_price_id_monthly,
+      stripe_price_id_yearly,
       features,
       is_active,
       display_order,
@@ -32,12 +38,38 @@ export async function PUT(
     // Check if package exists
     const { data: existing, error: fetchError } = await adminClient
       .from('packages')
-      .select('id')
+      .select('*')
       .eq('id', params.id)
       .single();
 
     if (fetchError || !existing) {
       return notFound('Package not found');
+    }
+
+    // Get current values for validation
+    const currentModel = pricing_model !== undefined ? pricing_model : existing.pricing_model || 'per_user';
+
+    // Validate pricing model
+    if (pricing_model !== undefined && pricing_model !== 'per_user' && pricing_model !== 'flat_rate') {
+      return badRequest('pricing_model must be either "per_user" or "flat_rate"');
+    }
+
+    // Validate pricing fields based on model - require at least one price if model is being set
+    const model = currentModel;
+    if (pricing_model !== undefined) {
+      if (model === 'per_user') {
+        const hasMonthly = price_per_user_monthly !== undefined ? price_per_user_monthly !== null : (existing.price_per_user_monthly !== null);
+        const hasYearly = price_per_user_yearly !== undefined ? price_per_user_yearly !== null : (existing.price_per_user_yearly !== null);
+        if (!hasMonthly && !hasYearly) {
+          return badRequest('At least one of price_per_user_monthly or price_per_user_yearly is required for per_user pricing model');
+        }
+      } else if (model === 'flat_rate') {
+        const hasMonthly = base_price_monthly !== undefined ? base_price_monthly !== null : (existing.base_price_monthly !== null);
+        const hasYearly = base_price_yearly !== undefined ? base_price_yearly !== null : (existing.base_price_yearly !== null);
+        if (!hasMonthly && !hasYearly) {
+          return badRequest('At least one of base_price_monthly or base_price_yearly is required for flat_rate pricing model');
+        }
+      }
     }
 
     // Build update object
@@ -48,7 +80,24 @@ export async function PUT(
     if (name !== undefined) updateData.name = name;
     if (stripe_price_id !== undefined) updateData.stripe_price_id = stripe_price_id || null;
     if (stripe_product_id !== undefined) updateData.stripe_product_id = stripe_product_id || null;
-    if (price_per_user_monthly !== undefined) updateData.price_per_user_monthly = Number(price_per_user_monthly);
+    if (pricing_model !== undefined) updateData.pricing_model = pricing_model;
+    
+    // Update monthly/yearly pricing fields
+    if (base_price_monthly !== undefined) {
+      updateData.base_price_monthly = model === 'flat_rate' ? (base_price_monthly !== null ? Number(base_price_monthly) : null) : null;
+    }
+    if (base_price_yearly !== undefined) {
+      updateData.base_price_yearly = model === 'flat_rate' ? (base_price_yearly !== null ? Number(base_price_yearly) : null) : null;
+    }
+    if (price_per_user_monthly !== undefined) {
+      updateData.price_per_user_monthly = model === 'per_user' ? (price_per_user_monthly !== null ? Number(price_per_user_monthly) : null) : null;
+    }
+    if (price_per_user_yearly !== undefined) {
+      updateData.price_per_user_yearly = model === 'per_user' ? (price_per_user_yearly !== null ? Number(price_per_user_yearly) : null) : null;
+    }
+    if (stripe_price_id_monthly !== undefined) updateData.stripe_price_id_monthly = stripe_price_id_monthly || null;
+    if (stripe_price_id_yearly !== undefined) updateData.stripe_price_id_yearly = stripe_price_id_yearly || null;
+    
     if (features !== undefined) updateData.features = features;
     if (is_active !== undefined) updateData.is_active = is_active;
     if (display_order !== undefined) updateData.display_order = Number(display_order);

@@ -55,47 +55,62 @@ export default function TaskComments({
   const [editContent, setEditContent] = useState('');
   const [menuAnchor, setMenuAnchor] = useState<{ element: HTMLElement; commentId: string } | null>(null);
 
+  // Debug: Log when projectMembers change
+  useEffect(() => {
+    console.log('[TaskComments] projectMembers received:', projectMembers?.length || 0, projectMembers?.map(m => m.name || m.email));
+  }, [projectMembers]);
+
   // Extract unique users from task assignees and project members
   const availableUsers = useMemo(() => {
     const userMap = new Map<string, User>();
     
     // Add project members if provided
-    projectMembers.forEach((member) => {
-      userMap.set(member.id, member);
-    });
+    if (projectMembers && projectMembers.length > 0) {
+      projectMembers.forEach((member) => {
+        if (member && member.id) {
+          userMap.set(member.id, member);
+        }
+      });
+    }
     
     // Extract assignees from all tasks
-    allTasks.forEach((task) => {
-      const assignee = (task as ProjectTaskExtended).assignee;
-      if (assignee) {
-        userMap.set(assignee.id, {
-          id: assignee.id,
-          auth_id: '',
-          email: assignee.email,
-          name: assignee.name,
-          role: 'pm' as const,
-          created_at: '',
-          avatar_url: assignee.avatar_url,
-        });
-      }
-    });
+    if (allTasks && allTasks.length > 0) {
+      allTasks.forEach((task) => {
+        const assignee = (task as ProjectTaskExtended).assignee;
+        if (assignee && assignee.id) {
+          userMap.set(assignee.id, {
+            id: assignee.id,
+            auth_id: '',
+            email: assignee.email,
+            name: assignee.name,
+            role: 'pm' as const,
+            created_at: '',
+            avatar_url: assignee.avatar_url,
+          });
+        }
+      });
+    }
     
     // Also extract users from comments
-    comments.forEach((comment) => {
-      if (comment.user) {
-        userMap.set(comment.user.id, {
-          id: comment.user.id,
-          auth_id: '',
-          email: comment.user.email,
-          name: comment.user.name,
-          role: 'pm' as const,
-          created_at: '',
-          avatar_url: comment.user.avatar_url,
-        });
-      }
-    });
+    if (comments && comments.length > 0) {
+      comments.forEach((comment) => {
+        if (comment.user && comment.user.id) {
+          userMap.set(comment.user.id, {
+            id: comment.user.id,
+            auth_id: '',
+            email: comment.user.email,
+            name: comment.user.name,
+            role: 'pm' as const,
+            created_at: '',
+            avatar_url: comment.user.avatar_url,
+          });
+        }
+      });
+    }
     
-    return Array.from(userMap.values());
+    const users = Array.from(userMap.values());
+    console.log('[TaskComments] Available users for mentions:', users.length, users.map(u => u.name || u.email));
+    return users;
   }, [projectMembers, allTasks, comments]);
 
   const loadComments = useCallback(async () => {
@@ -106,9 +121,12 @@ export default function TaskComments({
       if (response.ok) {
         const data = await response.json();
         setComments(data.comments || []);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('[TaskComments] Failed to load comments:', errorData);
       }
     } catch (error) {
-      // Failed to load comments
+      console.error('[TaskComments] Error loading comments:', error);
     } finally {
       setLoading(false);
     }
@@ -156,9 +174,14 @@ export default function TaskComments({
         if (onCommentAdd) {
           onCommentAdd(data.comment);
         }
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('[TaskComments] Failed to submit comment:', errorData);
+        alert(`Failed to post comment: ${errorData.error || 'Unknown error'}`);
       }
     } catch (error) {
-      // Failed to add comment
+      console.error('[TaskComments] Error submitting comment:', error);
+      alert(`Failed to post comment: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setSubmitting(false);
     }

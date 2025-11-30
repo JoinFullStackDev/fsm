@@ -47,7 +47,13 @@ interface Package {
   id: string;
   name: string;
   stripe_price_id: string | null;
-  price_per_user_monthly: number;
+  stripe_price_id_monthly: string | null;
+  stripe_price_id_yearly: string | null;
+  pricing_model: 'per_user' | 'flat_rate';
+  base_price_monthly: number | null;
+  base_price_yearly: number | null;
+  price_per_user_monthly: number | null;
+  price_per_user_yearly: number | null;
   features: PackageFeatures;
   is_active: boolean;
   display_order: number;
@@ -93,6 +99,7 @@ function SignUpPageContent() {
   const [loading, setLoading] = useState(false);
   const [packages, setPackages] = useState<Package[]>([]);
   const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
+  const [selectedBillingInterval, setSelectedBillingInterval] = useState<'month' | 'year'>('month');
   const [loadingPackages, setLoadingPackages] = useState(true);
   const [showPayment, setShowPayment] = useState(false);
   const [accountCreated, setAccountCreated] = useState(false);
@@ -173,7 +180,17 @@ function SignUpPageContent() {
       sessionStorage.setItem('signup_data', JSON.stringify(signupData));
 
       // For free packages, create account immediately
-      if (selectedPackage.price_per_user_monthly === 0) {
+      const pricingModel = selectedPackage.pricing_model || 'per_user';
+      const monthlyPrice = pricingModel === 'per_user' 
+        ? selectedPackage.price_per_user_monthly 
+        : selectedPackage.base_price_monthly;
+      const yearlyPrice = pricingModel === 'per_user' 
+        ? selectedPackage.price_per_user_yearly 
+        : selectedPackage.base_price_yearly;
+      const selectedPrice = selectedBillingInterval === 'month' ? monthlyPrice : yearlyPrice;
+      const isFree = !selectedPrice || selectedPrice === 0;
+      
+      if (isFree) {
         // Create organization
         const orgSlug = organizationName
           .toLowerCase()
@@ -222,7 +239,7 @@ function SignUpPageContent() {
 
         if (authData.user && authData.session) {
           // Create user record
-          await fetch('/api/auth/create-user-with-org', {
+          const userRecordResponse = await fetch('/api/auth/create-user-with-org', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -232,10 +249,18 @@ function SignUpPageContent() {
               organization_id: orgData.id,
             }),
           });
+          
+          if (!userRecordResponse.ok) {
+            const userErrorData = await userRecordResponse.json().catch(() => ({ error: 'Failed to create user record' }));
+            sessionStorage.removeItem('signup_data');
+            setError(userErrorData.error || 'Failed to create user record. Please try signing in.');
+            setLoading(false);
+            return;
+          }
 
           // Create subscription for free package
           try {
-            await fetch('/api/organization/subscription', {
+            const subResponse = await fetch('/api/organization/subscription', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -243,8 +268,24 @@ function SignUpPageContent() {
                 package_id: selectedPackage.id,
               }),
             });
+            
+            if (!subResponse.ok) {
+              const subErrorData = await subResponse.json().catch(() => ({ error: 'Unknown error' }));
+              console.error('[Signup] Failed to create subscription for free package:', {
+                organizationId: orgData.id,
+                packageId: selectedPackage.id,
+                error: subErrorData.error,
+              });
+              // Continue signup even if subscription creation fails for free packages
+              // User can still access the system, subscription can be created later
+            }
           } catch (subError) {
-            // Failed to create subscription
+            console.error('[Signup] Error creating subscription for free package:', {
+              organizationId: orgData.id,
+              packageId: selectedPackage.id,
+              error: subError instanceof Error ? subError.message : 'Unknown error',
+            });
+            // Continue signup even if subscription creation fails for free packages
           }
 
           sessionStorage.removeItem('signup_data');
@@ -258,11 +299,17 @@ function SignUpPageContent() {
       }
 
       // For paid packages, redirect to Stripe checkout first
-      // Check if package has a valid Stripe price ID
-      const hasValidStripePrice = selectedPackage.stripe_price_id && 
-        selectedPackage.stripe_price_id.startsWith('price_');
+      // Check if package has a valid Stripe price ID for selected interval
+      const selectedPriceId = selectedBillingInterval === 'month' 
+        ? selectedPackage.stripe_price_id_monthly 
+        : selectedPackage.stripe_price_id_yearly;
+      const hasValidStripePrice = selectedPriceId && 
+        selectedPriceId.startsWith('price_');
 
-      if (!hasValidStripePrice && selectedPackage.price_per_user_monthly > 0) {
+      // Reuse variables already defined above for free package check
+      const hasPrice = selectedPrice && selectedPrice > 0;
+      
+      if (!hasValidStripePrice && hasPrice) {
         sessionStorage.removeItem('signup_data');
         setError('This package is not configured for payment. Please contact support or select a different package.');
         setLoading(false);
@@ -270,7 +317,7 @@ function SignUpPageContent() {
       }
 
       // If package is free or has no valid Stripe price, treat as free package
-      if (selectedPackage.price_per_user_monthly === 0 || !hasValidStripePrice) {
+      if (isFree || !hasValidStripePrice) {
         // This should have been handled in the free package section above
         // But if we get here, create account immediately
         const orgSlug = organizationName
@@ -320,7 +367,7 @@ function SignUpPageContent() {
 
         if (authData.user && authData.session) {
           // Create user record
-          await fetch('/api/auth/create-user-with-org', {
+          const userRecordResponse = await fetch('/api/auth/create-user-with-org', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -330,10 +377,18 @@ function SignUpPageContent() {
               organization_id: orgData.id,
             }),
           });
+          
+          if (!userRecordResponse.ok) {
+            const userErrorData = await userRecordResponse.json().catch(() => ({ error: 'Failed to create user record' }));
+            sessionStorage.removeItem('signup_data');
+            setError(userErrorData.error || 'Failed to create user record. Please try signing in.');
+            setLoading(false);
+            return;
+          }
 
           // Create subscription
           try {
-            await fetch('/api/organization/subscription', {
+            const subResponse = await fetch('/api/organization/subscription', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -341,8 +396,24 @@ function SignUpPageContent() {
                 package_id: selectedPackage.id,
               }),
             });
+            
+            if (!subResponse.ok) {
+              const subErrorData = await subResponse.json().catch(() => ({ error: 'Unknown error' }));
+              console.error('[Signup] Failed to create subscription for free package:', {
+                organizationId: orgData.id,
+                packageId: selectedPackage.id,
+                error: subErrorData.error,
+              });
+              // Continue signup even if subscription creation fails for free packages
+              // User can still access the system, subscription can be created later
+            }
           } catch (subError) {
-            // Failed to create subscription
+            console.error('[Signup] Error creating subscription for free package:', {
+              organizationId: orgData.id,
+              packageId: selectedPackage.id,
+              error: subError instanceof Error ? subError.message : 'Unknown error',
+            });
+            // Continue signup even if subscription creation fails for free packages
           }
 
           sessionStorage.removeItem('signup_data');
@@ -364,6 +435,7 @@ function SignUpPageContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           package_id: selectedPackage.id,
+          billing_interval: selectedBillingInterval,
           email,
           name: name || '',
           organization_name: organizationName.trim(),
@@ -412,6 +484,7 @@ function SignUpPageContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           package_id: selectedPackage.id,
+          billing_interval: selectedBillingInterval,
           success_url: `${window.location.origin}/dashboard?payment=success`,
           cancel_url: `${window.location.origin}/auth/signup?payment=cancelled`,
         }),
@@ -650,23 +723,52 @@ function SignUpPageContent() {
                                         {pkg.name}
                                       </Typography>
                                       <Box sx={{ mb: 2 }}>
-                                        <Typography
-                                          variant="h4"
-                                          sx={{
-                                            fontWeight: 800,
-                                            display: 'inline',
-                                            color: theme.palette.primary.main,
-                                          }}
-                                        >
-                                          ${pkg.price_per_user_monthly.toFixed(2)}
-                                        </Typography>
-                                        <Typography
-                                          variant="body2"
-                                          color="text.secondary"
-                                          sx={{ display: 'inline', ml: 0.5 }}
-                                        >
-                                          /mo
-                                        </Typography>
+                                        {(() => {
+                                          const pricingModel = pkg.pricing_model || 'per_user';
+                                          const monthlyPrice = pricingModel === 'per_user' 
+                                            ? pkg.price_per_user_monthly 
+                                            : pkg.base_price_monthly;
+                                          const yearlyPrice = pricingModel === 'per_user' 
+                                            ? pkg.price_per_user_yearly 
+                                            : pkg.base_price_yearly;
+                                          const displayPrice = selectedBillingInterval === 'month' 
+                                            ? (monthlyPrice || yearlyPrice || 0)
+                                            : (yearlyPrice || monthlyPrice || 0);
+                                          const suffix = pricingModel === 'per_user'
+                                            ? (selectedBillingInterval === 'month' ? '/user/mo' : '/user/yr')
+                                            : (selectedBillingInterval === 'month' ? '/mo' : '/yr');
+                                          
+                                          return (
+                                            <>
+                                              <Typography
+                                                variant="h4"
+                                                sx={{
+                                                  fontWeight: 800,
+                                                  display: 'inline',
+                                                  color: theme.palette.primary.main,
+                                                }}
+                                              >
+                                                ${displayPrice.toFixed(2)}
+                                              </Typography>
+                                              <Typography
+                                                variant="body2"
+                                                color="text.secondary"
+                                                sx={{ display: 'inline', ml: 0.5 }}
+                                              >
+                                                {suffix}
+                                              </Typography>
+                                              {(monthlyPrice && yearlyPrice) && (
+                                                <Typography
+                                                  variant="caption"
+                                                  color="text.secondary"
+                                                  sx={{ display: 'block', mt: 0.5, fontSize: '0.7rem' }}
+                                                >
+                                                  or ${(selectedBillingInterval === 'month' ? yearlyPrice : monthlyPrice).toFixed(2)}{pricingModel === 'per_user' ? '/user/' : '/'}{selectedBillingInterval === 'month' ? 'yr' : 'mo'}
+                                                </Typography>
+                                              )}
+                                            </>
+                                          );
+                                        })()}
                                       </Box>
                                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                                         {getFeatureList(pkg.features).slice(0, 3).map((feature, idx) => (
@@ -737,6 +839,47 @@ function SignUpPageContent() {
                             </Box>
                           )}
                         </Box>
+                        
+                        {/* Billing Interval Toggle - Only show if a package with both prices is selected */}
+                        {selectedPackage && (() => {
+                          const pricingModel = selectedPackage.pricing_model || 'per_user';
+                          const monthlyPrice = pricingModel === 'per_user' 
+                            ? selectedPackage.price_per_user_monthly 
+                            : selectedPackage.base_price_monthly;
+                          const yearlyPrice = pricingModel === 'per_user' 
+                            ? selectedPackage.price_per_user_yearly 
+                            : selectedPackage.base_price_yearly;
+                          const hasBothPrices = monthlyPrice && yearlyPrice;
+                          
+                          if (!hasBothPrices) return null;
+                          
+                          return (
+                            <Box sx={{ mb: 3, display: 'flex', justifyContent: 'center' }}>
+                              <FormControl component="fieldset">
+                                <FormLabel component="legend" sx={{ mb: 1, textAlign: 'center' }}>
+                                  Billing Interval
+                                </FormLabel>
+                                <RadioGroup
+                                  row
+                                  value={selectedBillingInterval}
+                                  onChange={(e) => setSelectedBillingInterval(e.target.value as 'month' | 'year')}
+                                  sx={{ justifyContent: 'center' }}
+                                >
+                                  <FormControlLabel
+                                    value="month"
+                                    control={<Radio />}
+                                    label={`Monthly ($${monthlyPrice.toFixed(2)}${pricingModel === 'per_user' ? '/user' : ''})`}
+                                  />
+                                  <FormControlLabel
+                                    value="year"
+                                    control={<Radio />}
+                                    label={`Yearly ($${yearlyPrice.toFixed(2)}${pricingModel === 'per_user' ? '/user' : ''})`}
+                                  />
+                                </RadioGroup>
+                              </FormControl>
+                            </Box>
+                          );
+                        })()}
                       </Box>
                     )}
 
@@ -887,7 +1030,22 @@ function SignUpPageContent() {
                             {selectedPackage.name}
                           </Typography>
                           <Typography variant="body1" color="primary.main" sx={{ fontWeight: 600 }}>
-                            ${selectedPackage.price_per_user_monthly}/mo
+                            {(() => {
+                              const pricingModel = selectedPackage.pricing_model || 'per_user';
+                              const monthlyPrice = pricingModel === 'per_user' 
+                                ? selectedPackage.price_per_user_monthly 
+                                : selectedPackage.base_price_monthly;
+                              const yearlyPrice = pricingModel === 'per_user' 
+                                ? selectedPackage.price_per_user_yearly 
+                                : selectedPackage.base_price_yearly;
+                              const selectedPrice = selectedBillingInterval === 'month' 
+                                ? (monthlyPrice || yearlyPrice || 0)
+                                : (yearlyPrice || monthlyPrice || 0);
+                              const suffix = pricingModel === 'per_user'
+                                ? (selectedBillingInterval === 'month' ? '/user/mo' : '/user/yr')
+                                : (selectedBillingInterval === 'month' ? '/mo' : '/yr');
+                              return `$${selectedPrice.toFixed(2)}${suffix}`;
+                            })()}
                           </Typography>
                         </Box>
                       )}

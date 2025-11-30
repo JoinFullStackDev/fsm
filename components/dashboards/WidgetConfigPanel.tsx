@@ -352,41 +352,43 @@ export default function WidgetConfigPanel({
           },
         }}
       >
-      <Box sx={{ p: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6">Widget Configuration</Typography>
-          <IconButton size="small" onClick={onClose}>
-            <CloseIcon />
-          </IconButton>
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', maxHeight: 'calc(100vh - 60px)' }}>
+        <Box sx={{ p: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">Widget Configuration</Typography>
+            <IconButton size="small" onClick={onClose}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            {widget.widget_type}
+          </Typography>
         </Box>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          {widget.widget_type}
-        </Typography>
-      </Box>
 
-      <Box sx={{ p: 2, flexGrow: 1, overflow: 'auto' }}>
-        {renderConfigFields()}
-        {renderSizeControls()}
-      </Box>
+        <Box sx={{ p: 2, flexGrow: 1, overflow: 'auto' }}>
+          {renderConfigFields()}
+          {renderSizeControls()}
+        </Box>
 
-      <Box sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            variant="contained"
-            startIcon={<SaveIcon />}
-            onClick={handleSave}
-            fullWidth
-          >
-            Save
-          </Button>
-          <Button
-            variant="outlined"
-            color="error"
-            startIcon={<DeleteIcon />}
-            onClick={handleDelete}
-          >
-            Delete
-          </Button>
+        <Box sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant="contained"
+              startIcon={<SaveIcon />}
+              onClick={handleSave}
+              fullWidth
+            >
+              Save
+            </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteIcon />}
+              onClick={handleDelete}
+            >
+              Delete
+            </Button>
+          </Box>
         </Box>
       </Box>
     </Drawer>

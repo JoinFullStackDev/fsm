@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence, useInView } from 'framer-motion';
 import {
   Box,
   Paper,
@@ -31,10 +31,14 @@ import {
   Notifications as NotificationsIcon,
   AccountCircle as AccountCircleIcon,
   Menu as MenuIcon,
+  Replay as ReplayIcon,
 } from '@mui/icons-material';
 
 export default function InteractiveMockUI() {
   const theme = useTheme();
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: '-100px' });
+  const [hasStarted, setHasStarted] = useState(false);
   const [codeProgress, setCodeProgress] = useState(0);
   const [currentCode, setCurrentCode] = useState('');
   const [taskProgress, setTaskProgress] = useState(0);
@@ -66,7 +70,27 @@ export default function InteractiveMockUI() {
     { title: 'Technical Specs', content: 'RESTful API endpoints for CRUD operations...' },
   ];
 
+  // Start animation when scrolled into view
   useEffect(() => {
+    if (isInView && !hasStarted) {
+      setHasStarted(true);
+    }
+  }, [isInView, hasStarted]);
+
+  // Function to reset and restart animation
+  const handleReanimate = () => {
+    setCodeProgress(0);
+    setCurrentCode('');
+    setTaskProgress(0);
+    setPrdProgress(0);
+    setCurrentStep('code');
+    setHasStarted(true); // Ensure animation starts immediately
+  };
+
+  useEffect(() => {
+    // Only run animations if we've started (scrolled into view)
+    if (!hasStarted) return;
+
     // Step 1: Code typing animation
     if (currentStep === 'code') {
       const codeInterval = setInterval(() => {
@@ -121,28 +145,14 @@ export default function InteractiveMockUI() {
 
       return () => clearInterval(prdInterval);
     }
-  }, [currentStep, codeSnippet]);
-
-  // Reset animation after completion
-  useEffect(() => {
-    if (prdProgress >= 100) {
-      const resetTimeout = setTimeout(() => {
-        setCodeProgress(0);
-        setCurrentCode('');
-        setTaskProgress(0);
-        setPrdProgress(0);
-        setCurrentStep('code');
-      }, 3000);
-
-      return () => clearTimeout(resetTimeout);
-    }
-  }, [prdProgress]);
+  }, [currentStep, codeSnippet, hasStarted]);
 
   return (
     <Box
+      ref={ref}
       sx={{
         width: '100%',
-        py: { xs: 6, md: 10 },
+        py: { xs: 4, md: 6 },
         position: 'relative',
         overflow: 'hidden',
       }}
@@ -191,7 +201,7 @@ export default function InteractiveMockUI() {
             border: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
             display: 'flex',
             flexDirection: 'column',
-            minHeight: { xs: 'auto', md: '700px' },
+            minHeight: { xs: 'auto', md: '550px' },
             height: 'auto',
           }}
         >
@@ -212,6 +222,19 @@ export default function InteractiveMockUI() {
               <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600 }}>
                 FullStack Method
               </Typography>
+              <Tooltip title="Replay Animation" arrow>
+                <IconButton 
+                  onClick={handleReanimate}
+                  sx={{ 
+                    mr: 1,
+                    '&:hover': {
+                      backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                    },
+                  }}
+                >
+                  <ReplayIcon />
+                </IconButton>
+              </Tooltip>
               <IconButton sx={{ mr: 1 }}>
                 <NotificationsIcon />
               </IconButton>

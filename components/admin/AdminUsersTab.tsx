@@ -88,20 +88,27 @@ export default function AdminUsersTab() {
       const data = await response.json();
       const fetchedUsers = (data.users as User[]) || [];
       
-      // SAFETY CHECK: Filter out any users that don't belong to current organization
+      // CRITICAL SAFETY CHECK: Filter out any users that don't belong to current organization
       // This is a defensive measure in case the API route has a bug
+      // NEVER display users from other organizations, even if the API returns them
       if (organization?.id) {
-        const orgUsers = fetchedUsers.filter((user: any) => user.organization_id === organization.id);
+        const orgUsers = fetchedUsers.filter((user: any) => {
+          return user.organization_id === organization.id && user.organization_id !== null;
+        });
         if (orgUsers.length !== fetchedUsers.length) {
-          logger.warn('[AdminUsersTab] API returned users from other organizations, filtering them out', {
+          logger.error('[AdminUsersTab] CRITICAL SECURITY ISSUE: API returned users from other organizations!', {
             total: fetchedUsers.length,
             filtered: orgUsers.length,
-            organizationId: organization.id
+            organizationId: organization.id,
+            returnedUserIds: fetchedUsers.map((u: any) => ({ id: u.id, orgId: u.organization_id }))
           });
         }
         setUsers(orgUsers);
       } else {
-        setUsers(fetchedUsers);
+        // If no organization context, don't show any users (shouldn't happen, but be safe)
+        logger.error('[AdminUsersTab] No organization context available, cannot safely display users');
+        setUsers([]);
+        setError('Organization context not available. Please refresh the page.');
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load users';
