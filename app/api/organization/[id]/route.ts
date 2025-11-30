@@ -16,9 +16,9 @@ export async function PATCH(
 ) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return unauthorized('You must be logged in');
     }
 
@@ -31,7 +31,7 @@ export async function PATCH(
     }
 
     // Validate organization access
-    const hasAccess = await validateOrganizationAccess(supabase, session.user.id, organizationId);
+    const hasAccess = await validateOrganizationAccess(supabase, user.id, organizationId);
     if (!hasAccess) {
       return forbidden('You do not have access to this organization');
     }

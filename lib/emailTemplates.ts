@@ -671,3 +671,84 @@ export async function getPostPaymentWelcomeTemplate(
   };
 }
 
+/**
+ * User Invitation Email Template
+ * Sent when an admin creates a new user account
+ */
+export async function getUserInvitationTemplate(
+  userName: string,
+  organizationName: string,
+  invitationLink: string,
+  adminName?: string
+): Promise<EmailTemplate> {
+  const appName = await getAppName();
+  const defaultTemplate: EmailTemplate = {
+    subject: 'You\'ve been invited to join {{appName}}',
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 8px 8px; }
+          .button { display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 20px 0; }
+          .info-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #007bff; }
+          .footer { margin-top: 30px; font-size: 12px; color: #666; text-align: center; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>You've been invited!</h1>
+            <p style="margin: 0; font-size: 18px;">Join {{organizationName}} on {{appName}}</p>
+          </div>
+          <div class="content">
+            <p>Hello ${userName},</p>
+            ${adminName ? `<p><strong>${adminName}</strong> has invited you to join <strong>${organizationName}</strong> on {{appName}}.</p>` : `<p>You've been invited to join <strong>${organizationName}</strong> on {{appName}}.</p>`}
+            
+            <div class="info-box">
+              <h3 style="margin-top: 0;">What's next?</h3>
+              <p>Click the button below to confirm your email address and set up your account password. This will complete your account setup and allow you to sign in.</p>
+            </div>
+            
+            <p style="text-align: center;">
+              <a href="{{invitationLink}}" class="button">Confirm Email & Set Password</a>
+            </p>
+            
+            <p><strong>Important:</strong> This invitation link will expire in 24 hours. If you didn't expect this invitation, you can safely ignore this email.</p>
+            
+            <p>If you have any questions, please contact your organization administrator.</p>
+            
+            <div class="footer">
+              <p>This is an automated message from {{appName}}.</p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+    text: `Hello ${userName},\n\n${adminName ? `${adminName} has invited you to join ${organizationName} on ${appName}.` : `You've been invited to join ${organizationName} on ${appName}.`}\n\nClick the link below to confirm your email address and set up your account password:\n\n${invitationLink}\n\nThis invitation link will expire in 24 hours.\n\nIf you didn't expect this invitation, you can safely ignore this email.\n\nIf you have any questions, please contact your organization administrator.`,
+  };
+
+  const template = await getTemplate('email_user_invitation_template', defaultTemplate);
+  
+  return {
+    subject: replaceVariables(template.subject, { appName }),
+    html: replaceVariables(template.html, { 
+      userName, 
+      appName, 
+      organizationName,
+      invitationLink,
+    }),
+    text: template.text ? replaceVariables(template.text, { 
+      userName, 
+      appName, 
+      organizationName,
+      invitationLink,
+    }) : undefined,
+  };
+}
+

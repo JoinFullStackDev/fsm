@@ -58,9 +58,9 @@ export default function GlobalAdminLayout({ children }: GlobalAdminLayoutProps) 
     const loadSidebarPreference = async () => {
       try {
         const supabase = createSupabaseClient();
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
         
-        if (!session) {
+        if (userError || !user) {
           // Default to collapsed on mobile, open on desktop
           setSidebarOpen(!isMobile);
           setSidebarLoading(false);
@@ -70,7 +70,7 @@ export default function GlobalAdminLayout({ children }: GlobalAdminLayoutProps) 
         const { data: userData } = await supabase
           .from('users')
           .select('preferences')
-          .eq('auth_id', session.user.id)
+          .eq('auth_id', user.id)
           .single();
 
         if (userData?.preferences && typeof userData.preferences === 'object') {

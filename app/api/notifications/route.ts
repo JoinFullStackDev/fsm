@@ -8,9 +8,9 @@ import { PAGINATION_DEFAULTS } from '@/lib/constants';
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return unauthorized('You must be logged in to view notifications');
     }
 
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const { data: userData, error: userError } = await supabase
       .from('users')
       .select('id')
-      .eq('auth_id', session.user.id)
+      .eq('auth_id', user.id)
       .single();
 
     if (userError || !userData) {
@@ -74,9 +74,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return unauthorized('You must be logged in to create notifications');
     }
 
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
     const { data: userData, error: userError } = await supabase
       .from('users')
       .select('id, role')
-      .eq('auth_id', session.user.id)
+      .eq('auth_id', user.id)
       .single();
 
     if (userError || !userData) {

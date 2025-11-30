@@ -12,14 +12,14 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (userError || !user) {
       return unauthorized('You must be logged in to view companies');
     }
 
     // Get user's organization
-    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    const organizationId = await getUserOrganizationId(supabase, user.id);
     if (!organizationId) {
       return badRequest('User is not assigned to an organization');
     }

@@ -18,9 +18,9 @@ import { getStripeClient, isStripeConfigured } from './stripe/client';
  */
 export async function requireSuperAdmin(request: NextRequest): Promise<{ userId: string }> {
   const supabase = await createServerSupabaseClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (userError || !user) {
     throw unauthorized('You must be logged in');
   }
 
@@ -29,7 +29,7 @@ export async function requireSuperAdmin(request: NextRequest): Promise<{ userId:
   const { data: regularUserData, error: regularUserError } = await supabase
     .from('users')
     .select('id, role, is_super_admin')
-    .eq('auth_id', session.user.id)
+    .eq('auth_id', user.id)
     .single();
 
   if (regularUserError || !regularUserData) {
@@ -37,7 +37,7 @@ export async function requireSuperAdmin(request: NextRequest): Promise<{ userId:
     const { data: adminUserData, error: adminUserError } = await adminClient
       .from('users')
       .select('id, role, is_super_admin')
-      .eq('auth_id', session.user.id)
+      .eq('auth_id', user.id)
       .single();
 
     if (adminUserError || !adminUserData) {

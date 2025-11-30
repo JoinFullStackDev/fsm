@@ -9,17 +9,15 @@ import {
   Button,
   Box,
   Typography,
-  TextField,
   IconButton,
-  InputAdornment,
   CircularProgress,
   Alert,
+  useTheme,
 } from '@mui/material';
 import {
   Close as CloseIcon,
-  Visibility as VisibilityIcon,
-  VisibilityOff as VisibilityOffIcon,
-  ContentCopy as ContentCopyIcon,
+  CheckCircle as CheckCircleIcon,
+  Email as EmailIcon,
 } from '@mui/icons-material';
 import { useNotification } from '@/components/providers/NotificationProvider';
 
@@ -36,54 +34,44 @@ export default function ViewInviteDialog({
   userId,
   onClose,
 }: ViewInviteDialogProps) {
+  const theme = useTheme();
   const { showSuccess, showError } = useNotification();
   const [loading, setLoading] = useState(false);
-  const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
-  const [passwordCopied, setPasswordCopied] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleLoadInvite = async () => {
+  const handleResendInvite = async () => {
     setLoading(true);
     setError(null);
-    setTemporaryPassword(null);
+    setEmailSent(false);
 
     try {
-      const response = await fetch(`/api/admin/users/${userId}/invite`);
+      const response = await fetch(`/api/admin/users/${userId}/invite`, {
+        method: 'POST',
+      });
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || 'Failed to load invite');
+        const errorMessage = data.error || data.message || 'Failed to resend invitation email';
+        setError(errorMessage);
+        showError(errorMessage);
         setLoading(false);
         return;
       }
 
-      setTemporaryPassword(data.temporaryPassword);
-      showSuccess('Invite password generated');
+      setEmailSent(true);
+      showSuccess('Invitation email sent successfully');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load invite');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to resend invitation';
+      setError(errorMessage);
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCopyPassword = async () => {
-    if (temporaryPassword) {
-      try {
-        await navigator.clipboard.writeText(temporaryPassword);
-        setPasswordCopied(true);
-        showSuccess('Password copied to clipboard');
-        setTimeout(() => setPasswordCopied(false), 2000);
-      } catch (err) {
-        showError('Failed to copy password');
-      }
-    }
-  };
-
   const handleClose = () => {
-    setTemporaryPassword(null);
-    setShowPassword(false);
-    setPasswordCopied(false);
+    setEmailSent(false);
     setError(null);
     onClose();
   };
@@ -96,8 +84,8 @@ export default function ViewInviteDialog({
       fullWidth
       PaperProps={{
         sx: {
-          backgroundColor: '#000',
-          border: '2px solid rgba(0, 229, 255, 0.2)',
+          backgroundColor: theme.palette.background.paper,
+          border: `1px solid ${theme.palette.divider}`,
         },
       }}
     >
@@ -106,116 +94,155 @@ export default function ViewInviteDialog({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          color: '#00E5FF',
-          borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
+          backgroundColor: theme.palette.action.hover,
+          color: theme.palette.text.primary,
+          borderBottom: `1px solid ${theme.palette.divider}`,
         }}
       >
-        <Typography variant="h6" sx={{ fontWeight: 600 }}>
-          View Invite
+        <Typography variant="h6" sx={{ fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif' }}>
+          Resend Invitation
         </Typography>
-        <IconButton onClick={handleClose} sx={{ color: '#00E5FF' }} size="small">
+        <IconButton
+          onClick={handleClose}
+          disabled={loading}
+          sx={{ 
+            color: theme.palette.text.primary,
+            '&:hover': {
+              backgroundColor: theme.palette.background.paper,
+            },
+          }}
+          size="small"
+          aria-label="Close dialog"
+        >
           <CloseIcon />
         </IconButton>
       </DialogTitle>
 
       <DialogContent sx={{ mt: 2 }}>
         {error && (
-          <Alert severity="error" sx={{ mb: 2, backgroundColor: 'rgba(244, 67, 54, 0.1)' }}>
+          <Alert 
+            severity="error" 
+            sx={{ 
+              mb: 2, 
+              backgroundColor: theme.palette.action.hover,
+              border: `1px solid ${theme.palette.divider}`,
+              color: theme.palette.text.primary,
+            }}
+          >
             {error}
           </Alert>
         )}
 
+        {emailSent && (
+          <Alert 
+            severity="success" 
+            icon={<CheckCircleIcon />}
+            sx={{ 
+              mb: 2, 
+              backgroundColor: theme.palette.action.hover,
+              border: `1px solid ${theme.palette.divider}`,
+              color: theme.palette.text.primary,
+            }}
+          >
+            <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+              Invitation email sent!
+            </Typography>
+            <Typography variant="body2">
+              An invitation email has been sent to <strong>{userEmail}</strong>. 
+              The user will receive instructions to confirm their email address and set up their password.
+            </Typography>
+          </Alert>
+        )}
+
         <Box sx={{ mb: 2 }}>
-          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
             Email
           </Typography>
-          <Typography variant="body1" sx={{ color: 'text.primary', fontWeight: 600 }}>
+          <Typography variant="body1" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
             {userEmail}
           </Typography>
         </Box>
 
-        {!temporaryPassword && !loading && (
-          <Alert severity="info" sx={{ mb: 2, backgroundColor: 'rgba(0, 229, 255, 0.1)' }}>
-            Click &quot;Generate Password&quot; to create a new temporary password for this user.
-          </Alert>
-        )}
-
-        {loading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-            <CircularProgress />
+        {!emailSent && (
+          <Box>
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 2 }}>
+              Resend the invitation email to this user. They will receive a link to confirm their email address and set up their account password.
+            </Typography>
+            <Box component="ul" sx={{ mt: 1, pl: 2, mb: 2 }}>
+              <li>
+                <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                  Confirm their email address
+                </Typography>
+              </li>
+              <li>
+                <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                  Set up their account password
+                </Typography>
+              </li>
+            </Box>
+            <Typography variant="caption" sx={{ color: theme.palette.text.secondary, display: 'block' }}>
+              The invitation link will expire in 24 hours.
+            </Typography>
           </Box>
         )}
 
-        {temporaryPassword && (
+        {emailSent && (
           <Box>
-            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
-              Temporary Password
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+              The user will receive an email with a link to:
             </Typography>
-            <TextField
-              fullWidth
-              type={showPassword ? 'text' : 'password'}
-              value={temporaryPassword}
-              InputProps={{
-                readOnly: true,
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
-                      sx={{ color: 'text.secondary', mr: 1 }}
-                    >
-                      {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                    </IconButton>
-                    <IconButton
-                      onClick={handleCopyPassword}
-                      edge="end"
-                      sx={{ color: passwordCopied ? 'success.main' : 'text.secondary' }}
-                      title="Copy password"
-                    >
-                      <ContentCopyIcon />
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                '& .MuiInputBase-input': {
-                  fontFamily: 'monospace',
-                  fontSize: '0.875rem',
-                },
-              }}
-            />
-            <Typography variant="caption" sx={{ color: 'text.secondary', mt: 1, display: 'block' }}>
-              User should change this password on first login
+            <Box component="ul" sx={{ mt: 1, pl: 2 }}>
+              <li>
+                <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                  Confirm their email address
+                </Typography>
+              </li>
+              <li>
+                <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                  Set up their account password
+                </Typography>
+              </li>
+            </Box>
+            <Typography variant="caption" sx={{ color: theme.palette.text.secondary, mt: 1, display: 'block' }}>
+              The invitation link will expire in 24 hours.
             </Typography>
           </Box>
         )}
       </DialogContent>
 
-      <DialogActions sx={{ p: 2, borderTop: '2px solid rgba(0, 229, 255, 0.2)' }}>
-        <Button onClick={handleClose} sx={{ color: 'text.secondary' }}>
-          {temporaryPassword ? 'Close' : 'Cancel'}
+      <DialogActions sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
+        <Button
+          onClick={handleClose}
+          sx={{ 
+            color: theme.palette.text.secondary,
+            '&:hover': {
+              backgroundColor: theme.palette.action.hover,
+              color: theme.palette.text.primary,
+            },
+          }}
+        >
+          {emailSent ? 'Done' : 'Cancel'}
         </Button>
-        {!temporaryPassword && (
+        {!emailSent && (
           <Button
-            onClick={handleLoadInvite}
+            onClick={handleResendInvite}
             variant="contained"
             disabled={loading}
+            startIcon={loading ? <CircularProgress size={16} sx={{ color: theme.palette.background.default }} /> : <EmailIcon />}
             sx={{
-              backgroundColor: '#00E5FF',
-              color: '#000',
+              backgroundColor: theme.palette.text.primary,
+              color: theme.palette.background.default,
               '&:hover': {
-                backgroundColor: '#00B2CC',
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
+              },
+              '&:disabled': {
+                backgroundColor: theme.palette.divider,
+                color: theme.palette.text.secondary,
               },
             }}
           >
-            {loading ? (
-              <>
-                <CircularProgress size={16} sx={{ mr: 1 }} />
-                Generating...
-              </>
-            ) : (
-              'Generate Password'
-            )}
+            {loading ? 'Sending...' : 'Resend Invitation Email'}
           </Button>
         )}
       </DialogActions>

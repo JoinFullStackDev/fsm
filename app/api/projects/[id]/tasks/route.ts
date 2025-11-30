@@ -15,9 +15,9 @@ export async function GET(
   const includeSubtasks = searchParams.get('include_subtasks') === 'true';
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (userError || !user) {
       return unauthorized('You must be logged in to view tasks');
     }
 
@@ -78,9 +78,9 @@ export async function POST(
 ) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (userError || !user) {
       return unauthorized('You must be logged in to create tasks');
     }
 
@@ -100,14 +100,14 @@ export async function POST(
     }
 
     // Verify user has access to this project (either owner or member)
-    const { data: userData, error: userError } = await supabase
+    const { data: userData, error: dbUserError } = await supabase
       .from('users')
       .select('id, organization_id')
-      .eq('auth_id', session.user.id)
+      .eq('auth_id', user.id)
       .single();
 
-    if (userError || !userData) {
-      logger.error('[Task POST] User not found:', userError);
+    if (dbUserError || !userData) {
+      logger.error('[Task POST] User not found:', dbUserError);
       return unauthorized('User not found');
     }
 
@@ -216,7 +216,7 @@ export async function POST(
       const { data: assigner } = await supabase
         .from('users')
         .select('id, name')
-        .eq('auth_id', session.user.id)
+        .eq('auth_id', user.id)
         .single();
 
       if (project && assigner) {

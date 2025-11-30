@@ -117,27 +117,30 @@ export async function getOrganizationContextById(
   organizationId: string
 ): Promise<OrganizationContext | null> {
   try {
-    // Get organization
-    const { data: organization, error: orgError } = await supabase
-      .from('organizations')
-      .select('*')
-      .eq('id', organizationId)
-      .single();
+    // Parallelize organization and subscription queries (they don't depend on each other)
+    const [orgResult, subResult] = await Promise.all([
+      supabase
+        .from('organizations')
+        .select('*')
+        .eq('id', organizationId)
+        .single(),
+      supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .in('status', ['active', 'trialing'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    const { data: organization, error: orgError } = orgResult;
+    let { data: subscription, error: subError } = subResult;
 
     if (orgError || !organization) {
       logger.error('[OrganizationContext] Error fetching organization:', orgError);
       return null;
     }
-
-    // Get active or trialing subscription first (preferred)
-    let { data: subscription, error: subError } = await supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .in('status', ['active', 'trialing'])
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
 
     // If no active/trialing subscription found, get the most recent subscription regardless of status
     // This ensures we can still load package features even if subscription is past_due or canceled
@@ -399,13 +402,13 @@ export async function getOrganizationContextFromRequest(): Promise<OrganizationC
     // Lazy import to avoid pulling in next/headers in client components
     const { createServerSupabaseClient } = await import('@/lib/supabaseServer');
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (userError || !user) {
       return null;
     }
 
-    return await getOrganizationContext(supabase, session.user.id);
+    return await getOrganizationContext(supabase, user.id);
   } catch (error) {
     logger.error('[OrganizationContext] Error getting context from request:', error);
     return null;

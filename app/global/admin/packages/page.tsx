@@ -37,11 +37,26 @@ import {
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
   Sync as SyncIcon,
+  Business,
+  AutoAwesome,
+  Download,
+  Analytics,
+  Api,
+  Dashboard,
 } from '@mui/icons-material';
 import { useNotification } from '@/lib/hooks/useNotification';
 import { AVAILABLE_MODULES, getModulesByCategory } from '@/lib/modules';
-import * as Icons from '@mui/icons-material';
 import type { PackageFeatures } from '@/lib/organizationContext';
+
+// Icon mapping for module icons (only import what we need)
+const iconMap: Record<string, React.ComponentType<any>> = {
+  Business,
+  AutoAwesome,
+  Download,
+  Analytics,
+  Api,
+  Dashboard,
+};
 
 interface Package {
   id: string;
@@ -729,7 +744,7 @@ export default function PackagesPage() {
                   </Typography>
                   <Grid container spacing={2}>
                     {modules.map((module) => {
-                      const IconComponent = (Icons as any)[module.icon || 'Business'] || Icons.Business;
+                      const IconComponent = iconMap[module.icon || 'Business'] || Business;
                       const featureKey = module.key as keyof PackageFeatures;
                       const isEnabled = formData.features[featureKey] === true;
 

@@ -14,9 +14,9 @@ export async function GET(
 ) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return unauthorized('You must be logged in to view subtasks');
     }
 

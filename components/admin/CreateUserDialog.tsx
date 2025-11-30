@@ -19,14 +19,15 @@ import {
   InputAdornment,
   CircularProgress,
   useTheme,
+  Checkbox,
+  FormControlLabel,
 } from '@mui/material';
 import {
   Close as CloseIcon,
-  Visibility as VisibilityIcon,
-  VisibilityOff as VisibilityOffIcon,
-  ContentCopy as ContentCopyIcon,
+  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import { useNotification } from '@/components/providers/NotificationProvider';
+import { useOrganization } from '@/components/providers/OrganizationProvider';
 import { useReturnFocus, useFocusOnError } from '@/lib/hooks/useFocusManagement';
 import { validateEmail, validateUserName } from '@/lib/utils/validation';
 import logger from '@/lib/utils/logger';
@@ -45,6 +46,7 @@ export default function CreateUserDialog({
 }: CreateUserDialogProps) {
   const theme = useTheme();
   const { showSuccess, showError } = useNotification();
+  const { organization } = useOrganization();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<UserRole>('pm');
@@ -52,17 +54,57 @@ export default function CreateUserDialog({
   const [error, setError] = useState<string | null>(null);
   const [createdUser, setCreatedUser] = useState<{
     email: string;
-    temporaryPassword: string;
+    invitationSent: boolean;
   } | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
-  const [passwordCopied, setPasswordCopied] = useState(false);
   const [shouldFocusOnError, setShouldFocusOnError] = useState(false);
+  const [costConfirmed, setCostConfirmed] = useState(false);
+  const [subscriptionInfo, setSubscriptionInfo] = useState<{
+    perUserPrice: number | null;
+    billingInterval: 'month' | 'year' | null;
+    pricingModel: 'per_user' | 'flat_rate' | null;
+  } | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const emailInputRef = useRef<HTMLInputElement>(null);
   const roleSelectRef = useRef<HTMLDivElement>(null);
 
   // Return focus when modal closes
   useReturnFocus(open);
+
+  // Load subscription info when dialog opens
+  useEffect(() => {
+    if (open && !createdUser && organization?.id) {
+      const loadSubscriptionInfo = async () => {
+        try {
+          const response = await fetch('/api/organization/subscription');
+          if (response.ok) {
+            const data = await response.json();
+            const sub = data.subscription;
+            if (sub?.package) {
+              const packageData = sub.package;
+              const billingInterval = sub.billing_interval || 'month';
+              const pricingModel = packageData.pricing_model || 'per_user';
+              
+              let perUserPrice: number | null = null;
+              if (pricingModel === 'per_user') {
+                perUserPrice = billingInterval === 'month' 
+                  ? packageData.price_per_user_monthly 
+                  : packageData.price_per_user_yearly;
+              }
+
+              setSubscriptionInfo({
+                perUserPrice,
+                billingInterval,
+                pricingModel,
+              });
+            }
+          }
+        } catch (err) {
+          logger.debug('[CreateUserDialog] Error loading subscription info:', err);
+        }
+      };
+      loadSubscriptionInfo();
+    }
+  }, [open, createdUser, organization?.id]);
 
   // Focus on first field when modal opens
   useEffect(() => {
@@ -119,8 +161,8 @@ export default function CreateUserDialog({
       setRole('pm');
       setError(null);
       setCreatedUser(null);
-      setShowPassword(false);
-      setPasswordCopied(false);
+      setCostConfirmed(false);
+      setSubscriptionInfo(null);
       onClose();
     }
   };
@@ -144,6 +186,13 @@ export default function CreateUserDialog({
       setLoading(false);
       // Enable focus on error after submission attempt
       setShouldFocusOnError(true);
+      return;
+    }
+
+    // Check cost confirmation for per-user pricing
+    if (subscriptionInfo?.pricingModel === 'per_user' && subscriptionInfo.perUserPrice && !costConfirmed) {
+      setError('Please confirm that you understand adding this user will increase your subscription cost');
+      setLoading(false);
       return;
     }
     
@@ -171,23 +220,23 @@ export default function CreateUserDialog({
       }
 
       // Verify we have the required data
-      if (!data.user || !data.temporaryPassword) {
+      if (!data.user) {
         logger.error('[CreateUserDialog] Invalid response format:', data);
-        setError('Invalid response from server. User may have been created but password is missing.');
+        setError('Invalid response from server. User may not have been created.');
         setLoading(false);
         return;
       }
 
       logger.debug('[CreateUserDialog] Setting createdUser state:', {
         email: data.user.email,
-        hasPassword: !!data.temporaryPassword,
+        invitationSent: data.invitationSent,
       });
 
-      // Set the created user state to show password
+      // Set the created user state to show success message
       // Don't call onUserCreated yet - wait until user closes the dialog
       setCreatedUser({
         email: data.user.email,
-        temporaryPassword: data.temporaryPassword,
+        invitationSent: data.invitationSent || false,
       });
       
       showSuccess('User created successfully');
@@ -203,18 +252,6 @@ export default function CreateUserDialog({
     }
   };
 
-  const handleCopyPassword = async () => {
-    if (createdUser?.temporaryPassword) {
-      try {
-        await navigator.clipboard.writeText(createdUser.temporaryPassword);
-        setPasswordCopied(true);
-        showSuccess('Password copied to clipboard');
-        setTimeout(() => setPasswordCopied(false), 2000);
-      } catch (err) {
-        showError('Failed to copy password');
-      }
-    }
-  };
 
   return (
     <Dialog
@@ -263,6 +300,7 @@ export default function CreateUserDialog({
           <Box>
             <Alert 
               severity="success" 
+              icon={<CheckCircleIcon />}
               sx={{ 
                 mb: 2, 
                 backgroundColor: theme.palette.action.hover,
@@ -270,7 +308,20 @@ export default function CreateUserDialog({
                 color: theme.palette.text.primary,
               }}
             >
-              User has been created successfully. Share the temporary password with the user.
+              <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
+                User created successfully!
+              </Typography>
+              {createdUser.invitationSent ? (
+                <Typography variant="body2">
+                  An invitation email has been sent to <strong>{createdUser.email}</strong>. 
+                  The user will receive instructions to confirm their email address and set up their password.
+                </Typography>
+              ) : (
+                <Typography variant="body2">
+                  User account created for <strong>{createdUser.email}</strong>. 
+                  However, the invitation email could not be sent. The user can request a password reset to set up their account.
+                </Typography>
+              )}
             </Alert>
 
             <Box sx={{ mb: 2 }}>
@@ -282,74 +333,28 @@ export default function CreateUserDialog({
               </Typography>
             </Box>
 
-            <Box>
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
-                Temporary Password
-              </Typography>
-              <TextField
-                fullWidth
-                type={showPassword ? 'text' : 'password'}
-                value={createdUser.temporaryPassword}
-                InputProps={{
-                  readOnly: true,
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => setShowPassword(!showPassword)}
-                        edge="end"
-                        sx={{ 
-                          color: theme.palette.text.secondary, 
-                          mr: 1,
-                          '&:hover': {
-                            backgroundColor: theme.palette.action.hover,
-                          },
-                        }}
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      >
-                        {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                      </IconButton>
-                      <IconButton
-                        onClick={handleCopyPassword}
-                        edge="end"
-                        sx={{ 
-                          color: passwordCopied ? theme.palette.text.primary : theme.palette.text.secondary,
-                          '&:hover': {
-                            backgroundColor: theme.palette.action.hover,
-                          },
-                        }}
-                        title="Copy password"
-                        aria-label="Copy password to clipboard"
-                      >
-                        <ContentCopyIcon />
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    backgroundColor: theme.palette.background.paper,
-                    color: theme.palette.text.primary,
-                    '& fieldset': {
-                      borderColor: theme.palette.divider,
-                    },
-                    '&:hover fieldset': {
-                      borderColor: theme.palette.text.secondary,
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: theme.palette.text.primary,
-                    },
-                  },
-                  '& .MuiInputBase-input': {
-                    fontFamily: 'monospace',
-                    fontSize: '0.875rem',
-                    color: theme.palette.text.primary,
-                  },
-                }}
-              />
-              <Typography variant="caption" sx={{ color: theme.palette.text.secondary, mt: 1, display: 'block' }}>
-                User should change this password on first login
-              </Typography>
-            </Box>
+            {createdUser.invitationSent && (
+              <Box>
+                <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                  The user will receive an email with a link to:
+                </Typography>
+                <Box component="ul" sx={{ mt: 1, pl: 2 }}>
+                  <li>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                      Confirm their email address
+                    </Typography>
+                  </li>
+                  <li>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                      Set up their account password
+                    </Typography>
+                  </li>
+                </Box>
+                <Typography variant="caption" sx={{ color: theme.palette.text.secondary, mt: 1, display: 'block' }}>
+                  The invitation link will expire in 24 hours.
+                </Typography>
+              </Box>
+            )}
           </Box>
         ) : (
           <Box 
@@ -371,6 +376,45 @@ export default function CreateUserDialog({
                 }}
               >
                 {error}
+              </Alert>
+            )}
+
+            {subscriptionInfo?.pricingModel === 'per_user' && subscriptionInfo.perUserPrice && (
+              <Alert 
+                severity="info" 
+                sx={{ 
+                  mb: 2, 
+                  backgroundColor: theme.palette.action.hover,
+                  border: `1px solid ${theme.palette.divider}`,
+                  color: theme.palette.text.primary,
+                }}
+              >
+                <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                  Adding a user will increase your subscription cost
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  Adding this user will increase your monthly subscription by{' '}
+                  <strong>${subscriptionInfo.perUserPrice.toFixed(2)}/{subscriptionInfo.billingInterval === 'year' ? 'year' : 'month'}</strong>.
+                </Typography>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={costConfirmed}
+                      onChange={(e) => setCostConfirmed(e.target.checked)}
+                      sx={{
+                        color: theme.palette.text.secondary,
+                        '&.Mui-checked': {
+                          color: theme.palette.text.primary,
+                        },
+                      }}
+                    />
+                  }
+                  label={
+                    <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
+                      I understand that adding this user will increase my subscription cost
+                    </Typography>
+                  }
+                />
               </Alert>
             )}
 
@@ -558,7 +602,13 @@ export default function CreateUserDialog({
             </Button>
             <Button
               variant="contained"
-              disabled={loading || !name.trim() || !email.trim() || !role}
+              disabled={
+                loading || 
+                !name.trim() || 
+                !email.trim() || 
+                !role ||
+                !!(subscriptionInfo?.pricingModel === 'per_user' && subscriptionInfo.perUserPrice && !costConfirmed)
+              }
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -567,10 +617,20 @@ export default function CreateUserDialog({
                   name: name.trim(),
                   email: email.trim(),
                   role,
-                  disabled: loading || !name.trim() || !email.trim() || !role,
+                  costConfirmed,
+                  disabled: loading || !name.trim() || !email.trim() || !role || (subscriptionInfo?.pricingModel === 'per_user' && subscriptionInfo.perUserPrice && !costConfirmed),
                 });
                 
-                if (!loading && name.trim() && email.trim() && role) {
+                const canSubmit = !loading && 
+                  name.trim() && 
+                  email.trim() && 
+                  role &&
+                  (!subscriptionInfo?.pricingModel || 
+                   subscriptionInfo.pricingModel !== 'per_user' || 
+                   !subscriptionInfo.perUserPrice || 
+                   costConfirmed);
+                
+                if (canSubmit) {
                   // Create a synthetic form event
                   const syntheticEvent = {
                     preventDefault: () => {},

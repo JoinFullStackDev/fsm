@@ -17,7 +17,7 @@ export async function PUT(request: NextRequest) {
     const adminClient = createAdminSupabaseClient();
     const body = await request.json();
 
-    const { api_key, is_active } = body;
+    const { api_key, from_email, is_active } = body;
 
     // Get existing email connection
     const { data: existing, error: fetchError } = await adminClient
@@ -41,6 +41,24 @@ export async function PUT(request: NextRequest) {
     const updatedConfig: any = {
       ...currentConfig,
     };
+
+    // Update sender email if provided
+    if (from_email !== undefined) {
+      if (from_email === null || from_email === '') {
+        // Remove sender email if explicitly set to empty
+        delete updatedConfig.from_email;
+        delete updatedConfig.sender_email;
+      } else {
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(from_email)) {
+          return badRequest('Invalid sender email address format');
+        }
+        updatedConfig.from_email = from_email.trim();
+        // Also set sender_email for backward compatibility
+        updatedConfig.sender_email = from_email.trim();
+      }
+    }
 
     if (api_key !== undefined && api_key !== null && api_key !== '') {
       // Trim whitespace from API key

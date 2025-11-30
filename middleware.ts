@@ -42,35 +42,13 @@ export async function middleware(request: NextRequest) {
     c.name.includes('supabase') || c.name.includes('sb-') || c.name.includes('auth')
   );
 
-  // Get session first (cookie-based, no network call)
+  // Get session (Supabase handles refresh automatically, no need for manual refresh)
   const {
     data: { session },
     error: sessionError,
   } = await supabase.auth.getSession();
 
-  // Conditionally refresh session only if needed
-  // Refresh if: session is missing AND auth cookies exist, OR session is expiring soon (< 5 minutes)
-  let currentSession = session;
-  if (authCookies.length > 0) {
-    const needsRefresh = !currentSession || (currentSession.expires_at && (() => {
-      const expiresAt = new Date(currentSession.expires_at * 1000);
-      const fiveMinutesFromNow = new Date(Date.now() + 5 * 60 * 1000);
-      return expiresAt <= fiveMinutesFromNow;
-    })());
-    
-    if (needsRefresh) {
-      try {
-        await supabase.auth.refreshSession();
-        // Re-fetch session after refresh
-        const refreshed = await supabase.auth.getSession();
-        if (refreshed.data?.session) {
-          currentSession = refreshed.data.session;
-        }
-      } catch (refreshError) {
-        // Ignore refresh errors - session might not be ready yet
-      }
-    }
-  }
+  const currentSession = session;
   
   // Lazy-load getUser() - only call when needed for admin routes
   // Initialize as null, will be populated only for routes that need it
@@ -247,23 +225,8 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/auth/signin', request.url));
     }
     
-    // Verify user exists in database
-    const currentUserId = currentSession.user.id;
-    if (currentUserId) {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('id')
-        .eq('auth_id', currentUserId)
-        .maybeSingle();
-      
-      // If user doesn't exist in database, redirect to signin
-      // (This handles edge cases where auth user exists but DB record doesn't)
-      if (!userData) {
-        return NextResponse.redirect(new URL('/auth/signin', request.url));
-      }
-    }
-    
-    // Session exists and user is valid, allow access
+    // Session exists, allow access
+    // Individual routes/pages can handle user existence checks if needed
   }
 
   return response;
