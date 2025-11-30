@@ -98,7 +98,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4, px: { xs: 0, md: 3 } }}>
       <Typography
         variant="h4"
         component="h1"

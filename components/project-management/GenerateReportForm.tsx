@@ -79,7 +79,7 @@ export default function GenerateReportForm({
         backgroundColor: theme.palette.background.paper,
         border: `1px solid ${theme.palette.divider}`,
         borderRadius: 2,
-        p: 4,
+        p: { xs: 2, md: 4 },
       }}
     >
       <Typography
@@ -87,7 +87,8 @@ export default function GenerateReportForm({
         sx={{
           color: theme.palette.text.primary,
           fontWeight: 600,
-          mb: 4,
+          mb: { xs: 3, md: 4 },
+          fontSize: { xs: '1.25rem', md: '1.5rem' },
         }}
       >
         Generate Report - {projectName}
@@ -100,10 +101,10 @@ export default function GenerateReportForm({
       )}
 
       {/* Report Type Selection */}
-      <FormControl component="fieldset" sx={{ mb: 4, width: '100%' }}>
+      <FormControl component="fieldset" sx={{ mb: { xs: 3, md: 4 }, width: '100%' }}>
         <FormLabel
           component="legend"
-          sx={{ color: theme.palette.text.primary, mb: 2, fontWeight: 500 }}
+          sx={{ color: theme.palette.text.primary, mb: 2, fontWeight: 500, fontSize: { xs: '0.875rem', md: '1rem' } }}
         >
           Report Type
         </FormLabel>
@@ -116,10 +117,10 @@ export default function GenerateReportForm({
             control={<Radio sx={{ color: theme.palette.text.primary, '&.Mui-checked': { color: theme.palette.text.primary } }} />}
             label={
               <Box>
-                <Typography sx={{ color: theme.palette.text.primary, fontWeight: 500 }}>
+                <Typography sx={{ color: theme.palette.text.primary, fontWeight: 500, fontSize: { xs: '0.875rem', md: '1rem' } }}>
                   Weekly Report
                 </Typography>
-                <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontSize: { xs: '0.7rem', md: '0.75rem' } }}>
                   Last week recap + This week preview
                 </Typography>
               </Box>
@@ -131,10 +132,10 @@ export default function GenerateReportForm({
             control={<Radio sx={{ color: theme.palette.text.primary, '&.Mui-checked': { color: theme.palette.text.primary } }} />}
             label={
               <Box>
-                <Typography sx={{ color: theme.palette.text.primary, fontWeight: 500 }}>
+                <Typography sx={{ color: theme.palette.text.primary, fontWeight: 500, fontSize: { xs: '0.875rem', md: '1rem' } }}>
                   Monthly Report
                 </Typography>
-                <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontSize: { xs: '0.7rem', md: '0.75rem' } }}>
                   Previous month summary
                 </Typography>
               </Box>
@@ -146,10 +147,10 @@ export default function GenerateReportForm({
             control={<Radio sx={{ color: theme.palette.text.primary, '&.Mui-checked': { color: theme.palette.text.primary } }} />}
             label={
               <Box>
-                <Typography sx={{ color: theme.palette.text.primary, fontWeight: 500 }}>
+                <Typography sx={{ color: theme.palette.text.primary, fontWeight: 500, fontSize: { xs: '0.875rem', md: '1rem' } }}>
                   Forecast Report
                 </Typography>
-                <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontSize: { xs: '0.7rem', md: '0.75rem' } }}>
                   Upcoming tasks and projections
                 </Typography>
               </Box>
@@ -160,8 +161,8 @@ export default function GenerateReportForm({
 
       {/* Forecast Period Selection */}
       {reportType === 'forecast' && (
-        <FormControl fullWidth sx={{ mb: 4 }}>
-          <InputLabel sx={{ color: theme.palette.text.secondary }}>Forecast Period</InputLabel>
+        <FormControl fullWidth sx={{ mb: { xs: 3, md: 4 } }}>
+          <InputLabel sx={{ color: theme.palette.text.secondary, fontSize: { xs: '0.875rem', md: '1rem' } }}>Forecast Period</InputLabel>
           <Select
             value={forecastDays}
             onChange={(e) => setForecastDays(Number(e.target.value))}
@@ -194,25 +195,28 @@ export default function GenerateReportForm({
       )}
 
       {/* Format Selection */}
-      <FormControl component="fieldset" sx={{ mb: 4, width: '100%' }}>
+      <FormControl component="fieldset" sx={{ mb: { xs: 3, md: 4 }, width: '100%' }}>
         <FormLabel
           component="legend"
-          sx={{ color: theme.palette.text.primary, mb: 2, fontWeight: 500 }}
+          sx={{ color: theme.palette.text.primary, mb: 2, fontWeight: 500, fontSize: { xs: '0.875rem', md: '1rem' } }}
         >
           Format
         </FormLabel>
         <RadioGroup
           value={format}
           onChange={(e) => setFormat(e.target.value as ReportFormat)}
-          row
+          row={false}
+          sx={{
+            flexDirection: { xs: 'column', md: 'row' },
+          }}
         >
           <FormControlLabel
             value="pdf"
             control={<Radio sx={{ color: theme.palette.text.primary, '&.Mui-checked': { color: theme.palette.text.primary } }} />}
             label={
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <DescriptionIcon sx={{ color: theme.palette.text.primary, fontSize: 20 }} />
-                <Typography sx={{ color: theme.palette.text.primary }}>PDF Download</Typography>
+                <DescriptionIcon sx={{ color: theme.palette.text.primary, fontSize: { xs: 18, md: 20 } }} />
+                <Typography sx={{ color: theme.palette.text.primary, fontSize: { xs: '0.875rem', md: '1rem' } }}>PDF Download</Typography>
               </Box>
             }
           />
@@ -221,8 +225,8 @@ export default function GenerateReportForm({
             control={<Radio sx={{ color: theme.palette.text.primary, '&.Mui-checked': { color: theme.palette.text.primary } }} />}
             label={
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <SlideshowIcon sx={{ color: theme.palette.text.primary, fontSize: 20 }} />
-                <Typography sx={{ color: theme.palette.text.primary }}>AI Slideshow</Typography>
+                <SlideshowIcon sx={{ color: theme.palette.text.primary, fontSize: { xs: 18, md: 20 } }} />
+                <Typography sx={{ color: theme.palette.text.primary, fontSize: { xs: '0.875rem', md: '1rem' } }}>AI Slideshow</Typography>
               </Box>
             }
           />

@@ -163,7 +163,7 @@ export default function DashboardViewerPage() {
 
   return (
     <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', pb: 6 }}>
-      <Container maxWidth="xl" sx={{ pt: 4, pb: 4 }}>
+      <Container maxWidth="xl" sx={{ pt: 4, pb: 4, px: { xs: 0, md: 3 } }}>
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>

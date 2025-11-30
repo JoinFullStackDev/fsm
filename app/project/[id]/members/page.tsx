@@ -305,7 +305,7 @@ export default function ProjectMembersPage() {
   return (
     <>
       <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', pb: 4 }}>
-        <Container maxWidth="lg" sx={{ pt: 4, pb: 4 }}>
+        <Container maxWidth="lg" sx={{ pt: 4, pb: 4, px: { xs: 0, md: 3 } }}>
           <Breadcrumbs
             items={[
               { label: projectName || 'Project', href: `/project/${projectId}` },

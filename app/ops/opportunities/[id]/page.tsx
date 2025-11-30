@@ -72,7 +72,7 @@ function TabPanel(props: TabPanelProps) {
       aria-labelledby={`opportunity-tab-${index}`}
       {...other}
     >
-      {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
+      {value === index && <Box sx={{ pt: { xs: 2, md: 3 }, px: { xs: 2, md: 0 } }}>{children}</Box>}
     </div>
   );
 }
@@ -285,7 +285,7 @@ export default function OpportunityDetailPage() {
 
   if (loading) {
     return (
-      <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+      <Container maxWidth="xl" sx={{ mt: 4, mb: 4, px: { xs: 0, md: 3 } }}>
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
           <CircularProgress />
         </Box>
@@ -295,7 +295,7 @@ export default function OpportunityDetailPage() {
 
   if (error || !opportunity) {
     return (
-      <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+      <Container maxWidth="xl" sx={{ mt: 4, mb: 4, px: { xs: 0, md: 3 } }}>
         <Alert severity="error" sx={{ mt: 4 }}>
           {error || 'Opportunity not found'}
         </Alert>
@@ -306,96 +306,107 @@ export default function OpportunityDetailPage() {
   const companyId = opportunity.company?.id;
 
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+    <Container maxWidth="xl" sx={{ mt: 4, mb: 4, px: { xs: 0, md: 3 } }}>
       {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-        <IconButton
-          onClick={() => router.push('/ops/opportunities')}
-          sx={{
-            color: theme.palette.text.primary,
-            border: '1px solid',
-            borderColor: theme.palette.divider,
-            '&:hover': {
-              borderColor: theme.palette.text.secondary,
-            },
-          }}
-        >
-          <ArrowBackIcon />
-        </IconButton>
-        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Typography
-            variant="h4"
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { xs: 'flex-start', md: 'center' }, gap: { xs: 2, md: 2 }, mb: 3, px: { xs: 2, md: 0 } }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: { xs: '100%', md: 'auto' } }}>
+          <IconButton
+            onClick={() => router.push('/ops/opportunities')}
             sx={{
-              fontWeight: 600,
               color: theme.palette.text.primary,
-            }}
-          >
-            {opportunity.name}
-          </Typography>
-          <Chip
-            label={`Updated ${new Date(opportunity.updated_at).toLocaleDateString()}`}
-            size="small"
-            sx={{
-              backgroundColor: theme.palette.action.hover,
-              color: theme.palette.text.secondary,
-              border: `1px solid ${theme.palette.divider}`,
-              fontSize: '0.75rem',
-            }}
-          />
-        </Box>
-        {opportunity.status !== 'lost' && opportunity.status !== 'converted' && (
-          <Button
-            variant="contained"
-            startIcon={<CheckCircleIcon />}
-            onClick={handleConvert}
-            disabled={converting}
-            sx={{
-              backgroundColor: '#4CAF50',
-              color: '#FFF',
-              fontWeight: 600,
+              border: '1px solid',
+              borderColor: theme.palette.divider,
               '&:hover': {
-                backgroundColor: '#45A049',
+                borderColor: theme.palette.text.secondary,
               },
             }}
           >
-            {converting ? 'Converting...' : 'Convert to Project'}
+            <ArrowBackIcon />
+          </IconButton>
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 1, sm: 2 } }}>
+            <Typography
+              variant="h4"
+              sx={{
+                fontWeight: 600,
+                color: theme.palette.text.primary,
+                fontSize: { xs: '1.25rem', md: '1.5rem' },
+              }}
+            >
+              {opportunity.name}
+            </Typography>
+            <Chip
+              label={`Updated ${new Date(opportunity.updated_at).toLocaleDateString()}`}
+              size="small"
+              sx={{
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.secondary,
+                border: `1px solid ${theme.palette.divider}`,
+                fontSize: '0.75rem',
+              }}
+            />
+          </Box>
+        </Box>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 2, sm: 1 }, width: { xs: '100%', md: 'auto' } }}>
+          {opportunity.status !== 'lost' && opportunity.status !== 'converted' && (
+            <Button
+              variant="contained"
+              startIcon={<CheckCircleIcon />}
+              onClick={handleConvert}
+              disabled={converting}
+              fullWidth={false}
+              sx={{
+                width: { xs: '100%', sm: 'auto' },
+                backgroundColor: '#4CAF50',
+                color: '#FFF',
+                fontWeight: 600,
+                '&:hover': {
+                  backgroundColor: '#45A049',
+                },
+              }}
+            >
+              {converting ? 'Converting...' : 'Convert to Project'}
+            </Button>
+          )}
+          <Button
+            variant="outlined"
+            startIcon={<EditIcon />}
+            onClick={handleEdit}
+            fullWidth={false}
+            sx={{
+              width: { xs: '100%', sm: 'auto' },
+              borderColor: theme.palette.text.primary,
+              color: theme.palette.text.primary,
+              '&:hover': {
+                borderColor: theme.palette.text.secondary,
+                backgroundColor: theme.palette.action.hover,
+              },
+            }}
+          >
+            Edit
           </Button>
-        )}
-        <Button
-          variant="outlined"
-          startIcon={<EditIcon />}
-          onClick={handleEdit}
-          sx={{
-            borderColor: theme.palette.text.primary,
-            color: theme.palette.text.primary,
-            '&:hover': {
-              borderColor: theme.palette.text.secondary,
-              backgroundColor: theme.palette.action.hover,
-            },
-          }}
-        >
-          Edit
-        </Button>
-        <Button
-          variant="outlined"
-          startIcon={<DeleteIcon />}
-          onClick={handleDelete}
-          sx={{
-            borderColor: theme.palette.error.main,
-            color: theme.palette.error.main,
-            '&:hover': {
-              borderColor: theme.palette.error.dark,
-              backgroundColor: theme.palette.action.hover,
-            },
-          }}
-        >
-          Delete
-        </Button>
+          <Button
+            variant="outlined"
+            startIcon={<DeleteIcon />}
+            onClick={handleDelete}
+            fullWidth={false}
+            sx={{
+              width: { xs: '100%', sm: 'auto' },
+              borderColor: theme.palette.error.main,
+              color: theme.palette.error.main,
+              '&:hover': {
+                borderColor: theme.palette.error.dark,
+                backgroundColor: theme.palette.action.hover,
+              },
+            }}
+          >
+            Delete
+          </Button>
+        </Box>
       </Box>
 
       {/* Company Information Accordion */}
       {companyId && companyLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4, mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4, mb: 3, px: { xs: 2, md: 0 } }}>
           <CircularProgress />
         </Box>
       ) : companyId && company ? (
@@ -403,6 +414,7 @@ export default function OpportunityDetailPage() {
           defaultExpanded={false}
           sx={{
             mb: 3,
+            mx: { xs: 2, md: 0 },
             backgroundColor: theme.palette.background.paper,
             border: `1px solid ${theme.palette.divider}`,
             '&:before': {
@@ -413,8 +425,8 @@ export default function OpportunityDetailPage() {
           <AccordionSummary
             expandIcon={<ExpandMoreIcon sx={{ color: theme.palette.text.primary }} />}
             sx={{
-              px: 3,
-              py: 2,
+              px: { xs: 2, md: 3 },
+              py: { xs: 1.5, md: 2 },
               '& .MuiAccordionSummary-content': {
                 alignItems: 'center',
                 gap: 1,
@@ -434,6 +446,7 @@ export default function OpportunityDetailPage() {
                 color: theme.palette.text.primary,
                 fontWeight: 600,
                 textDecoration: 'none',
+                fontSize: { xs: '0.875rem', md: '1.25rem' },
                 '&:hover': {
                   textDecoration: 'underline',
                 },
@@ -442,8 +455,8 @@ export default function OpportunityDetailPage() {
               {company.name}
             </Typography>
           </AccordionSummary>
-          <AccordionDetails sx={{ px: 3, pb: 3 }}>
-            <Grid container spacing={3}>
+          <AccordionDetails sx={{ px: { xs: 2, md: 3 }, pb: { xs: 2, md: 3 } }}>
+            <Grid container spacing={{ xs: 2, md: 3 }}>
               <Grid item xs={12} sm={6} md={4}>
                 <Box>
                   <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
@@ -581,7 +594,7 @@ export default function OpportunityDetailPage() {
                   >
                     Connections
                   </Typography>
-                  <Grid container spacing={2}>
+                  <Grid container spacing={{ xs: 2, md: 2 }}>
                     {company.contacts_count !== undefined && (
                       <Grid item xs={12} sm={4}>
                         <Box>
@@ -627,11 +640,11 @@ export default function OpportunityDetailPage() {
       ) : null}
 
       {/* Opportunity Details Cards */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
+      <Grid container spacing={{ xs: 2, md: 3 }} sx={{ mb: 3, px: { xs: 2, md: 0 } }}>
         <Grid item xs={12} sm={6} md={3}>
           <Paper
             sx={{
-              p: 2,
+              p: { xs: 1.5, md: 2 },
               backgroundColor: theme.palette.background.paper,
               border: `1px solid ${theme.palette.divider}`,
             }}
@@ -649,7 +662,7 @@ export default function OpportunityDetailPage() {
         <Grid item xs={12} sm={6} md={3}>
           <Paper
             sx={{
-              p: 2,
+              p: { xs: 1.5, md: 2 },
               backgroundColor: theme.palette.background.paper,
               border: `1px solid ${theme.palette.divider}`,
             }}
@@ -693,7 +706,7 @@ export default function OpportunityDetailPage() {
         <Grid item xs={12} sm={6} md={opportunity.value ? 3 : 4}>
           <Paper
             sx={{
-              p: 2,
+              p: { xs: 1.5, md: 2 },
               backgroundColor: theme.palette.background.paper,
               border: `1px solid ${theme.palette.divider}`,
             }}
@@ -711,19 +724,38 @@ export default function OpportunityDetailPage() {
       {/* Tabs */}
       {companyId && (
         <>
-          <Box sx={{ borderBottom: 1, borderColor: theme.palette.divider, mb: 3 }}>
+          <Box sx={{ borderBottom: 1, borderColor: theme.palette.divider, mb: 3, px: { xs: 2, md: 0 } }}>
             <Tabs
               value={activeTab}
               onChange={(_, newValue) => setActiveTab(newValue)}
+              variant="scrollable"
+              scrollButtons={true}
+              allowScrollButtonsMobile
               sx={{
                 '& .MuiTab-root': {
                   color: theme.palette.text.secondary,
+                  minHeight: { xs: 64, md: 72 },
+                  fontSize: { xs: '0.75rem', md: '0.875rem' },
+                  padding: { xs: '12px 16px', md: '12px 24px' },
                   '&.Mui-selected': {
                     color: theme.palette.text.primary,
                   },
                 },
                 '& .MuiTabs-indicator': {
                   backgroundColor: theme.palette.text.primary,
+                },
+                '& .MuiTabs-scrollButtons': {
+                  display: { xs: 'flex', md: 'flex' },
+                  width: { xs: 40, md: 48 },
+                  flexShrink: 0,
+                  zIndex: 1,
+                  position: 'relative',
+                  '&.Mui-disabled': {
+                    opacity: 0.3,
+                  },
+                  '&:not(.Mui-disabled)': {
+                    opacity: 1,
+                  },
                 },
               }}
             >
@@ -755,7 +787,7 @@ export default function OpportunityDetailPage() {
             ) : company ? (
               <Paper
                 sx={{
-                  p: 3,
+                  p: { xs: 2, md: 3 },
                   backgroundColor: theme.palette.background.paper,
                   border: `1px solid ${theme.palette.divider}`,
                 }}

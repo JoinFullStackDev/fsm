@@ -193,13 +193,13 @@ export default function AdminPage() {
   };
 
   return (
-    <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+    <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', p: { xs: 2, md: 3 } }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 3, gap: { xs: 2, md: 0 } }}>
         <Typography
           variant="h4"
           component="h1"
           sx={{
-            fontSize: '1.5rem',
+            fontSize: { xs: '1.25rem', md: '1.5rem' },
             fontWeight: 600,
             color: theme.palette.text.primary,
           }}
@@ -211,7 +211,7 @@ export default function AdminPage() {
             variant="outlined"
             size="small"
             onClick={handleApiKeysOverride}
-            sx={{ ml: 2 }}
+            sx={{ ml: { xs: 0, md: 2 } }}
           >
             {apiKeysOverride ? 'Hide' : 'Show'} API Keys Tab
           </Button>
@@ -224,6 +224,7 @@ export default function AdminPage() {
           backgroundColor: theme.palette.background.paper,
           border: `1px solid ${theme.palette.divider}`,
           borderRadius: 2,
+          overflow: 'visible',
         }}
       >
         <Box sx={{ borderBottom: 1, borderColor: theme.palette.divider }}>
@@ -231,13 +232,17 @@ export default function AdminPage() {
             value={activeTab}
             onChange={handleTabChange}
             variant="scrollable"
-            scrollButtons="auto"
+            scrollButtons={true}
+            allowScrollButtonsMobile
             sx={{
+              width: '100%',
               '& .MuiTab-root': {
                 color: theme.palette.text.secondary,
                 fontWeight: 500,
                 textTransform: 'none',
-                minHeight: 72,
+                minHeight: { xs: 64, md: 72 },
+                fontSize: { xs: '0.75rem', md: '0.875rem' },
+                padding: { xs: '12px 16px', md: '12px 24px' },
                 '&.Mui-selected': {
                   color: theme.palette.text.primary,
                   fontWeight: 600,
@@ -246,6 +251,19 @@ export default function AdminPage() {
               '& .MuiTabs-indicator': {
                 backgroundColor: theme.palette.text.primary,
                 height: 2,
+              },
+              '& .MuiTabs-scrollButtons': {
+                display: { xs: 'flex', md: 'flex' },
+                width: { xs: 40, md: 48 },
+                flexShrink: 0,
+                zIndex: 1,
+                position: 'relative',
+                '&.Mui-disabled': {
+                  opacity: 0.3,
+                },
+                '&:not(.Mui-disabled)': {
+                  opacity: 1,
+                },
               },
             }}
           >
@@ -269,7 +287,7 @@ export default function AdminPage() {
           </Tabs>
         </Box>
 
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: { xs: 1.5, md: 3 } }}>
           {/* Tab 0: Users (always shown) */}
           <TabPanel value={activeTab} index={0}>
             <AdminUsersTab />

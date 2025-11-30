@@ -1014,35 +1014,39 @@ Generate the complete ${documentType} document now:`;
   return (
     <ErrorBoundary>
       <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', pb: 12 }}>
-        <Container maxWidth="xl" sx={{ pt: 4, pb: 4 }}>
-          <Breadcrumbs
-            items={[
-              { label: projectName || 'Project', href: `/project/${projectId}` },
-              { label: `Phase ${phaseNumber}: ${currentPhaseName || `Phase ${phaseNumber}`}` },
-            ]}
-          />
+        <Container maxWidth="xl" sx={{ pt: { xs: 2, md: 4 }, pb: { xs: 10, md: 4 }, px: { xs: 0, md: 3 } }}>
+          <Box sx={{ px: { xs: 2, md: 0 } }}>
+            <Breadcrumbs
+              items={[
+                { label: projectName || 'Project', href: `/project/${projectId}` },
+                { label: `Phase ${phaseNumber}: ${currentPhaseName || `Phase ${phaseNumber}`}` },
+              ]}
+            />
+          </Box>
           {/* Header with Back Button and Phase Info */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-            <IconButton
-              onClick={() => router.push(`/project/${projectId}`)}
-              sx={{
-                color: theme.palette.text.primary,
-                border: `1px solid ${theme.palette.divider}`,
-                '&:hover': {
-                  backgroundColor: theme.palette.action.hover,
-                },
-                transition: 'all 0.2s ease',
-              }}
-            >
-              <ArrowBackIcon />
-            </IconButton>
-            <Box sx={{ flex: 1 }}>
-              <Typography variant="h4" sx={{ fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif', color: theme.palette.text.primary, mb: 0.5, fontSize: '1.5rem' }}>
-                Phase {phaseNumber}: {currentPhaseName || `Phase ${phaseNumber}`}
-              </Typography>
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-                {projectId}
-              </Typography>
+          <Box sx={{ px: { xs: 2, md: 0 }, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { xs: 'flex-start', md: 'center' }, justifyContent: { xs: 'flex-start', md: 'space-between' }, gap: { xs: 2, md: 2 }, mb: 3, mt: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: { xs: '100%', md: 'auto' }, flex: { xs: 'none', md: '0 0 auto' } }}>
+              <IconButton
+                onClick={() => router.push(`/project/${projectId}`)}
+                sx={{
+                  color: theme.palette.text.primary,
+                  border: `1px solid ${theme.palette.divider}`,
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <ArrowBackIcon />
+              </IconButton>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="h4" sx={{ fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif', color: theme.palette.text.primary, mb: 0.5, fontSize: { xs: '1.25rem', md: '1.5rem' } }}>
+                  Phase {phaseNumber}: {currentPhaseName || `Phase ${phaseNumber}`}
+                </Typography>
+                <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
+                  {projectId}
+                </Typography>
+              </Box>
             </Box>
             {(() => {
               // Sort phases by phase_number to ensure correct order
@@ -1051,7 +1055,7 @@ Generate the complete ${documentType} document now:`;
               if (sortedPhases.length === 0) return null;
               
               return (
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: { xs: 'flex-start', md: 'flex-end' }, gap: 0.5, width: { xs: '100%', md: 'auto' }, flex: { xs: 'none', md: '0 0 auto' } }}>
                   <Typography
                     variant="caption"
                     sx={{
@@ -1064,7 +1068,7 @@ Generate the complete ${documentType} document now:`;
                   >
                     Navigate Phases
                   </Typography>
-                  <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                  <Box sx={{ display: 'flex', gap: { xs: 1, md: 0.5 }, alignItems: 'center', flexWrap: 'nowrap', width: { xs: '100%', md: 'auto' } }}>
                     {sortedPhases.map((phase) => {
                       const isCurrentPhase = phase.phase_number === actualPhaseNumber;
                       return (
@@ -1077,15 +1081,16 @@ Generate the complete ${documentType} document now:`;
                             variant={isCurrentPhase ? "contained" : "outlined"}
                             onClick={() => router.push(`/project/${projectId}/phase/${phase.phase_number}`)}
                             sx={{
-                              minWidth: 32,
-                              width: 32,
-                              height: 32,
+                              flex: { xs: 1, md: 'none' },
+                              minWidth: { xs: 0, md: 32 },
+                              width: { xs: 'auto', md: 32 },
+                              height: { xs: 40, md: 32 },
                               padding: 0,
                               borderColor: isCurrentPhase ? theme.palette.text.primary : theme.palette.divider,
                               backgroundColor: isCurrentPhase ? theme.palette.text.primary : 'transparent',
                               color: isCurrentPhase ? theme.palette.background.paper : theme.palette.text.primary,
                               fontWeight: isCurrentPhase ? 700 : 600,
-                              fontSize: '0.75rem',
+                              fontSize: { xs: '0.875rem', md: '0.75rem' },
                               '&:hover': {
                                 borderColor: theme.palette.text.primary,
                                 backgroundColor: isCurrentPhase ? theme.palette.text.primary : theme.palette.action.hover,
@@ -1110,6 +1115,7 @@ Generate the complete ${documentType} document now:`;
               sx={{
                 mb: 3,
                 width: '100%',
+                mx: { xs: 2, md: 0 },
                 backgroundColor: theme.palette.action.hover,
                 border: `1px solid ${theme.palette.divider}`,
                 '& .MuiAlert-icon': {
@@ -1117,7 +1123,7 @@ Generate the complete ${documentType} document now:`;
                 },
               }}
             >
-              <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
+              <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontSize: { xs: '0.875rem', md: '0.875rem' } }}>
                 {dependencyMessage}
               </Typography>
             </Alert>
@@ -1126,20 +1132,21 @@ Generate the complete ${documentType} document now:`;
           {/* Phase Progress Bar */}
           <Box
             sx={{
-              p: 2,
+              p: { xs: 1.5, md: 2 },
               mb: 3,
+              mx: { xs: 2, md: 0 },
               backgroundColor: theme.palette.background.paper,
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2,
             }}
           >
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontWeight: 500 }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, mb: 1, gap: { xs: 0.5, sm: 0 } }}>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontWeight: 500, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
                 {fieldConfigs.length > 0 
                   ? `Phase Progress: ${phaseProgress}% complete (${completedFieldsCount}/${fieldConfigs.length} fields)`
                   : `Overall Progress: Phase ${phaseNumber} of ${totalPhases}`}
               </Typography>
-              <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+              <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontWeight: 600, fontSize: { xs: '0.875rem', md: '0.875rem' } }}>
                 {phaseProgress}%
               </Typography>
             </Box>
@@ -1160,21 +1167,23 @@ Generate the complete ${documentType} document now:`;
           {/* Action Buttons - Sticky */}
           <Box
             sx={{
-              p: 2,
+              p: { xs: 1.5, md: 2 },
               mb: 3,
+              mx: { xs: 2, md: 0 },
               backgroundColor: theme.palette.background.paper,
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2,
               display: 'flex',
-              gap: 2,
+              flexDirection: { xs: 'column', sm: 'row' },
+              gap: { xs: 2, md: 2 },
               justifyContent: 'space-between',
-              alignItems: 'center',
+              alignItems: { xs: 'stretch', sm: 'center' },
               position: 'sticky',
-              top: 80,
+              top: { xs: 64, md: 80 },
               zIndex: 10,
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 1.5, sm: 2 }, flex: 1, width: { xs: '100%', sm: 'auto' } }}>
               <FormControlLabel
                 control={
                   <Switch
@@ -1199,7 +1208,7 @@ Generate the complete ${documentType} document now:`;
                   />
                 }
                 label={
-                  <Typography sx={{ color: theme.palette.text.primary, fontWeight: 500 }}>
+                  <Typography sx={{ color: theme.palette.text.primary, fontWeight: 500, fontSize: { xs: '0.875rem', md: '1rem' } }}>
                     Mark as Completed
                   </Typography>
                 }
@@ -1222,7 +1231,7 @@ Generate the complete ${documentType} document now:`;
                 }}
               />
             </Box>
-            <Box sx={{ display: 'flex', gap: 1 }}>
+            <Box sx={{ display: 'flex', gap: 1, justifyContent: { xs: 'flex-start', sm: 'flex-end' }, width: { xs: '100%', sm: 'auto' } }}>
               {phaseData && (phaseData as any).generated_document && (
                 <Tooltip title="View Document">
                   <IconButton
@@ -1293,6 +1302,7 @@ Generate the complete ${documentType} document now:`;
               severity="error"
               sx={{
                 mb: 3,
+                mx: { xs: 2, md: 0 },
                 backgroundColor: theme.palette.action.hover,
                 border: `1px solid ${theme.palette.divider}`,
                 color: theme.palette.text.primary,
@@ -1307,6 +1317,7 @@ Generate the complete ${documentType} document now:`;
               severity="warning"
               sx={{
                 mb: 3,
+                mx: { xs: 2, md: 0 },
                 backgroundColor: theme.palette.action.hover,
                 border: `1px solid ${theme.palette.divider}`,
                 color: theme.palette.text.primary,
@@ -1317,28 +1328,19 @@ Generate the complete ${documentType} document now:`;
           )}
 
           {/* Phase Form */}
-          <Box
-            sx={{
-              backgroundColor: theme.palette.background.paper,
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: 2,
-              p: 3,
-            }}
-          >
-            {phaseData && (
-              <Box sx={{ opacity: canEdit ? 1 : 0.6 }}>
-                {renderPhaseForm()}
-              </Box>
-            )}
-          </Box>
+          {phaseData && (
+            <Box sx={{ opacity: canEdit ? 1 : 0.6, width: '100%' }}>
+              {renderPhaseForm()}
+            </Box>
+          )}
         </Container>
 
         {/* Sticky Action Buttons */}
         <Box
           sx={{
             position: 'fixed',
-            bottom: 24,
-            right: 24,
+            bottom: { xs: 16, md: 24 },
+            right: { xs: 16, md: 24 },
             display: 'flex',
             flexDirection: 'column',
             gap: 2,

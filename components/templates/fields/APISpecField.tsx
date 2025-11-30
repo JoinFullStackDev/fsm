@@ -66,7 +66,7 @@ export default function APISpecField({ field, value, onChange, error, phaseData 
           {error}
         </Typography>
       )}
-      <Grid container spacing={2} sx={{ mb: 2 }}>
+      <Grid container spacing={{ xs: 1, md: 2 }} sx={{ mb: 2 }}>
         {apiSpecs.map((spec, index) => (
           <Grid item xs={12} key={index}>
             <Card
@@ -77,7 +77,7 @@ export default function APISpecField({ field, value, onChange, error, phaseData 
                 borderRadius: 2,
               }}
             >
-              <CardContent>
+              <CardContent sx={{ p: { xs: 1.5, md: 2 }, '&:last-child': { pb: { xs: 1.5, md: 2 } } }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
                   <Typography variant="subtitle1" sx={{ color: 'primary.main', fontWeight: 600 }}>
                     {spec.endpoint || `API ${index + 1}`}
@@ -90,7 +90,7 @@ export default function APISpecField({ field, value, onChange, error, phaseData 
                     <DeleteIcon />
                   </IconButton>
                 </Box>
-                <Grid container spacing={2}>
+                <Grid container spacing={{ xs: 1, md: 2 }}>
                   <Grid item xs={12} md={3}>
                     <FormControl fullWidth size="small">
                       <InputLabel>Method</InputLabel>

@@ -282,14 +282,15 @@ function DashboardPageContent() {
 
   return (
     <>
-      <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', p: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+      <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', p: { xs: 2, md: 3 } }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 4, gap: { xs: 2, md: 0 } }}>
           <Typography
             variant="h4"
             component="h1"
             sx={{
               fontWeight: 700,
               color: theme.palette.text.primary,
+              fontSize: { xs: '1.5rem', md: '2.125rem' },
             }}
           >
             Dashboard
@@ -298,13 +299,15 @@ function DashboardPageContent() {
             variant="contained"
             startIcon={<AddIcon />}
             onClick={handleCreateProject}
+            fullWidth={false}
             sx={{
               backgroundColor: theme.palette.text.primary,
               color: theme.palette.background.default,
               fontWeight: 600,
+              width: { xs: '100%', md: 'auto' },
               '&:hover': {
                 backgroundColor: theme.palette.action.hover,
-                transform: 'translateY(-2px)',
+                transform: { xs: 'none', md: 'translateY(-2px)' },
               },
             }}
           >
@@ -341,19 +344,19 @@ function DashboardPageContent() {
         )}
 
         {/* Stats Cards */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid container spacing={{ xs: 2, md: 3 }} sx={{ mb: 4 }}>
           <Grid item xs={12} sm={6} md={3}>
             <Paper
               sx={{
-                p: 2,
+                p: { xs: 1.5, md: 2 },
                 backgroundColor: theme.palette.background.paper,
                 border: `1px solid ${theme.palette.divider}`,
               }}
             >
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
                 Total Projects
               </Typography>
-              <Typography variant="h4" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+              <Typography variant="h4" sx={{ color: theme.palette.text.primary, fontWeight: 600, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
                 {stats.total}
               </Typography>
             </Paper>
@@ -361,15 +364,15 @@ function DashboardPageContent() {
           <Grid item xs={12} sm={6} md={3}>
             <Paper
               sx={{
-                p: 2,
+                p: { xs: 1.5, md: 2 },
                 backgroundColor: theme.palette.background.paper,
                 border: `1px solid ${theme.palette.divider}`,
               }}
             >
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
                 Total Tasks
               </Typography>
-              <Typography variant="h4" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+              <Typography variant="h4" sx={{ color: theme.palette.text.primary, fontWeight: 600, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
                 {stats.totalTasks}
               </Typography>
             </Paper>
@@ -377,15 +380,15 @@ function DashboardPageContent() {
           <Grid item xs={12} sm={6} md={3}>
             <Paper
               sx={{
-                p: 2,
+                p: { xs: 1.5, md: 2 },
                 backgroundColor: theme.palette.background.paper,
                 border: `1px solid ${theme.palette.divider}`,
               }}
             >
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
                 Completion Rate
               </Typography>
-              <Typography variant="h5" sx={{ color: '#4CAF50', fontWeight: 600 }}>
+              <Typography variant="h5" sx={{ color: '#4CAF50', fontWeight: 600, fontSize: { xs: '1.25rem', md: '1.5rem' } }}>
                 {completionRate}%
               </Typography>
             </Paper>
@@ -393,15 +396,15 @@ function DashboardPageContent() {
           <Grid item xs={12} sm={6} md={3}>
             <Paper
               sx={{
-                p: 2,
+                p: { xs: 1.5, md: 2 },
                 backgroundColor: theme.palette.background.paper,
                 border: `1px solid ${theme.palette.divider}`,
               }}
             >
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
                 Team Members
               </Typography>
-              <Typography variant="h4" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+              <Typography variant="h4" sx={{ color: theme.palette.text.primary, fontWeight: 600, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
                 {stats.teamMembers}
               </Typography>
             </Paper>
@@ -409,15 +412,15 @@ function DashboardPageContent() {
           <Grid item xs={12} sm={6} md={3}>
             <Paper
               sx={{
-                p: 2,
+                p: { xs: 1.5, md: 2 },
                 backgroundColor: theme.palette.background.paper,
                 border: `1px solid ${theme.palette.divider}`,
               }}
             >
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
                 In Progress Tasks
               </Typography>
-              <Typography variant="h4" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+              <Typography variant="h4" sx={{ color: theme.palette.text.primary, fontWeight: 600, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
                 {stats.inProgressTasks}
               </Typography>
             </Paper>
@@ -425,15 +428,15 @@ function DashboardPageContent() {
           <Grid item xs={12} sm={6} md={3}>
             <Paper
               sx={{
-                p: 2,
+                p: { xs: 1.5, md: 2 },
                 backgroundColor: theme.palette.background.paper,
                 border: `1px solid ${theme.palette.divider}`,
               }}
             >
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
                 Completed Tasks
               </Typography>
-              <Typography variant="h5" sx={{ color: '#4CAF50', fontWeight: 600 }}>
+              <Typography variant="h5" sx={{ color: '#4CAF50', fontWeight: 600, fontSize: { xs: '1.25rem', md: '1.5rem' } }}>
                 {stats.completedTasks}
               </Typography>
             </Paper>
@@ -441,15 +444,15 @@ function DashboardPageContent() {
           <Grid item xs={12} sm={6} md={3}>
             <Paper
               sx={{
-                p: 2,
+                p: { xs: 1.5, md: 2 },
                 backgroundColor: theme.palette.background.paper,
                 border: `1px solid ${theme.palette.divider}`,
               }}
             >
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
                 To Do Tasks
               </Typography>
-              <Typography variant="h4" sx={{ color: theme.palette.text.secondary, fontWeight: 600 }}>
+              <Typography variant="h4" sx={{ color: theme.palette.text.secondary, fontWeight: 600, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
                 {stats.todoTasks}
               </Typography>
             </Paper>
@@ -457,7 +460,7 @@ function DashboardPageContent() {
           <Grid item xs={12} sm={6} md={3}>
             <Paper
               sx={{
-                p: 2,
+                p: { xs: 1.5, md: 2 },
                 backgroundColor: theme.palette.background.paper,
                 border: `1px solid ${theme.palette.divider}`,
                 display: 'flex',
@@ -472,7 +475,8 @@ function DashboardPageContent() {
                 sx={{
                   borderColor: theme.palette.text.primary,
                   color: theme.palette.text.primary,
-                  py: 1.5,
+                  py: { xs: 1, md: 1.5 },
+                  fontSize: { xs: '0.875rem', md: '1rem' },
                   '&:hover': {
                     borderColor: theme.palette.text.primary,
                     backgroundColor: theme.palette.action.hover,
@@ -493,6 +497,7 @@ function DashboardPageContent() {
               color: theme.palette.text.primary,
               fontWeight: 600,
               mb: 2,
+              fontSize: { xs: '1rem', md: '1.25rem' },
             }}
           >
             Ops Tool
@@ -501,7 +506,7 @@ function DashboardPageContent() {
             <Grid item xs={12} sm={6} md={4}>
               <Paper
                 sx={{
-                  p: 2,
+                  p: { xs: 1.5, md: 2 },
                   backgroundColor: theme.palette.background.paper,
                   border: `1px solid ${theme.palette.divider}`,
                   cursor: 'pointer',
@@ -513,13 +518,13 @@ function DashboardPageContent() {
                 }}
                 onClick={() => router.push('/ops/companies')}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <BusinessIcon sx={{ fontSize: 32, color: theme.palette.text.primary }} />
-                  <Box>
-                    <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, md: 2 } }}>
+                  <BusinessIcon sx={{ fontSize: { xs: 28, md: 32 }, color: theme.palette.text.primary, flexShrink: 0 }} />
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600, fontSize: { xs: '1rem', md: '1.25rem' } }}>
                       Companies
                     </Typography>
-                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
                       Manage companies and clients
                     </Typography>
                   </Box>
@@ -529,7 +534,7 @@ function DashboardPageContent() {
             <Grid item xs={12} sm={6} md={4}>
               <Paper
                 sx={{
-                  p: 2,
+                  p: { xs: 1.5, md: 2 },
                   backgroundColor: theme.palette.background.paper,
                   border: `1px solid ${theme.palette.divider}`,
                   cursor: 'pointer',
@@ -541,13 +546,13 @@ function DashboardPageContent() {
                 }}
                 onClick={() => router.push('/ops/opportunities')}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <WorkIcon sx={{ fontSize: 32, color: theme.palette.text.primary }} />
-                  <Box>
-                    <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, md: 2 } }}>
+                  <WorkIcon sx={{ fontSize: { xs: 28, md: 32 }, color: theme.palette.text.primary, flexShrink: 0 }} />
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600, fontSize: { xs: '1rem', md: '1.25rem' } }}>
                       Opportunities
                     </Typography>
-                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
                       Track sales opportunities
                     </Typography>
                   </Box>
@@ -557,7 +562,7 @@ function DashboardPageContent() {
             <Grid item xs={12} sm={6} md={4}>
               <Paper
                 sx={{
-                  p: 2,
+                  p: { xs: 1.5, md: 2 },
                   backgroundColor: theme.palette.background.paper,
                   border: `1px solid ${theme.palette.divider}`,
                   cursor: 'pointer',
@@ -569,13 +574,13 @@ function DashboardPageContent() {
                 }}
                 onClick={() => router.push('/ops/contacts')}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <ContactsIcon sx={{ fontSize: 32, color: theme.palette.text.primary }} />
-                  <Box>
-                    <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, md: 2 } }}>
+                  <ContactsIcon sx={{ fontSize: { xs: 28, md: 32 }, color: theme.palette.text.primary, flexShrink: 0 }} />
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600, fontSize: { xs: '1rem', md: '1.25rem' } }}>
                       Contacts
                     </Typography>
-                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
                       Manage company contacts
                     </Typography>
                   </Box>
@@ -608,15 +613,18 @@ function DashboardPageContent() {
 
         {/* Recent Projects Table */}
         <Box>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 2, gap: { xs: 1, md: 0 } }}>
+            <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600, fontSize: { xs: '1rem', md: '1.25rem' } }}>
               Recent Projects
             </Typography>
             {stats.recent.length > 0 && (
               <Button
                 size="small"
                 onClick={handleViewProjects}
-                sx={{ color: theme.palette.text.primary }}
+                sx={{ 
+                  color: theme.palette.text.primary,
+                  alignSelf: { xs: 'flex-start', md: 'auto' },
+                }}
               >
                 View All
               </Button>

@@ -91,7 +91,7 @@ export default function DebugSessionPage() {
 
   if (checkingAccess || roleLoading) {
     return (
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4, px: { xs: 0, md: 3 }, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
         <CircularProgress />
       </Container>
     );
@@ -102,7 +102,7 @@ export default function DebugSessionPage() {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4, px: { xs: 0, md: 3 } }}>
       <Typography variant="h4" component="h1" gutterBottom>
         Session Debug Information (Admin Only)
       </Typography>

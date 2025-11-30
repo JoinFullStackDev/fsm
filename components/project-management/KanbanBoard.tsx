@@ -63,13 +63,17 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
   }, [tasks]);
 
   return (
-    <Box sx={{ width: '100%', height: '100%', overflow: 'auto', p: 2 }}>
+    <Box sx={{ width: '100%', height: '100%', overflow: 'auto', p: { xs: 1, md: 2 } }}>
       <Box
         sx={{
           display: 'flex',
-          gap: 2,
+          flexDirection: 'row',
+          gap: { xs: 1.5, md: 2 },
           height: '100%',
           minHeight: 600,
+          overflowX: 'auto',
+          overflowY: { xs: 'visible', md: 'auto' },
+          pb: { xs: 1, md: 0 },
         }}
       >
         {STATUS_COLUMNS.map((column) => {
@@ -79,8 +83,9 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
             <Box
               key={column.status}
               sx={{
-                flex: 1,
-                minWidth: 280,
+                flex: { xs: 'none', md: 1 },
+                minWidth: { xs: 280, md: 280 },
+                width: { xs: 280, md: 'auto' },
                 display: 'flex',
                 flexDirection: 'column',
               }}
@@ -88,7 +93,7 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
               {/* Column Header */}
               <Paper
                 sx={{
-                  p: 2,
+                  p: { xs: 1.5, md: 2 },
                   mb: 2,
                   backgroundColor: theme.palette.background.paper,
                   borderLeft: `4px solid ${column.color}`,
@@ -102,7 +107,7 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
                       color: theme.palette.text.primary,
                       fontWeight: 600,
                       textTransform: 'uppercase',
-                      fontSize: '0.9rem',
+                      fontSize: { xs: '0.8rem', md: '0.9rem' },
                     }}
                   >
                     {column.label}
@@ -142,7 +147,7 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
                       key={task.id}
                       onClick={() => onTaskClick(task)}
                       sx={{
-                        p: 2,
+                        p: { xs: 1.5, md: 2 },
                         backgroundColor: theme.palette.background.paper,
                         border: `1px solid ${theme.palette.divider}`,
                         borderRadius: 2,
@@ -151,8 +156,8 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
                         '&:hover': {
                           borderColor: theme.palette.text.primary,
                           backgroundColor: theme.palette.action.hover,
-                          transform: 'translateY(-2px)',
-                          boxShadow: `0 4px 12px ${theme.palette.text.primary}20`,
+                          transform: { xs: 'none', md: 'translateY(-2px)' },
+                          boxShadow: { xs: 'none', md: `0 4px 12px ${theme.palette.text.primary}20` },
                         },
                       }}
                     >
@@ -164,6 +169,7 @@ export default function KanbanBoard({ tasks, onTaskClick }: KanbanBoardProps) {
                           fontWeight: 600,
                           mb: 1,
                           lineHeight: 1.3,
+                          fontSize: { xs: '0.875rem', md: '1rem' },
                         }}
                       >
                         {task.title}

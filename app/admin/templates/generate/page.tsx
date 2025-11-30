@@ -285,7 +285,7 @@ Please help me craft this description based on my project needs, making sure to 
   if (step === 'preview' && generatedTemplate) {
     return (
       <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', pb: 4 }}>
-        <Container maxWidth="lg" sx={{ pt: 4, pb: 4 }}>
+        <Container maxWidth="lg" sx={{ pt: 4, pb: 4, px: { xs: 0, md: 3 } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
             <Button
               startIcon={<ArrowBackIcon />}
@@ -552,7 +552,7 @@ Please help me craft this description based on my project needs, making sure to 
 
   return (
     <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', pb: 4 }}>
-      <Container maxWidth="md" sx={{ pt: 4, pb: 4 }}>
+      <Container maxWidth="md" sx={{ pt: 4, pb: 4, px: { xs: 0, md: 3 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4 }}>
           <Button
             startIcon={<ArrowBackIcon />}

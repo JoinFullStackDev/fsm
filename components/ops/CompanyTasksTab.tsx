@@ -187,7 +187,7 @@ export default function CompanyTasksTab({ companyId }: CompanyTasksTabProps) {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 3, gap: { xs: 2, md: 0 } }}>
         <Typography
           variant="h6"
           sx={{
@@ -201,10 +201,12 @@ export default function CompanyTasksTab({ companyId }: CompanyTasksTabProps) {
           variant="outlined"
           startIcon={<AddIcon />}
           onClick={handleCreateTask}
+          fullWidth={false}
           sx={{
             borderColor: theme.palette.text.primary,
             color: theme.palette.text.primary,
             fontWeight: 600,
+            width: { xs: '100%', md: 'auto' },
             '&:hover': {
               borderColor: theme.palette.text.secondary,
               backgroundColor: theme.palette.action.hover,

@@ -100,13 +100,13 @@ export default function OrganizationsPage() {
   };
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+    <Box sx={{ p: { xs: 2, md: 0 } }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 3, gap: { xs: 2, md: 0 } }}>
         <Typography
           variant="h4"
           component="h1"
           sx={{
-            fontSize: '1.75rem',
+            fontSize: { xs: '1.25rem', md: '1.75rem' },
             fontWeight: 600,
             color: theme.palette.text.primary,
           }}
@@ -117,13 +117,17 @@ export default function OrganizationsPage() {
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => router.push('/global/admin/organizations/new')}
+          fullWidth={false}
+          sx={{
+            width: { xs: '100%', md: 'auto' },
+          }}
         >
           Create Organization
         </Button>
       </Box>
 
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Box sx={{ display: 'flex', gap: 2 }}>
+      <Paper sx={{ p: { xs: 1.5, md: 2 }, mb: 3 }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
           <TextField
             fullWidth
             placeholder="Search organizations..."
@@ -140,7 +144,7 @@ export default function OrganizationsPage() {
               ),
             }}
           />
-          <FormControl sx={{ minWidth: 200 }}>
+          <FormControl sx={{ minWidth: { xs: '100%', md: 200 }, width: { xs: '100%', md: 'auto' } }}>
             <InputLabel>Status</InputLabel>
             <Select
               value={statusFilter}

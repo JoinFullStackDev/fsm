@@ -20,10 +20,10 @@ interface ViewToggleProps {
 export default function ViewToggle({ view, onChange }: ViewToggleProps) {
   const theme = useTheme();
   const commonButtonStyles = {
-    height: '32px',
-    minHeight: '32px',
-    width: '32px',
-    minWidth: '32px',
+    height: { xs: '40px', md: '32px' },
+    minHeight: { xs: '40px', md: '32px' },
+    width: { xs: '40px', md: '32px' },
+    minWidth: { xs: '40px', md: '32px' },
     padding: 0,
     color: theme.palette.text.secondary,
     borderColor: theme.palette.divider,
@@ -95,27 +95,27 @@ export default function ViewToggle({ view, onChange }: ViewToggleProps) {
       >
         <ToggleButton value="table">
           <Tooltip title="Table View">
-            <TableChartIcon fontSize="small" />
+            <TableChartIcon sx={{ fontSize: { xs: 22, md: 18 } }} />
           </Tooltip>
         </ToggleButton>
         <ToggleButton value="gantt">
           <Tooltip title="Gantt Chart View">
-            <TimelineIcon fontSize="small" />
+            <TimelineIcon sx={{ fontSize: { xs: 22, md: 18 } }} />
           </Tooltip>
         </ToggleButton>
         <ToggleButton value="kanban" sx={{ borderRight: 'none' }}>
           <Tooltip title="Kanban Board View">
-            <ViewKanbanIcon fontSize="small" />
+            <ViewKanbanIcon sx={{ fontSize: { xs: 22, md: 18 } }} />
           </Tooltip>
         </ToggleButton>
         <ToggleButton value="reports" sx={{ borderRight: 'none' }}>
           <Tooltip title="View Reports">
-            <DescriptionIcon fontSize="small" />
+            <DescriptionIcon sx={{ fontSize: { xs: 22, md: 18 } }} />
           </Tooltip>
         </ToggleButton>
         <ToggleButton value="generate-report" sx={{ borderRight: `1px solid ${theme.palette.divider}` }}>
           <Tooltip title="Generate Report">
-            <AssessmentIcon fontSize="small" />
+            <AssessmentIcon sx={{ fontSize: { xs: 22, md: 18 } }} />
           </Tooltip>
         </ToggleButton>
       </ToggleButtonGroup>

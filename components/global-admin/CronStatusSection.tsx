@@ -210,12 +210,16 @@ export default function CronStatusSection() {
       </Box>
 
       {/* Actions */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 3 }}>
         <Button
           variant="outlined"
           startIcon={<RefreshIcon />}
           onClick={loadStatus}
           disabled={loading}
+          fullWidth={false}
+          sx={{
+            width: { xs: '100%', sm: 'auto' },
+          }}
         >
           Refresh Status
         </Button>
@@ -224,6 +228,10 @@ export default function CronStatusSection() {
           startIcon={triggering ? <CircularProgress size={16} /> : <PlayArrowIcon />}
           onClick={handleTriggerCron}
           disabled={triggering}
+          fullWidth={false}
+          sx={{
+            width: { xs: '100%', sm: 'auto' },
+          }}
         >
           {triggering ? 'Triggering...' : 'Trigger Cron Job (Test)'}
         </Button>

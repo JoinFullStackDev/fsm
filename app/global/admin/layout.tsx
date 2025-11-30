@@ -153,17 +153,22 @@ export default function GlobalAdminLayout({ children }: GlobalAdminLayoutProps) 
     <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: theme.palette.background.default }}>
       <TopBar onSidebarToggle={() => setSidebarOpen(!sidebarOpen)} sidebarOpen={sidebarOpen} />
       <Drawer
-        variant="permanent"
+        variant={isMobile ? 'temporary' : 'permanent'}
+        open={isMobile ? sidebarOpen : true}
+        onClose={isMobile ? () => setSidebarOpen(false) : undefined}
+        ModalProps={{
+          keepMounted: true, // Better mobile performance
+        }}
         sx={{
-          width: sidebarOpen ? DRAWER_WIDTH : 64,
+          width: isMobile ? DRAWER_WIDTH : (sidebarOpen ? DRAWER_WIDTH : 64),
           flexShrink: 0,
-          zIndex: (theme) => theme.zIndex.drawer,
+          zIndex: (theme) => isMobile ? theme.zIndex.modal : theme.zIndex.drawer,
           '& .MuiDrawer-paper': {
-            width: sidebarOpen ? DRAWER_WIDTH : 64,
+            width: isMobile ? DRAWER_WIDTH : (sidebarOpen ? DRAWER_WIDTH : 64),
             boxSizing: 'border-box',
             backgroundColor: theme.palette.background.paper,
             borderRight: `1px solid ${theme.palette.divider}`,
-            transition: 'width 0.3s ease',
+            transition: isMobile ? 'transform 0.3s ease' : 'width 0.3s ease',
             overflowX: 'hidden',
             pt: '64px',
             display: 'flex',
@@ -246,7 +251,10 @@ export default function GlobalAdminLayout({ children }: GlobalAdminLayoutProps) 
           flexGrow: 1,
           p: 3,
           mt: '64px',
-          width: `calc(100% - ${sidebarOpen ? DRAWER_WIDTH : 64}px)`,
+          width: {
+            xs: '100%', // Full width on mobile (sidebar overlays)
+            sm: `calc(100% - ${sidebarOpen ? DRAWER_WIDTH : 64}px)`
+          },
           maxWidth: '100%',
           transition: 'width 0.3s ease',
           overflow: 'auto',

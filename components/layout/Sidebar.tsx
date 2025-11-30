@@ -13,11 +13,14 @@ import {
   IconButton,
   Typography,
   Divider,
+  Collapse,
+  Tooltip,
+  useMediaQuery,
   Popover,
   Paper,
   MenuList,
   MenuItem,
-  Tooltip,
+  Chip,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -32,6 +35,8 @@ import {
   Contacts as ContactsIcon,
   TrendingUp as TrendingUpIcon,
   DashboardCustomize as DashboardCustomizeIcon,
+  ChevronRight as ChevronRightIcon,
+  ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 import { useRole } from '@/lib/hooks/useRole';
 import { useOrganization } from '@/components/providers/OrganizationProvider';
@@ -55,6 +60,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { role } = useRole();
   const { organization, features } = useOrganization();
   const supabase = createSupabaseClient();
@@ -64,12 +70,13 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
   const [projectManagementProjects, setProjectManagementProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [myTasksCount, setMyTasksCount] = useState(0);
+  const [projectPhaseProgress, setProjectPhaseProgress] = useState<Record<string, { completed: number; total: number }>>({});
+  const [projectsExpanded, setProjectsExpanded] = useState(false);
+  const [templatesExpanded, setTemplatesExpanded] = useState(false);
+  const [projectManagementExpanded, setProjectManagementExpanded] = useState(false);
   const [projectsPopoverAnchor, setProjectsPopoverAnchor] = useState<HTMLElement | null>(null);
   const [templatesPopoverAnchor, setTemplatesPopoverAnchor] = useState<HTMLElement | null>(null);
   const [projectManagementPopoverAnchor, setProjectManagementPopoverAnchor] = useState<HTMLElement | null>(null);
-  const projectsPopoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const templatesPopoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const projectManagementPopoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [logoError, setLogoError] = useState(false);
   const [iconError, setIconError] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
@@ -146,6 +153,42 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
 
     loadProjects();
   }, [supabase]);
+
+  // Load phase progress for each project
+  useEffect(() => {
+    const loadProjectPhaseProgress = async () => {
+      if (projects.length === 0) return;
+
+      const progressMap: Record<string, { completed: number; total: number }> = {};
+
+      for (const project of projects) {
+        try {
+          const { data: phases } = await supabase
+            .from('project_phases')
+            .select('phase_number, completed, phase_name')
+            .eq('project_id', project.id)
+            .eq('is_active', true)
+            .order('display_order', { ascending: true });
+
+          if (phases && phases.length > 0) {
+            const total = phases.length;
+            const completed = phases.filter((p: { completed: boolean }) => Boolean(p.completed)).length;
+            progressMap[project.id] = { completed, total };
+          } else {
+            // Default to 6 phases if no phases found
+            progressMap[project.id] = { completed: 0, total: 6 };
+          }
+        } catch (error) {
+          console.error(`Error loading phases for project ${project.id}:`, error);
+          progressMap[project.id] = { completed: 0, total: 6 };
+        }
+      }
+
+      setProjectPhaseProgress(progressMap);
+    };
+
+    loadProjectPhaseProgress();
+  }, [projects, supabase]);
 
   // Load all templates (admin and PM only) - use API route to handle organization filtering
   useEffect(() => {
@@ -255,20 +298,6 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
     return () => clearInterval(interval);
   }, [supabase]);
 
-  // Cleanup timeouts on unmount
-  useEffect(() => {
-    return () => {
-      if (projectsPopoverTimeoutRef.current) {
-        clearTimeout(projectsPopoverTimeoutRef.current);
-      }
-      if (templatesPopoverTimeoutRef.current) {
-        clearTimeout(templatesPopoverTimeoutRef.current);
-      }
-      if (projectManagementPopoverTimeoutRef.current) {
-        clearTimeout(projectManagementPopoverTimeoutRef.current);
-      }
-    };
-  }, []);
 
   const isActive = (path: string) => {
     if (path === '/dashboard') {
@@ -323,22 +352,27 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
 
   return (
     <Drawer
-      variant="permanent"
+      variant={isMobile ? 'temporary' : 'permanent'}
+      open={isMobile ? open : true}
+      onClose={isMobile ? onToggle : undefined}
+      ModalProps={{
+        keepMounted: true, // Better mobile performance
+      }}
       sx={{
-        width: open ? DRAWER_WIDTH : DRAWER_WIDTH_COLLAPSED,
+        width: isMobile ? DRAWER_WIDTH : (open ? DRAWER_WIDTH : DRAWER_WIDTH_COLLAPSED),
         flexShrink: 0,
-        zIndex: (theme) => theme.zIndex.drawer,
+        zIndex: (theme) => isMobile ? theme.zIndex.modal : theme.zIndex.drawer,
         '& .MuiDrawer-paper': {
-        width: open ? DRAWER_WIDTH : DRAWER_WIDTH_COLLAPSED,
-        boxSizing: 'border-box',
-        backgroundColor: theme.palette.background.paper,
-        borderRight: `1px solid ${theme.palette.divider}`,
-        transition: 'width 0.3s ease',
-        overflowX: 'hidden',
-        pt: '64px', // Account for TopBar height
-        display: 'flex',
-        flexDirection: 'column',
-      },
+          width: isMobile ? DRAWER_WIDTH : (open ? DRAWER_WIDTH : DRAWER_WIDTH_COLLAPSED),
+          boxSizing: 'border-box',
+          backgroundColor: theme.palette.background.paper,
+          borderRight: `1px solid ${theme.palette.divider}`,
+          transition: isMobile ? 'transform 0.3s ease' : 'width 0.3s ease',
+          overflowX: 'hidden',
+          pt: '64px', // Account for TopBar height
+          display: 'flex',
+          flexDirection: 'column',
+        },
       }}
     >
       <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -348,8 +382,8 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: open ? 'space-between' : 'center',
-          padding: '16px',
-          minHeight: 64,
+          padding: { xs: '12px 16px', md: '8px 16px' },
+          minHeight: { xs: 56, md: 48 },
           borderBottom: `1px solid ${theme.palette.divider}`,
         }}
       >
@@ -471,7 +505,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
       </Box>
 
       <Box sx={{ flex: 1, overflowY: 'auto' }}>
-        <List sx={{ pt: 1 }}>
+        <List sx={{ pt: { xs: 0.5, md: 0.5 } }}>
         {/* Dashboard */}
         <ListItem disablePadding>
           <Tooltip
@@ -506,180 +540,407 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                   color: isActive('/dashboard') ? theme.palette.text.primary : theme.palette.text.secondary,
                 }}
               >
-                <DashboardIcon />
+                <DashboardIcon sx={{ fontSize: 20 }} />
               </ListItemIcon>
-              {open && <ListItemText primary="Dashboard" />}
+              {open && <ListItemText primary="Dashboard" primaryTypographyProps={{ fontSize: '0.75rem' }} />}
             </ListItemButton>
           </Tooltip>
         </ListItem>
 
         {/* Projects */}
         <ListItem disablePadding>
-          <ListItemButton
-            onClick={() => {
-              if (projects.length > 0) {
-                // If has projects, show popover on hover instead of navigating
-                return;
-              }
-              handleNavigate('/projects');
-            }}
-            onMouseEnter={(e) => {
-              if (projects.length > 0) {
-                // Clear any existing timeout
-                if (projectsPopoverTimeoutRef.current) {
-                  clearTimeout(projectsPopoverTimeoutRef.current);
-                  projectsPopoverTimeoutRef.current = null;
-                }
-                setProjectsPopoverAnchor(e.currentTarget);
-              }
-            }}
-            onMouseLeave={() => {
-              if (projects.length > 0) {
-                // Add delay before closing to allow mouse to move to popover
-                projectsPopoverTimeoutRef.current = setTimeout(() => {
-                  setProjectsPopoverAnchor(null);
-                }, 200);
-              }
-            }}
-            selected={isActive('/projects')}
-            sx={{
-              minHeight: 48,
-              '&.Mui-selected': {
-                backgroundColor: theme.palette.action.hover,
-                borderLeft: `1px solid ${theme.palette.text.primary}`,
-                '&:hover': {
-                  backgroundColor: theme.palette.action.hover,
-                },
-              },
-              '&:hover': {
-                backgroundColor: theme.palette.action.hover,
-              },
-            }}
-          >
-            <ListItemIcon
-              sx={{
-                minWidth: open ? 40 : 40,
-                justifyContent: 'center',
-                color: isActive('/projects') ? theme.palette.text.primary : theme.palette.text.secondary,
-              }}
+          <Box sx={{ width: '100%' }}>
+            <Tooltip
+              title="Projects"
+              placement="right"
+              arrow
+              disableHoverListener={open}
+              disableFocusListener={open}
+              disableTouchListener={open}
             >
-              <FolderIcon />
-            </ListItemIcon>
-            {open && <ListItemText primary="Projects" />}
-          </ListItemButton>
+              <ListItemButton
+                onClick={(e) => {
+                  if (!open && projects.length > 0) {
+                    // When collapsed, show popover instead of navigating
+                    setProjectsPopoverAnchor(e.currentTarget);
+                  } else {
+                    handleNavigate('/projects');
+                  }
+                }}
+                selected={isActive('/projects')}
+                sx={{
+                  minHeight: 48,
+                  pr: open && projects.length > 0 ? 0.5 : 2,
+                  '&.Mui-selected': {
+                    backgroundColor: theme.palette.action.hover,
+                    borderLeft: `1px solid ${theme.palette.text.primary}`,
+                    '&:hover': {
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                  },
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    minWidth: open ? 40 : 40,
+                    justifyContent: 'center',
+                    color: isActive('/projects') ? theme.palette.text.primary : theme.palette.text.secondary,
+                  }}
+                >
+                  <FolderIcon sx={{ fontSize: 20 }} />
+                </ListItemIcon>
+                {open && <ListItemText primary="Projects" primaryTypographyProps={{ fontSize: '0.75rem' }} />}
+                {open && projects.length > 0 && (
+                  <IconButton
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setProjectsExpanded(!projectsExpanded);
+                    }}
+                    size="small"
+                    aria-label={projectsExpanded ? 'Collapse projects submenu' : 'Expand projects submenu'}
+                    sx={{
+                      ml: 'auto',
+                      p: 0.5,
+                      color: theme.palette.text.secondary,
+                      '&:hover': {
+                        backgroundColor: 'transparent',
+                        color: theme.palette.text.primary,
+                      },
+                    }}
+                  >
+                    <Tooltip title={projectsExpanded ? 'Collapse projects' : 'Expand projects'} placement="right" arrow>
+                      {projectsExpanded ? (
+                        <ExpandMoreIcon sx={{ fontSize: 20 }} />
+                      ) : (
+                        <ChevronRightIcon sx={{ fontSize: 20 }} />
+                      )}
+                    </Tooltip>
+                  </IconButton>
+                )}
+              </ListItemButton>
+            </Tooltip>
+            {open && projects.length > 0 && (
+              <Collapse in={projectsExpanded} timeout="auto" unmountOnExit>
+                <List component="div" disablePadding>
+                  {projects.map((project) => {
+                    const progress = projectPhaseProgress[project.id] || { completed: 0, total: 6 };
+                    return (
+                      <Tooltip
+                        key={project.id}
+                        title={`${project.name} - ${progress.completed}/${progress.total} phases complete`}
+                        placement="right"
+                        arrow
+                      >
+                        <ListItemButton
+                          onClick={() => {
+                            handleNavigate(`/project/${project.id}`);
+                          }}
+                          selected={isProjectActive(project.id)}
+                          sx={{
+                            pl: 4,
+                            minHeight: 40,
+                            '&.Mui-selected': {
+                              backgroundColor: theme.palette.action.hover,
+                              '&:hover': {
+                                backgroundColor: theme.palette.action.hover,
+                              },
+                            },
+                            '&:hover': {
+                              backgroundColor: theme.palette.action.hover,
+                            },
+                          }}
+                        >
+                          <ListItemText
+                            primary={project.name}
+                            primaryTypographyProps={{
+                              fontSize: '0.75rem',
+                            }}
+                          />
+                          {progress.total > 0 && (
+                            <Chip
+                              label={`${progress.completed}/${progress.total}`}
+                              size="small"
+                              sx={{
+                                height: 20,
+                                fontSize: '0.65rem',
+                                minWidth: 40,
+                                backgroundColor: progress.completed === progress.total 
+                                  ? theme.palette.success.main 
+                                  : theme.palette.action.hover,
+                                color: progress.completed === progress.total 
+                                  ? theme.palette.background.paper 
+                                  : theme.palette.text.primary,
+                                fontWeight: 600,
+                                ml: 1,
+                              }}
+                            />
+                          )}
+                        </ListItemButton>
+                      </Tooltip>
+                    );
+                  })}
+                </List>
+              </Collapse>
+            )}
+          </Box>
         </ListItem>
 
         {/* Project Management */}
         <ListItem disablePadding>
-          <ListItemButton
-            onClick={() => {
-              if (projectManagementProjects.length > 0) {
-                // If has projects, show popover on hover instead of navigating
-                return;
-              }
-              handleNavigate('/project-management');
-            }}
-            onMouseEnter={(e) => {
-              if (projectManagementProjects.length > 0) {
-                // Clear any existing timeout
-                if (projectManagementPopoverTimeoutRef.current) {
-                  clearTimeout(projectManagementPopoverTimeoutRef.current);
-                  projectManagementPopoverTimeoutRef.current = null;
-                }
-                setProjectManagementPopoverAnchor(e.currentTarget);
-              }
-            }}
-            onMouseLeave={() => {
-              if (projectManagementProjects.length > 0) {
-                // Add delay before closing to allow mouse to move to popover
-                projectManagementPopoverTimeoutRef.current = setTimeout(() => {
-                  setProjectManagementPopoverAnchor(null);
-                }, 200);
-              }
-            }}
-            selected={isActive('/project-management')}
-            sx={{
-              minHeight: 48,
-              '&.Mui-selected': {
-                backgroundColor: theme.palette.action.hover,
-                borderLeft: `1px solid ${theme.palette.text.primary}`,
-                '&:hover': {
-                  backgroundColor: theme.palette.action.hover,
-                },
-              },
-              '&:hover': {
-                backgroundColor: theme.palette.action.hover,
-              },
-            }}
-          >
-            <ListItemIcon
-              sx={{
-                minWidth: open ? 40 : 40,
-                justifyContent: 'center',
-                color: isActive('/project-management') ? theme.palette.text.primary : theme.palette.text.secondary,
-              }}
+          <Box sx={{ width: '100%' }}>
+            <Tooltip
+              title="Task Management"
+              placement="right"
+              arrow
+              disableHoverListener={open}
+              disableFocusListener={open}
+              disableTouchListener={open}
             >
-              <AssignmentIcon />
-            </ListItemIcon>
-            {open && <ListItemText primary="Task Management" />}
-          </ListItemButton>
+              <ListItemButton
+                onClick={(e) => {
+                  if (!open && projectManagementProjects.length > 0) {
+                    // When collapsed, show popover instead of navigating
+                    setProjectManagementPopoverAnchor(e.currentTarget);
+                  } else {
+                    handleNavigate('/project-management');
+                  }
+                }}
+                selected={isActive('/project-management')}
+                sx={{
+                  minHeight: 48,
+                  pr: open && projectManagementProjects.length > 0 ? 0.5 : 2,
+                  '&.Mui-selected': {
+                    backgroundColor: theme.palette.action.hover,
+                    borderLeft: `1px solid ${theme.palette.text.primary}`,
+                    '&:hover': {
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                  },
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    minWidth: open ? 40 : 40,
+                    justifyContent: 'center',
+                    color: isActive('/project-management') ? theme.palette.text.primary : theme.palette.text.secondary,
+                  }}
+                >
+                  <AssignmentIcon sx={{ fontSize: 20 }} />
+                </ListItemIcon>
+                {open && <ListItemText primary="Task Management" primaryTypographyProps={{ fontSize: '0.75rem' }} />}
+                {open && projectManagementProjects.length > 0 && (
+                  <IconButton
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setProjectManagementExpanded(!projectManagementExpanded);
+                    }}
+                    size="small"
+                    aria-label={projectManagementExpanded ? 'Collapse task management submenu' : 'Expand task management submenu'}
+                    sx={{
+                      ml: 'auto',
+                      p: 0.5,
+                      color: theme.palette.text.secondary,
+                      '&:hover': {
+                        backgroundColor: 'transparent',
+                        color: theme.palette.text.primary,
+                      },
+                    }}
+                  >
+                    <Tooltip title={projectManagementExpanded ? 'Collapse task management' : 'Expand task management'} placement="right" arrow>
+                      {projectManagementExpanded ? (
+                        <ExpandMoreIcon sx={{ fontSize: 20 }} />
+                      ) : (
+                        <ChevronRightIcon sx={{ fontSize: 20 }} />
+                      )}
+                    </Tooltip>
+                  </IconButton>
+                )}
+              </ListItemButton>
+            </Tooltip>
+            {open && projectManagementProjects.length > 0 && (
+              <Collapse in={projectManagementExpanded} timeout="auto" unmountOnExit>
+                <List component="div" disablePadding>
+                  {projectManagementProjects.map((project) => {
+                    const progress = projectPhaseProgress[project.id] || { completed: 0, total: 6 };
+                    return (
+                      <Tooltip
+                        key={project.id}
+                        title={`${project.name} - ${progress.completed}/${progress.total} phases complete`}
+                        placement="right"
+                        arrow
+                      >
+                        <ListItemButton
+                          onClick={() => {
+                            handleNavigate(`/project-management/${project.id}`);
+                          }}
+                          selected={isProjectManagementActive(project.id)}
+                          sx={{
+                            pl: 4,
+                            minHeight: 40,
+                            '&.Mui-selected': {
+                              backgroundColor: theme.palette.action.hover,
+                              '&:hover': {
+                                backgroundColor: theme.palette.action.hover,
+                              },
+                            },
+                            '&:hover': {
+                              backgroundColor: theme.palette.action.hover,
+                            },
+                          }}
+                        >
+                          <ListItemText
+                            primary={project.name}
+                            primaryTypographyProps={{
+                              fontSize: '0.75rem',
+                            }}
+                          />
+                          {progress.total > 0 && (
+                            <Chip
+                              label={`${progress.completed}/${progress.total}`}
+                              size="small"
+                              sx={{
+                                height: 20,
+                                fontSize: '0.65rem',
+                                minWidth: 40,
+                                backgroundColor: progress.completed === progress.total 
+                                  ? theme.palette.success.main 
+                                  : theme.palette.action.hover,
+                                color: progress.completed === progress.total 
+                                  ? theme.palette.background.paper 
+                                  : theme.palette.text.primary,
+                                fontWeight: 600,
+                                ml: 1,
+                              }}
+                            />
+                          )}
+                        </ListItemButton>
+                      </Tooltip>
+                    );
+                  })}
+                </List>
+              </Collapse>
+            )}
+          </Box>
         </ListItem>
 
         {/* Templates (Admin and PM only) */}
         {(role === 'admin' || role === 'pm') && (
           <ListItem disablePadding>
-            <ListItemButton
-              onClick={() => {
-                if (templates.length > 0) {
-                  // If has templates, show popover on hover instead of navigating
-                  return;
-                }
-                handleNavigate('/admin/templates');
-              }}
-              onMouseEnter={(e) => {
-                if (templates.length > 0) {
-                  // Clear any existing timeout
-                  if (templatesPopoverTimeoutRef.current) {
-                    clearTimeout(templatesPopoverTimeoutRef.current);
-                    templatesPopoverTimeoutRef.current = null;
-                  }
-                  setTemplatesPopoverAnchor(e.currentTarget);
-                }
-              }}
-              onMouseLeave={() => {
-                if (templates.length > 0) {
-                  // Add delay before closing to allow mouse to move to popover
-                  templatesPopoverTimeoutRef.current = setTimeout(() => {
-                    setTemplatesPopoverAnchor(null);
-                  }, 200);
-                }
-              }}
-              selected={isActive('/admin/templates')}
-              sx={{
-                minHeight: 48,
-                '&.Mui-selected': {
-                  backgroundColor: theme.palette.action.hover,
-                  borderLeft: `1px solid ${theme.palette.text.primary}`,
-                  '&:hover': {
-                    backgroundColor: theme.palette.action.hover,
-                  },
-                },
-                '&:hover': {
-                  backgroundColor: theme.palette.action.hover,
-                },
-              }}
-            >
-              <ListItemIcon
-                sx={{
-                  minWidth: open ? 40 : 40,
-                  justifyContent: 'center',
-                  color: isActive('/admin/templates') ? theme.palette.text.primary : theme.palette.text.secondary,
-                }}
+            <Box sx={{ width: '100%' }}>
+              <Tooltip
+                title="Templates"
+                placement="right"
+                arrow
+                disableHoverListener={open}
+                disableFocusListener={open}
+                disableTouchListener={open}
               >
-                <DescriptionIcon />
-              </ListItemIcon>
-              {open && <ListItemText primary="Templates" />}
-            </ListItemButton>
+                <ListItemButton
+                  onClick={(e) => {
+                    if (!open && templates.length > 0) {
+                      // When collapsed, show popover instead of navigating
+                      setTemplatesPopoverAnchor(e.currentTarget);
+                    } else {
+                      handleNavigate('/admin/templates');
+                    }
+                  }}
+                  selected={isActive('/admin/templates')}
+                  sx={{
+                    minHeight: 48,
+                    pr: open && templates.length > 0 ? 0.5 : 2,
+                    '&.Mui-selected': {
+                      backgroundColor: theme.palette.action.hover,
+                      borderLeft: `1px solid ${theme.palette.text.primary}`,
+                      '&:hover': {
+                        backgroundColor: theme.palette.action.hover,
+                      },
+                    },
+                    '&:hover': {
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                  }}
+                >
+                  <ListItemIcon
+                    sx={{
+                      minWidth: open ? 40 : 40,
+                      justifyContent: 'center',
+                      color: isActive('/admin/templates') ? theme.palette.text.primary : theme.palette.text.secondary,
+                    }}
+                  >
+                    <DescriptionIcon sx={{ fontSize: 20 }} />
+                  </ListItemIcon>
+                  {open && <ListItemText primary="Templates" primaryTypographyProps={{ fontSize: '0.75rem' }} />}
+                  {open && templates.length > 0 && (
+                    <IconButton
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTemplatesExpanded(!templatesExpanded);
+                      }}
+                      size="small"
+                      aria-label={templatesExpanded ? 'Collapse templates submenu' : 'Expand templates submenu'}
+                      sx={{
+                        ml: 'auto',
+                        p: 0.5,
+                        color: theme.palette.text.secondary,
+                        '&:hover': {
+                          backgroundColor: 'transparent',
+                          color: theme.palette.text.primary,
+                        },
+                      }}
+                    >
+                      <Tooltip title={templatesExpanded ? 'Collapse templates' : 'Expand templates'} placement="right" arrow>
+                        {templatesExpanded ? (
+                          <ExpandMoreIcon sx={{ fontSize: 20 }} />
+                        ) : (
+                          <ChevronRightIcon sx={{ fontSize: 20 }} />
+                        )}
+                      </Tooltip>
+                    </IconButton>
+                  )}
+                </ListItemButton>
+              </Tooltip>
+              {open && templates.length > 0 && (
+                <Collapse in={templatesExpanded} timeout="auto" unmountOnExit>
+                  <List component="div" disablePadding>
+                    {templates.map((template) => (
+                      <ListItemButton
+                        key={template.id}
+                        onClick={() => {
+                          handleNavigate(`/admin/templates/${template.id}/builder`);
+                        }}
+                        selected={isTemplateActive(template.id)}
+                        sx={{
+                          pl: 4,
+                          minHeight: 40,
+                          '&.Mui-selected': {
+                            backgroundColor: theme.palette.action.hover,
+                            '&:hover': {
+                              backgroundColor: theme.palette.action.hover,
+                            },
+                          },
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        }}
+                      >
+                        <ListItemText
+                          primary={template.name}
+                          primaryTypographyProps={{
+                            fontSize: '0.75rem',
+                          }}
+                        />
+                      </ListItemButton>
+                    ))}
+                  </List>
+                </Collapse>
+              )}
+            </Box>
           </ListItem>
         )}
 
@@ -736,9 +997,9 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                       color: isActive('/dashboards') ? theme.palette.text.primary : theme.palette.text.secondary,
                     }}
                   >
-                    <DashboardCustomizeIcon />
+                    <DashboardCustomizeIcon sx={{ fontSize: 20 }} />
                   </ListItemIcon>
-                  {open && <ListItemText primary="Dashboards" />}
+                  {open && <ListItemText primary="Dashboards" primaryTypographyProps={{ fontSize: '0.75rem' }} />}
                 </ListItemButton>
               </Tooltip>
             </ListItem>
@@ -800,9 +1061,9 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                       color: isActive('/ops/companies') ? theme.palette.text.primary : theme.palette.text.secondary,
                     }}
                   >
-                    <BusinessIcon />
+                    <BusinessIcon sx={{ fontSize: 20 }} />
                   </ListItemIcon>
-                  {open && <ListItemText primary="Companies" />}
+                  {open && <ListItemText primary="Companies" primaryTypographyProps={{ fontSize: '0.75rem' }} />}
                 </ListItemButton>
               </Tooltip>
             </ListItem>
@@ -841,9 +1102,9 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                       color: isActive('/ops/opportunities') ? theme.palette.text.primary : theme.palette.text.secondary,
                     }}
                   >
-                    <TrendingUpIcon />
+                    <TrendingUpIcon sx={{ fontSize: 20 }} />
                   </ListItemIcon>
-                  {open && <ListItemText primary="Opportunities" />}
+                  {open && <ListItemText primary="Opportunities" primaryTypographyProps={{ fontSize: '0.75rem' }} />}
                 </ListItemButton>
               </Tooltip>
             </ListItem>
@@ -882,25 +1143,22 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                       color: isActive('/ops/contacts') ? theme.palette.text.primary : theme.palette.text.secondary,
                     }}
                   >
-                    <ContactsIcon />
+                    <ContactsIcon sx={{ fontSize: 20 }} />
                   </ListItemIcon>
-                  {open && <ListItemText primary="Contacts" />}
+                  {open && <ListItemText primary="Contacts" primaryTypographyProps={{ fontSize: '0.75rem' }} />}
                 </ListItemButton>
               </Tooltip>
             </ListItem>
           </>
         )}
       </List>
+      </Box>
 
-      {/* Projects Popover - Shows on hover regardless of sidebar state */}
+      {/* Projects Popover - Shows when sidebar is collapsed */}
       <Popover
         open={Boolean(projectsPopoverAnchor)}
         anchorEl={projectsPopoverAnchor}
         onClose={() => {
-          if (projectsPopoverTimeoutRef.current) {
-            clearTimeout(projectsPopoverTimeoutRef.current);
-            projectsPopoverTimeoutRef.current = null;
-          }
           setProjectsPopoverAnchor(null);
         }}
         anchorOrigin={{
@@ -912,25 +1170,6 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
           horizontal: 'left',
         }}
         disableRestoreFocus
-        sx={{
-          pointerEvents: 'none',
-          '& .MuiPopover-paper': {
-            pointerEvents: 'auto',
-          },
-        }}
-        PaperProps={{
-          onMouseEnter: () => {
-            // Clear timeout when mouse enters popover
-            if (projectsPopoverTimeoutRef.current) {
-              clearTimeout(projectsPopoverTimeoutRef.current);
-              projectsPopoverTimeoutRef.current = null;
-            }
-          },
-          onMouseLeave: () => {
-            // Close popover when mouse leaves
-            setProjectsPopoverAnchor(null);
-          },
-        }}
       >
         <Paper
           sx={{
@@ -954,48 +1193,76 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                 },
               }}
             >
-              <ListItemText primary="View All" />
+              <ListItemText primary="View All Projects" primaryTypographyProps={{ fontSize: '0.75rem' }} />
             </MenuItem>
-            <Divider sx={{ borderColor: theme.palette.divider }} />
-            {projects.map((project) => (
-              <MenuItem
-                key={project.id}
-                onClick={() => {
-                  handleNavigate(`/project/${project.id}`);
-                  setProjectsPopoverAnchor(null);
-                }}
-                selected={isProjectActive(project.id)}
-                sx={{
-                  color: isProjectActive(project.id) ? theme.palette.text.primary : theme.palette.text.secondary,
-                  '&:hover': {
-                    backgroundColor: theme.palette.action.hover,
-                  },
-                  '&.Mui-selected': {
-                    backgroundColor: theme.palette.action.hover,
-                  },
-                }}
-              >
-                <ListItemText
-                  primary={project.name}
-                  primaryTypographyProps={{
-                    fontSize: '0.875rem',
-                  }}
-                />
-              </MenuItem>
-            ))}
+            {projects.length > 0 && (
+              <>
+                <Divider sx={{ borderColor: theme.palette.divider }} />
+                {projects.map((project) => {
+                  const progress = projectPhaseProgress[project.id] || { completed: 0, total: 6 };
+                  return (
+                    <Tooltip
+                      key={project.id}
+                      title={`${project.name} - ${progress.completed}/${progress.total} phases complete`}
+                      placement="right"
+                      arrow
+                    >
+                      <MenuItem
+                        onClick={() => {
+                          handleNavigate(`/project/${project.id}`);
+                          setProjectsPopoverAnchor(null);
+                        }}
+                        selected={isProjectActive(project.id)}
+                        sx={{
+                          color: isProjectActive(project.id) ? theme.palette.text.primary : theme.palette.text.secondary,
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                          '&.Mui-selected': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        }}
+                      >
+                        <ListItemText
+                          primary={project.name}
+                          primaryTypographyProps={{
+                            fontSize: '0.75rem',
+                          }}
+                        />
+                        {progress.total > 0 && (
+                          <Chip
+                            label={`${progress.completed}/${progress.total}`}
+                            size="small"
+                            sx={{
+                              height: 20,
+                              fontSize: '0.65rem',
+                              minWidth: 40,
+                              backgroundColor: progress.completed === progress.total 
+                                ? theme.palette.success.main 
+                                : theme.palette.action.hover,
+                              color: progress.completed === progress.total 
+                                ? theme.palette.background.paper 
+                                : theme.palette.text.primary,
+                              fontWeight: 600,
+                              ml: 1,
+                            }}
+                          />
+                        )}
+                      </MenuItem>
+                    </Tooltip>
+                  );
+                })}
+              </>
+            )}
           </MenuList>
         </Paper>
       </Popover>
 
-      {/* Templates Popover - Shows on hover regardless of sidebar state */}
+      {/* Templates Popover - Shows when sidebar is collapsed */}
       <Popover
         open={Boolean(templatesPopoverAnchor)}
         anchorEl={templatesPopoverAnchor}
         onClose={() => {
-          if (templatesPopoverTimeoutRef.current) {
-            clearTimeout(templatesPopoverTimeoutRef.current);
-            templatesPopoverTimeoutRef.current = null;
-          }
           setTemplatesPopoverAnchor(null);
         }}
         anchorOrigin={{
@@ -1007,25 +1274,6 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
           horizontal: 'left',
         }}
         disableRestoreFocus
-        sx={{
-          pointerEvents: 'none',
-          '& .MuiPopover-paper': {
-            pointerEvents: 'auto',
-          },
-        }}
-        PaperProps={{
-          onMouseEnter: () => {
-            // Clear timeout when mouse enters popover
-            if (templatesPopoverTimeoutRef.current) {
-              clearTimeout(templatesPopoverTimeoutRef.current);
-              templatesPopoverTimeoutRef.current = null;
-            }
-          },
-          onMouseLeave: () => {
-            // Close popover when mouse leaves
-            setTemplatesPopoverAnchor(null);
-          },
-        }}
       >
         <Paper
           sx={{
@@ -1049,7 +1297,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                 },
               }}
             >
-              <ListItemText primary="View All" />
+              <ListItemText primary="View All Templates" primaryTypographyProps={{ fontSize: '0.75rem' }} />
             </MenuItem>
             {templates.length > 0 && (
               <>
@@ -1065,17 +1313,17 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                     sx={{
                       color: isTemplateActive(template.id) ? theme.palette.text.primary : theme.palette.text.secondary,
                       '&:hover': {
-                        backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                        backgroundColor: theme.palette.action.hover,
                       },
-                  '&.Mui-selected': {
-                    backgroundColor: theme.palette.action.hover,
-                  },
+                      '&.Mui-selected': {
+                        backgroundColor: theme.palette.action.hover,
+                      },
                     }}
                   >
                     <ListItemText
                       primary={template.name}
                       primaryTypographyProps={{
-                        fontSize: '0.875rem',
+                        fontSize: '0.75rem',
                       }}
                     />
                   </MenuItem>
@@ -1086,15 +1334,11 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
         </Paper>
       </Popover>
 
-      {/* Project Management Popover - Shows on hover regardless of sidebar state */}
+      {/* Project Management Popover - Shows when sidebar is collapsed */}
       <Popover
         open={Boolean(projectManagementPopoverAnchor)}
         anchorEl={projectManagementPopoverAnchor}
         onClose={() => {
-          if (projectManagementPopoverTimeoutRef.current) {
-            clearTimeout(projectManagementPopoverTimeoutRef.current);
-            projectManagementPopoverTimeoutRef.current = null;
-          }
           setProjectManagementPopoverAnchor(null);
         }}
         anchorOrigin={{
@@ -1106,25 +1350,6 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
           horizontal: 'left',
         }}
         disableRestoreFocus
-        sx={{
-          pointerEvents: 'none',
-          '& .MuiPopover-paper': {
-            pointerEvents: 'auto',
-          },
-        }}
-        PaperProps={{
-          onMouseEnter: () => {
-            // Clear timeout when mouse enters popover
-            if (projectManagementPopoverTimeoutRef.current) {
-              clearTimeout(projectManagementPopoverTimeoutRef.current);
-              projectManagementPopoverTimeoutRef.current = null;
-            }
-          },
-          onMouseLeave: () => {
-            // Close popover when mouse leaves
-            setProjectManagementPopoverAnchor(null);
-          },
-        }}
       >
         <Paper
           sx={{
@@ -1148,43 +1373,70 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                 },
               }}
             >
-              <ListItemText primary="View All" />
+              <ListItemText primary="View All Projects" primaryTypographyProps={{ fontSize: '0.75rem' }} />
             </MenuItem>
             {projectManagementProjects.length > 0 && (
               <>
                 <Divider sx={{ borderColor: theme.palette.divider }} />
-                {projectManagementProjects.map((project) => (
-                  <MenuItem
-                    key={project.id}
-                    onClick={() => {
-                      handleNavigate(`/project-management/${project.id}`);
-                      setProjectManagementPopoverAnchor(null);
-                    }}
-                    selected={isProjectManagementActive(project.id)}
-                    sx={{
-                      color: isProjectManagementActive(project.id) ? theme.palette.text.primary : theme.palette.text.secondary,
-                      '&:hover': {
-                        backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                      },
-                  '&.Mui-selected': {
-                    backgroundColor: theme.palette.action.hover,
-                  },
-                    }}
-                  >
-                    <ListItemText
-                      primary={project.name}
-                      primaryTypographyProps={{
-                        fontSize: '0.875rem',
-                      }}
-                    />
-                  </MenuItem>
-                ))}
+                {projectManagementProjects.map((project) => {
+                  const progress = projectPhaseProgress[project.id] || { completed: 0, total: 6 };
+                  return (
+                    <Tooltip
+                      key={project.id}
+                      title={`${project.name} - ${progress.completed}/${progress.total} phases complete`}
+                      placement="right"
+                      arrow
+                    >
+                      <MenuItem
+                        onClick={() => {
+                          handleNavigate(`/project-management/${project.id}`);
+                          setProjectManagementPopoverAnchor(null);
+                        }}
+                        selected={isProjectManagementActive(project.id)}
+                        sx={{
+                          color: isProjectManagementActive(project.id) ? theme.palette.text.primary : theme.palette.text.secondary,
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                          '&.Mui-selected': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        }}
+                      >
+                        <ListItemText
+                          primary={project.name}
+                          primaryTypographyProps={{
+                            fontSize: '0.75rem',
+                          }}
+                        />
+                        {progress.total > 0 && (
+                          <Chip
+                            label={`${progress.completed}/${progress.total}`}
+                            size="small"
+                            sx={{
+                              height: 20,
+                              fontSize: '0.65rem',
+                              minWidth: 40,
+                              backgroundColor: progress.completed === progress.total 
+                                ? theme.palette.success.main 
+                                : theme.palette.action.hover,
+                              color: progress.completed === progress.total 
+                                ? theme.palette.background.paper 
+                                : theme.palette.text.primary,
+                              fontWeight: 600,
+                              ml: 1,
+                            }}
+                          />
+                        )}
+                      </MenuItem>
+                    </Tooltip>
+                  );
+                })}
               </>
             )}
           </MenuList>
         </Paper>
       </Popover>
-      </Box>
 
       {/* My Tasks - Bottom Navigation Item */}
       <Box sx={{ borderTop: `1px solid ${theme.palette.divider}`, flexShrink: 0 }}>
@@ -1223,11 +1475,11 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                     color: isActive('/my-tasks') ? theme.palette.text.primary : theme.palette.text.secondary,
                   }}
                 >
-                  <ScheduleIcon />
+                  <ScheduleIcon sx={{ fontSize: 20 }} />
                 </ListItemIcon>
                 {open && (
                   <>
-                    <ListItemText primary="My Tasks" />
+                    <ListItemText primary="My Tasks" primaryTypographyProps={{ fontSize: '0.75rem' }} />
                     <Box
                       sx={{
                         display: 'flex',

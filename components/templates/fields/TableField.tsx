@@ -871,7 +871,7 @@ function TableField({ field, value, onChange, error, phaseData }: TableFieldProp
     return (
       <Box>
         {/* Action Buttons */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 2, gap: { xs: 2, md: 0 } }}>
           <Typography variant="h6" sx={{ color: 'text.primary' }}>
             {field.field_config.label || 'Table'}
             {field.field_config.required && (
@@ -880,7 +880,7 @@ function TableField({ field, value, onChange, error, phaseData }: TableFieldProp
               </Box>
             )}
           </Typography>
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', width: { xs: '100%', md: 'auto' } }}>
             <input
               accept=".csv"
               style={{ display: 'none' }}
@@ -893,7 +893,7 @@ function TableField({ field, value, onChange, error, phaseData }: TableFieldProp
               htmlFor={`csv-upload-preview-${field.field_key}`}
               startIcon={<FileUploadIcon />}
               size="small"
-              sx={{ color: 'text.secondary' }}
+              sx={{ color: 'text.secondary', flex: { xs: 1, md: '0 0 auto' } }}
             >
               Import CSV
             </Button>
@@ -902,7 +902,7 @@ function TableField({ field, value, onChange, error, phaseData }: TableFieldProp
               disabled={tableData.rows.length === 0}
               startIcon={<FileDownloadIcon />}
               size="small"
-              sx={{ color: 'text.secondary' }}
+              sx={{ color: 'text.secondary', flex: { xs: 1, md: '0 0 auto' } }}
             >
               Export CSV
             </Button>
@@ -914,6 +914,7 @@ function TableField({ field, value, onChange, error, phaseData }: TableFieldProp
               sx={{
                 backgroundColor: 'primary.main',
                 color: '#000',
+                flex: { xs: 1, md: '0 0 auto' },
               }}
             >
               Open Editor

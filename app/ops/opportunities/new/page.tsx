@@ -126,7 +126,7 @@ export default function NewOpportunityPage() {
   };
 
   return (
-    <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+    <Container maxWidth="md" sx={{ mt: 4, mb: 4, px: { xs: 0, md: 3 } }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
         <IconButton
           onClick={() => router.push('/ops/opportunities')}
