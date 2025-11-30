@@ -10,6 +10,7 @@ import {
   Tabs,
   Tab,
   Paper,
+  Button,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -59,9 +60,17 @@ export default function AdminPage() {
   const router = useRouter();
   const supabase = createSupabaseClient();
   const { role, isSuperAdmin, loading: roleLoading } = useRole();
-  const { organization } = useOrganization();
+  const { organization, features } = useOrganization();
   // Initialize activeTab: 0 for admin (Users), 1 for PM (Theme)
   const [activeTab, setActiveTab] = useState(0);
+  const [apiKeysOverride, setApiKeysOverride] = useState(false);
+  
+  // Check if API Access module is enabled
+  // Features from OrganizationProvider already include module_overrides merged in
+  const apiAccessEnabled = features?.api_access_enabled === true;
+  
+  // Show API Keys tab if module is enabled OR if super admin has override enabled
+  const showApiKeysTab = apiAccessEnabled || (isSuperAdmin && apiKeysOverride);
   const [stats, setStats] = useState({
     totalUsers: 0,
     activeUsers: 0,
@@ -173,21 +182,41 @@ export default function AdminPage() {
     setActiveTab(newValue);
   };
 
+  // Super admin override toggle for API Keys tab
+  const handleApiKeysOverride = () => {
+    if (!isSuperAdmin) return;
+    setApiKeysOverride(!apiKeysOverride);
+    // If disabling override and API Keys tab was active, switch to Users tab
+    if (apiKeysOverride && activeTab === 1) {
+      setActiveTab(0);
+    }
+  };
+
   return (
     <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', p: 3 }}>
-      <Typography
-        variant="h4"
-        component="h1"
-        gutterBottom
-        sx={{
-          fontSize: '1.5rem',
-          fontWeight: 600,
-          color: theme.palette.text.primary,
-          mb: 3,
-        }}
-      >
-        Admin Dashboard
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography
+          variant="h4"
+          component="h1"
+          sx={{
+            fontSize: '1.5rem',
+            fontWeight: 600,
+            color: theme.palette.text.primary,
+          }}
+        >
+          Admin Dashboard
+        </Typography>
+        {isSuperAdmin && !apiAccessEnabled && (
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={handleApiKeysOverride}
+            sx={{ ml: 2 }}
+          >
+            {apiKeysOverride ? 'Hide' : 'Show'} API Keys Tab
+          </Button>
+        )}
+      </Box>
 
 
       <Paper
@@ -225,7 +254,9 @@ export default function AdminPage() {
               iconPosition="start" 
               label="Users"
             />
-            <Tab icon={<VpnKeyIcon />} iconPosition="start" label="API Keys" />
+            {showApiKeysTab && (
+              <Tab icon={<VpnKeyIcon />} iconPosition="start" label="API Keys" />
+            )}
             <Tab icon={<PaletteIcon />} iconPosition="start" label="Theme" />
             <Tab icon={<CreditCardIcon />} iconPosition="start" label="Subscription" />
             {isSuperAdmin && (
@@ -239,29 +270,60 @@ export default function AdminPage() {
         </Box>
 
         <Box sx={{ p: 3 }}>
+          {/* Tab 0: Users (always shown) */}
           <TabPanel value={activeTab} index={0}>
             <AdminUsersTab />
           </TabPanel>
-          <TabPanel value={activeTab} index={1}>
-            <AdminApiKeysTab />
-          </TabPanel>
-          <TabPanel value={activeTab} index={2}>
+          
+          {/* Tab 1: API Keys (conditional - only if showApiKeysTab) */}
+          {showApiKeysTab && (
+            <TabPanel value={activeTab} index={1}>
+              {!apiAccessEnabled && isSuperAdmin && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                  API Keys tab is shown via super admin override. API Access module is currently disabled for this organization.
+                  <Box sx={{ mt: 1 }}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => setApiKeysOverride(false)}
+                    >
+                      Hide Tab
+                    </Button>
+                  </Box>
+                </Alert>
+              )}
+              <AdminApiKeysTab />
+            </TabPanel>
+          )}
+          
+          {/* Tab index calculation: 2 if API Keys shown, 1 if not */}
+          <TabPanel value={activeTab} index={showApiKeysTab ? 2 : 1}>
             <AdminThemeTab />
           </TabPanel>
-          <TabPanel value={activeTab} index={3}>
+          
+          {/* Tab index calculation: 3 if API Keys shown, 2 if not */}
+          <TabPanel value={activeTab} index={showApiKeysTab ? 3 : 2}>
             <AdminSubscriptionTab />
           </TabPanel>
+          
+          {/* Tab index calculation: 4 if API Keys shown, 3 if not (super admin only) */}
           {isSuperAdmin && (
-            <TabPanel value={activeTab} index={4}>
+            <TabPanel value={activeTab} index={showApiKeysTab ? 4 : 3}>
               <AdminApiConfigTab />
             </TabPanel>
           )}
+          
+          {/* Tab index calculation: 5 if API Keys shown, 4 if not (super admin only) */}
           {isSuperAdmin && (
-            <TabPanel value={activeTab} index={5}>
+            <TabPanel value={activeTab} index={showApiKeysTab ? 5 : 4}>
               <AdminSystemTab />
             </TabPanel>
           )}
-          <TabPanel value={activeTab} index={isSuperAdmin ? 6 : 4}>
+          
+          {/* Tab index calculation: 
+              - If super admin: 6 if API Keys shown, 5 if not
+              - If not super admin: 4 if API Keys shown, 3 if not */}
+          <TabPanel value={activeTab} index={isSuperAdmin ? (showApiKeysTab ? 6 : 5) : (showApiKeysTab ? 4 : 3)}>
             <AdminAnalyticsTab />
           </TabPanel>
         </Box>

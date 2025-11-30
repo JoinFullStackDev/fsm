@@ -35,26 +35,21 @@ import {
 } from '@mui/icons-material';
 import FeatureCard from '@/components/landing/FeatureCard';
 import PricingCard from '@/components/landing/PricingCard';
+import SignupModal from '@/components/landing/SignupModal';
 import MockDashboard from '@/components/landing/MockDashboard';
 import ProcessStepper from '@/components/landing/ProcessStepper';
 import LandingHeader from '@/components/landing/LandingHeader';
 import InteractiveMockUI from '@/components/landing/InteractiveMockUI';
 import SeeItInActionDashboard from '@/components/landing/SeeItInActionDashboard';
-import type { PackageFeatures } from '@/lib/organizationContext';
-
-interface Package {
-  id: string;
-  name: string;
-  price_per_user_monthly: number;
-  features: PackageFeatures;
-  display_order: number;
-}
+import type { PackageFeatures, Package } from '@/lib/organizationContext';
 
 export default function HomePage() {
   const theme = useTheme();
   const router = useRouter();
   const [packages, setPackages] = useState<Package[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
+  const [signupModalOpen, setSignupModalOpen] = useState(false);
 
   useEffect(() => {
     loadPackages();
@@ -692,6 +687,10 @@ export default function HomePage() {
                   isPopular={index === 1} // Mark second package as popular
                   delay={index * 0.1}
                   index={index}
+                  onSelect={(pkg) => {
+                    setSelectedPackage(pkg);
+                    setSignupModalOpen(true);
+                  }}
                 />
               ))}
             </Box>
@@ -830,6 +829,16 @@ export default function HomePage() {
           </motion.div>
         </Box>
       </Container>
+
+      {/* Signup Modal */}
+      <SignupModal
+        open={signupModalOpen}
+        onClose={() => {
+          setSignupModalOpen(false);
+          setSelectedPackage(null);
+        }}
+        package={selectedPackage}
+      />
     </Box>
   );
 }

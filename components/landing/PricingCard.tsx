@@ -24,24 +24,17 @@ import {
   AutoAwesome as EnterpriseIcon,
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
-import type { PackageFeatures } from '@/lib/organizationContext';
-
-interface Package {
-  id: string;
-  name: string;
-  price_per_user_monthly: number;
-  features: PackageFeatures;
-  display_order: number;
-}
+import type { Package, PackageFeatures } from '@/lib/organizationContext';
 
 interface PricingCardProps {
   pkg: Package;
   isPopular?: boolean;
   delay?: number;
   index?: number;
+  onSelect?: (pkg: Package) => void;
 }
 
-export default function PricingCard({ pkg, isPopular = false, delay = 0, index = 0 }: PricingCardProps) {
+export default function PricingCard({ pkg, isPopular = false, delay = 0, index = 0, onSelect }: PricingCardProps) {
   const theme = useTheme();
   const router = useRouter();
 
@@ -65,10 +58,12 @@ export default function PricingCard({ pkg, isPopular = false, delay = 0, index =
     
     // Module features
     if (features.ai_features_enabled) list.push('AI Features');
+    if (features.ai_task_generator_enabled) list.push('AI Task Generator');
     if (features.analytics_enabled) list.push('Analytics');
     if (features.api_access_enabled) list.push('API Access');
     if (features.ops_tool_enabled) list.push('Ops Tool');
     if (features.export_features_enabled) list.push('Export Features');
+    if (features.custom_dashboards_enabled) list.push('Custom Dashboards');
     
     // Limits
     if (features.max_projects !== null) {
@@ -99,6 +94,22 @@ export default function PricingCard({ pkg, isPopular = false, delay = 0, index =
   };
 
   const features = getFeatureList(pkg.features);
+
+  // Show monthly price by default, or yearly if monthly not available
+  const pricingModel = pkg.pricing_model || 'per_user';
+  const monthlyPrice = pricingModel === 'per_user' 
+    ? pkg.price_per_user_monthly 
+    : pkg.base_price_monthly;
+  const yearlyPrice = pricingModel === 'per_user' 
+    ? pkg.price_per_user_yearly 
+    : pkg.base_price_yearly;
+  
+  const displayPrice = monthlyPrice || yearlyPrice || 0;
+  const displaySuffix = monthlyPrice 
+    ? (pricingModel === 'per_user' ? '/user/mo' : '/mo')
+    : (pricingModel === 'per_user' ? '/user/yr' : '/yr');
+  
+  const hasBothPrices = monthlyPrice && yearlyPrice;
 
   return (
     <motion.div
@@ -188,18 +199,27 @@ export default function PricingCard({ pkg, isPopular = false, delay = 0, index =
                 fontSize: '1.5rem',
               }}
             >
-              ${pkg.price_per_user_monthly.toFixed(2)}
+              ${displayPrice.toFixed(2)}
             </Typography>
             <Typography
               variant="body2"
               color="text.secondary"
               sx={{ display: 'inline', ml: 0.5, fontSize: '0.75rem' }}
             >
-              /mo
+              {displaySuffix}
             </Typography>
+            {hasBothPrices && (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: 'block', mt: 0.5, fontSize: '0.7rem' }}
+              >
+                or ${yearlyPrice.toFixed(2)}{pricingModel === 'per_user' ? '/user/yr' : '/yr'}
+              </Typography>
+            )}
           </Box>
-          <List dense sx={{ flexGrow: 1, mb: 2 }}>
-            {features.slice(0, 4).map((feature, index) => (
+          <List dense sx={{ flexGrow: 1, mb: 2, maxHeight: '300px', overflowY: 'auto' }}>
+            {features.map((feature, index) => (
               <ListItem key={index} disableGutters sx={{ py: 0.25 }}>
                 <ListItemIcon sx={{ minWidth: 24 }}>
                   <CheckCircleIcon sx={{ fontSize: 14, color: theme.palette.success.main }} />
@@ -219,8 +239,13 @@ export default function PricingCard({ pkg, isPopular = false, delay = 0, index =
             variant={isPopular ? 'contained' : 'outlined'}
             size="small"
             onClick={() => {
-              sessionStorage.setItem('selectedPackageId', pkg.id);
-              router.push('/auth/signup');
+              if (onSelect) {
+                onSelect(pkg);
+              } else {
+                // Fallback to old behavior
+                sessionStorage.setItem('selectedPackageId', pkg.id);
+                router.push('/auth/signup');
+              }
             }}
             sx={{
               mt: 'auto',

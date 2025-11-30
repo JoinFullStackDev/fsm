@@ -52,6 +52,7 @@ import {
 } from '@mui/icons-material';
 import { useNotification } from '@/lib/hooks/useNotification';
 import { AVAILABLE_MODULES, getModulesByCategory } from '@/lib/modules';
+import { formatPackagePrice } from '@/lib/packagePricing';
 import * as Icons from '@mui/icons-material';
 
 interface TabPanelProps {
@@ -460,7 +461,12 @@ export default function OrganizationDetailPage() {
                   Slug: {organization.slug}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Created: {new Date(organization.created_at).toLocaleDateString()}
+                  Created: {new Date(organization.created_at).toLocaleDateString('en-US', {
+                    timeZone: 'America/Phoenix',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Stripe Customer ID: {organization.stripe_customer_id || 'N/A'}
@@ -525,9 +531,12 @@ export default function OrganizationDetailPage() {
                     <Typography variant="body1" sx={{ mt: 1 }}>
                       {organization.package?.name || 'None'}
                     </Typography>
-                    {organization.package && (
+                    {organization.package && organization.subscription && (
                       <Typography variant="body2" color="text.secondary">
-                        ${organization.package.price_per_user_monthly}/user/month
+                        {formatPackagePrice(
+                          organization.package,
+                          (organization.subscription.billing_interval || 'month') as 'month' | 'year'
+                        )}
                       </Typography>
                     )}
                   </Grid>
@@ -537,11 +546,21 @@ export default function OrganizationDetailPage() {
                     </Typography>
                     <Typography variant="body2" sx={{ mt: 1 }}>
                       {organization.subscription.current_period_start
-                        ? new Date(organization.subscription.current_period_start).toLocaleDateString()
+                        ? new Date(organization.subscription.current_period_start).toLocaleDateString('en-US', {
+                            timeZone: 'America/Phoenix',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })
                         : 'N/A'}{' '}
                       -{' '}
                       {organization.subscription.current_period_end
-                        ? new Date(organization.subscription.current_period_end).toLocaleDateString()
+                        ? new Date(organization.subscription.current_period_end).toLocaleDateString('en-US', {
+                            timeZone: 'America/Phoenix',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })
                         : 'N/A'}
                     </Typography>
                   </Grid>
@@ -651,11 +670,21 @@ export default function OrganizationDetailPage() {
                         />
                       </TableCell>
                       <TableCell>
-                        {new Date(invoice.created).toLocaleDateString()}
+                        {new Date(invoice.created).toLocaleDateString('en-US', {
+                          timeZone: 'America/Phoenix',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                        })}
                       </TableCell>
                       <TableCell>
                         {invoice.due_date
-                          ? new Date(invoice.due_date).toLocaleDateString()
+                          ? new Date(invoice.due_date).toLocaleDateString('en-US', {
+                              timeZone: 'America/Phoenix',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                            })
                           : 'N/A'}
                       </TableCell>
                       <TableCell align="right">

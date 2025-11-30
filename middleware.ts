@@ -217,33 +217,53 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // Protect dashboard and project routes
-  // Early exit optimization: if no auth cookies exist, redirect immediately (skip all auth calls)
-  if (
-    request.nextUrl.pathname.startsWith('/dashboard') ||
-    request.nextUrl.pathname.startsWith('/project')
-  ) {
+  // Protect all dashboard and authenticated routes
+  // These routes require authentication - redirect to signin if not authenticated
+  const protectedRoutes = [
+    '/dashboard',
+    '/project',
+    '/organization',
+    '/admin',
+    '/dashboards',
+    '/ops',
+    '/my-tasks',
+    '/profile',
+    '/projects',
+  ];
+  
+  const isProtectedRoute = protectedRoutes.some(route => 
+    request.nextUrl.pathname.startsWith(route)
+  );
+  
+  if (isProtectedRoute) {
     // Early exit: no auth cookies means no session, redirect immediately
     if (authCookies.length === 0) {
-      const referer = request.headers.get('referer');
-      const isFromSignIn = referer?.includes('/auth/signin');
+      return NextResponse.redirect(new URL('/auth/signin', request.url));
+    }
+    
+    // Auth cookies exist - verify session
+    if (!currentSession) {
+      // No valid session - redirect to signin
+      return NextResponse.redirect(new URL('/auth/signin', request.url));
+    }
+    
+    // Verify user exists in database
+    const currentUserId = currentSession.user.id;
+    if (currentUserId) {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_id', currentUserId)
+        .maybeSingle();
       
-      // Only redirect if not coming from sign-in
-      if (!isFromSignIn) {
+      // If user doesn't exist in database, redirect to signin
+      // (This handles edge cases where auth user exists but DB record doesn't)
+      if (!userData) {
         return NextResponse.redirect(new URL('/auth/signin', request.url));
       }
-      
-      // Coming from sign-in but no cookies yet - let it through for client-side check
-      return response;
     }
     
-    // Auth cookies exist - check session (already fetched above)
-    if (!currentSession) {
-      // Auth cookies exist but no session - let client-side handle it (no getUser call needed)
-      return response;
-    }
-    
-    // Session exists, allow access
+    // Session exists and user is valid, allow access
   }
 
   return response;
@@ -256,6 +276,12 @@ export const config = {
     '/admin/:path*',
     '/dashboard/:path*',
     '/project/:path*',
+    '/organization/:path*',
+    '/dashboards/:path*',
+    '/ops/:path*',
+    '/my-tasks/:path*',
+    '/profile/:path*',
+    '/projects/:path*',
   ],
 };
 

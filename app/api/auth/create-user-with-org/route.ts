@@ -36,14 +36,25 @@ export async function POST(request: NextRequest) {
     // Verify organization exists
     const { data: orgCheck, error: orgCheckError } = await adminClient
       .from('organizations')
-      .select('id')
+      .select('id, name')
       .eq('id', organization_id)
       .single();
 
     if (orgCheckError || !orgCheck) {
-      logger.error('Organization not found:', { organization_id, error: orgCheckError });
+      logger.error('[CreateUserWithOrg] Organization not found:', { 
+        organization_id, 
+        error: orgCheckError?.message,
+        errorCode: orgCheckError?.code,
+      });
       return badRequest('Invalid organization. Please try signing up again.');
     }
+
+    logger.info('[CreateUserWithOrg] Verifying organization assignment:', {
+      organizationId: organization_id,
+      organizationName: orgCheck.name,
+      userEmail: email,
+      authUserId: session.user.id,
+    });
 
     // Check if user record already exists
     const { data: existingUser } = await adminClient
@@ -108,6 +119,25 @@ export async function POST(request: NextRequest) {
         .eq('id', existingUser.id)
         .single();
 
+      // Verify organization assignment
+      if (userRecord && userRecord.organization_id !== organization_id) {
+        logger.error('[CreateUserWithOrg] Organization assignment mismatch after update:', {
+          userId: userRecord.id,
+          expectedOrgId: organization_id,
+          actualOrgId: userRecord.organization_id,
+        });
+        return internalError('Failed to assign user to organization', {
+          expectedOrgId: organization_id,
+          actualOrgId: userRecord.organization_id,
+        });
+      }
+
+      logger.info('[CreateUserWithOrg] User updated and verified:', {
+        userId: userRecord?.id,
+        email: userRecord?.email,
+        organizationId: userRecord?.organization_id,
+      });
+
       return NextResponse.json({ user: userRecord });
     }
 
@@ -148,9 +178,9 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (createError) {
-      logger.error('Error creating user:', createError);
-      logger.error('User creation details:', insertData);
-      logger.error('Error details:', {
+      logger.error('[CreateUserWithOrg] Error creating user:', createError);
+      logger.error('[CreateUserWithOrg] User creation details:', insertData);
+      logger.error('[CreateUserWithOrg] Error details:', {
         message: createError.message,
         details: createError.details,
         hint: createError.hint,
@@ -176,6 +206,26 @@ export async function POST(request: NextRequest) {
         code: createError.code,
       });
     }
+
+    // Verify organization assignment after creation
+    if (newUser && newUser.organization_id !== organization_id) {
+      logger.error('[CreateUserWithOrg] Organization assignment mismatch after creation:', {
+        userId: newUser.id,
+        expectedOrgId: organization_id,
+        actualOrgId: newUser.organization_id,
+      });
+      return internalError('User was assigned to incorrect organization', {
+        expectedOrgId: organization_id,
+        actualOrgId: newUser.organization_id,
+      });
+    }
+
+    logger.info('[CreateUserWithOrg] User successfully created and verified:', {
+      userId: newUser?.id,
+      email: newUser?.email,
+      organizationId: newUser?.organization_id,
+      role: newUser?.role,
+    });
 
     return NextResponse.json({ user: newUser });
   } catch (error) {

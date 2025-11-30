@@ -51,9 +51,15 @@ export async function GET(request: NextRequest) {
     const publicPackages = (packages || []).map((pkg: any) => ({
       id: pkg.id,
       name: pkg.name,
-      stripe_price_id: pkg.stripe_price_id,
+      stripe_price_id: pkg.stripe_price_id, // Backward compatibility
       stripe_product_id: pkg.stripe_product_id,
+      pricing_model: pkg.pricing_model || 'per_user',
+      base_price_monthly: pkg.base_price_monthly,
+      base_price_yearly: pkg.base_price_yearly,
       price_per_user_monthly: pkg.price_per_user_monthly,
+      price_per_user_yearly: pkg.price_per_user_yearly,
+      stripe_price_id_monthly: pkg.stripe_price_id_monthly,
+      stripe_price_id_yearly: pkg.stripe_price_id_yearly,
       features: pkg.features,
       is_active: pkg.is_active,
       display_order: pkg.display_order,

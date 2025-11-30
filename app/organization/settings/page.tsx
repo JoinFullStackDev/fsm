@@ -30,6 +30,7 @@ import {
 import { useOrganization } from '@/components/providers/OrganizationProvider';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import type { LimitCheckResult } from '@/lib/packageLimits';
+import { formatPackagePrice } from '@/lib/packagePricing';
 
 export default function OrganizationSettingsPage() {
   const theme = useTheme();
@@ -265,11 +266,16 @@ export default function OrganizationSettingsPage() {
                   sx={{ mb: 2 }}
                 />
                 <Typography variant="body2" color="text.secondary" gutterBottom>
-                  ${packageData.price_per_user_monthly}/user/month
+                  {formatPackagePrice(packageData, (subscription?.billing_interval || 'month') as 'month' | 'year')}
                 </Typography>
                 {subscription?.current_period_end && (
                   <Typography variant="body2" color="text.secondary">
-                    Renews: {new Date(subscription.current_period_end).toLocaleDateString()}
+                    Renews: {new Date(subscription.current_period_end).toLocaleDateString('en-US', {
+                      timeZone: 'America/Phoenix',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
                   </Typography>
                 )}
                 <Box mt={2}>

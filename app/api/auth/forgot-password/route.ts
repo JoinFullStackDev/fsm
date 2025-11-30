@@ -97,17 +97,26 @@ export async function POST(request: NextRequest) {
     );
 
     // Send email
-    const emailResult = await sendEmailWithRetry(
+    const emailSendResult = await sendEmailWithRetry(
       user.email,
       template.subject,
       template.html,
       template.text
     );
 
-    if (!emailResult.success) {
-      logger.error('[Password Reset] Error sending email:', emailResult.error);
+    if (!emailSendResult.success) {
+      logger.error('[Password Reset] Failed to send password reset email:', {
+        email: user.email,
+        error: emailSendResult.error,
+        subject: template.subject,
+      });
       // Don't fail the request, but log the error
       // In production, you might want to queue this for retry
+    } else {
+      logger.info('[Password Reset] Password reset email sent successfully', {
+        email: user.email,
+        subject: template.subject,
+      });
     }
 
     // Always return success (even if email failed) to prevent email enumeration

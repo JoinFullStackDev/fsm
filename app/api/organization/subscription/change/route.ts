@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { package_id } = body;
+    const { package_id, billing_interval } = body;
 
     if (!package_id) {
       return badRequest('Missing required field: package_id');
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     // Get current subscription
     const { data: subscription, error: subError } = await adminClient
       .from('subscriptions')
-      .select('id, stripe_subscription_id, package_id')
+      .select('id, stripe_subscription_id, package_id, billing_interval')
       .eq('organization_id', organizationId)
       .in('status', ['active', 'trialing'])
       .order('created_at', { ascending: false })
@@ -53,10 +53,13 @@ export async function POST(request: NextRequest) {
       return badRequest('No active subscription found');
     }
 
-    // Get new package
+    // Determine billing interval: use provided one, or fall back to existing subscription's interval, or default to 'month'
+    const targetBillingInterval = billing_interval || subscription.billing_interval || 'month';
+
+    // Get new package with all pricing fields
     const { data: newPackage, error: pkgError } = await adminClient
       .from('packages')
-      .select('id, stripe_price_id, stripe_product_id, name, price_per_user_monthly')
+      .select('id, stripe_price_id_monthly, stripe_price_id_yearly, stripe_product_id, name, pricing_model, price_per_user_monthly, price_per_user_yearly, base_price_monthly, base_price_yearly')
       .eq('id', package_id)
       .single();
 
@@ -64,9 +67,12 @@ export async function POST(request: NextRequest) {
       return badRequest('Package not found');
     }
 
-    // Get price ID (from package or product)
-    let priceId = newPackage.stripe_price_id;
+    // Get the correct price ID based on billing interval
+    let priceId = targetBillingInterval === 'month' 
+      ? newPackage.stripe_price_id_monthly 
+      : newPackage.stripe_price_id_yearly;
     
+    // If no price ID but we have product ID, try to find/create price
     if (!priceId && newPackage.stripe_product_id) {
       const stripe = await getStripeClient();
       try {
@@ -74,18 +80,78 @@ export async function POST(request: NextRequest) {
           product: newPackage.stripe_product_id,
           active: true,
         });
-        const monthlyPrice = prices.data.find((p) => p.recurring && p.recurring.interval === 'month');
-        if (monthlyPrice) {
-          priceId = monthlyPrice.id;
+        // Find price matching the billing interval
+        const matchingPrice = prices.data.find(
+          (p) => p.recurring && p.recurring.interval === targetBillingInterval
+        );
+        if (matchingPrice) {
+          // Check if the price is metered - if so and it's per-user pricing, create a licensed replacement
+          const isMetered = matchingPrice.recurring?.usage_type === 'metered';
+          const pricingModel = newPackage.pricing_model || 'per_user';
+          if (isMetered && pricingModel === 'per_user') {
+            logger.info('[Stripe] Metered price found for per-user pricing, creating licensed replacement:', {
+              priceId: matchingPrice.id,
+              packageId: package_id,
+              interval: targetBillingInterval,
+            });
+
+            const unitAmount = pricingModel === 'per_user'
+              ? (targetBillingInterval === 'month' ? (newPackage.price_per_user_monthly || 0) : (newPackage.price_per_user_yearly || 0))
+              : (targetBillingInterval === 'month' ? (newPackage.base_price_monthly || 0) : (newPackage.base_price_yearly || 0));
+
+            const newPrice = await stripe.prices.create({
+              product: newPackage.stripe_product_id,
+              unit_amount: Math.round(unitAmount * 100),
+              currency: 'usd',
+              recurring: {
+                interval: targetBillingInterval,
+                usage_type: 'licensed',
+              },
+            });
+
+            priceId = newPrice.id;
+            const updateField = targetBillingInterval === 'month' ? 'stripe_price_id_monthly' : 'stripe_price_id_yearly';
+            await adminClient
+              .from('packages')
+              .update({ [updateField]: priceId })
+              .eq('id', package_id);
+
+            logger.info('[Stripe] Created licensed price replacement:', {
+              oldPriceId: matchingPrice.id,
+              newPriceId: priceId,
+            });
+          } else {
+            priceId = matchingPrice.id;
+            // Update package with found price ID
+            const updateField = targetBillingInterval === 'month' ? 'stripe_price_id_monthly' : 'stripe_price_id_yearly';
+            await adminClient
+              .from('packages')
+              .update({ [updateField]: priceId })
+              .eq('id', package_id);
+          }
         } else {
           // Create price if it doesn't exist
+          const pricingModel = newPackage.pricing_model || 'per_user';
+          const unitAmount = pricingModel === 'per_user'
+            ? (targetBillingInterval === 'month' ? (newPackage.price_per_user_monthly || 0) : (newPackage.price_per_user_yearly || 0))
+            : (targetBillingInterval === 'month' ? (newPackage.base_price_monthly || 0) : (newPackage.base_price_yearly || 0));
+
           const newPrice = await stripe.prices.create({
             product: newPackage.stripe_product_id,
-            unit_amount: Math.round(newPackage.price_per_user_monthly * 100),
+            unit_amount: Math.round(unitAmount * 100),
             currency: 'usd',
-            recurring: { interval: 'month' },
+            recurring: {
+              interval: targetBillingInterval,
+              usage_type: 'licensed', // Explicitly set to licensed for proper quantity support
+            },
           });
           priceId = newPrice.id;
+          // Update package with new price ID
+          const updateField = targetBillingInterval === 'month' ? 'stripe_price_id_monthly' : 'stripe_price_id_yearly';
+          await adminClient
+            .from('packages')
+            .update({ [updateField]: priceId })
+            .eq('id', package_id);
         }
       } catch (stripeError) {
         logger.error('Error getting/creating price:', stripeError);
@@ -94,7 +160,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!priceId) {
-      return badRequest('Package does not have a valid Stripe price');
+      return badRequest(`Package does not have a valid Stripe price for ${targetBillingInterval}ly billing`);
     }
 
     // Update Stripe subscription if it exists
@@ -115,6 +181,7 @@ export async function POST(request: NextRequest) {
           proration_behavior: 'always_invoice',
           metadata: {
             package_id: package_id,
+            billing_interval: targetBillingInterval,
           },
         });
       } else {
@@ -127,6 +194,7 @@ export async function POST(request: NextRequest) {
           proration_behavior: 'always_invoice',
           metadata: {
             package_id: package_id,
+            billing_interval: targetBillingInterval,
           },
         });
       }
@@ -138,6 +206,7 @@ export async function POST(request: NextRequest) {
       .update({
         package_id: package_id,
         stripe_price_id: priceId,
+        billing_interval: targetBillingInterval,
         updated_at: new Date().toISOString(),
       })
       .eq('id', subscription.id);

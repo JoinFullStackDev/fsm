@@ -30,9 +30,12 @@ export async function GET(request: NextRequest) {
           active: true,
         });
 
-        // Find monthly recurring price
+        // Find monthly and yearly recurring prices
         const monthlyPrice = prices.data.find(
           (p) => p.recurring && p.recurring.interval === 'month'
+        );
+        const yearlyPrice = prices.data.find(
+          (p) => p.recurring && p.recurring.interval === 'year'
         );
 
         return {
@@ -43,6 +46,10 @@ export async function GET(request: NextRequest) {
           monthly_price_id: monthlyPrice?.id || null,
           monthly_price_amount: monthlyPrice
             ? monthlyPrice.unit_amount! / 100
+            : null,
+          yearly_price_id: yearlyPrice?.id || null,
+          yearly_price_amount: yearlyPrice
+            ? yearlyPrice.unit_amount! / 100
             : null,
           all_prices: prices.data.map((p) => ({
             id: p.id,
@@ -65,14 +72,24 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/stripe/sync-products
  * Link a Stripe product to a package and sync pricing
- * Only syncs: stripe_product_id, stripe_price_id, and price_per_user_monthly
+ * Syncs: stripe_product_id, stripe_price_id_monthly, stripe_price_id_yearly, pricing_model, base_price_monthly, base_price_yearly, price_per_user_monthly, price_per_user_yearly
  */
 export async function POST(request: NextRequest) {
   try {
     await requireSuperAdmin(request);
 
     const body = await request.json();
-    const { package_id, stripe_product_id, stripe_price_id, price_per_user_monthly } = body;
+    const { 
+      package_id, 
+      stripe_product_id, 
+      stripe_price_id_monthly,
+      stripe_price_id_yearly,
+      pricing_model,
+      base_price_monthly,
+      base_price_yearly,
+      price_per_user_monthly,
+      price_per_user_yearly,
+    } = body;
 
     if (!package_id || !stripe_product_id) {
       return badRequest('Missing required fields: package_id, stripe_product_id');
@@ -80,19 +97,78 @@ export async function POST(request: NextRequest) {
 
     const adminClient = createAdminSupabaseClient();
 
+    // Get the package to determine current pricing model if not provided
+    const { data: existingPackage } = await adminClient
+      .from('packages')
+      .select('*')
+      .eq('id', package_id)
+      .single();
+
+    if (!existingPackage) {
+      return badRequest('Package not found');
+    }
+
+    // If price IDs are provided, fetch them from Stripe to determine billing intervals
+    let detectedModel: 'per_user' | 'flat_rate' = pricing_model || existingPackage.pricing_model || 'per_user';
+    
+    // Detect intervals from Stripe prices if provided
+    if ((stripe_price_id_monthly || stripe_price_id_yearly) && (await isStripeConfigured())) {
+      try {
+        const stripe = await getStripeClient();
+        if (stripe_price_id_monthly) {
+          const price = await stripe.prices.retrieve(stripe_price_id_monthly);
+          if (price.recurring && price.recurring.interval !== 'month') {
+            logger.warn('Monthly price ID has non-monthly interval:', price.recurring.interval);
+          }
+        }
+        if (stripe_price_id_yearly) {
+          const price = await stripe.prices.retrieve(stripe_price_id_yearly);
+          if (price.recurring && price.recurring.interval !== 'year') {
+            logger.warn('Yearly price ID has non-yearly interval:', price.recurring.interval);
+          }
+        }
+      } catch (error) {
+        logger.warn('Could not fetch price from Stripe:', error);
+      }
+    }
+
     const updateData: any = {
       stripe_product_id,
       updated_at: new Date().toISOString(),
     };
 
-    // If price ID is provided, also update that
-    if (stripe_price_id) {
-      updateData.stripe_price_id = stripe_price_id;
+    // Update pricing model if provided
+    if (pricing_model) {
+      updateData.pricing_model = pricing_model;
+    } else {
+      updateData.pricing_model = detectedModel;
     }
 
-    // If price amount is provided, update price_per_user_monthly
-    if (price_per_user_monthly !== undefined && price_per_user_monthly !== null) {
-      updateData.price_per_user_monthly = Number(price_per_user_monthly);
+    const finalModel = pricing_model || detectedModel;
+
+    // Update price IDs
+    if (stripe_price_id_monthly !== undefined) {
+      updateData.stripe_price_id_monthly = stripe_price_id_monthly || null;
+    }
+    if (stripe_price_id_yearly !== undefined) {
+      updateData.stripe_price_id_yearly = stripe_price_id_yearly || null;
+    }
+
+    // Update pricing fields based on model
+    if (finalModel === 'per_user') {
+      if (price_per_user_monthly !== undefined) {
+        updateData.price_per_user_monthly = price_per_user_monthly !== null ? Number(price_per_user_monthly) : null;
+      }
+      if (price_per_user_yearly !== undefined) {
+        updateData.price_per_user_yearly = price_per_user_yearly !== null ? Number(price_per_user_yearly) : null;
+      }
+    } else {
+      if (base_price_monthly !== undefined) {
+        updateData.base_price_monthly = base_price_monthly !== null ? Number(base_price_monthly) : null;
+      }
+      if (base_price_yearly !== undefined) {
+        updateData.base_price_yearly = base_price_yearly !== null ? Number(base_price_yearly) : null;
+      }
     }
 
     const { data: packageData, error: updateError } = await adminClient

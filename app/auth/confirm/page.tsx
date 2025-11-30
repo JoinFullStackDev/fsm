@@ -52,9 +52,9 @@ export default function ConfirmPage() {
       }
 
       setStatus('success');
-      setMessage('Email confirmed successfully! Redirecting to dashboard...');
+      setMessage('Email confirmed successfully! Redirecting to sign in...');
       setTimeout(() => {
-        router.push('/dashboard');
+        router.push('/auth/signin');
       }, 2000);
     };
 

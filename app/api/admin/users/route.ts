@@ -28,52 +28,109 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (userError || !currentUser) {
+      logger.error('[Admin Users] User not found:', { authId: session.user.id, error: userError });
       return notFound('User');
     }
 
     if (currentUser.role !== 'admin') {
+      logger.warn('[Admin Users] Non-admin user attempted to access admin users:', { 
+        userId: currentUser.id, 
+        role: currentUser.role,
+        authId: session.user.id 
+      });
       return forbidden('Admin access required');
     }
 
     // Get user's organization - use organization_id from currentUser (already fetched with admin client)
     const organizationId = currentUser.organization_id;
     if (!organizationId) {
-      logger.warn('[Admin Users] User has no organization_id:', { userId: currentUser.id, authId: session.user.id });
+      logger.error('[Admin Users] CRITICAL: Admin user has no organization_id:', { 
+        userId: currentUser.id, 
+        authId: session.user.id,
+        role: currentUser.role,
+        isSuperAdmin: currentUser.is_super_admin
+      });
       return badRequest('User is not assigned to an organization');
     }
 
+    logger.info('[Admin Users] Fetching users for organization', {
+      organizationId,
+      userId: currentUser.id,
+      isSuperAdmin: currentUser.is_super_admin
+    });
+
     // Build query - ALWAYS filter by organization (even super admins in /admin should only see their org's users)
     // Super admins can use /global/admin for cross-organization access
+    // CRITICAL: Using adminClient bypasses RLS, so we MUST filter explicitly
+    // Using .eq() which should exclude nulls, but we'll also filter in code as a safety measure
+    logger.info('[Admin Users] Building query with organization filter', {
+      organizationId,
+      organizationIdType: typeof organizationId,
+      userId: currentUser.id
+    });
+
     const query = adminClient
       .from('users')
       .select('*')
-      .eq('organization_id', organizationId)
+      .eq('organization_id', organizationId) // Filter by exact organization_id match
       .order('created_at', { ascending: false });
 
     const { data: users, error: usersError } = await query;
+
+    logger.info('[Admin Users] Query executed', {
+      organizationId,
+      usersReturned: users?.length || 0,
+      hasError: !!usersError,
+      errorMessage: usersError?.message
+    });
 
     if (usersError) {
       logger.error('[Admin Users] Error fetching users:', usersError);
       return internalError('Failed to fetch users', { error: usersError.message });
     }
 
-    // SAFETY CHECK: Double-check that all returned users belong to the organization
-    const filteredUsers = (users || []).filter((user: any) => user.organization_id === organizationId);
-    if (filteredUsers.length !== (users || []).length) {
-      logger.error('[Admin Users] CRITICAL: Query returned users from other organizations!', {
+    // CRITICAL SAFETY CHECK: Double-check that all returned users belong to the organization
+    // This is a defensive measure in case the query somehow fails
+    // NEVER trust the database query alone - always filter in application code
+    const allUsers = users || [];
+    const filteredUsers = allUsers.filter((user: any) => {
+      const matches = user.organization_id === organizationId && user.organization_id !== null && user.organization_id !== undefined;
+      if (!matches) {
+        logger.error('[Admin Users] CRITICAL: User from wrong organization returned by query!', {
+          userId: user.id,
+          userEmail: user.email,
+          userOrgId: user.organization_id,
+          expectedOrgId: organizationId,
+          currentUserId: currentUser.id
+        });
+      }
+      return matches;
+    });
+    
+    if (filteredUsers.length !== allUsers.length) {
+      logger.error('[Admin Users] CRITICAL SECURITY ISSUE: Query returned users from other organizations!', {
         organizationId,
-        expectedCount: users?.length || 0,
+        expectedCount: allUsers.length,
         filteredCount: filteredUsers.length,
-        userId: currentUser.id
+        userId: currentUser.id,
+        returnedUserIds: allUsers.map((u: any) => ({ 
+          id: u.id, 
+          email: u.email,
+          orgId: u.organization_id,
+          name: u.name
+        }))
       });
     }
 
     logger.info('[Admin Users] Returning users for organization', {
       organizationId,
-      count: filteredUsers.length,
-      userId: currentUser.id
+      totalReturned: allUsers.length,
+      filteredCount: filteredUsers.length,
+      userId: currentUser.id,
+      queryFiltered: true
     });
 
+    // Return ONLY the filtered users - never trust the database query alone
     return NextResponse.json({ users: filteredUsers }, { status: 200 });
   } catch (error) {
     logger.error('[Admin Users] Unexpected error:', error);

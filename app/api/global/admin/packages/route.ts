@@ -48,15 +48,38 @@ export async function POST(request: NextRequest) {
       name,
       stripe_price_id,
       stripe_product_id,
+      pricing_model,
+      base_price_monthly,
+      base_price_yearly,
       price_per_user_monthly,
+      price_per_user_yearly,
+      stripe_price_id_monthly,
+      stripe_price_id_yearly,
       features,
       is_active,
       display_order,
     } = body;
 
     // Validate required fields
-    if (!name || price_per_user_monthly === undefined) {
-      return badRequest('Name and price_per_user_monthly are required');
+    if (!name) {
+      return badRequest('Name is required');
+    }
+
+    // Validate pricing model
+    const model = pricing_model || 'per_user';
+    if (model !== 'per_user' && model !== 'flat_rate') {
+      return badRequest('pricing_model must be either "per_user" or "flat_rate"');
+    }
+
+    // Validate pricing fields based on model - require at least one price
+    if (model === 'per_user') {
+      if (!price_per_user_monthly && !price_per_user_yearly) {
+        return badRequest('At least one of price_per_user_monthly or price_per_user_yearly is required for per_user pricing model');
+      }
+    } else if (model === 'flat_rate') {
+      if (!base_price_monthly && !base_price_yearly) {
+        return badRequest('At least one of base_price_monthly or base_price_yearly is required for flat_rate pricing model');
+      }
     }
 
     // Validate features structure
@@ -80,9 +103,15 @@ export async function POST(request: NextRequest) {
       .from('packages')
       .insert({
         name,
-        stripe_price_id: stripe_price_id || null,
+        stripe_price_id: stripe_price_id || stripe_price_id_monthly || null, // Backward compatibility
         stripe_product_id: stripe_product_id || null,
-        price_per_user_monthly: Number(price_per_user_monthly),
+        pricing_model: model,
+        base_price_monthly: model === 'flat_rate' ? (base_price_monthly !== undefined ? Number(base_price_monthly) : null) : null,
+        base_price_yearly: model === 'flat_rate' ? (base_price_yearly !== undefined ? Number(base_price_yearly) : null) : null,
+        price_per_user_monthly: model === 'per_user' ? (price_per_user_monthly !== undefined ? Number(price_per_user_monthly) : null) : null,
+        price_per_user_yearly: model === 'per_user' ? (price_per_user_yearly !== undefined ? Number(price_per_user_yearly) : null) : null,
+        stripe_price_id_monthly: stripe_price_id_monthly || null,
+        stripe_price_id_yearly: stripe_price_id_yearly || null,
         features: features || {},
         is_active: is_active !== undefined ? is_active : true,
         display_order: order,

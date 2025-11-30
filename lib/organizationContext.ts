@@ -3,7 +3,6 @@
  * Provides functions to get user organization, validate access, and check package limits
  */
 
-import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import logger from '@/lib/utils/logger';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -39,8 +38,19 @@ export interface PackageFeatures {
 export interface Package {
   id: string;
   name: string;
-  stripe_price_id: string | null;
-  price_per_user_monthly: number;
+  stripe_price_id: string | null; // Deprecated: use stripe_price_id_monthly
+  stripe_product_id: string | null;
+  pricing_model: 'per_user' | 'flat_rate';
+  base_price_monthly: number | null;
+  base_price_yearly: number | null;
+  price_per_user_monthly: number | null;
+  price_per_user_yearly: number | null;
+  stripe_price_id_monthly: string | null;
+  stripe_price_id_yearly: string | null;
+  // Legacy fields for backward compatibility
+  base_price: number | null;
+  price_per_user: number | null;
+  billing_interval: 'month' | 'year' | null;
   features: PackageFeatures;
   is_active: boolean;
   display_order: number;
@@ -52,6 +62,7 @@ export interface Subscription {
   package_id: string;
   stripe_subscription_id: string | null;
   stripe_price_id: string | null;
+  billing_interval: 'month' | 'year' | null;
   status: 'active' | 'canceled' | 'past_due' | 'trialing';
   current_period_start: string | null;
   current_period_end: string | null;
@@ -385,6 +396,8 @@ export async function getOrganizationUsage(
  */
 export async function getOrganizationContextFromRequest(): Promise<OrganizationContext | null> {
   try {
+    // Lazy import to avoid pulling in next/headers in client components
+    const { createServerSupabaseClient } = await import('@/lib/supabaseServer');
     const supabase = await createServerSupabaseClient();
     const { data: { session } } = await supabase.auth.getSession();
 
@@ -398,4 +411,9 @@ export async function getOrganizationContextFromRequest(): Promise<OrganizationC
     return null;
   }
 }
+
+// Pricing utility functions moved to lib/packagePricing.ts
+// to avoid importing server-only code in client components
+// Re-export for backward compatibility
+export { getPackagePrice, formatPackagePrice } from './packagePricing';
 

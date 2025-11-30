@@ -18,49 +18,106 @@ export async function getSendGridApiKey(): Promise<string | null> {
   try {
     const adminClient = createAdminSupabaseClient();
     
+    logger.debug('[Email] Fetching SendGrid API key from system_connections table', {
+      connection_type: 'email',
+    });
+    
     const { data: connection, error } = await adminClient
       .from('system_connections')
-      .select('config, is_active')
+      .select('config, is_active, id')
       .eq('connection_type', 'email')
       .single();
 
     if (error) {
       if (error.code === 'PGRST116') {
-        logger.debug('[Email] Email connection not found in database');
+        logger.warn('[Email] Email connection not found in database (connection_type=email)', {
+          errorCode: error.code,
+          errorMessage: error.message,
+        });
       } else {
-        logger.error('[Email] Error fetching email connection from database:', error);
+        logger.error('[Email] Error fetching email connection from database:', {
+          errorCode: error.code,
+          errorMessage: error.message,
+          errorDetails: error,
+        });
       }
       return null;
     }
 
     if (!connection) {
-      logger.debug('[Email] Email connection not found in database');
+      logger.warn('[Email] Email connection query returned null (connection_type=email)');
       return null;
     }
 
+    logger.debug('[Email] Email connection found', {
+      connectionId: connection.id,
+      isActive: connection.is_active,
+      hasConfig: !!connection.config,
+      configKeys: connection.config ? Object.keys(connection.config) : [],
+    });
+
     if (!connection.is_active) {
-      logger.warn('[Email] Email connection is not active');
+      logger.warn('[Email] Email connection is not active', {
+        connectionId: connection.id,
+        isActive: connection.is_active,
+      });
       return null;
     }
 
     const config = connection.config || {};
     const encryptedApiKey = config.api_key;
 
+    logger.debug('[Email] Checking for API key in config', {
+      connectionId: connection.id,
+      hasApiKey: !!encryptedApiKey,
+      apiKeyLength: encryptedApiKey ? String(encryptedApiKey).length : 0,
+      configStructure: {
+        hasConfig: !!config,
+        configType: typeof config,
+        configKeys: Object.keys(config),
+      },
+    });
+
     if (!encryptedApiKey) {
-      logger.warn('[Email] SendGrid API key not configured in database');
+      logger.warn('[Email] SendGrid API key not found in config.api_key', {
+        connectionId: connection.id,
+        configKeys: Object.keys(config),
+        config: config, // Log full config for debugging (will be redacted in production)
+      });
       return null;
     }
 
     try {
       // Decrypt the API key
+      logger.debug('[Email] Decrypting SendGrid API key', {
+        connectionId: connection.id,
+        encryptedKeyLength: String(encryptedApiKey).length,
+      });
+      
       const decryptedKey = decryptApiKey(encryptedApiKey);
+      
+      logger.info('[Email] SendGrid API key successfully retrieved and decrypted', {
+        connectionId: connection.id,
+        decryptedKeyLength: decryptedKey.length,
+        keyPrefix: decryptedKey.substring(0, 3), // Log first 3 chars for verification (SG.)
+      });
+      
       return decryptedKey;
     } catch (decryptError) {
-      logger.error('[Email] Error decrypting SendGrid API key:', decryptError);
+      logger.error('[Email] Error decrypting SendGrid API key:', {
+        connectionId: connection.id,
+        error: decryptError instanceof Error ? decryptError.message : 'Unknown error',
+        stack: decryptError instanceof Error ? decryptError.stack : undefined,
+        encryptedKeyLength: String(encryptedApiKey).length,
+        encryptedKeyPrefix: String(encryptedApiKey).substring(0, 10), // First 10 chars for debugging
+      });
       return null;
     }
   } catch (error) {
-    logger.error('[Email] Error fetching SendGrid API key from database:', error);
+    logger.error('[Email] Unexpected error fetching SendGrid API key from database:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return null;
   }
 }
@@ -70,21 +127,42 @@ export async function getSendGridApiKey(): Promise<string | null> {
  */
 async function initializeSendGrid(): Promise<boolean> {
   if (sendGridInitialized && sendGridApiKey) {
+    logger.debug('[Email] SendGrid already initialized, reusing existing API key');
     return true;
   }
 
+  logger.info('[Email] Initializing SendGrid - fetching API key from database');
   const apiKey = await getSendGridApiKey();
   if (!apiKey) {
+    logger.error('[Email] Failed to initialize SendGrid - API key not available from database');
     return false;
   }
 
   try {
+    logger.debug('[Email] Setting SendGrid API key', {
+      keyLength: apiKey.length,
+      keyPrefix: apiKey.substring(0, 3),
+    });
+    
     sgMail.setApiKey(apiKey);
     sendGridApiKey = apiKey;
     sendGridInitialized = true;
+    
+    logger.info('[Email] SendGrid initialized successfully', {
+      keyLength: apiKey.length,
+      keyPrefix: apiKey.substring(0, 3),
+    });
+    
     return true;
   } catch (error) {
-    logger.error('[Email] Error initializing SendGrid:', error);
+    logger.error('[Email] Error initializing SendGrid:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      keyLength: apiKey.length,
+      keyPrefix: apiKey.substring(0, 3),
+    });
+    sendGridApiKey = null;
+    sendGridInitialized = false;
     return false;
   }
 }
@@ -112,6 +190,9 @@ export async function sendEmail(
   text?: string,
   from?: string
 ): Promise<{ success: boolean; error?: string }> {
+  // Get default from email from admin settings or use a default
+  const defaultFrom = from || process.env.SENDGRID_FROM_EMAIL || 'noreply@fullstackmethod.com';
+  
   try {
     const initialized = await initializeSendGrid();
     if (!initialized) {
@@ -120,9 +201,6 @@ export async function sendEmail(
         error: 'Email service is not configured',
       };
     }
-
-    // Get default from email from admin settings or use a default
-    const defaultFrom = from || process.env.SENDGRID_FROM_EMAIL || 'noreply@fullstackmethod.com';
     
     const msg = {
       to,
@@ -132,21 +210,49 @@ export async function sendEmail(
       html,
     };
 
-    await sgMail.send(msg);
+    const result = await sgMail.send(msg);
     
-    logger.debug('[Email] Email sent successfully', { to, subject });
+    logger.info('[Email] Email sent successfully', { 
+      to, 
+      subject,
+      messageId: result[0]?.headers?.['x-message-id'] || 'unknown',
+      statusCode: result[0]?.statusCode,
+    });
     return { success: true };
   } catch (error: any) {
-    logger.error('[Email] Error sending email:', {
+    const errorDetails: any = {
       error: error.message,
       to,
       subject,
-      response: error.response?.body,
-    });
+      from: defaultFrom,
+    };
+    
+    // Add SendGrid-specific error details
+    if (error.response) {
+      errorDetails.statusCode = error.response.statusCode;
+      errorDetails.responseBody = error.response.body;
+      errorDetails.responseHeaders = error.response.headers;
+    }
+    
+    // Add more detailed error information
+    if (error.code) {
+      errorDetails.code = error.code;
+    }
+    
+    logger.error('[Email] Error sending email:', errorDetails);
+    
+    // Provide more specific error message
+    let errorMessage = error.message || 'Failed to send email';
+    if (error.response?.body?.errors) {
+      const sendGridErrors = error.response.body.errors;
+      if (Array.isArray(sendGridErrors) && sendGridErrors.length > 0) {
+        errorMessage = sendGridErrors.map((e: any) => e.message || e.field || 'Unknown error').join('; ');
+      }
+    }
     
     return {
       success: false,
-      error: error.message || 'Failed to send email',
+      error: errorMessage,
     };
   }
 }
@@ -168,26 +274,63 @@ export async function sendEmailWithRetry(
 ): Promise<{ success: boolean; error?: string }> {
   let lastError: string | undefined;
   
+  logger.info('[Email] Attempting to send email with retry', { 
+    to, 
+    subject, 
+    maxRetries,
+    hasHtml: !!html,
+    hasText: !!text,
+  });
+  
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (attempt > 0) {
       // Wait before retry (exponential backoff)
       const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+      logger.info('[Email] Retrying email send', { 
+        attempt, 
+        maxAttempts: maxRetries + 1,
+        delay,
+        to, 
+        subject 
+      });
       await new Promise(resolve => setTimeout(resolve, delay));
-      logger.debug('[Email] Retrying email send', { attempt, to, subject });
     }
 
     const result = await sendEmail(to, subject, html, text);
     if (result.success) {
+      logger.info('[Email] Email sent successfully after retry', { 
+        attempt: attempt + 1,
+        to, 
+        subject 
+      });
       return result;
     }
     
     lastError = result.error;
+    logger.warn('[Email] Email send attempt failed', {
+      attempt: attempt + 1,
+      maxAttempts: maxRetries + 1,
+      error: lastError,
+      to,
+      subject,
+    });
     
     // Don't retry if it's a configuration error
     if (result.error === 'Email service is not configured') {
+      logger.error('[Email] Email service not configured, aborting retries', {
+        to,
+        subject,
+      });
       break;
     }
   }
+
+  logger.error('[Email] Failed to send email after all retries', {
+    maxRetries,
+    finalError: lastError,
+    to,
+    subject,
+  });
 
   return {
     success: false,

@@ -214,7 +214,12 @@ export default function OrganizationsPage() {
                     <TableCell>{org.user_count || 0}</TableCell>
                     <TableCell>{org.project_count || 0}</TableCell>
                     <TableCell>
-                      {new Date(org.created_at).toLocaleDateString()}
+                      {new Date(org.created_at).toLocaleDateString('en-US', {
+                        timeZone: 'America/Phoenix',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })}
                     </TableCell>
                     <TableCell align="right">
                       <IconButton

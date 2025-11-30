@@ -48,7 +48,13 @@ interface Package {
   name: string;
   stripe_price_id: string | null;
   stripe_product_id: string | null;
-  price_per_user_monthly: number;
+  pricing_model: 'per_user' | 'flat_rate';
+  base_price_monthly: number | null;
+  base_price_yearly: number | null;
+  price_per_user_monthly: number | null;
+  price_per_user_yearly: number | null;
+  stripe_price_id_monthly: string | null;
+  stripe_price_id_yearly: string | null;
   features: PackageFeatures;
   is_active: boolean;
   display_order: number;
@@ -84,7 +90,13 @@ export default function PackagesPage() {
     name: '',
     stripe_price_id: '',
     stripe_product_id: '',
-    price_per_user_monthly: 0,
+    pricing_model: 'per_user' as 'per_user' | 'flat_rate',
+    base_price_monthly: null as number | null,
+    base_price_yearly: null as number | null,
+    price_per_user_monthly: null as number | null,
+    price_per_user_yearly: null as number | null,
+    stripe_price_id_monthly: '',
+    stripe_price_id_yearly: '',
     features: { ...defaultFeatures },
     is_active: true,
     display_order: 0,
@@ -125,7 +137,13 @@ export default function PackagesPage() {
         name: pkg.name,
         stripe_price_id: pkg.stripe_price_id || '',
         stripe_product_id: pkg.stripe_product_id || '',
+        pricing_model: pkg.pricing_model || 'per_user',
+        base_price_monthly: pkg.base_price_monthly,
+        base_price_yearly: pkg.base_price_yearly,
         price_per_user_monthly: pkg.price_per_user_monthly,
+        price_per_user_yearly: pkg.price_per_user_yearly,
+        stripe_price_id_monthly: pkg.stripe_price_id_monthly || '',
+        stripe_price_id_yearly: pkg.stripe_price_id_yearly || '',
         features: { ...defaultFeatures, ...pkg.features },
         is_active: pkg.is_active,
         display_order: pkg.display_order,
@@ -136,7 +154,13 @@ export default function PackagesPage() {
         name: '',
         stripe_price_id: '',
         stripe_product_id: '',
-        price_per_user_monthly: 0,
+        pricing_model: 'per_user',
+        base_price_monthly: null,
+        base_price_yearly: null,
+        price_per_user_monthly: null,
+        price_per_user_yearly: null,
+        stripe_price_id_monthly: '',
+        stripe_price_id_yearly: '',
         features: { ...defaultFeatures },
         is_active: true,
         display_order: packages.length,
@@ -171,18 +195,41 @@ export default function PackagesPage() {
     packageId: string,
     productId: string,
     priceId: string | null,
-    priceAmount: number | null
+    priceAmount: number | null,
+    interval: 'month' | 'year' = 'month',
+    pricingModel: 'per_user' | 'flat_rate' = 'per_user'
   ) => {
     try {
+      // Get the package to determine current pricing model
+      const pkg = packages.find((p) => p.id === packageId);
+      const model = pricingModel || pkg?.pricing_model || 'per_user';
+      
+      const syncData: any = {
+        package_id: packageId,
+        stripe_product_id: productId,
+        pricing_model: model,
+      };
+
+      if (interval === 'month') {
+        syncData.stripe_price_id_monthly = priceId;
+        if (model === 'per_user') {
+          syncData.price_per_user_monthly = priceAmount;
+        } else {
+          syncData.base_price_monthly = priceAmount;
+        }
+      } else {
+        syncData.stripe_price_id_yearly = priceId;
+        if (model === 'per_user') {
+          syncData.price_per_user_yearly = priceAmount;
+        } else {
+          syncData.base_price_yearly = priceAmount;
+        }
+      }
+      
       const response = await fetch('/api/stripe/sync-products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          package_id: packageId,
-          stripe_product_id: productId,
-          stripe_price_id: priceId,
-          price_per_user_monthly: priceAmount, // Sync the pricing from Stripe
-        }),
+        body: JSON.stringify(syncData),
       });
 
       if (!response.ok) {
@@ -209,7 +256,8 @@ export default function PackagesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          stripe_price_id: formData.stripe_price_id || null,
+          stripe_price_id_monthly: formData.stripe_price_id_monthly || null,
+          stripe_price_id_yearly: formData.stripe_price_id_yearly || null,
           stripe_product_id: formData.stripe_product_id || null,
         }),
       });
@@ -304,8 +352,8 @@ export default function PackagesPage() {
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>
-              <TableCell>Price (per user/month)</TableCell>
-              <TableCell>Stripe Price ID</TableCell>
+              <TableCell>Pricing (Monthly/Yearly)</TableCell>
+              <TableCell>Stripe Price IDs</TableCell>
               <TableCell>Features</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Order</TableCell>
@@ -315,7 +363,7 @@ export default function PackagesPage() {
           <TableBody>
             {packages.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
                   <Typography variant="body2" color="text.secondary">
                     No packages found. Create your first package to get started.
                   </Typography>
@@ -329,15 +377,59 @@ export default function PackagesPage() {
                       {pkg.name}
                     </Typography>
                   </TableCell>
-                  <TableCell>${pkg.price_per_user_monthly.toFixed(2)}</TableCell>
                   <TableCell>
-                    {pkg.stripe_price_id ? (
-                      <Chip label={pkg.stripe_price_id} size="small" variant="outlined" />
+                    {pkg.pricing_model === 'per_user' ? (
+                      <Box>
+                        {pkg.price_per_user_monthly && (
+                          <Typography variant="body2">
+                            ${pkg.price_per_user_monthly.toFixed(2)}/user/mo
+                          </Typography>
+                        )}
+                        {pkg.price_per_user_yearly && (
+                          <Typography variant="body2" color="text.secondary">
+                            ${pkg.price_per_user_yearly.toFixed(2)}/user/yr
+                          </Typography>
+                        )}
+                        {!pkg.price_per_user_monthly && !pkg.price_per_user_yearly && (
+                          <Typography variant="body2" color="text.secondary">
+                            Not set
+                          </Typography>
+                        )}
+                      </Box>
                     ) : (
-                      <Typography variant="body2" color="text.secondary">
-                        Not set
-                      </Typography>
+                      <Box>
+                        {pkg.base_price_monthly && (
+                          <Typography variant="body2">
+                            ${pkg.base_price_monthly.toFixed(2)}/mo
+                          </Typography>
+                        )}
+                        {pkg.base_price_yearly && (
+                          <Typography variant="body2" color="text.secondary">
+                            ${pkg.base_price_yearly.toFixed(2)}/yr
+                          </Typography>
+                        )}
+                        {!pkg.base_price_monthly && !pkg.base_price_yearly && (
+                          <Typography variant="body2" color="text.secondary">
+                            Not set
+                          </Typography>
+                        )}
+                      </Box>
                     )}
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      {pkg.stripe_price_id_monthly && (
+                        <Chip label={`Mo: ${pkg.stripe_price_id_monthly}`} size="small" variant="outlined" />
+                      )}
+                      {pkg.stripe_price_id_yearly && (
+                        <Chip label={`Yr: ${pkg.stripe_price_id_yearly}`} size="small" variant="outlined" />
+                      )}
+                      {!pkg.stripe_price_id_monthly && !pkg.stripe_price_id_yearly && (
+                        <Typography variant="body2" color="text.secondary">
+                          Not set
+                        </Typography>
+                      )}
+                    </Box>
                   </TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
@@ -443,26 +535,97 @@ export default function PackagesPage() {
               />
             </Grid>
             <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Pricing Model</InputLabel>
+                <Select
+                  value={formData.pricing_model}
+                  onChange={(e) =>
+                    setFormData({ ...formData, pricing_model: e.target.value as 'per_user' | 'flat_rate' })
+                  }
+                  label="Pricing Model"
+                >
+                  <MenuItem value="per_user">Per User</MenuItem>
+                  <MenuItem value="flat_rate">Flat Rate</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            {formData.pricing_model === 'per_user' ? (
+              <>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Price per User (Monthly)"
+                    type="number"
+                    value={formData.price_per_user_monthly || ''}
+                    onChange={(e) =>
+                      setFormData({ ...formData, price_per_user_monthly: e.target.value ? Number(e.target.value) : null })
+                    }
+                    inputProps={{ min: 0, step: 0.01 }}
+                    helperText="At least one price required"
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Price per User (Yearly)"
+                    type="number"
+                    value={formData.price_per_user_yearly || ''}
+                    onChange={(e) =>
+                      setFormData({ ...formData, price_per_user_yearly: e.target.value ? Number(e.target.value) : null })
+                    }
+                    inputProps={{ min: 0, step: 0.01 }}
+                    helperText="At least one price required"
+                  />
+                </Grid>
+              </>
+            ) : (
+              <>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Base Price (Monthly)"
+                    type="number"
+                    value={formData.base_price_monthly || ''}
+                    onChange={(e) =>
+                      setFormData({ ...formData, base_price_monthly: e.target.value ? Number(e.target.value) : null })
+                    }
+                    inputProps={{ min: 0, step: 0.01 }}
+                    helperText="At least one price required"
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Base Price (Yearly)"
+                    type="number"
+                    value={formData.base_price_yearly || ''}
+                    onChange={(e) =>
+                      setFormData({ ...formData, base_price_yearly: e.target.value ? Number(e.target.value) : null })
+                    }
+                    inputProps={{ min: 0, step: 0.01 }}
+                    helperText="At least one price required"
+                  />
+                </Grid>
+              </>
+            )}
+            <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Price per User (Monthly)"
-                type="number"
-                value={formData.price_per_user_monthly}
-                onChange={(e) =>
-                  setFormData({ ...formData, price_per_user_monthly: Number(e.target.value) })
-                }
-                required
-                inputProps={{ min: 0, step: 0.01 }}
+                label="Stripe Price ID (Monthly)"
+                value={formData.stripe_price_id_monthly}
+                onChange={(e) => setFormData({ ...formData, stripe_price_id_monthly: e.target.value })}
+                placeholder="price_..."
+                helperText="Optional: Monthly price ID"
               />
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Stripe Price ID"
-                value={formData.stripe_price_id}
-                onChange={(e) => setFormData({ ...formData, stripe_price_id: e.target.value })}
+                label="Stripe Price ID (Yearly)"
+                value={formData.stripe_price_id_yearly}
+                onChange={(e) => setFormData({ ...formData, stripe_price_id_yearly: e.target.value })}
                 placeholder="price_..."
-                helperText="Optional: Direct price ID. If not set, will use Product ID."
+                helperText="Optional: Yearly price ID"
               />
             </Grid>
             <Grid item xs={12} md={6}>
@@ -634,7 +797,15 @@ export default function PackagesPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button onClick={handleSave} variant="contained" disabled={!formData.name}>
+          <Button 
+            onClick={handleSave} 
+            variant="contained" 
+            disabled={
+              !formData.name || 
+              (formData.pricing_model === 'per_user' && !formData.price_per_user_monthly && !formData.price_per_user_yearly) ||
+              (formData.pricing_model === 'flat_rate' && !formData.base_price_monthly && !formData.base_price_yearly)
+            }
+          >
             {editingPackage ? 'Update' : 'Create'}
           </Button>
         </DialogActions>
@@ -671,6 +842,7 @@ export default function PackagesPage() {
                       <TableCell>Current Product ID</TableCell>
                       <TableCell>Stripe Product</TableCell>
                       <TableCell>Monthly Price</TableCell>
+                      <TableCell>Yearly Price</TableCell>
                       <TableCell align="right">Action</TableCell>
                     </TableRow>
                   </TableHead>
@@ -697,12 +869,14 @@ export default function PackagesPage() {
                               value={matchingProduct?.id || ''}
                               onChange={(e) => {
                                 const product = stripeProducts.find((p) => p.id === e.target.value);
-                                if (product) {
+                                if (product && product.monthly_price_id) {
                                   handleLinkProduct(
                                     pkg.id,
                                     product.id,
                                     product.monthly_price_id,
-                                    product.monthly_price_amount
+                                    product.monthly_price_amount,
+                                    'month',
+                                    pkg.pricing_model || 'per_user'
                                   );
                                 }
                               }}
@@ -725,23 +899,57 @@ export default function PackagesPage() {
                               </Typography>
                             )}
                           </TableCell>
+                          <TableCell>
+                            {matchingProduct?.yearly_price_amount ? (
+                              `$${matchingProduct.yearly_price_amount}/yr`
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">
+                                No yearly price
+                              </Typography>
+                            )}
+                          </TableCell>
                           <TableCell align="right">
                             {matchingProduct && (
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                onClick={() =>
-                                  handleLinkProduct(
-                                    pkg.id,
-                                    matchingProduct.id,
-                                    matchingProduct.monthly_price_id,
-                                    matchingProduct.monthly_price_amount
-                                  )
-                                }
-                                disabled={pkg.stripe_product_id === matchingProduct.id}
-                              >
-                                {pkg.stripe_product_id === matchingProduct.id ? 'Synced' : 'Sync'}
-                              </Button>
+                              <Box sx={{ display: 'flex', gap: 1, flexDirection: 'column' }}>
+                                {matchingProduct.monthly_price_id && (
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    onClick={() =>
+                                      handleLinkProduct(
+                                        pkg.id,
+                                        matchingProduct.id,
+                                        matchingProduct.monthly_price_id,
+                                        matchingProduct.monthly_price_amount,
+                                        'month',
+                                        pkg.pricing_model || 'per_user'
+                                      )
+                                    }
+                                    disabled={pkg.stripe_product_id === matchingProduct.id && pkg.stripe_price_id_monthly === matchingProduct.monthly_price_id}
+                                  >
+                                    {pkg.stripe_product_id === matchingProduct.id && pkg.stripe_price_id_monthly === matchingProduct.monthly_price_id ? 'Synced' : 'Sync Monthly'}
+                                  </Button>
+                                )}
+                                {matchingProduct.yearly_price_id && (
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    onClick={() =>
+                                      handleLinkProduct(
+                                        pkg.id,
+                                        matchingProduct.id,
+                                        matchingProduct.yearly_price_id,
+                                        matchingProduct.yearly_price_amount,
+                                        'year',
+                                        pkg.pricing_model || 'per_user'
+                                      )
+                                    }
+                                    disabled={pkg.stripe_product_id === matchingProduct.id && pkg.stripe_price_id_yearly === matchingProduct.yearly_price_id}
+                                  >
+                                    {pkg.stripe_product_id === matchingProduct.id && pkg.stripe_price_id_yearly === matchingProduct.yearly_price_id ? 'Synced' : 'Sync Yearly'}
+                                  </Button>
+                                )}
+                              </Box>
                             )}
                           </TableCell>
                         </TableRow>

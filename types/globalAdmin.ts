@@ -39,7 +39,13 @@ export interface OrganizationFullDetails {
   package?: {
     id: string;
     name: string;
-    price_per_user_monthly: number;
+    pricing_model: 'per_user' | 'flat_rate';
+    base_price_monthly: number | null;
+    base_price_yearly: number | null;
+    price_per_user_monthly: number | null;
+    price_per_user_yearly: number | null;
+    stripe_price_id_monthly: string | null;
+    stripe_price_id_yearly: string | null;
     features: {
       max_projects: number | null;
       max_users: number | null;
