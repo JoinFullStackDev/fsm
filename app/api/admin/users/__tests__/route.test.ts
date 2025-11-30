@@ -52,6 +52,7 @@ describe('/api/admin/users', () => {
   const mockSupabaseClient = {
     auth: {
       getSession: jest.fn(),
+      getUser: jest.fn(),
     },
     from: jest.fn(),
   };
@@ -81,12 +82,11 @@ describe('/api/admin/users', () => {
         createMockUser({ id: 'user-2', organization_id: 'org-123' }),
       ];
 
-      mockSupabaseClient.auth.getSession.mockResolvedValue({
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
         data: {
-          session: {
-            user: { id: 'auth-123' },
-          },
+          user: { id: 'auth-123' },
         },
+        error: null,
       });
 
       const mockAdminUserQuery = {
@@ -125,12 +125,11 @@ describe('/api/admin/users', () => {
     it('should return 403 for non-admin users', async () => {
       const mockUser = createMockUser({ role: 'engineer' });
 
-      mockSupabaseClient.auth.getSession.mockResolvedValue({
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
         data: {
-          session: {
-            user: { id: 'auth-123' },
-          },
+          user: { id: 'auth-123' },
         },
+        error: null,
       });
 
       const mockAdminUserQuery = {
@@ -153,8 +152,9 @@ describe('/api/admin/users', () => {
     });
 
     it('should return 401 for unauthenticated requests', async () => {
-      mockSupabaseClient.auth.getSession.mockResolvedValue({
-        data: { session: null },
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: null },
+        error: { message: 'Not authenticated' },
       });
 
       const request = new NextRequest('http://localhost:3000/api/admin/users');
@@ -169,12 +169,11 @@ describe('/api/admin/users', () => {
     it('should create user when admin', async () => {
       const mockAdmin = createMockUser({ role: 'admin' });
 
-      mockSupabaseClient.auth.getSession.mockResolvedValue({
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
         data: {
-          session: {
-            user: { id: 'auth-123' },
-          },
+          user: { id: 'auth-123' },
         },
+        error: null,
       });
 
       const mockAdminUserQuery = {
@@ -254,18 +253,17 @@ describe('/api/admin/users', () => {
 
       expect(response.status).toBe(201);
       expect(data.user).toBeDefined();
-      expect(data.temporaryPassword).toBeDefined();
+      expect(data.invitationSent).toBe(true);
     });
 
     it('should return 400 when required fields are missing', async () => {
       const mockAdmin = createMockUser({ role: 'admin' });
 
-      mockSupabaseClient.auth.getSession.mockResolvedValue({
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
         data: {
-          session: {
-            user: { id: 'auth-123' },
-          },
+          user: { id: 'auth-123' },
         },
+        error: null,
       });
 
       const mockAdminUserQuery = {
@@ -296,12 +294,11 @@ describe('/api/admin/users', () => {
     it('should return 400 for invalid email format', async () => {
       const mockAdmin = createMockUser({ role: 'admin' });
 
-      mockSupabaseClient.auth.getSession.mockResolvedValue({
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
         data: {
-          session: {
-            user: { id: 'auth-123' },
-          },
+          user: { id: 'auth-123' },
         },
+        error: null,
       });
 
       const mockAdminUserQuery = {

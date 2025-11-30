@@ -225,6 +225,11 @@ export interface ProjectTaskExtended extends Omit<ProjectTask, 'assignee_id'> {
     email: string;
     avatar_url?: string | null;
   } | null;
+  parent_task?: {
+    id: string;
+    title: string;
+    assignee_id: string | null;
+  } | null;
 }
 
 export interface ProjectAnalysis {

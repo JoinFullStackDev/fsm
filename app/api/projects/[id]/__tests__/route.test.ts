@@ -46,6 +46,7 @@ describe('/api/projects/[id]', () => {
   const mockSupabaseClient = {
     auth: {
       getSession: jest.fn(),
+      getUser: jest.fn(),
     },
     from: jest.fn(),
   };
@@ -69,12 +70,11 @@ describe('/api/projects/[id]', () => {
         { phase_number: 2, phase_name: 'Phase 2', completed: false },
       ];
 
-      mockSupabaseClient.auth.getSession.mockResolvedValue({
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
         data: {
-          session: {
-            user: { id: 'auth-123' },
-          },
+          user: { id: 'auth-123' },
         },
+        error: null,
       });
 
       const mockUserQuery = {
@@ -119,12 +119,11 @@ describe('/api/projects/[id]', () => {
     });
 
     it('should return 404 when project not found', async () => {
-      mockSupabaseClient.auth.getSession.mockResolvedValue({
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
         data: {
-          session: {
-            user: { id: 'auth-123' },
-          },
+          user: { id: 'auth-123' },
         },
+        error: null,
       });
 
       const mockUserQuery = {
@@ -158,8 +157,9 @@ describe('/api/projects/[id]', () => {
     });
 
     it('should return 401 for unauthenticated requests', async () => {
-      mockSupabaseClient.auth.getSession.mockResolvedValue({
-        data: { session: null },
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { user: null },
+        error: { message: 'Not authenticated' },
       });
 
       const request = new NextRequest('http://localhost:3000/api/projects/project-1');
@@ -176,12 +176,11 @@ describe('/api/projects/[id]', () => {
       const mockProject = createMockProject({ organization_id: 'org-123' });
       const updatedProject = { ...mockProject, name: 'Updated Name' };
 
-      mockSupabaseClient.auth.getSession.mockResolvedValue({
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
         data: {
-          session: {
-            user: { id: 'auth-123' },
-          },
+          user: { id: 'auth-123' },
         },
+        error: null,
       });
 
       const mockUserQuery = {
@@ -232,12 +231,11 @@ describe('/api/projects/[id]', () => {
     });
 
     it('should return 500 when project update fails', async () => {
-      mockSupabaseClient.auth.getSession.mockResolvedValue({
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
         data: {
-          session: {
-            user: { id: 'auth-123' },
-          },
+          user: { id: 'auth-123' },
         },
+        error: null,
       });
 
       const mockUserQuery = {
@@ -307,12 +305,11 @@ describe('/api/projects/[id]', () => {
     it('should delete project when user is admin', async () => {
       const mockUser = createMockUser({ role: 'admin', organization_id: 'org-123' });
 
-      mockSupabaseClient.auth.getSession.mockResolvedValue({
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
         data: {
-          session: {
-            user: { id: 'auth-123' },
-          },
+          user: { id: 'auth-123' },
         },
+        error: null,
       });
 
       const mockUserQuery = {
