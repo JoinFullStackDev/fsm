@@ -23,6 +23,7 @@ import ViewToggle, { type ViewType } from '@/components/project-management/ViewT
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import GanttChart from '@/components/project-management/GanttChart';
 import KanbanBoard from '@/components/project-management/KanbanBoard';
+import AssigneeKanbanBoard from '@/components/project-management/AssigneeKanbanBoard';
 import GenerateReportForm, { type ReportType, type ReportFormat } from '@/components/project-management/GenerateReportForm';
 import ReportsList from '@/components/project-management/ReportsList';
 import TaskGeneratorModal from '@/components/project-management/TaskGeneratorModal';
@@ -62,7 +63,7 @@ export default function ProjectTaskManagementPage() {
   const [showPreview, setShowPreview] = useState(false);
 
   const loadTasks = useCallback(async () => {
-    // Load tasks with assignee info and include subtasks
+    // Load tasks with assignee info and parent task info for subtasks
     console.log(`[Task Management] Loading tasks for project: ${projectId}`);
     const { data: tasksData, error: tasksError } = await supabase
       .from('project_tasks')
@@ -79,11 +80,26 @@ export default function ProjectTaskManagementPage() {
       return [];
     } else {
       console.log(`[Task Management] Loaded ${tasksData?.length || 0} tasks for project ${projectId}`);
-      // Transform tasks to include assignee info
-      const transformedTasks = (tasksData || []).map((task: any) => ({
-        ...task,
-        assignee: task.assignee || null,
-      }));
+      
+      // Create a map of all tasks by ID for parent task lookup
+      const taskMap = new Map<string, any>();
+      (tasksData || []).forEach((task: any) => {
+        taskMap.set(task.id, task);
+      });
+
+      // Transform tasks to include assignee and parent task info
+      const transformedTasks = (tasksData || []).map((task: any) => {
+        const parentTask = task.parent_task_id ? taskMap.get(task.parent_task_id) : null;
+        return {
+          ...task,
+          assignee: task.assignee || null,
+          parent_task: parentTask ? {
+            id: parentTask.id,
+            title: parentTask.title,
+            assignee_id: parentTask.assignee_id,
+          } : null,
+        };
+      });
       return transformedTasks as (ProjectTask | ProjectTaskExtended)[];
     }
   }, [projectId, supabase]);
@@ -545,6 +561,13 @@ export default function ProjectTaskManagementPage() {
       )}
       {view === 'kanban' && (
         <KanbanBoard tasks={tasks} onTaskClick={handleTaskClick} />
+      )}
+      {view === 'assignee-kanban' && (
+        <AssigneeKanbanBoard 
+          tasks={tasks} 
+          onTaskClick={handleTaskClick}
+          projectMembers={projectMembers}
+        />
       )}
       {view === 'reports' && (
         <ReportsList projectId={projectId} refreshTrigger={reportsRefreshTrigger} />

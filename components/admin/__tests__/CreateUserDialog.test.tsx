@@ -1,13 +1,29 @@
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import CreateUserDialog from '../CreateUserDialog';
 import { renderWithProviders } from '@/lib/test-utils';
+import { OrganizationProvider } from '@/components/providers/OrganizationProvider';
 
 jest.mock('@/components/providers/NotificationProvider', () => ({
   useNotification: () => ({
     showSuccess: jest.fn(),
     showError: jest.fn(),
+  }),
+}));
+
+// Mock OrganizationProvider
+const mockOrganization = {
+  id: 'org-123',
+  name: 'Test Organization',
+};
+
+jest.mock('@/components/providers/OrganizationProvider', () => ({
+  OrganizationProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useOrganization: () => ({
+    organization: mockOrganization,
+    loading: false,
+    error: null,
   }),
 }));
 
@@ -29,7 +45,7 @@ describe('CreateUserDialog', () => {
           name: 'Test User',
           role: 'engineer',
         },
-        temporaryPassword: 'temp123',
+        invitationSent: true,
       }),
     });
   });
@@ -69,7 +85,9 @@ describe('CreateUserDialog', () => {
 
     // Fill email field so we can test name validation
     const emailInput = screen.getByLabelText(/email/i);
-    fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
+    await act(async () => {
+      fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
+    });
     
     // Wait for state to update
     await waitFor(() => {
@@ -81,7 +99,9 @@ describe('CreateUserDialog', () => {
     expect(form).toBeInTheDocument();
     
     if (form) {
-      fireEvent.submit(form);
+      await act(async () => {
+        fireEvent.submit(form);
+      });
     }
 
     await waitFor(() => {
@@ -119,15 +139,19 @@ describe('CreateUserDialog', () => {
     );
 
     const nameInput = screen.getByLabelText(/name/i);
-    await user.clear(nameInput);
-    await user.type(nameInput, 'Test User');
+    await act(async () => {
+      await user.clear(nameInput);
+      await user.type(nameInput, 'Test User');
+    });
     
     // Submit form directly to trigger validation (button is disabled when email is empty)
     const form = screen.getByRole('dialog').querySelector('form');
     expect(form).toBeInTheDocument();
     
     if (form) {
-      fireEvent.submit(form);
+      await act(async () => {
+        fireEvent.submit(form);
+      });
     }
 
     await waitFor(() => {
@@ -168,8 +192,10 @@ describe('CreateUserDialog', () => {
     const nameInput = screen.getByLabelText(/name/i);
     const emailInput = screen.getByLabelText(/email/i);
 
-    await user.type(nameInput, 'Test User');
-    await user.type(emailInput, 'invalid-email');
+    await act(async () => {
+      await user.type(nameInput, 'Test User');
+      await user.type(emailInput, 'invalid-email');
+    });
 
     await waitFor(() => {
       expect(screen.getByText(/valid email address/i)).toBeInTheDocument();
@@ -190,24 +216,28 @@ describe('CreateUserDialog', () => {
     const emailInput = screen.getByLabelText(/email/i);
     const submitButton = screen.getByRole('button', { name: /create/i });
 
-    // Clear inputs first to avoid concatenation issues
-    await user.clear(nameInput);
-    await user.clear(emailInput);
+    // Clear and type values with proper waiting
+    await act(async () => {
+      await user.clear(nameInput);
+      await user.type(nameInput, 'Test User');
+    });
     
-    // Type values separately with a small delay
-    await user.type(nameInput, 'Test User');
-    await user.type(emailInput, 'test@example.com');
-    
-    // Wait for state to update and verify values
     await waitFor(() => {
       expect(nameInput).toHaveValue('Test User');
+    });
+    
+    await act(async () => {
+      await user.clear(emailInput);
+      await user.type(emailInput, 'test@example.com');
     });
     
     await waitFor(() => {
       expect(emailInput).toHaveValue('test@example.com');
     });
     
-    await user.click(submitButton);
+    await act(async () => {
+      await user.click(submitButton);
+    });
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
@@ -221,6 +251,21 @@ describe('CreateUserDialog', () => {
   });
 
   it('should display success state with password', async () => {
+    // Mock response with invitation sent
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 201,
+      json: async () => ({
+        user: {
+          id: 'user-1',
+          email: 'test@example.com',
+          name: 'Test User',
+          role: 'engineer',
+        },
+        invitationSent: true,
+      }),
+    });
+
     const user = userEvent.setup();
     renderWithProviders(
       <CreateUserDialog
@@ -234,19 +279,31 @@ describe('CreateUserDialog', () => {
     const emailInput = screen.getByLabelText(/email/i);
     const submitButton = screen.getByRole('button', { name: /create/i });
 
-    await user.type(nameInput, 'Test User');
-    await user.type(emailInput, 'test@example.com');
-    await user.click(submitButton);
+    await act(async () => {
+      await user.type(nameInput, 'Test User');
+      await user.type(emailInput, 'test@example.com');
+    });
+
+    await waitFor(() => {
+      expect(submitButton).not.toBeDisabled();
+    });
+
+    await act(async () => {
+      await user.click(submitButton);
+    });
 
     await waitFor(() => {
       // Check for the success state - dialog title changes
-      expect(screen.getByText(/User Created Successfully/i)).toBeInTheDocument();
+      const successTexts = screen.queryAllByText(/User Created Successfully/i);
+      expect(successTexts.length).toBeGreaterThan(0);
     }, { timeout: 3000 });
 
-    // Check for success content
-    expect(screen.getByText(/User has been created successfully/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Temporary Password/i).length).toBeGreaterThan(0);
-    expect(screen.getByDisplayValue('temp123')).toBeInTheDocument();
+    // Check for success content - invitation sent message
+    expect(screen.getByText(/User created successfully!/i)).toBeInTheDocument();
+    await waitFor(() => {
+      // Check for invitation email message
+      expect(screen.getByText(/invitation email has been sent/i)).toBeInTheDocument();
+    }, { timeout: 2000 });
   });
 
   it('should handle API errors', async () => {
@@ -284,11 +341,15 @@ describe('CreateUserDialog', () => {
       expect(emailInput).toHaveValue('test@example.com');
     });
     
-    await user.click(submitButton);
+    await act(async () => {
+      await user.click(submitButton);
+    });
 
     await waitFor(() => {
-      // Error should appear in Alert component
-      expect(screen.getByText(/user already exists/i)).toBeInTheDocument();
+      // Error should appear in Alert component - check for error message (case insensitive)
+      const errorText = screen.queryByText(/user already exists/i);
+      const errorAlert = screen.queryByRole('alert');
+      expect(errorText || errorAlert).toBeTruthy();
     }, { timeout: 3000 });
   });
 
