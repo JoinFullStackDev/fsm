@@ -15,14 +15,14 @@ export async function GET(
 ) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return unauthorized('You must be logged in to view companies');
     }
 
     // Get user's organization
-    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    const organizationId = await getUserOrganizationId(supabase, user.id);
     if (!organizationId) {
       return badRequest('User is not assigned to an organization');
     }
@@ -38,7 +38,7 @@ export async function GET(
     const { data: regularUserData, error: regularUserError } = await supabase
       .from('users')
       .select('id, role, organization_id, is_super_admin')
-      .eq('auth_id', session.user.id)
+      .eq('auth_id', user.id)
       .single();
 
     if (regularUserError || !regularUserData) {
@@ -47,7 +47,7 @@ export async function GET(
       const { data: adminUserData, error: adminUserError } = await adminClient
         .from('users')
         .select('id, role, organization_id, is_super_admin')
-        .eq('auth_id', session.user.id)
+        .eq('auth_id', user.id)
         .single();
 
       if (adminUserError || !adminUserData) {
@@ -120,14 +120,14 @@ export async function PUT(
 ) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return unauthorized('You must be logged in to update companies');
     }
 
     // Get user's organization
-    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    const organizationId = await getUserOrganizationId(supabase, user.id);
     if (!organizationId) {
       return badRequest('User is not assigned to an organization');
     }
@@ -143,7 +143,7 @@ export async function PUT(
     const { data: regularUserData, error: regularUserError } = await supabase
       .from('users')
       .select('id, role, organization_id, is_super_admin')
-      .eq('auth_id', session.user.id)
+      .eq('auth_id', user.id)
       .single();
 
     if (regularUserError || !regularUserData) {
@@ -152,7 +152,7 @@ export async function PUT(
       const { data: adminUserData, error: adminUserError } = await adminClient
         .from('users')
         .select('id, role, organization_id, is_super_admin')
-        .eq('auth_id', session.user.id)
+        .eq('auth_id', user.id)
         .single();
 
       if (adminUserError || !adminUserData) {
@@ -243,14 +243,14 @@ export async function DELETE(
 ) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return unauthorized('You must be logged in to delete companies');
     }
 
     // Get user's organization
-    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    const organizationId = await getUserOrganizationId(supabase, user.id);
     if (!organizationId) {
       return badRequest('User is not assigned to an organization');
     }
@@ -266,7 +266,7 @@ export async function DELETE(
     const { data: regularUserData, error: regularUserError } = await supabase
       .from('users')
       .select('id, role, organization_id, is_super_admin')
-      .eq('auth_id', session.user.id)
+      .eq('auth_id', user.id)
       .single();
 
     if (regularUserError || !regularUserData) {
@@ -275,7 +275,7 @@ export async function DELETE(
       const { data: adminUserData, error: adminUserError } = await adminClient
         .from('users')
         .select('id, role, organization_id, is_super_admin')
-        .eq('auth_id', session.user.id)
+        .eq('auth_id', user.id)
         .single();
 
       if (adminUserError || !adminUserData) {

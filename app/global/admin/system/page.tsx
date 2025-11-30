@@ -41,6 +41,7 @@ export default function SystemSettingsPage() {
   // SendGrid key states
   const [sendGridApiKey, setSendGridApiKey] = useState('');
   const [showSendGridApiKey, setShowSendGridApiKey] = useState(false);
+  const [senderEmail, setSenderEmail] = useState('');
 
   const loadConnections = useCallback(async () => {
     try {
@@ -66,6 +67,12 @@ export default function SystemSettingsPage() {
       if (emailConnection?.config?.api_key) {
         // Don't set the actual key since it's encrypted - just indicate it's configured
         setSendGridApiKey(''); // Leave empty, user needs to enter new key to update
+      }
+      // Load sender email from config (it's stored in plain text)
+      if (emailConnection?.config?.from_email) {
+        setSenderEmail(emailConnection.config.from_email);
+      } else {
+        setSenderEmail('');
       }
     } catch (err) {
       showError('Failed to load system connections');
@@ -138,34 +145,43 @@ export default function SystemSettingsPage() {
   };
 
   const handleSaveSendGridKeys = async () => {
-    if (!sendGridApiKey || !sendGridApiKey.trim()) {
-      showError('Please enter a SendGrid API key');
+    // Allow saving if either API key or sender email is provided
+    if ((!sendGridApiKey || !sendGridApiKey.trim()) && (!senderEmail || !senderEmail.trim())) {
+      showError('Please enter a SendGrid API key or sender email address');
       return;
     }
 
     setSaving(true);
     try {
+      const body: any = {};
+      
+      // Only include API key if provided
+      if (sendGridApiKey && sendGridApiKey.trim()) {
+        body.api_key = sendGridApiKey.trim();
+      }
+      
+      // Always include sender email (even if empty, to allow clearing it)
+      body.from_email = senderEmail?.trim() || null;
+
       const response = await fetch('/api/global/admin/system/connections/email', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          api_key: sendGridApiKey.trim(),
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save SendGrid API key');
+        throw new Error(errorData.error || 'Failed to save SendGrid configuration');
       }
 
-      showSuccess('SendGrid API key saved successfully');
-      setSendGridApiKey(''); // Clear the field after saving
+      showSuccess('SendGrid configuration saved successfully');
+      setSendGridApiKey(''); // Clear the API key field after saving
       // Wait for connections to reload before finishing
       await loadConnections();
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Failed to save SendGrid API key');
+      showError(err instanceof Error ? err.message : 'Failed to save SendGrid configuration');
     } finally {
       setSaving(false);
     }
@@ -442,6 +458,18 @@ export default function SystemSettingsPage() {
                   }}
                 />
               </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Sender Email Address"
+                  type="email"
+                  value={senderEmail}
+                  onChange={(e) => setSenderEmail(e.target.value)}
+                  placeholder="noreply@yourdomain.com"
+                  helperText="This email address must be verified in your SendGrid account as a Sender Identity. This is the 'from' address used for all system emails."
+                  required
+                />
+              </Grid>
 
               {/* Action Buttons */}
               <Grid item xs={12} sx={{ mt: 2, display: 'flex', gap: 2 }}>
@@ -449,9 +477,9 @@ export default function SystemSettingsPage() {
                   variant="contained"
                   startIcon={<SaveIcon />}
                   onClick={handleSaveSendGridKeys}
-                  disabled={saving || !sendGridApiKey?.trim()}
+                  disabled={saving || (!sendGridApiKey?.trim() && !senderEmail?.trim())}
                 >
-                  {saving ? 'Saving...' : 'Save API Key'}
+                  {saving ? 'Saving...' : 'Save Configuration'}
                 </Button>
                 <Button
                   variant="outlined"

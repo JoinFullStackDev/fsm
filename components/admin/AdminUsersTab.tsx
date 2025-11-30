@@ -25,6 +25,8 @@ import {
   FormControl,
   InputLabel,
   Select,
+  Alert,
+  Tooltip,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -56,7 +58,7 @@ export default function AdminUsersTab() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [userLimit, setUserLimit] = useState<{ current: number; limit: number | null; allowed: boolean } | null>(null);
+  const [userLimit, setUserLimit] = useState<{ current: number; limit: number | null; allowed: boolean; reason?: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [activeFilter, setActiveFilter] = useState<string>('all');
@@ -68,6 +70,11 @@ export default function AdminUsersTab() {
   const [createUserDialogOpen, setCreateUserDialogOpen] = useState(false);
   const [viewInviteDialogOpen, setViewInviteDialogOpen] = useState(false);
   const [selectedUserForInvite, setSelectedUserForInvite] = useState<User | null>(null);
+  const [subscriptionInfo, setSubscriptionInfo] = useState<{
+    perUserPrice: number | null;
+    billingInterval: 'month' | 'year' | null;
+    pricingModel: 'per_user' | 'flat_rate' | null;
+  } | null>(null);
 
   // Debounce search term to avoid filtering on every keystroke
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -136,6 +143,7 @@ export default function AdminUsersTab() {
           current: data.users?.current || users.length,
           limit: data.users?.limit || null,
           allowed: data.users?.allowed !== false,
+          reason: data.users?.reason,
         });
       } else {
         // If limit check fails, use current user count
@@ -147,6 +155,39 @@ export default function AdminUsersTab() {
     }
   }, [organization, isSuperAdmin, users.length]);
 
+  const loadSubscriptionInfo = useCallback(async () => {
+    if (!organization?.id) return;
+
+    try {
+      const response = await fetch('/api/organization/subscription');
+      if (response.ok) {
+        const data = await response.json();
+        const sub = data.subscription;
+        if (sub?.package) {
+          const packageData = sub.package;
+          const billingInterval = sub.billing_interval || 'month';
+          const pricingModel = packageData.pricing_model || 'per_user';
+          
+          let perUserPrice: number | null = null;
+          if (pricingModel === 'per_user') {
+            perUserPrice = billingInterval === 'month' 
+              ? packageData.price_per_user_monthly 
+              : packageData.price_per_user_yearly;
+          }
+
+          setSubscriptionInfo({
+            perUserPrice,
+            billingInterval,
+            pricingModel,
+          });
+        }
+      }
+    } catch (err) {
+      // Silently fail - subscription info is optional
+      logger.debug('[AdminUsersTab] Error loading subscription info:', err);
+    }
+  }, [organization?.id]);
+
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
@@ -156,6 +197,10 @@ export default function AdminUsersTab() {
       loadUserLimit();
     }
   }, [users.length, loading, loadUserLimit]);
+
+  useEffect(() => {
+    loadSubscriptionInfo();
+  }, [loadSubscriptionInfo]);
 
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
     // Verify user belongs to current organization before updating
@@ -268,6 +313,28 @@ export default function AdminUsersTab() {
     setDeleteConfirmOpen(false);
     setUserToDelete(null);
     showSuccess('User deleted successfully');
+
+    // Reload users and limits to get accurate counts
+    await loadUsers();
+    await loadUserLimit();
+
+    // Update subscription quantity after user deletion
+    if (organization?.id) {
+      try {
+        const response = await fetch('/api/admin/users/subscription', {
+          method: 'POST',
+        });
+        if (!response.ok) {
+          logger.warn('[AdminUsersTab] Failed to update subscription after user deletion');
+          // Don't show error to user - subscription update is non-critical
+        } else {
+          // Refresh subscription info to show updated pricing
+          loadSubscriptionInfo();
+        }
+      } catch (err) {
+        logger.error('[AdminUsersTab] Error updating subscription after user deletion:', err);
+      }
+    }
   };
 
   const handleBulkAction = async (action: 'activate' | 'deactivate' | 'delete') => {
@@ -308,6 +375,28 @@ export default function AdminUsersTab() {
         return;
       }
       showSuccess(`${userIds.length} users deleted successfully`);
+
+      // Reload users and limits to get accurate counts
+      await loadUsers();
+      await loadUserLimit();
+
+      // Update subscription quantity after bulk user deletion
+      if (organization?.id) {
+        try {
+          const response = await fetch('/api/admin/users/subscription', {
+            method: 'POST',
+          });
+          if (!response.ok) {
+            logger.warn('[AdminUsersTab] Failed to update subscription after bulk user deletion');
+            // Don't show error to user - subscription update is non-critical
+          } else {
+            // Refresh subscription info to show updated pricing
+            loadSubscriptionInfo();
+          }
+        } catch (err) {
+          logger.error('[AdminUsersTab] Error updating subscription after bulk user deletion:', err);
+        }
+      }
     } else {
       const { error } = await supabase
         .from('users')
@@ -370,8 +459,38 @@ export default function AdminUsersTab() {
     );
   }
 
+  // Check if at limit and show warning
+  const isAtLimit = userLimit && userLimit.limit !== null && userLimit.current >= userLimit.limit;
+  const showLimitWarning = isAtLimit && userLimit?.reason;
+
+  // Calculate estimated cost increase
+  const estimatedCostIncrease = subscriptionInfo?.perUserPrice 
+    ? subscriptionInfo.perUserPrice 
+    : null;
+  const costDisplay = estimatedCostIncrease && subscriptionInfo
+    ? `$${estimatedCostIncrease.toFixed(2)}/${subscriptionInfo.billingInterval === 'year' ? 'yr' : 'mo'}`
+    : null;
+
   return (
     <Box>
+      {showLimitWarning && (
+        <Alert 
+          severity="info" 
+          sx={{ 
+            mb: 2,
+            backgroundColor: theme.palette.action.hover,
+            border: `1px solid ${theme.palette.divider}`,
+            color: theme.palette.text.primary,
+          }}
+        >
+          {userLimit.reason}
+          {costDisplay && (
+            <Typography variant="body2" sx={{ mt: 0.5, fontWeight: 600 }}>
+              Each additional user will cost {costDisplay}.
+            </Typography>
+          )}
+        </Alert>
+      )}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box>
           <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
@@ -382,31 +501,43 @@ export default function AdminUsersTab() {
               {userLimit.limit !== null 
                 ? `${userLimit.current} / ${userLimit.limit} users`
                 : `${userLimit.current} users (unlimited)`}
+              {subscriptionInfo?.pricingModel === 'per_user' && costDisplay && (
+                <span> • {costDisplay} per user</span>
+              )}
             </Typography>
           )}
         </Box>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-          <Button
-            variant="outlined"
-            startIcon={<AddIcon />}
-            onClick={() => setCreateUserDialogOpen(true)}
-            disabled={userLimit !== null && !userLimit.allowed}
-            sx={{
-              borderColor: theme.palette.text.primary,
-              color: theme.palette.text.primary,
-              fontWeight: 600,
-              '&:hover': {
-                borderColor: theme.palette.text.primary,
-                backgroundColor: theme.palette.action.hover,
-              },
-              '&.Mui-disabled': {
-                borderColor: theme.palette.divider,
-                color: theme.palette.text.secondary,
-              },
-            }}
+          <Tooltip
+            title={
+              subscriptionInfo?.pricingModel === 'per_user' && costDisplay
+                ? `Adding a user will increase your subscription by ${costDisplay}`
+                : ''
+            }
+            arrow
           >
-            Add User
-          </Button>
+            <Button
+              variant="outlined"
+              startIcon={<AddIcon />}
+              onClick={() => setCreateUserDialogOpen(true)}
+              disabled={userLimit !== null && !userLimit.allowed}
+              sx={{
+                borderColor: theme.palette.text.primary,
+                color: theme.palette.text.primary,
+                fontWeight: 600,
+                '&:hover': {
+                  borderColor: theme.palette.text.primary,
+                  backgroundColor: theme.palette.action.hover,
+                },
+                '&.Mui-disabled': {
+                  borderColor: theme.palette.divider,
+                  color: theme.palette.text.secondary,
+                },
+              }}
+            >
+              Add User
+            </Button>
+          </Tooltip>
           {selectedUsers.size > 0 && (
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Button
@@ -843,13 +974,15 @@ export default function AdminUsersTab() {
         open={createUserDialogOpen}
         onClose={() => {
           setCreateUserDialogOpen(false);
-          // Reload users when dialog closes (in case user was created)
+          // Reload users and subscription info when dialog closes (in case user was created)
           loadUsers();
+          loadSubscriptionInfo();
         }}
         onUserCreated={() => {
-          // Refresh the user list when user is created
+          // Refresh the user list and subscription info when user is created
           // Don't close dialog here - let user see the password first
           loadUsers();
+          loadSubscriptionInfo();
         }}
       />
 

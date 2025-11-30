@@ -13,20 +13,20 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (userError || !user) {
       return unauthorized('You must be logged in');
     }
 
     // Check if user is super admin
-    const { data: userData, error: userError } = await supabase
+    const { data: userData, error: dbUserError } = await supabase
       .from('users')
       .select('role, is_super_admin')
-      .eq('auth_id', session.user.id)
+      .eq('auth_id', user.id)
       .single();
 
-    if (userError || !userData) {
+    if (dbUserError || !userData) {
       return unauthorized('User not found');
     }
 

@@ -35,6 +35,7 @@ import {
   Cancel as CancelIcon,
   Upgrade as UpgradeIcon,
   OpenInNew as OpenInNewIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { useNotification } from '@/lib/hooks/useNotification';
 import { useOrganization } from '@/components/providers/OrganizationProvider';
@@ -80,6 +81,13 @@ export default function AdminSubscriptionTab() {
   const [selectedBillingInterval, setSelectedBillingInterval] = useState<'month' | 'year'>('month');
   const [cancelImmediately, setCancelImmediately] = useState(false);
   const [loadingAction, setLoadingAction] = useState(false);
+  const [userCount, setUserCount] = useState<number | null>(null);
+  const [subscriptionDetails, setSubscriptionDetails] = useState<{
+    perUserPrice: number | null;
+    totalPrice: number | null;
+    billingInterval: 'month' | 'year' | null;
+    pricingModel: 'per_user' | 'flat_rate' | null;
+  } | null>(null);
 
   const loadSubscription = useCallback(async () => {
     try {
@@ -90,14 +98,59 @@ export default function AdminSubscriptionTab() {
       }
       const data = await response.json();
       console.log('[AdminSubscriptionTab] Subscription data:', data);
-      setSubscription(data.subscription || null);
+      const sub = data.subscription || null;
+      setSubscription(sub);
+
+      // Load user count and subscription details
+      if (sub && organization?.id) {
+        try {
+          // Get user count
+          const limitsResponse = await fetch('/api/organization/limits');
+          let currentUserCount = 0;
+          if (limitsResponse.ok) {
+            const limitsData = await limitsResponse.json();
+            currentUserCount = limitsData.users?.current || 0;
+            setUserCount(currentUserCount);
+          }
+
+          // Calculate subscription details
+          if (sub.package) {
+            const packageData = sub.package;
+            const billingInterval = sub.billing_interval || 'month';
+            const pricingModel = packageData.pricing_model || 'per_user';
+
+            let perUserPrice: number | null = null;
+            let totalPrice: number | null = null;
+
+            if (pricingModel === 'per_user') {
+              perUserPrice = billingInterval === 'month' 
+                ? packageData.price_per_user_monthly 
+                : packageData.price_per_user_yearly;
+              totalPrice = perUserPrice ? perUserPrice * currentUserCount : null;
+            } else {
+              totalPrice = billingInterval === 'month'
+                ? packageData.base_price_monthly
+                : packageData.base_price_yearly;
+            }
+
+            setSubscriptionDetails({
+              perUserPrice,
+              totalPrice,
+              billingInterval,
+              pricingModel,
+            });
+          }
+        } catch (detailsError) {
+          console.error('[AdminSubscriptionTab] Error loading subscription details:', detailsError);
+        }
+      }
     } catch (err) {
       console.error('[AdminSubscriptionTab] Error loading subscription:', err);
       showError(err instanceof Error ? err.message : 'Failed to load subscription details');
     } finally {
       setLoading(false);
     }
-  }, [showError]);
+  }, [showError, organization?.id]);
 
   const loadPackages = useCallback(async () => {
     try {
@@ -318,9 +371,23 @@ export default function AdminSubscriptionTab() {
 
   return (
     <Box>
-      <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
-        Subscription Management
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h6">
+          Subscription Management
+        </Typography>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<RefreshIcon />}
+          onClick={() => {
+            setLoading(true);
+            loadSubscription();
+          }}
+          disabled={loading}
+        >
+          Refresh
+        </Button>
+      </Box>
 
       <Grid container spacing={3}>
         {/* Current Subscription Details */}
@@ -357,13 +424,36 @@ export default function AdminSubscriptionTab() {
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2">
-                          {formatPackagePrice(
-                            subscription.package,
-                            (subscription.billing_interval || 'month') as 'month' | 'year'
-                          )}
+                          {subscriptionDetails?.pricingModel === 'per_user' && subscriptionDetails.perUserPrice && userCount !== null
+                            ? `$${subscriptionDetails.perUserPrice.toFixed(2)}/${subscription.billing_interval === 'year' ? 'yr' : 'mo'} × ${userCount} users = $${((subscriptionDetails.perUserPrice * userCount) || 0).toFixed(2)}/${subscription.billing_interval === 'year' ? 'yr' : 'mo'}`
+                            : formatPackagePrice(
+                                subscription.package,
+                                (subscription.billing_interval || 'month') as 'month' | 'year'
+                              )}
                         </Typography>
+                        {subscriptionDetails?.pricingModel === 'per_user' && subscriptionDetails.perUserPrice && (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                            Per user: ${subscriptionDetails.perUserPrice.toFixed(2)}/{subscription.billing_interval === 'year' ? 'yr' : 'mo'}
+                          </Typography>
+                        )}
                       </TableCell>
                     </TableRow>
+                    {userCount !== null && (
+                      <TableRow>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={600}>
+                            Active Users
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {userCount} {subscription.package.features?.max_users !== null 
+                              ? `of ${subscription.package.features.max_users} allowed`
+                              : 'users (unlimited)'}
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
                     <TableRow>
                       <TableCell>
                         <Typography variant="body2" fontWeight={600}>

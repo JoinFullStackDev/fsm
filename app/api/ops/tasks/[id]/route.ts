@@ -13,9 +13,9 @@ export async function GET(
 ) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return unauthorized('You must be logged in to view tasks');
     }
 
@@ -54,9 +54,9 @@ export async function PUT(
 ) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return unauthorized('You must be logged in to update tasks');
     }
 
@@ -111,11 +111,11 @@ export async function PUT(
     try {
       // Get user information for the activity feed message
       let userDisplayName = 'Unknown user';
-      if (session?.user?.id) {
+      if (user?.id) {
         const { data: userData } = await supabase
           .from('users')
           .select('name, email')
-          .eq('auth_id', session.user.id)
+          .eq('auth_id', user.id)
           .single();
         
         if (userData) {
@@ -148,9 +148,9 @@ export async function DELETE(
 ) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return unauthorized('You must be logged in to delete tasks');
     }
 

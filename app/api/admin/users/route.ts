@@ -3,8 +3,11 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { canAddUser } from '@/lib/packageLimits';
-import { generateSecurePassword } from '@/lib/utils/passwordGenerator';
 import { unauthorized, notFound, forbidden, badRequest, internalError } from '@/lib/utils/apiErrors';
+import { updateSubscriptionQuantityForUsers } from '@/lib/stripe/adminSubscriptionUpdates';
+import { sendEmailWithRetry } from '@/lib/emailService';
+import { getUserInvitationTemplate } from '@/lib/emailTemplates';
+import { isEmailConfigured } from '@/lib/emailService';
 import logger from '@/lib/utils/logger';
 import { VALID_USER_ROLES } from '@/lib/constants';
 import type { UserRole } from '@/types/project';
@@ -13,9 +16,9 @@ import type { UserRole } from '@/types/project';
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return unauthorized('You must be logged in to view users');
     }
 
@@ -24,11 +27,11 @@ export async function GET(request: NextRequest) {
     const { data: currentUser, error: userError } = await adminClient
       .from('users')
       .select('id, role, organization_id, is_super_admin')
-      .eq('auth_id', session.user.id)
+      .eq('auth_id', user.id)
       .single();
 
     if (userError || !currentUser) {
-      logger.error('[Admin Users] User not found:', { authId: session.user.id, error: userError });
+      logger.error('[Admin Users] User not found:', { authId: user.id, error: userError });
       return notFound('User');
     }
 
@@ -36,7 +39,7 @@ export async function GET(request: NextRequest) {
       logger.warn('[Admin Users] Non-admin user attempted to access admin users:', { 
         userId: currentUser.id, 
         role: currentUser.role,
-        authId: session.user.id 
+        authId: user.id 
       });
       return forbidden('Admin access required');
     }
@@ -46,7 +49,7 @@ export async function GET(request: NextRequest) {
     if (!organizationId) {
       logger.error('[Admin Users] CRITICAL: Admin user has no organization_id:', { 
         userId: currentUser.id, 
-        authId: session.user.id,
+        authId: user.id,
         role: currentUser.role,
         isSuperAdmin: currentUser.is_super_admin
       });
@@ -142,9 +145,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return unauthorized('You must be logged in to create users');
     }
 
@@ -153,7 +156,7 @@ export async function POST(request: NextRequest) {
     const { data: currentUser, error: userError } = await adminClient
       .from('users')
       .select('id, role, organization_id, is_super_admin')
-      .eq('auth_id', session.user.id)
+      .eq('auth_id', user.id)
       .single();
 
     if (userError || !currentUser) {
@@ -165,7 +168,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's organization
-    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    const organizationId = await getUserOrganizationId(supabase, user.id);
     if (!organizationId) {
       return badRequest('User is not assigned to an organization');
     }
@@ -206,27 +209,20 @@ export async function POST(request: NextRequest) {
       return badRequest('User with this email already exists');
     }
 
-    // Generate secure temporary password
-    const temporaryPassword = generateSecurePassword(16);
-
-    // Create auth user
-    const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
+    // Create auth user without password (user will set it via invitation link)
+    // Don't auto-confirm email - user needs to confirm via invitation link
+    const { data: authUser, error: createAuthError } = await adminClient.auth.admin.createUser({
       email,
-      password: temporaryPassword,
-      email_confirm: true, // Auto-confirm email for admin-created users
+      email_confirm: false, // User must confirm email via invitation link
       user_metadata: {
         name,
         role,
       },
     });
 
-    // Wait a moment to ensure password is fully committed
-    // This helps prevent timing issues where password isn't immediately available
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    if (authError || !authUser.user) {
-      logger.error('[Admin Users] Error creating auth user:', authError);
-      return internalError('Failed to create auth user', { error: authError?.message });
+    if (createAuthError || !authUser.user) {
+      logger.error('[Admin Users] Error creating auth user:', createAuthError);
+      return internalError('Failed to create auth user', { error: createAuthError?.message });
     }
 
     // Check if user record was auto-created by trigger
@@ -298,7 +294,118 @@ export async function POST(request: NextRequest) {
 
     userRecord = finalUserRecord || userRecord;
 
-    // Return user data and temporary password
+    // Generate invitation link and send email
+    try {
+      const emailConfigured = await isEmailConfigured();
+      if (emailConfigured && authUser.user) {
+        // Generate invitation link using Supabase admin API
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+                       (request.headers.get('origin') || 'http://localhost:3000');
+        
+        // Generate a magic link for email confirmation and password setup
+        const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+          type: 'invite',
+          email: email,
+          options: {
+            redirectTo: `${baseUrl}/auth/set-password`,
+          },
+        });
+
+        if (linkError) {
+          logger.error('[Admin Users] Failed to generate invitation link:', {
+            email,
+            error: linkError.message,
+            errorCode: linkError.status,
+            linkData,
+          });
+          // Don't fail user creation - admin can resend invitation later
+        } else {
+          // Extract invitation link from properties
+          const invitationLink = linkData?.properties?.action_link;
+
+          if (invitationLink) {
+            // Get organization name for email
+            const { data: orgData } = await adminClient
+              .from('organizations')
+              .select('name')
+              .eq('id', organizationId)
+              .single();
+
+            // Get admin name for email
+            const { data: adminData } = await adminClient
+              .from('users')
+              .select('name')
+              .eq('id', currentUser.id)
+              .single();
+
+            // Get email template
+            const template = await getUserInvitationTemplate(
+              name,
+              orgData?.name || 'Your Organization',
+              invitationLink,
+              adminData?.name || undefined
+            );
+
+            // Send invitation email
+            const emailSendResult = await sendEmailWithRetry(
+              email,
+              template.subject,
+              template.html,
+              template.text
+            );
+
+            if (!emailSendResult.success) {
+              logger.error('[Admin Users] Failed to send invitation email:', {
+                email,
+                error: emailSendResult.error,
+              });
+              // Don't fail user creation if email fails - user can request password reset later
+            } else {
+              logger.info('[Admin Users] Invitation email sent successfully', {
+                email,
+                userId: userRecord.id,
+              });
+            }
+          } else {
+            logger.error('[Admin Users] Generated link data missing action_link:', {
+              email,
+              linkDataKeys: linkData ? Object.keys(linkData) : [],
+              linkData,
+            });
+            // Don't fail user creation - admin can resend invitation later
+          }
+        }
+      } else if (!emailConfigured) {
+        logger.warn('[Admin Users] Email service not configured, skipping invitation email');
+      }
+    } catch (emailError) {
+      logger.error('[Admin Users] Error sending invitation email:', emailError);
+      // Don't fail user creation if email fails
+    }
+
+    // Update subscription quantity if applicable (non-blocking)
+    // This is done in the background so user creation isn't blocked if subscription update fails
+    try {
+      const subscriptionUpdateResult = await updateSubscriptionQuantityForUsers(organizationId);
+      
+      if (!subscriptionUpdateResult.success) {
+        logger.warn('[Admin Users] Subscription update failed after user creation:', {
+          organizationId,
+          error: subscriptionUpdateResult.error,
+        });
+        // Don't fail user creation if subscription update fails
+      } else {
+        logger.info('[Admin Users] Successfully updated subscription after user creation', {
+          organizationId,
+          newQuantity: subscriptionUpdateResult.newQuantity,
+        });
+      }
+    } catch (subscriptionError) {
+      // Log but don't fail - user was created successfully
+      logger.error('[Admin Users] Error updating subscription after user creation:', subscriptionError);
+    }
+
+    // Return user data (no password - user will set it via invitation email)
     return NextResponse.json(
       {
         user: {
@@ -308,7 +415,7 @@ export async function POST(request: NextRequest) {
           invite_created_by: currentUser.id,
           is_active: false,
         },
-        temporaryPassword, // Include password so admin can share it
+        invitationSent: true,
       },
       { status: 201 }
     );

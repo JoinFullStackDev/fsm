@@ -168,6 +168,42 @@ async function initializeSendGrid(): Promise<boolean> {
 }
 
 /**
+ * Get sender email address from database configuration
+ */
+export async function getSenderEmail(): Promise<string | null> {
+  try {
+    const adminClient = createAdminSupabaseClient();
+    
+    const { data: connection, error } = await adminClient
+      .from('system_connections')
+      .select('config, is_active')
+      .eq('connection_type', 'email')
+      .single();
+
+    if (error || !connection || !connection.is_active) {
+      return null;
+    }
+
+    const config = connection.config || {};
+    const senderEmail = config.from_email || config.sender_email;
+
+    if (senderEmail && typeof senderEmail === 'string') {
+      logger.debug('[Email] Sender email found in config', {
+        senderEmail,
+      });
+      return senderEmail;
+    }
+
+    return null;
+  } catch (error) {
+    logger.warn('[Email] Error fetching sender email from database:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    return null;
+  }
+}
+
+/**
  * Check if email service is configured and active
  */
 export async function isEmailConfigured(): Promise<boolean> {
@@ -190,9 +226,6 @@ export async function sendEmail(
   text?: string,
   from?: string
 ): Promise<{ success: boolean; error?: string }> {
-  // Get default from email from admin settings or use a default
-  const defaultFrom = from || process.env.SENDGRID_FROM_EMAIL || 'noreply@fullstackmethod.com';
-  
   try {
     const initialized = await initializeSendGrid();
     if (!initialized) {
@@ -201,10 +234,39 @@ export async function sendEmail(
         error: 'Email service is not configured',
       };
     }
+
+    // Get sender email: prioritize explicit from param, then database config, then env var, then default
+    let senderEmail = from;
+    let emailSource = 'explicit';
+    
+    if (!senderEmail) {
+      const dbEmail = await getSenderEmail();
+      if (dbEmail) {
+        senderEmail = dbEmail;
+        emailSource = 'database';
+      }
+    }
+    
+    if (!senderEmail) {
+      senderEmail = process.env.SENDGRID_FROM_EMAIL;
+      if (senderEmail) {
+        emailSource = 'env';
+      }
+    }
+    
+    if (!senderEmail) {
+      senderEmail = 'noreply@fullstackmethod.com';
+      emailSource = 'default';
+    }
+
+    logger.debug('[Email] Using sender email', {
+      senderEmail,
+      source: emailSource,
+    });
     
     const msg = {
       to,
-      from: defaultFrom,
+      from: senderEmail,
       subject,
       text: text || html.replace(/<[^>]*>/g, ''), // Strip HTML if no text provided
       html,
@@ -220,11 +282,14 @@ export async function sendEmail(
     });
     return { success: true };
   } catch (error: any) {
+    // Get sender email for error logging
+    const senderEmail = from || await getSenderEmail() || process.env.SENDGRID_FROM_EMAIL || 'noreply@fullstackmethod.com';
+    
     const errorDetails: any = {
       error: error.message,
       to,
       subject,
-      from: defaultFrom,
+      from: senderEmail,
     };
     
     // Add SendGrid-specific error details

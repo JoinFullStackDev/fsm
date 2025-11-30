@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import logger from '@/lib/utils/logger';
 import { AVAILABLE_MODULES } from '@/lib/modules';
@@ -49,9 +49,16 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const supabase = createSupabaseClient();
+  const loadingRef = useRef(false); // Request deduplication: prevent multiple simultaneous requests
 
   const loadOrganizationContext = useCallback(async () => {
+    // Request deduplication: if already loading, skip
+    if (loadingRef.current) {
+      return;
+    }
+
     try {
+      loadingRef.current = true;
       setLoading(true);
       setError(null);
 
@@ -61,6 +68,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         setSubscription(null);
         setPackage(null);
         setLoading(false);
+        loadingRef.current = false;
         return;
       }
 
@@ -90,21 +98,32 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       logger.error('[OrganizationProvider] Error loading organization context:', err);
     } finally {
       setLoading(false);
+      loadingRef.current = false;
     }
   }, [supabase]);
 
   useEffect(() => {
     loadOrganizationContext();
 
-    // Listen for auth state changes
+    // Listen for auth state changes with debouncing
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     const {
       data: { subscription: authSubscription },
     } = supabase.auth.onAuthStateChange(() => {
-      loadOrganizationContext();
+      // Debounce auth state changes to prevent rapid-fire requests
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+      debounceTimer = setTimeout(() => {
+        loadOrganizationContext();
+      }, 300); // 300ms debounce
     });
 
     return () => {
       authSubscription.unsubscribe();
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
     };
   }, [loadOrganizationContext, supabase]);
 

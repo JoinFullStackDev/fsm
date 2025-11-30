@@ -53,7 +53,24 @@ import {
 import { useNotification } from '@/lib/hooks/useNotification';
 import { AVAILABLE_MODULES, getModulesByCategory } from '@/lib/modules';
 import { formatPackagePrice } from '@/lib/packagePricing';
-import * as Icons from '@mui/icons-material';
+import {
+  AutoAwesome,
+  Download,
+  Analytics,
+  Api,
+  Dashboard,
+} from '@mui/icons-material';
+
+// Icon mapping for module icons (only import what we need)
+// BusinessIcon is already imported above
+const iconMap: Record<string, React.ComponentType<any>> = {
+  Business: BusinessIcon,
+  AutoAwesome,
+  Download,
+  Analytics,
+  Api,
+  Dashboard,
+};
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -216,8 +233,7 @@ export default function OrganizationDetailPage() {
 
   const getModuleIcon = (iconName?: string) => {
     if (!iconName) return BusinessIcon;
-    const IconComponent = (Icons as any)[iconName] || BusinessIcon;
-    return IconComponent;
+    return iconMap[iconName] || BusinessIcon;
   };
 
   const getModuleStatus = (moduleKey: string): { enabled: boolean; source: 'override' | 'package' | 'default' } => {

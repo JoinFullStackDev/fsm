@@ -75,13 +75,18 @@ export async function canCreateProject(
 
 /**
  * Check if organization can add more users
+ * For company admins adding users via /admin page, users can be added even at limit
+ * (they will be charged per-user pricing). This function now allows adding users
+ * even when at max_users limit, but returns a warning.
  * @param supabase - Supabase client instance
  * @param organizationId - Organization ID
+ * @param allowPaidUsers - If true, allow adding users even at limit (for paid users)
  * @returns Limit check result
  */
 export async function canAddUser(
   supabase: SupabaseClient,
-  organizationId: string
+  organizationId: string,
+  allowPaidUsers: boolean = true
 ): Promise<LimitCheckResult> {
   try {
     const context = await getOrganizationContextById(supabase, organizationId);
@@ -103,7 +108,18 @@ export async function canAddUser(
     const usage = await getOrganizationUsage(supabase, organizationId);
     const current = usage.users;
 
+    // If at or over limit
     if (current >= maxUsers) {
+      // If allowPaidUsers is true (default for admin user creation), allow adding but with warning
+      if (allowPaidUsers) {
+        return {
+          allowed: true,
+          reason: `You have reached the package limit of ${maxUsers} users. Adding more users will increase your monthly subscription cost.`,
+          current,
+          limit: maxUsers,
+        };
+      }
+      // Otherwise, block (for other flows that shouldn't allow exceeding limits)
       return {
         allowed: false,
         reason: `User limit reached. Maximum ${maxUsers} users allowed.`,
@@ -124,6 +140,20 @@ export async function canAddUser(
       reason: 'Error checking user limit',
     };
   }
+}
+
+/**
+ * Check if organization can add a paid user (allows exceeding max_users limit)
+ * This is specifically for company admin user creation flow
+ * @param supabase - Supabase client instance
+ * @param organizationId - Organization ID
+ * @returns Limit check result with warning if at limit
+ */
+export async function canAddPaidUser(
+  supabase: SupabaseClient,
+  organizationId: string
+): Promise<LimitCheckResult> {
+  return canAddUser(supabase, organizationId, true);
 }
 
 /**
