@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Box,
@@ -41,25 +41,7 @@ function KnowledgeBaseContent() {
   const [chatOpen, setChatOpen] = useState(false);
   const selectedCategoryId = searchParams.get('category');
 
-  useEffect(() => {
-    // Wait for features to load before checking access
-    if (features === null || features === undefined) {
-      setLoading(true);
-      return; // Still loading
-    }
-
-    // Check module access
-    if (features.knowledge_base_enabled !== true) {
-      router.push('/dashboard');
-      setLoading(false);
-      return;
-    }
-
-    loadCategories();
-    loadArticles();
-  }, [features, router, selectedCategoryId, page]);
-
-  const loadCategories = async () => {
+  const loadCategories = useCallback(async () => {
     try {
       const response = await fetch('/api/kb/categories?include_counts=true');
       if (response.ok) {
@@ -74,9 +56,9 @@ function KnowledgeBaseContent() {
       console.error('Error loading categories:', err);
       setError(err instanceof Error ? err.message : 'Failed to load categories');
     }
-  };
+  }, []);
 
-  const loadArticles = async () => {
+  const loadArticles = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -130,7 +112,25 @@ function KnowledgeBaseContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedCategoryId, page]);
+
+  useEffect(() => {
+    // Wait for features to load before checking access
+    if (features === null || features === undefined) {
+      setLoading(true);
+      return; // Still loading
+    }
+
+    // Check module access
+    if (features.knowledge_base_enabled !== true) {
+      router.push('/dashboard');
+      setLoading(false);
+      return;
+    }
+
+    loadCategories();
+    loadArticles();
+  }, [features, router, loadCategories, loadArticles]);
 
   const handleSearch = async (query: string) => {
     if (!query.trim()) {

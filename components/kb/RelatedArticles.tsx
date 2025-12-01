@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -32,11 +32,7 @@ export default function RelatedArticles({ articleId, organizationId }: RelatedAr
   const [relatedContent, setRelatedContent] = useState<RelatedContent | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadRelatedContent();
-  }, [articleId, organizationId]);
-
-  const loadRelatedContent = async () => {
+  const loadRelatedContent = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/kb/articles/${articleId}/related`);
@@ -49,7 +45,11 @@ export default function RelatedArticles({ articleId, organizationId }: RelatedAr
     } finally {
       setLoading(false);
     }
-  };
+  }, [articleId]);
+
+  useEffect(() => {
+    loadRelatedContent();
+  }, [loadRelatedContent]);
 
   if (loading) {
     return (
