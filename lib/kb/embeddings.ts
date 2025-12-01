@@ -1,15 +1,17 @@
 /**
  * Knowledge Base Embeddings Utility
  * Handles generation and storage of vector embeddings for semantic search
+ * Uses Google's text-embedding-004 model (768 dimensions) via Gemini API
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import logger from '@/lib/utils/logger';
+import { getGeminiApiKey } from '@/lib/utils/geminiConfig';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 
 /**
- * Generate embedding for text using OpenAI's API via Supabase
- * Uses OpenAI's text-embedding-ada-002 model (1536 dimensions) or text-embedding-3-small (1536)
- * Note: Supabase's pgvector typically uses 768 dimensions, so we'll use text-embedding-3-small
+ * Generate embedding for text using Google's embedding API via Gemini
+ * Uses Google's text-embedding-004 model (768 dimensions)
  * @param supabase - Supabase client instance
  * @param text - Text to generate embedding for
  * @returns Embedding vector (768 dimensions) or null if failed
@@ -25,12 +27,11 @@ export async function generateEmbedding(
     }
 
     // Truncate text if too long (embedding models have token limits)
-    // text-embedding-3-small has a limit of ~8191 tokens, roughly 30,000 characters
-    const maxLength = 30000;
+    // text-embedding-004 has a limit of ~2048 tokens, roughly 8,000 characters
+    const maxLength = 8000;
     const truncatedText = text.length > maxLength ? text.substring(0, maxLength) : text;
 
-    // Try to use Supabase's embed() function via RPC
-    // If that fails, fall back to direct OpenAI API call
+    // Try to use Supabase's embed() function via RPC first (if configured)
     const { data: rpcData, error: rpcError } = await supabase.rpc('embed', {
       text: truncatedText,
     });
@@ -38,50 +39,68 @@ export async function generateEmbedding(
     if (!rpcError && rpcData && Array.isArray(rpcData)) {
       // If RPC call succeeded and returned array, use it
       if (rpcData.length === 768) {
+        logger.debug('[KB Embeddings] Using Supabase RPC embed() function');
         return rpcData as number[];
       }
       // If dimensions don't match, we'll fall through to API call
     }
 
-    // Fallback: Call OpenAI API directly
-    // This requires OPENAI_API_KEY to be set
-    const openaiApiKey = process.env.OPENAI_API_KEY;
-    if (!openaiApiKey) {
-      logger.error('[KB Embeddings] No embedding API available - OPENAI_API_KEY not set');
+    // Use Google's embedding API via Gemini API key
+    const apiKey = await getGeminiApiKey(supabase);
+    if (!apiKey) {
+      logger.error('[KB Embeddings] No embedding API available - GEMINI_API_KEY not set');
       return null;
     }
 
-    const response = await fetch('https://api.openai.com/v1/embeddings', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${openaiApiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'text-embedding-3-small', // 1536 dimensions, we'll truncate to 768
-        input: truncatedText,
-        dimensions: 768, // Request 768 dimensions to match pgvector schema
-      }),
-    });
+    // Google's embedding API endpoint
+    // Using text-embedding-004 which produces 768-dimensional vectors
+    // API endpoint: https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'models/text-embedding-004',
+          content: {
+            parts: [{ text: truncatedText }],
+          },
+        }),
+      }
+    );
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      logger.error('[KB Embeddings] OpenAI API error:', {
+      const errorText = await response.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { message: errorText };
+      }
+      logger.error('[KB Embeddings] Google Embedding API error:', {
         status: response.status,
+        statusText: response.statusText,
         error: errorData,
       });
       return null;
     }
 
     const result = await response.json();
-    const embedding = result.data?.[0]?.embedding;
+    // Google's API returns embedding in result.embedding.values
+    const embedding = result.embedding?.values;
 
     if (!embedding || !Array.isArray(embedding)) {
-      logger.error('[KB Embeddings] Invalid embedding format from OpenAI');
+      logger.error('[KB Embeddings] Invalid embedding format from Google API', {
+        resultKeys: Object.keys(result),
+        embeddingType: typeof result.embedding,
+        hasValues: !!result.embedding?.values,
+      });
       return null;
     }
 
-    // Ensure we have exactly 768 dimensions
+    // Google's text-embedding-004 produces 768 dimensions
     if (embedding.length !== 768) {
       logger.warn(`[KB Embeddings] Embedding has ${embedding.length} dimensions, expected 768`);
       // Truncate or pad to 768 dimensions
@@ -146,10 +165,14 @@ export async function storeEmbedding(
   embedding: number[]
 ): Promise<boolean> {
   try {
-    // Convert array to PostgreSQL vector format: '[0.1,0.2,0.3]'
+    // Use admin client to bypass RLS for updating embeddings
+    const adminClient = createAdminSupabaseClient();
+    
+    // Supabase/PostgreSQL vector type accepts array directly
+    // Format: '[0.1,0.2,0.3]' as string for pgvector
     const vectorString = '[' + embedding.join(',') + ']';
 
-    const { error } = await supabase
+    const { error } = await adminClient
       .from('knowledge_base_articles')
       .update({
         vector: vectorString,
@@ -157,13 +180,23 @@ export async function storeEmbedding(
       .eq('id', articleId);
 
     if (error) {
-      logger.error('[KB Embeddings] Error storing embedding:', error);
+      logger.error('[KB Embeddings] Error storing embedding:', {
+        articleId,
+        error: error.message,
+        errorCode: error.code,
+        errorDetails: error.details,
+        vectorLength: embedding.length,
+      });
       return false;
     }
 
+    logger.debug('[KB Embeddings] Successfully stored embedding for article:', articleId);
     return true;
   } catch (error) {
-    logger.error('[KB Embeddings] Exception storing embedding:', error);
+    logger.error('[KB Embeddings] Exception storing embedding:', {
+      articleId,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return false;
   }
 }

@@ -105,7 +105,9 @@ export async function retrieveRelevantArticles(
     }
 
     if (!data || data.length === 0) {
-      return [];
+      // No articles with embeddings found - fall back to full-text search
+      logger.warn('[KB RAG] No articles with embeddings found, falling back to full-text search');
+      return await retrieveRelevantArticlesFullText(supabase, query, organizationId, topK);
     }
 
     // Calculate cosine similarity for each article
@@ -164,47 +166,187 @@ async function retrieveRelevantArticlesFullText(
       articlesQuery = articlesQuery.is('organization_id', null);
     }
 
-    // Prepare search terms for full-text search
-    const searchTerms = query
-      .split(/\s+/)
-      .filter(term => term.length > 0)
-      .map(term => term.trim())
-      .join(' & ');
+    // Try full-text search first (if search_vector column exists)
+    let data: any[] | null = null;
+    let error: any = null;
 
-    const { data, error } = await articlesQuery
-      .textSearch('search_vector', searchTerms, {
-        type: 'websearch',
-        config: 'english',
-      })
-      .limit(topK);
+    try {
+      const searchTerms = query
+        .split(/\s+/)
+        .filter(term => term.length > 0)
+        .map(term => term.trim())
+        .join(' & ');
 
-    if (error) {
-      logger.error('[KB RAG] Full-text search error:', error);
-      return [];
+      const searchResult = await articlesQuery
+        .textSearch('search_vector', searchTerms, {
+          type: 'websearch',
+          config: 'english',
+        })
+        .limit(topK);
+
+      data = searchResult.data;
+      error = searchResult.error;
+    } catch (textSearchError) {
+      logger.warn('[KB RAG] Full-text search failed, using simple text matching:', textSearchError);
+      error = textSearchError;
     }
 
-    if (!data) {
-      return [];
+    // If full-text search failed, use simple text matching
+    if (error || !data || data.length === 0) {
+      logger.debug('[KB RAG] Falling back to simple text matching', { error, dataLength: data?.length });
+      
+      // Rebuild query without textSearch
+      let simpleQuery = supabase
+        .from('knowledge_base_articles')
+        .select(`
+          *,
+          category:knowledge_base_categories(*)
+        `)
+        .eq('published', true);
+
+      if (organizationId !== null) {
+        simpleQuery = simpleQuery.or(`organization_id.eq.${organizationId},organization_id.is.null`);
+      } else {
+        simpleQuery = simpleQuery.is('organization_id', null);
+      }
+
+      const queryLower = query.toLowerCase();
+      const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2); // Ignore very short words
+
+      const { data: allArticles, error: fetchError } = await simpleQuery.limit(100);
+      
+      logger.debug('[KB RAG] Simple search fetched articles:', { count: allArticles?.length, error: fetchError });
+
+      if (fetchError || !allArticles) {
+        logger.error('[KB RAG] Error fetching articles for simple search:', fetchError);
+        return [];
+      }
+
+          // Filter articles that contain query terms
+          const matchingArticles = allArticles
+            .map((article: any) => {
+              const titleLower = article.title?.toLowerCase() || '';
+              const summaryLower = article.summary?.toLowerCase() || '';
+              const bodyLower = article.body?.toLowerCase() || '';
+              const combinedText = `${titleLower} ${summaryLower} ${bodyLower}`;
+
+              // Count how many query words match
+              let matchCount = 0;
+              let titleMatches = 0;
+              let summaryMatches = 0;
+              let bodyMatches = 0;
+              
+              for (const word of queryWords) {
+                if (combinedText.includes(word)) {
+                  matchCount++;
+                  if (titleLower.includes(word)) titleMatches++;
+                  if (summaryLower.includes(word)) summaryMatches++;
+                  if (bodyLower.includes(word)) bodyMatches++;
+                }
+              }
+
+              if (matchCount === 0) {
+                return null;
+              }
+
+              // Calculate score based on where matches occur and word match ratio
+              let score = 0;
+              
+              // Base score from word match ratio (0-0.4)
+              const wordMatchRatio = matchCount / queryWords.length;
+              score += wordMatchRatio * 0.4;
+              
+              // Boost for matches in title (0-0.3)
+              if (titleMatches > 0) {
+                score += Math.min(0.3, (titleMatches / queryWords.length) * 0.3);
+              }
+              
+              // Boost for matches in summary (0-0.2)
+              if (summaryMatches > 0) {
+                score += Math.min(0.2, (summaryMatches / queryWords.length) * 0.2);
+              }
+              
+              // Boost for matches in body (0-0.1)
+              if (bodyMatches > 0) {
+                score += Math.min(0.1, (bodyMatches / queryWords.length) * 0.1);
+              }
+              
+              // Bonus if entire query phrase appears (exact match)
+              if (titleLower.includes(queryLower)) score += 0.2;
+              else if (summaryLower.includes(queryLower)) score += 0.15;
+              else if (bodyLower.includes(queryLower)) score += 0.1;
+
+              return {
+                article: article as KnowledgeBaseArticleWithCategory,
+                relevance_score: Math.min(1, score),
+              };
+            })
+            .filter((r: any): r is { article: KnowledgeBaseArticleWithCategory; relevance_score: number } => r !== null)
+            .sort((a, b) => b.relevance_score - a.relevance_score)
+            .slice(0, topK);
+
+      return matchingArticles;
     }
 
     // Calculate relevance scores based on match quality
+    const queryLower = query.toLowerCase();
+    const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2);
+    
     return data.map((article: KnowledgeBaseArticleWithCategory, index: number) => {
-      const queryLower = query.toLowerCase();
       const titleLower = article.title.toLowerCase();
       const summaryLower = article.summary?.toLowerCase() || '';
       const bodyLower = article.body.toLowerCase();
+      const combinedText = `${titleLower} ${summaryLower} ${bodyLower}`;
+
+      // Count word matches
+      let matchCount = 0;
+      let titleMatches = 0;
+      let summaryMatches = 0;
+      let bodyMatches = 0;
+      
+      for (const word of queryWords) {
+        if (combinedText.includes(word)) {
+          matchCount++;
+          if (titleLower.includes(word)) titleMatches++;
+          if (summaryLower.includes(word)) summaryMatches++;
+          if (bodyLower.includes(word)) bodyMatches++;
+        }
+      }
 
       let score = 0;
-      if (titleLower.includes(queryLower)) score += 0.5;
-      if (summaryLower.includes(queryLower)) score += 0.3;
-      if (bodyLower.includes(queryLower)) score += 0.2;
+      
+      // Base score from word match ratio (0-0.4)
+      if (queryWords.length > 0) {
+        const wordMatchRatio = matchCount / queryWords.length;
+        score += wordMatchRatio * 0.4;
+      }
+      
+      // Boost for matches in title (0-0.3)
+      if (titleMatches > 0 && queryWords.length > 0) {
+        score += Math.min(0.3, (titleMatches / queryWords.length) * 0.3);
+      }
+      
+      // Boost for matches in summary (0-0.2)
+      if (summaryMatches > 0 && queryWords.length > 0) {
+        score += Math.min(0.2, (summaryMatches / queryWords.length) * 0.2);
+      }
+      
+      // Boost for matches in body (0-0.1)
+      if (bodyMatches > 0 && queryWords.length > 0) {
+        score += Math.min(0.1, (bodyMatches / queryWords.length) * 0.1);
+      }
+      
+      // Bonus if entire query phrase appears (exact match)
+      if (titleLower.includes(queryLower)) score += 0.2;
+      else if (summaryLower.includes(queryLower)) score += 0.15;
+      else if (bodyLower.includes(queryLower)) score += 0.1;
 
-      // Apply rank penalty
-      score *= Math.max(0, 1 - index / 10);
+      // Apply rank penalty (less aggressive)
+      score *= Math.max(0.5, 1 - index / 20);
 
       return {
         article,
-        relevance_score: Math.min(1, score),
+        relevance_score: Math.min(1, Math.max(0.1, score)), // Ensure minimum 10% score if matched
       };
     });
   } catch (error) {
