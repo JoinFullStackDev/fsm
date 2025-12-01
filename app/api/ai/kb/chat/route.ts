@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
     const startTime = Date.now();
 
     // Retrieve relevant articles using semantic search
+    logger.debug('[KB AI Chat] Retrieving articles', { query, organizationId });
     const retrievedArticles = await retrieveRelevantArticles(
       supabase,
       query,
@@ -63,7 +64,13 @@ export async function POST(request: NextRequest) {
       5 // top-k articles
     );
 
+    logger.debug('[KB AI Chat] Retrieved articles', { 
+      count: retrievedArticles.length,
+      articles: retrievedArticles.map(a => ({ title: a.article.title, score: a.relevance_score }))
+    });
+
     if (retrievedArticles.length === 0) {
+      logger.warn('[KB AI Chat] No articles found', { query, organizationId });
       return NextResponse.json({
         answer: "I couldn't find any relevant articles in the knowledge base to answer your question. Please try rephrasing your query or check if the information exists in the knowledge base.",
         sources: [],

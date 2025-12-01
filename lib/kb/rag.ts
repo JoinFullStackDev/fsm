@@ -100,23 +100,58 @@ export async function retrieveRelevantArticles(
       .limit(topK * 3); // Fetch more to account for filtering
 
     if (error) {
-      logger.error('[KB RAG] Vector search error:', error);
+      logger.error('[KB RAG] Vector search error:', { error, organizationId, query });
       return await retrieveRelevantArticlesFullText(supabase, query, organizationId, topK);
     }
 
     if (!data || data.length === 0) {
       // No articles with embeddings found - fall back to full-text search
-      logger.warn('[KB RAG] No articles with embeddings found, falling back to full-text search');
+      logger.warn('[KB RAG] No articles with embeddings found', { 
+        organizationId, 
+        query,
+        filter: organizationId !== null ? `org=${organizationId} or global` : 'global only'
+      });
       return await retrieveRelevantArticlesFullText(supabase, query, organizationId, topK);
     }
+
+    logger.debug('[KB RAG] Found articles with embeddings:', { 
+      count: data.length, 
+      organizationId,
+      sampleTitles: data.slice(0, 3).map((a: any) => a.title)
+    });
 
     // Calculate cosine similarity for each article
     const results = data
       .map((item: any) => {
-        if (!item.vector || !Array.isArray(item.vector)) {
+        if (!item.vector) {
+          logger.debug('[KB RAG] Article missing vector:', { id: item.id, title: item.title });
           return null;
         }
-        const similarity = cosineSimilarity(queryEmbedding, item.vector);
+
+        // Convert vector to array if it's a string (Supabase may return pgvector as string)
+        let vectorArray: number[];
+        if (typeof item.vector === 'string') {
+          try {
+            // Parse string like "[0.1,0.2,0.3]" to array
+            vectorArray = JSON.parse(item.vector);
+          } catch (parseError) {
+            logger.warn('[KB RAG] Failed to parse vector string:', { id: item.id, title: item.title, error: parseError });
+            return null;
+          }
+        } else if (Array.isArray(item.vector)) {
+          vectorArray = item.vector;
+        } else {
+          logger.warn('[KB RAG] Vector is not string or array:', { id: item.id, title: item.title, vectorType: typeof item.vector });
+          return null;
+        }
+
+        if (!Array.isArray(vectorArray) || vectorArray.length === 0) {
+          logger.warn('[KB RAG] Invalid vector array:', { id: item.id, title: item.title, vectorLength: vectorArray?.length });
+          return null;
+        }
+
+        const similarity = cosineSimilarity(queryEmbedding, vectorArray);
+        logger.debug('[KB RAG] Article similarity:', { id: item.id, title: item.title, similarity, vectorLength: vectorArray.length });
         return {
           article: item as KnowledgeBaseArticleWithCategory,
           relevance_score: similarity,
@@ -126,6 +161,18 @@ export async function retrieveRelevantArticles(
       .filter((r: any): r is { article: any; relevance_score: number } => r !== null)
       .sort((a: any, b: any) => b.relevance_score - a.relevance_score)
       .slice(0, topK);
+
+    logger.debug('[KB RAG] Vector search results:', { 
+      totalArticles: data.length, 
+      resultsCount: results.length,
+      topScores: results.slice(0, 3).map(r => ({ title: r.article.title, score: r.relevance_score }))
+    });
+
+    // If no results from vector search, fall back to full-text
+    if (results.length === 0) {
+      logger.warn('[KB RAG] No articles found with vector search, falling back to full-text search');
+      return await retrieveRelevantArticlesFullText(supabase, query, organizationId, topK);
+    }
 
     return results;
   } catch (error) {
@@ -215,10 +262,28 @@ async function retrieveRelevantArticlesFullText(
 
       const { data: allArticles, error: fetchError } = await simpleQuery.limit(100);
       
-      logger.debug('[KB RAG] Simple search fetched articles:', { count: allArticles?.length, error: fetchError });
+      logger.debug('[KB RAG] Simple search fetched articles:', { 
+        count: allArticles?.length, 
+        error: fetchError,
+        organizationId,
+        query
+      });
 
-      if (fetchError || !allArticles) {
-        logger.error('[KB RAG] Error fetching articles for simple search:', fetchError);
+      if (fetchError) {
+        logger.error('[KB RAG] Error fetching articles for simple search:', { 
+          error: fetchError, 
+          organizationId,
+          query 
+        });
+        return [];
+      }
+
+      if (!allArticles || allArticles.length === 0) {
+        logger.warn('[KB RAG] No articles found for simple search', { 
+          organizationId,
+          query,
+          filter: organizationId !== null ? `org=${organizationId} or global` : 'global only'
+        });
         return [];
       }
 
@@ -284,6 +349,12 @@ async function retrieveRelevantArticlesFullText(
             .filter((r: any): r is { article: KnowledgeBaseArticleWithCategory; relevance_score: number } => r !== null)
             .sort((a, b) => b.relevance_score - a.relevance_score)
             .slice(0, topK);
+
+      logger.debug('[KB RAG] Simple text matching results:', { 
+        totalArticles: allArticles.length,
+        resultsCount: matchingArticles.length,
+        topScores: matchingArticles.slice(0, 3).map(r => ({ title: r.article.title, score: r.relevance_score }))
+      });
 
       return matchingArticles;
     }
