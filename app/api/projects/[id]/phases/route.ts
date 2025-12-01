@@ -27,6 +27,7 @@ export async function GET(
 
     // Get user record to check if super admin
     let currentUser;
+    let adminClient; // Declare once for reuse
     const { data: regularUserData, error: regularUserError } = await supabase
       .from('users')
       .select('id, role, organization_id, is_super_admin')
@@ -35,7 +36,7 @@ export async function GET(
 
     if (regularUserError || !regularUserData) {
       // RLS might be blocking - try admin client
-      const adminClient = createAdminSupabaseClient();
+      adminClient = createAdminSupabaseClient();
       const { data: adminUserData, error: adminUserError } = await adminClient
         .from('users')
         .select('id, role, organization_id, is_super_admin')
@@ -49,10 +50,12 @@ export async function GET(
       currentUser = adminUserData;
     } else {
       currentUser = regularUserData;
+      // Create admin client for subsequent queries
+      adminClient = createAdminSupabaseClient();
     }
 
-    // Verify user has access to the project
-    const { data: project, error: projectError } = await supabase
+    // Verify user has access to the project - Use admin client to avoid RLS recursion
+    const { data: project, error: projectError } = await adminClient
       .from('projects')
       .select('owner_id, organization_id')
       .eq('id', params.id)
@@ -63,18 +66,10 @@ export async function GET(
     }
 
     // Validate organization access (super admins can see all projects)
-    if (currentUser.role !== 'admin' || currentUser.is_super_admin !== true) {
-      if (project.organization_id !== organizationId) {
-        return forbidden('You do not have access to this project');
-      }
-    }
-
-    const isOwner = project.owner_id === currentUser.id;
-    const isAdmin = currentUser.role === 'admin';
-
-    if (!isOwner && !isAdmin) {
+    const isSuperAdmin = currentUser.role === 'admin' && currentUser.is_super_admin === true;
+    if (!isSuperAdmin && project.organization_id !== organizationId) {
       // Check if user is a project member
-      const { data: member } = await supabase
+      const { data: member } = await adminClient
         .from('project_members')
         .select('id')
         .eq('project_id', params.id)
@@ -86,8 +81,8 @@ export async function GET(
       }
     }
 
-    // Fetch all active phases for the project
-    const { data: phases, error: phasesError } = await supabase
+    // Fetch all active phases for the project - Use admin client to avoid RLS recursion
+    const { data: phases, error: phasesError } = await adminClient
       .from('project_phases')
       .select('*')
       .eq('project_id', params.id)

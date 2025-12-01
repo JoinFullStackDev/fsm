@@ -3,6 +3,8 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { unauthorized, forbidden, badRequest, internalError } from '@/lib/utils/apiErrors';
+import { validateFileUpload, sanitizeFilename, getMaxFileSize } from '@/lib/utils/fileValidation';
+import { isValidUUID } from '@/lib/utils/inputSanitization';
 import logger from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
@@ -16,6 +18,11 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Validate UUID format
+    if (!isValidUUID(params.id)) {
+      return badRequest('Invalid organization ID format');
+    }
+
     const supabase = await createServerSupabaseClient();
     const { data: { session } } = await supabase.auth.getSession();
 
@@ -52,16 +59,21 @@ export async function POST(
       return badRequest('Type must be "logo" or "icon"');
     }
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      return badRequest('File must be an image');
+    // Enhanced file validation with magic bytes verification
+    const maxSize = getMaxFileSize('image', type as 'logo' | 'icon');
+    const validation = await validateFileUpload(
+      file,
+      ['image'], // Allow all image types
+      maxSize,
+      true // Require magic bytes verification
+    );
+
+    if (!validation.valid) {
+      return validation.error || badRequest('File validation failed');
     }
 
-    // Validate file size
-    const maxSize = type === 'logo' ? 2 * 1024 * 1024 : 1 * 1024 * 1024; // 2MB for logo, 1MB for icon
-    if (file.size > maxSize) {
-      return badRequest(`File size must be less than ${maxSize / 1024 / 1024}MB`);
-    }
+    // Sanitize filename to prevent path traversal
+    const sanitizedFilename = sanitizeFilename(file.name);
 
     const adminClient = createAdminSupabaseClient();
 
@@ -97,11 +109,11 @@ export async function POST(
       }
     }
 
-    // Create unique filename
-    const fileExt = file.name.split('.').pop()?.toLowerCase() || 'png';
+    // Create unique filename using sanitized name
+    const fileExt = sanitizedFilename.split('.').pop()?.toLowerCase() || 'png';
     const timestamp = Date.now();
-    const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const fileName = `${params.id}/${type}-${timestamp}-${sanitizedName}`;
+    // Use sanitized filename (already sanitized above)
+    const fileName = `${params.id}/${type}-${timestamp}-${sanitizedFilename}`;
 
     // Upload file to Supabase Storage
     const { data: uploadData, error: uploadError } = await adminClient.storage

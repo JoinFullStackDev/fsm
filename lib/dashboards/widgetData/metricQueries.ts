@@ -5,6 +5,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import logger from '@/lib/utils/logger';
+import { queryCache, generateCacheKey } from '@/lib/cache/queryCache';
 
 export interface MetricWidgetData {
   value: number;
@@ -15,6 +16,7 @@ export interface MetricWidgetData {
 
 /**
  * Get task count metric
+ * Optimized to use database function to eliminate N+1 query pattern
  */
 export async function getTaskCount(
   supabase: SupabaseClient,
@@ -27,6 +29,41 @@ export async function getTaskCount(
   }
 ): Promise<MetricWidgetData> {
   try {
+    // Check cache first (30-second TTL for task counts)
+    const cacheKey = generateCacheKey('task_count', { organizationId, filters });
+    const cached = queryCache.get<MetricWidgetData>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    // Use optimized database function to eliminate N+1 pattern
+    // Falls back to direct query if function doesn't exist
+    try {
+      const projectIds = filters?.projectId ? [filters.projectId] : null;
+      const { data: count, error: rpcError } = await supabase.rpc('count_filtered_tasks', {
+        p_organization_id: organizationId,
+        p_project_ids: projectIds,
+        p_assignee_id: filters?.assigneeId || null,
+        p_status: filters?.status && filters.status.length > 0 ? filters.status : null,
+        p_due_date_start: filters?.dueDateRange?.start || null,
+        p_due_date_end: filters?.dueDateRange?.end || null,
+      });
+
+      if (!rpcError && count !== null) {
+        const result = {
+          value: count || 0,
+          label: 'Tasks',
+        };
+        // Cache the result
+        queryCache.set(cacheKey, result, 30);
+        return result;
+      }
+    } catch (rpcErr) {
+      // Fall back to direct query if RPC fails
+      logger.debug('[Metric Queries] RPC failed, using direct query:', rpcErr);
+    }
+
+    // Fallback: Direct query (original implementation)
     let query = supabase
       .from('project_tasks')
       .select('id', { count: 'exact', head: true });
@@ -72,10 +109,13 @@ export async function getTaskCount(
       return { value: 0, label: 'Tasks' };
     }
 
-    return {
+    const result = {
       value: count || 0,
       label: 'Tasks',
     };
+    // Cache the result
+    queryCache.set(cacheKey, result, 30);
+    return result;
   } catch (error) {
     logger.error('[Metric Queries] Error in getTaskCount:', error);
     return { value: 0, label: 'Tasks' };
@@ -121,6 +161,7 @@ export async function getProjectCount(
 
 /**
  * Get tasks due today metric
+ * Optimized to use database function to eliminate N+1 query pattern
  */
 export async function getTasksDueToday(
   supabase: SupabaseClient,
@@ -133,6 +174,42 @@ export async function getTasksDueToday(
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
+    const todayStr = today.toISOString().split('T')[0];
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+    // Check cache first (30-second TTL for daily metrics)
+    const cacheKey = generateCacheKey('tasks_due_today', { organizationId, assigneeId, today: todayStr });
+    const cached = queryCache.get<MetricWidgetData>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    // Use optimized database function to eliminate N+1 pattern
+    try {
+      const { data: count, error: rpcError } = await supabase.rpc('count_filtered_tasks', {
+        p_organization_id: organizationId,
+        p_project_ids: null,
+        p_assignee_id: assigneeId || null,
+        p_status: ['todo', 'in_progress'],
+        p_due_date_start: todayStr,
+        p_due_date_end: tomorrowStr,
+      });
+
+      if (!rpcError && count !== null) {
+        const result = {
+          value: count || 0,
+          label: 'Tasks Due Today',
+        };
+        // Cache the result
+        queryCache.set(cacheKey, result, 30);
+        return result;
+      }
+    } catch (rpcErr) {
+      // Fall back to direct query if RPC fails
+      logger.debug('[Metric Queries] RPC failed, using direct query:', rpcErr);
+    }
+
+    // Fallback: Direct query (original implementation)
     // Get all projects for organization
     const { data: projects } = await supabase
       .from('projects')
@@ -147,8 +224,8 @@ export async function getTasksDueToday(
       .from('project_tasks')
       .select('id', { count: 'exact', head: true })
       .in('project_id', projects.map(p => p.id))
-      .gte('due_date', today.toISOString().split('T')[0])
-      .lt('due_date', tomorrow.toISOString().split('T')[0])
+      .gte('due_date', todayStr)
+      .lt('due_date', tomorrowStr)
       .in('status', ['todo', 'in_progress']);
 
     if (assigneeId) {
@@ -162,10 +239,13 @@ export async function getTasksDueToday(
       return { value: 0, label: 'Tasks Due Today' };
     }
 
-    return {
+    const result = {
       value: count || 0,
       label: 'Tasks Due Today',
     };
+    // Cache the result
+    queryCache.set(cacheKey, result, 30);
+    return result;
   } catch (error) {
     logger.error('[Metric Queries] Error in getTasksDueToday:', error);
     return { value: 0, label: 'Tasks Due Today' };
@@ -174,6 +254,7 @@ export async function getTasksDueToday(
 
 /**
  * Get overdue tasks metric
+ * Optimized to use database function to eliminate N+1 query pattern
  */
 export async function getOverdueTasks(
   supabase: SupabaseClient,
@@ -183,7 +264,42 @@ export async function getOverdueTasks(
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split('T')[0];
 
+    // Check cache first (30-second TTL for daily metrics)
+    const cacheKey = generateCacheKey('overdue_tasks', { organizationId, assigneeId, today: todayStr });
+    const cached = queryCache.get<MetricWidgetData>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    // Use optimized database function to eliminate N+1 pattern
+    // For overdue tasks, we use a date range from a very old date to today
+    try {
+      const { data: count, error: rpcError } = await supabase.rpc('count_filtered_tasks', {
+        p_organization_id: organizationId,
+        p_project_ids: null,
+        p_assignee_id: assigneeId || null,
+        p_status: ['todo', 'in_progress'],
+        p_due_date_start: '1900-01-01', // Very old date to catch all overdue tasks
+        p_due_date_end: todayStr, // Up to (but not including) today
+      });
+
+      if (!rpcError && count !== null) {
+        const result = {
+          value: count || 0,
+          label: 'Overdue Tasks',
+        };
+        // Cache the result
+        queryCache.set(cacheKey, result, 30);
+        return result;
+      }
+    } catch (rpcErr) {
+      // Fall back to direct query if RPC fails
+      logger.debug('[Metric Queries] RPC failed, using direct query:', rpcErr);
+    }
+
+    // Fallback: Direct query (original implementation)
     // Get all projects for organization
     const { data: projects } = await supabase
       .from('projects')
@@ -198,7 +314,7 @@ export async function getOverdueTasks(
       .from('project_tasks')
       .select('id', { count: 'exact', head: true })
       .in('project_id', projects.map(p => p.id))
-      .lt('due_date', today.toISOString().split('T')[0])
+      .lt('due_date', todayStr)
       .in('status', ['todo', 'in_progress']);
 
     if (assigneeId) {
@@ -212,10 +328,13 @@ export async function getOverdueTasks(
       return { value: 0, label: 'Overdue Tasks' };
     }
 
-    return {
+    const result = {
       value: count || 0,
       label: 'Overdue Tasks',
     };
+    // Cache the result
+    queryCache.set(cacheKey, result, 30);
+    return result;
   } catch (error) {
     logger.error('[Metric Queries] Error in getOverdueTasks:', error);
     return { value: 0, label: 'Overdue Tasks' };

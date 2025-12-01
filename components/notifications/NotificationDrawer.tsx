@@ -130,11 +130,19 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
     if (open) {
       loadNotifications();
       setupRealtimeSubscription();
+    } else {
+      // Cleanup: Unsubscribe when drawer closes to reduce realtime load
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+      }
     }
 
     return () => {
+      // Cleanup: Always unsubscribe when component unmounts or dependencies change
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
       }
     };
   }, [open, loadNotifications, setupRealtimeSubscription]);

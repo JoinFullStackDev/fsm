@@ -24,35 +24,44 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user record with role and super admin status
-    let userData;
-    const { data: regularUserData, error: regularUserError } = await supabase
+    // Use admin client to avoid RLS recursion issues
+    const adminClient = createAdminSupabaseClient();
+    const { data: userData, error: userError } = await adminClient
       .from('users')
       .select('id, role, organization_id, is_super_admin')
       .eq('auth_id', session.user.id)
       .single();
 
-    if (regularUserError || !regularUserData) {
-      // RLS might be blocking - try admin client
-      const adminClient = createAdminSupabaseClient();
-      const { data: adminUserData, error: adminUserError } = await adminClient
-        .from('users')
-        .select('id, role, organization_id, is_super_admin')
-        .eq('auth_id', session.user.id)
-        .single();
-
-      if (adminUserError || !adminUserData) {
-        return notFound('User not found');
-      }
-
-      userData = adminUserData;
-    } else {
-      userData = regularUserData;
+    if (userError || !userData) {
+      logger.error('[Templates API] User not found:', userError);
+      return notFound('User not found');
     }
 
     // Check if organization has template access based on package features
     // If max_templates is defined (null = unlimited, number = limited), they have access to view
+    // undefined means no access, null means unlimited, number means limited
     const packageFeatures = await getOrganizationPackageFeatures(supabase, organizationId);
-    if (!packageFeatures || packageFeatures.max_templates === undefined) {
+    
+    logger.info('[Templates API] Package features check:', {
+      organizationId,
+      hasFeatures: !!packageFeatures,
+      maxTemplates: packageFeatures?.max_templates,
+      packageName: packageFeatures ? 'unknown' : 'none',
+    });
+    
+    if (!packageFeatures) {
+      logger.error('[Templates API] No package features found - RLS or subscription issue:', {
+        organizationId,
+        userId: userData.id,
+      });
+      return forbidden('Template access not available - unable to load package features. Please contact support.');
+    }
+    
+    if (packageFeatures.max_templates === undefined) {
+      logger.warn('[Templates API] Template access denied - max_templates is undefined:', {
+        organizationId,
+        packageFeatures: Object.keys(packageFeatures),
+      });
       return forbidden('Template access not available in your package');
     }
 
@@ -62,12 +71,13 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
     // Filter by organization and visibility (super admins can see all templates)
+    // Use admin client to avoid RLS recursion issues
     let templates: any[] = [];
     let count = 0;
 
     if (userData.role === 'admin' && userData.is_super_admin === true) {
       // Super admin can see all templates
-      const { data: allTemplates, error: allError, count: allCount } = await supabase
+      const { data: allTemplates, error: allError, count: allCount } = await adminClient
         .from('project_templates')
         .select('*', { count: 'exact' })
         .order('created_at', { ascending: false })
@@ -86,14 +96,14 @@ export async function GET(request: NextRequest) {
       // 2. OR templates where is_publicly_available = true (from any organization)
       
       // Fetch organization templates (public or created by user)
-      const { data: orgTemplates, error: orgError } = await supabase
+      const { data: orgTemplates, error: orgError } = await adminClient
         .from('project_templates')
         .select('*')
         .eq('organization_id', organizationId)
         .or(`is_public.eq.true,created_by.eq.${userData.id}`);
 
       // Fetch publicly available templates
-      const { data: publicTemplates, error: publicError } = await supabase
+      const { data: publicTemplates, error: publicError } = await adminClient
         .from('project_templates')
         .select('*')
         .eq('is_publicly_available', true);
@@ -125,9 +135,10 @@ export async function GET(request: NextRequest) {
     const templatesError = null;
 
     // Get usage counts for each template
+    // Use admin client to avoid RLS recursion
     const templatesWithUsage = await Promise.all(
       templates.map(async (template) => {
-        const { count: usageCount, error: countError } = await supabase
+        const { count: usageCount, error: countError } = await adminClient
           .from('projects')
           .select('*', { count: 'exact', head: true })
           .eq('template_id', template.id);

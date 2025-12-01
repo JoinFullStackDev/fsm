@@ -16,6 +16,7 @@ import { useNotification } from '@/components/providers/NotificationProvider';
 import type { Project } from '@/types/project';
 import SortableTable from '@/components/dashboard/SortableTable';
 import EmptyState from '@/components/ui/EmptyState';
+import { getCsrfToken } from '@/lib/utils/csrfClient';
 
 interface CompanyProjectsTabProps {
   companyId: string;
@@ -69,8 +70,15 @@ export default function CompanyProjectsTab({ companyId }: CompanyProjectsTabProp
     }
 
     try {
+      const csrfToken = getCsrfToken();
+      const headers: HeadersInit = {};
+      if (csrfToken) {
+        headers['x-csrf-token'] = csrfToken;
+      }
+
       const response = await fetch(`/api/projects/${project.id}`, {
         method: 'DELETE',
+        headers,
       });
 
       if (!response.ok) {

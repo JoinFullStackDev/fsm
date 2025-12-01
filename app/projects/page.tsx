@@ -28,6 +28,7 @@ import { FolderOpen as FolderIcon } from '@mui/icons-material';
 import { useRole } from '@/lib/hooks/useRole';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import type { Project } from '@/types/project';
+import { getCsrfToken } from '@/lib/utils/csrfClient';
 import {
   Dialog,
   DialogTitle,
@@ -74,7 +75,48 @@ export default function ProjectsPage() {
         throw new Error(data.error || 'Failed to load projects');
       }
 
-      setProjects(data.data || []);
+      // CRITICAL SECURITY CHECK: Verify all projects belong to user's organization
+      // This is a client-side defense-in-depth check
+      const projects = data.data || [];
+      const supabase = createSupabaseClient();
+      const currentUser = await supabase.auth.getUser();
+      
+      if (currentUser.data?.user) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('organization_id')
+          .eq('auth_id', currentUser.data.user.id)
+          .single();
+        
+        if (userData?.organization_id) {
+          const filteredProjects = projects.filter((project: any) => {
+            if (project.organization_id !== userData.organization_id) {
+              console.error('[Projects Page] SECURITY ISSUE: Project from wrong organization detected:', {
+                projectId: project.id,
+                projectName: project.name,
+                projectOrgId: project.organization_id,
+                userOrgId: userData.organization_id,
+              });
+              return false;
+            }
+            return true;
+          });
+          
+          if (filteredProjects.length !== projects.length) {
+            console.error('[Projects Page] CRITICAL: Filtered out projects from other organizations!', {
+              originalCount: projects.length,
+              filteredCount: filteredProjects.length,
+            });
+          }
+          
+          setProjects(filteredProjects);
+        } else {
+          setProjects(projects);
+        }
+      } else {
+        setProjects(projects);
+      }
+      
       setTotal(data.total || 0);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load projects';
@@ -109,8 +151,15 @@ export default function ProjectsPage() {
 
     setDeleting(true);
     try {
+      const csrfToken = getCsrfToken();
+      const headers: HeadersInit = {};
+      if (csrfToken) {
+        headers['x-csrf-token'] = csrfToken;
+      }
+
       const response = await fetch(`/api/projects/${projectToDelete.id}`, {
         method: 'DELETE',
+        headers,
       });
 
       const data = await response.json();

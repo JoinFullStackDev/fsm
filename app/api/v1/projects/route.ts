@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireApiKeyAuth } from '@/lib/apiKeyAuth';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { unauthorized, forbidden, internalError } from '@/lib/utils/apiErrors';
+import { checkRateLimit, RATE_LIMIT_CONFIGS } from '@/lib/utils/rateLimit';
 import logger from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
@@ -12,6 +13,12 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request: NextRequest) {
   try {
+    // Apply rate limiting for API key endpoints
+    const rateLimitResponse = checkRateLimit(request, RATE_LIMIT_CONFIGS.apiKey);
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
     // Authenticate API key
     const apiKeyContext = await requireApiKeyAuth(request);
 
@@ -63,6 +70,12 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    // Apply rate limiting for API key endpoints
+    const rateLimitResponse = checkRateLimit(request, RATE_LIMIT_CONFIGS.apiKey);
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
     // Authenticate API key
     const apiKeyContext = await requireApiKeyAuth(request);
 

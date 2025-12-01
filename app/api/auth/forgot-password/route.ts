@@ -5,6 +5,7 @@ import { badRequest, internalError, notFound } from '@/lib/utils/apiErrors';
 import { sendEmailWithRetry } from '@/lib/emailService';
 import { getPasswordResetTemplate } from '@/lib/emailTemplates';
 import { isEmailConfigured } from '@/lib/emailService';
+import { checkRateLimit, RATE_LIMIT_CONFIGS } from '@/lib/utils/rateLimit';
 import crypto from 'crypto';
 import logger from '@/lib/utils/logger';
 
@@ -16,6 +17,12 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest) {
   try {
+    // Apply rate limiting for authentication endpoints
+    const rateLimitResponse = checkRateLimit(request, RATE_LIMIT_CONFIGS.auth);
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
     const body = await request.json();
     const { email } = body;
 

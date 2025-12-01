@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { requireSuperAdmin } from '@/lib/globalAdmin';
 import { badRequest, notFound, internalError } from '@/lib/utils/apiErrors';
+import { clearCachedContextsForOrganization } from '@/lib/cache/organizationContextCache';
 import logger from '@/lib/utils/logger';
 import { AVAILABLE_MODULES } from '@/lib/modules';
 
@@ -67,6 +68,27 @@ export async function PUT(
     if (updateError) {
       logger.error('[Modules] Error updating organization:', updateError);
       return internalError('Failed to update module', { error: updateError.message });
+    }
+
+    // Invalidate organization context cache for all users in this organization
+    try {
+      // Get all users in this organization to clear their cache
+      const { data: orgUsers } = await adminClient
+        .from('users')
+        .select('auth_id')
+        .eq('organization_id', params.id);
+      
+      if (orgUsers && orgUsers.length > 0) {
+        const authIds = orgUsers.map(u => u.auth_id).filter(Boolean) as string[];
+        clearCachedContextsForOrganization(params.id, authIds);
+        logger.info('[Modules] Cleared cache for organization users', { 
+          organizationId: params.id, 
+          userCount: authIds.length 
+        });
+      }
+    } catch (cacheError) {
+      // Cache invalidation is best-effort, don't fail the request
+      logger.warn('[Modules] Failed to invalidate cache:', cacheError);
     }
 
     return NextResponse.json({

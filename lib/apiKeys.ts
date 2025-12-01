@@ -244,8 +244,18 @@ export async function validateApiKeyRequest(fullKey: string): Promise<ApiKeyCont
       return null;
     }
     
-    // Compare hashes
-    if (keyHashData.key_hash !== secretHash) {
+    // Compare hashes using constant-time comparison to prevent timing attacks
+    const storedHashBuffer = Buffer.from(keyHashData.key_hash, 'hex');
+    const computedHashBuffer = Buffer.from(secretHash, 'hex');
+    
+    // Ensure buffers are same length (should always be true for SHA-256 hashes)
+    if (storedHashBuffer.length !== computedHashBuffer.length) {
+      logger.debug('[API Keys] Key hash length mismatch');
+      return null;
+    }
+    
+    // Use constant-time comparison
+    if (!crypto.timingSafeEqual(storedHashBuffer, computedHashBuffer)) {
       logger.debug('[API Keys] Key hash mismatch');
       return null;
     }

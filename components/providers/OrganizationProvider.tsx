@@ -72,26 +72,46 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Fetch organization context from API
-      const response = await fetch('/api/organization/context');
-      if (!response.ok) {
-        throw new Error('Failed to load organization context');
-      }
+      // Fetch organization context from API with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      try {
+        const response = await fetch('/api/organization/context', {
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error('Failed to load organization context');
+        }
 
-      const context: OrgContext = await response.json();
+        const context: OrgContext = await response.json();
 
-      // Ensure module_overrides is properly parsed if it's a string
-      if (context.organization?.module_overrides && typeof context.organization.module_overrides === 'string') {
-        try {
-          context.organization.module_overrides = JSON.parse(context.organization.module_overrides);
-        } catch {
-          context.organization.module_overrides = null;
+        // Ensure module_overrides is properly parsed if it's a string
+        if (context.organization?.module_overrides && typeof context.organization.module_overrides === 'string') {
+          try {
+            context.organization.module_overrides = JSON.parse(context.organization.module_overrides);
+          } catch {
+            context.organization.module_overrides = null;
+          }
+        }
+
+        setOrganization(context.organization);
+        setSubscription(context.subscription);
+        setPackage(context.package);
+      } catch (fetchErr) {
+        clearTimeout(timeoutId);
+        if (fetchErr instanceof Error && fetchErr.name === 'AbortError') {
+          logger.warn('[OrganizationProvider] Organization context request timed out');
+          // Don't set error - allow app to continue without organization context
+          setOrganization(null);
+          setSubscription(null);
+          setPackage(null);
+        } else {
+          throw fetchErr;
         }
       }
-
-      setOrganization(context.organization);
-      setSubscription(context.subscription);
-      setPackage(context.package);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load organization';
       setError(errorMessage);

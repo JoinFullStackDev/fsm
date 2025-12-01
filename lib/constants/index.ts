@@ -138,6 +138,10 @@ export const NOTIFICATION_TYPES = {
   PROJECT_CREATED: 'project_created',
   PHASE_COMPLETED: 'phase_completed',
   PROJECT_UPDATED: 'project_updated',
+  KB_ARTICLE_PUBLISHED: 'kb_article_published',
+  KB_ARTICLE_UPDATED: 'kb_article_updated',
+  KB_CATEGORY_ADDED: 'kb_category_added',
+  KB_RELEASE_NOTES_PUBLISHED: 'kb_release_notes_published',
 } as const;
 
 export type NotificationType = typeof NOTIFICATION_TYPES[keyof typeof NOTIFICATION_TYPES];

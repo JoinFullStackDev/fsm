@@ -102,6 +102,244 @@ export async function createNotification(
 }
 
 /**
+ * Notify users when a KB article is published
+ */
+export async function notifyArticlePublished(
+  organizationId: string | null,
+  articleId: string,
+  articleTitle: string,
+  authorId: string,
+  authorName: string | null
+): Promise<void> {
+  try {
+    // Get all users in the organization (or all users if global)
+    const supabase = await createServerSupabaseClient();
+    let usersQuery = supabase.from('users').select('id');
+
+    if (organizationId) {
+      usersQuery = usersQuery.eq('organization_id', organizationId);
+    } else {
+      // For global articles, notify all users
+      usersQuery = usersQuery.not('organization_id', 'is', null);
+    }
+
+    const { data: users } = await usersQuery;
+
+    if (!users || users.length === 0) {
+      return;
+    }
+
+    const articleLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/kb/${articleId}`;
+    const authorDisplayName = authorName || 'Someone';
+
+    // Create notifications for all users
+    const notifications = users
+      .filter(user => user.id !== authorId) // Don't notify the author
+      .map(user => ({
+        user_id: user.id,
+        type: 'kb_article_published' as NotificationType,
+        title: 'New Article Published',
+        message: `${authorDisplayName} published "${articleTitle}"`,
+        metadata: {
+          article_id: articleId,
+          article_title: articleTitle,
+          author_id: authorId,
+          author_name: authorName,
+          link: articleLink,
+        },
+      }));
+
+    // Create notifications in batch
+    for (const notification of notifications) {
+      await createNotification(
+        notification.user_id,
+        notification.type,
+        notification.title,
+        notification.message,
+        notification.metadata
+      );
+    }
+  } catch (error) {
+    logger.error('[Notifications] Error notifying article published:', error);
+  }
+}
+
+/**
+ * Notify users when a KB article is updated
+ */
+export async function notifyArticleUpdated(
+  organizationId: string | null,
+  articleId: string,
+  articleTitle: string,
+  updaterId: string,
+  updaterName: string | null
+): Promise<void> {
+  try {
+    const supabase = await createServerSupabaseClient();
+    let usersQuery = supabase.from('users').select('id');
+
+    if (organizationId) {
+      usersQuery = usersQuery.eq('organization_id', organizationId);
+    } else {
+      usersQuery = usersQuery.not('organization_id', 'is', null);
+    }
+
+    const { data: users } = await usersQuery;
+
+    if (!users || users.length === 0) {
+      return;
+    }
+
+    const articleLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/kb/${articleId}`;
+    const updaterDisplayName = updaterName || 'Someone';
+
+    const notifications = users
+      .filter(user => user.id !== updaterId)
+      .map(user => ({
+        user_id: user.id,
+        type: 'kb_article_updated' as NotificationType,
+        title: 'Article Updated',
+        message: `${updaterDisplayName} updated "${articleTitle}"`,
+        metadata: {
+          article_id: articleId,
+          article_title: articleTitle,
+          updater_id: updaterId,
+          updater_name: updaterName,
+          link: articleLink,
+        },
+      }));
+
+    for (const notification of notifications) {
+      await createNotification(
+        notification.user_id,
+        notification.type,
+        notification.title,
+        notification.message,
+        notification.metadata
+      );
+    }
+  } catch (error) {
+    logger.error('[Notifications] Error notifying article updated:', error);
+  }
+}
+
+/**
+ * Notify users when a KB category is added
+ */
+export async function notifyCategoryAdded(
+  organizationId: string | null,
+  categoryId: string,
+  categoryName: string,
+  creatorId: string,
+  creatorName: string | null
+): Promise<void> {
+  try {
+    const supabase = await createServerSupabaseClient();
+    let usersQuery = supabase.from('users').select('id');
+
+    if (organizationId) {
+      usersQuery = usersQuery.eq('organization_id', organizationId);
+    } else {
+      usersQuery = usersQuery.not('organization_id', 'is', null);
+    }
+
+    const { data: users } = await usersQuery;
+
+    if (!users || users.length === 0) {
+      return;
+    }
+
+    const kbLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/kb`;
+    const creatorDisplayName = creatorName || 'Someone';
+
+    const notifications = users
+      .filter(user => user.id !== creatorId)
+      .map(user => ({
+        user_id: user.id,
+        type: 'kb_category_added' as NotificationType,
+        title: 'New Category Added',
+        message: `${creatorDisplayName} added category "${categoryName}"`,
+        metadata: {
+          category_id: categoryId,
+          category_name: categoryName,
+          creator_id: creatorId,
+          creator_name: creatorName,
+          link: kbLink,
+        },
+      }));
+
+    for (const notification of notifications) {
+      await createNotification(
+        notification.user_id,
+        notification.type,
+        notification.title,
+        notification.message,
+        notification.metadata
+      );
+    }
+  } catch (error) {
+    logger.error('[Notifications] Error notifying category added:', error);
+  }
+}
+
+/**
+ * Notify users when release notes are published
+ */
+export async function notifyReleaseNotesPublished(
+  organizationId: string | null,
+  articleId: string,
+  releaseTitle: string,
+  publisherId: string,
+  publisherName: string | null
+): Promise<void> {
+  try {
+    const supabase = await createServerSupabaseClient();
+    let usersQuery = supabase.from('users').select('id');
+
+    if (organizationId) {
+      usersQuery = usersQuery.eq('organization_id', organizationId);
+    } else {
+      usersQuery = usersQuery.not('organization_id', 'is', null);
+    }
+
+    const { data: users } = await usersQuery;
+
+    if (!users || users.length === 0) {
+      return;
+    }
+
+    const articleLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/kb/${articleId}`;
+    const publisherDisplayName = publisherName || 'Someone';
+
+    const notifications = users.map(user => ({
+      user_id: user.id,
+      type: 'kb_release_notes_published' as NotificationType,
+      title: 'New Release Notes',
+      message: `${publisherDisplayName} published release notes: "${releaseTitle}"`,
+      metadata: {
+        article_id: articleId,
+        release_title: releaseTitle,
+        publisher_id: publisherId,
+        publisher_name: publisherName,
+        link: articleLink,
+      },
+    }));
+
+    for (const notification of notifications) {
+      await createNotification(
+        notification.user_id,
+        notification.type,
+        notification.title,
+        notification.message,
+        notification.metadata
+      );
+    }
+  } catch (error) {
+    logger.error('[Notifications] Error notifying release notes:', error);
+  }
+}
+
+/**
  * Notify user when a task is assigned to them
  */
 export async function notifyTaskAssigned(

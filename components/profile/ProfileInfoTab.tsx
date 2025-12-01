@@ -46,14 +46,18 @@ export default function ProfileInfoTab() {
       return;
     }
 
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('auth_id', session.user.id)
-      .single();
+    // Use API endpoint to avoid RLS recursion
+    const userResponse = await fetch('/api/users/me');
+    if (!userResponse.ok) {
+      const errorData = await userResponse.json().catch(() => ({ error: 'Failed to load profile' }));
+      setError(errorData.error || 'Failed to load profile');
+      setLoading(false);
+      return;
+    }
+    const userData = await userResponse.json();
 
-    if (userError) {
-      setError(userError.message);
+    if (!userData) {
+      setError('User data not found');
       setLoading(false);
       return;
     }

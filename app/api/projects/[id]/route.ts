@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { unauthorized, notFound, internalError, forbidden, badRequest } from '@/lib/utils/apiErrors';
+import { isValidUUID } from '@/lib/utils/inputSanitization';
 import logger from '@/lib/utils/logger';
 
 /**
@@ -24,6 +25,11 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Validate UUID format
+    if (!isValidUUID(params.id)) {
+      return badRequest('Invalid project ID format');
+    }
+
     const supabase = await createServerSupabaseClient();
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
@@ -63,7 +69,9 @@ export async function GET(
       userData = regularUserData;
     }
 
-    const { data: project, error: projectError } = await supabase
+    // Use admin client to avoid RLS recursion when querying projects and companies
+    const adminClient = createAdminSupabaseClient();
+    const { data: project, error: projectError } = await adminClient
       .from('projects')
       .select(`
         *,
@@ -73,18 +81,35 @@ export async function GET(
       .single();
 
     if (projectError || !project) {
+      logger.error('[Projects API] Error fetching project:', { 
+        projectId: params.id, 
+        error: projectError 
+      });
       return notFound('Project not found');
     }
 
-    // Validate organization access (super admins can see all projects)
-    if (userData.role !== 'admin' || userData.is_super_admin !== true) {
-      if (project.organization_id !== organizationId) {
+    // Validate access: super admins can see all projects
+    // For others, check if they're a project member OR project owner OR project belongs to their organization
+    const isSuperAdmin = userData.role === 'admin' && userData.is_super_admin === true;
+    const isProjectOwner = project.owner_id === userData.id;
+    const projectInUserOrg = project.organization_id === organizationId;
+    
+    if (!isSuperAdmin && !isProjectOwner && !projectInUserOrg) {
+      // Check if user is a project member
+      const { data: projectMember } = await adminClient
+        .from('project_members')
+        .select('id')
+        .eq('project_id', params.id)
+        .eq('user_id', userData.id)
+        .single();
+      
+      if (!projectMember) {
         return forbidden('You do not have access to this project');
       }
     }
 
-    // Get phases (ordered by display_order)
-    const { data: phases, error: phasesError } = await supabase
+    // Get phases (ordered by display_order) - Use admin client to avoid RLS recursion
+    const { data: phases, error: phasesError } = await adminClient
       .from('project_phases')
       .select('phase_number, phase_name, display_order, completed, updated_at')
       .eq('project_id', params.id)
@@ -111,6 +136,20 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Validate UUID format
+    if (!isValidUUID(params.id)) {
+      return badRequest('Invalid project ID format');
+    }
+
+    // Verify CSRF token for state-changing requests
+    const { requireCsrfToken, shouldSkipCsrf } = await import('@/lib/utils/csrf');
+    if (!shouldSkipCsrf(request.nextUrl.pathname)) {
+      const csrfError = await requireCsrfToken(request);
+      if (csrfError) {
+        return csrfError;
+      }
+    }
+
     const supabase = await createServerSupabaseClient();
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
@@ -450,6 +489,20 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Validate UUID format
+    if (!isValidUUID(params.id)) {
+      return badRequest('Invalid project ID format');
+    }
+
+    // Verify CSRF token for state-changing requests
+    const { requireCsrfToken, shouldSkipCsrf } = await import('@/lib/utils/csrf');
+    if (!shouldSkipCsrf(request.nextUrl.pathname)) {
+      const csrfError = await requireCsrfToken(request);
+      if (csrfError) {
+        return csrfError;
+      }
+    }
+
     const supabase = await createServerSupabaseClient();
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 

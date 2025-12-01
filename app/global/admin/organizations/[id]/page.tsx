@@ -876,11 +876,33 @@ export default function OrganizationDetailPage() {
               label="Select Package"
               onChange={(e) => setSelectedPackage(e.target.value)}
             >
-              {packages.map((pkg) => (
-                <MenuItem key={pkg.id} value={pkg.id}>
-                  {pkg.name} - ${pkg.price_per_user_monthly}/user/month
-                </MenuItem>
-              ))}
+              {packages.map((pkg) => {
+                const pricingModel = pkg.pricing_model || 'per_user';
+                const monthlyPrice = pricingModel === 'per_user' 
+                  ? pkg.price_per_user_monthly 
+                  : pkg.base_price_monthly;
+                const yearlyPrice = pricingModel === 'per_user'
+                  ? pkg.price_per_user_yearly
+                  : pkg.base_price_yearly;
+                
+                let priceDisplay = '';
+                if (monthlyPrice && yearlyPrice) {
+                  priceDisplay = `$${monthlyPrice.toFixed(2)}/mo or $${yearlyPrice.toFixed(2)}/yr`;
+                } else if (monthlyPrice) {
+                  priceDisplay = `$${monthlyPrice.toFixed(2)}/mo`;
+                } else if (yearlyPrice) {
+                  priceDisplay = `$${yearlyPrice.toFixed(2)}/yr`;
+                } else {
+                  priceDisplay = 'Free';
+                }
+                
+                const suffix = pricingModel === 'per_user' ? '/user' : '';
+                return (
+                  <MenuItem key={pkg.id} value={pkg.id}>
+                    {pkg.name} - {priceDisplay}{suffix}
+                  </MenuItem>
+                );
+              })}
             </Select>
           </FormControl>
         </DialogContent>

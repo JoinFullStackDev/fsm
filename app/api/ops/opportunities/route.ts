@@ -4,6 +4,7 @@ import { unauthorized, internalError, badRequest, notFound, forbidden } from '@/
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { hasOpsTool } from '@/lib/packageLimits';
 import logger from '@/lib/utils/logger';
+import { sanitizeSearchInput } from '@/lib/utils/inputSanitization';
 import { createActivityFeedItem } from '@/lib/ops/activityFeed';
 import { convertOpportunityToProject } from '@/lib/ops/opportunityConversion';
 import type { Opportunity, OpportunityWithCompany } from '@/types/ops';
@@ -51,7 +52,11 @@ export async function GET(request: NextRequest) {
 
     // Apply filters
     if (search) {
-      query = query.ilike('name', `%${search}%`);
+      // Sanitize search input to prevent SQL injection
+      const sanitizedSearch = sanitizeSearchInput(search);
+      if (sanitizedSearch) {
+        query = query.ilike('name', `%${sanitizedSearch}%`);
+      }
     }
     if (status) {
       query = query.eq('status', status);

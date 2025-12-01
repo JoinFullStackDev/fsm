@@ -23,9 +23,11 @@ import {
   RocketLaunch as RocketLaunchIcon,
   Menu as MenuIcon,
   Dashboard as DashboardIcon,
+  HelpOutline as HelpIcon,
 } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useRole } from '@/lib/hooks/useRole';
+import { useOrganization } from '@/components/providers/OrganizationProvider';
 import NotificationBell from '@/components/notifications/NotificationBell';
 import NotificationDrawer from '@/components/notifications/NotificationDrawer';
 import WelcomeTour from '@/components/ui/WelcomeTour';
@@ -42,7 +44,16 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
   const supabase = createSupabaseClient();
   const { role, isSuperAdmin, loading: roleLoading } = useRole();
+  const { features, loading: orgLoading } = useOrganization();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  
+  // Debug: Log feature flags
+  useEffect(() => {
+    if (!orgLoading && features) {
+      console.log('[TopBar] Knowledge base enabled:', features.knowledge_base_enabled);
+      console.log('[TopBar] All features:', features);
+    }
+  }, [features, orgLoading]);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
@@ -56,14 +67,11 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
         return;
       }
 
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('auth_id', session.user.id)
-        .single();
-
-      if (!error && data) {
-        setUser(data as User);
+      // Use API endpoint to avoid RLS recursion
+      const userResponse = await fetch('/api/users/me');
+      if (userResponse.ok) {
+        const userData = await userResponse.json();
+        setUser(userData as User);
       }
     } catch (error) {
       console.error('Error loading user:', error);
@@ -154,6 +162,20 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
               >
                 <RocketLaunchIcon />
               </IconButton>
+              {!orgLoading && !roleLoading && (features?.knowledge_base_enabled === true || isSuperAdmin) && (
+                <IconButton
+                  onClick={() => router.push('/kb')}
+                  sx={{
+                    color: theme.palette.text.primary,
+                    '&:hover': {
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                  }}
+                  title="Knowledge Base"
+                >
+                  <HelpIcon />
+                </IconButton>
+              )}
               <NotificationBell onOpenDrawer={() => setNotificationDrawerOpen(true)} />
               <Box sx={{ width: 8 }} /> {/* Spacer between bell and user icon */}
               <IconButton

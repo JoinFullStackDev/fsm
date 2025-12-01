@@ -130,10 +130,14 @@ export default function TemplatesPage() {
 
     // Check if organization has template access based on package limits
     // If features exist and max_templates is defined (null = unlimited, number = limited), they have access
+    // Note: max_templates can be null (unlimited), a number (limited), or undefined (no access)
     const hasTemplateAccess = features !== null && features !== undefined && features.max_templates !== undefined;
     
     if (!hasTemplateAccess) {
-      logger.debug('[TemplatesPage] Organization does not have template access, redirecting.');
+      logger.debug('[TemplatesPage] Organization does not have template access, redirecting.', { 
+        features, 
+        maxTemplates: features?.max_templates 
+      });
       router.push('/dashboard');
       return;
     }

@@ -288,6 +288,76 @@ export async function hasCustomDashboards(
 }
 
 /**
+ * Check if organization has access to knowledge base
+ * @param supabase - Supabase client instance
+ * @param organizationId - Organization ID
+ * @returns True if knowledge base is enabled
+ */
+export async function hasKnowledgeBaseAccess(
+  supabase: SupabaseClient,
+  organizationId: string
+): Promise<boolean> {
+  return hasFeatureAccess(supabase, organizationId, 'knowledge_base_enabled');
+}
+
+/**
+ * Check knowledge base access level based on package tier
+ * Returns access level: 'none' | 'read_global' | 'read_all' | 'read_ai' | 'full' | 'full_plus'
+ * @param supabase - Supabase client instance
+ * @param organizationId - Organization ID
+ * @returns Access level string
+ */
+export async function getKnowledgeBaseAccessLevel(
+  supabase: SupabaseClient,
+  organizationId: string
+): Promise<'none' | 'read_global' | 'read_all' | 'read_ai' | 'full' | 'full_plus'> {
+  try {
+    const hasAccess = await hasKnowledgeBaseAccess(supabase, organizationId);
+    if (!hasAccess) {
+      return 'none';
+    }
+
+    const context = await getOrganizationContextById(supabase, organizationId);
+    if (!context || !context.package) {
+      return 'none';
+    }
+
+    const packageName = context.package.name.toLowerCase();
+
+    // Starter: read-only global docs
+    if (packageName.includes('starter')) {
+      return 'read_global';
+    }
+
+    // Freelancer: read-only global + org docs
+    if (packageName.includes('freelancer')) {
+      return 'read_all';
+    }
+
+    // Entrepreneur: read-only + AI Q&A
+    if (packageName.includes('entrepreneur')) {
+      return 'read_ai';
+    }
+
+    // Pro: full KB + AI authoring
+    if (packageName.includes('pro') && !packageName.includes('plus')) {
+      return 'full';
+    }
+
+    // Pro Plus: everything + support integrations
+    if (packageName.includes('pro') && packageName.includes('plus')) {
+      return 'full_plus';
+    }
+
+    // Default to read_global if package name doesn't match
+    return 'read_global';
+  } catch (error) {
+    logger.error('[PackageLimits] Error getting KB access level:', error);
+    return 'none';
+  }
+}
+
+/**
  * Get organization's support level
  * @param supabase - Supabase client instance
  * @param organizationId - Organization ID
@@ -323,17 +393,18 @@ export async function getAllLimits(
   projects: LimitCheckResult;
   users: LimitCheckResult;
   templates: LimitCheckResult;
-  features: {
-    ai: boolean;
-    export: boolean;
-    opsTool: boolean;
-    analytics: boolean;
-    apiAccess: boolean;
-    customDashboards: boolean;
-  };
+    features: {
+      ai: boolean;
+      export: boolean;
+      opsTool: boolean;
+      analytics: boolean;
+      apiAccess: boolean;
+      customDashboards: boolean;
+      knowledgeBase: boolean;
+    };
   supportLevel: 'community' | 'email' | 'priority' | 'dedicated' | null;
 }> {
-  const [projects, users, templates, ai, export_, opsTool, analytics, apiAccess, customDashboards, supportLevel] =
+  const [projects, users, templates, ai, export_, opsTool, analytics, apiAccess, customDashboards, knowledgeBase, supportLevel] =
     await Promise.all([
       canCreateProject(supabase, organizationId),
       canAddUser(supabase, organizationId),
@@ -344,6 +415,7 @@ export async function getAllLimits(
       hasAnalytics(supabase, organizationId),
       hasAPIAccess(supabase, organizationId),
       hasCustomDashboards(supabase, organizationId),
+      hasKnowledgeBaseAccess(supabase, organizationId),
       getSupportLevel(supabase, organizationId),
     ]);
 
@@ -358,6 +430,7 @@ export async function getAllLimits(
       analytics,
       apiAccess,
       customDashboards,
+      knowledgeBase,
     },
     supportLevel,
   };

@@ -1,9 +1,100 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
+import { getUserOrganizationId } from '@/lib/organizationContext';
 import { notifyProjectMemberAdded } from '@/lib/notifications';
 import { unauthorized, notFound, badRequest, forbidden, internalError } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
+
+// GET - List all members of a project
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return unauthorized('You must be logged in to view project members');
+    }
+
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
+    }
+
+    // Get user record to check access
+    const adminClient = createAdminSupabaseClient();
+    const { data: userData, error: userDataError } = await adminClient
+      .from('users')
+      .select('id, role, organization_id, is_super_admin')
+      .eq('auth_id', user.id)
+      .single();
+
+    if (userDataError || !userData) {
+      return notFound('User not found');
+    }
+
+    // Get project to verify access
+    const { data: project, error: projectError } = await adminClient
+      .from('projects')
+      .select('id, organization_id, owner_id')
+      .eq('id', params.id)
+      .single();
+
+    if (projectError || !project) {
+      return notFound('Project not found');
+    }
+
+    // Verify access: super admin, project owner, project member, or org member
+    const isSuperAdmin = userData.role === 'admin' && userData.is_super_admin === true;
+    const isProjectOwner = project.owner_id === userData.id;
+    const projectInUserOrg = project.organization_id === organizationId;
+    
+    if (!isSuperAdmin && !isProjectOwner && !projectInUserOrg) {
+      // Check if user is a project member
+      const { data: projectMember } = await adminClient
+        .from('project_members')
+        .select('id')
+        .eq('project_id', params.id)
+        .eq('user_id', userData.id)
+        .single();
+      
+      if (!projectMember) {
+        return forbidden('You do not have access to this project');
+      }
+    }
+
+    // Get all project members using admin client
+    const { data: members, error: membersError } = await adminClient
+      .from('project_members')
+      .select(`
+        id,
+        user_id,
+        role,
+        user:users!project_members_user_id_fkey (
+          id,
+          name,
+          email,
+          avatar_url
+        )
+      `)
+      .eq('project_id', params.id)
+      .order('created_at', { ascending: true });
+
+    if (membersError) {
+      logger.error('[Project Members GET] Error loading members:', membersError);
+      return internalError('Failed to load project members', { error: membersError.message });
+    }
+
+    return NextResponse.json({ members: members || [] });
+  } catch (error) {
+    logger.error('[Project Members GET] Unexpected error:', error);
+    return internalError('Failed to load project members', { error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+}
 
 // POST - Add a member to a project
 export async function POST(
@@ -18,10 +109,17 @@ export async function POST(
       return unauthorized('You must be logged in to add project members');
     }
 
-    // Get user record
-    const { data: userData, error: userError } = await supabase
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(supabase, user.id);
+    if (!organizationId) {
+      return badRequest('User is not assigned to an organization');
+    }
+
+    // Get user record using admin client to avoid RLS issues
+    const adminClient = createAdminSupabaseClient();
+    const { data: userData, error: userError } = await adminClient
       .from('users')
-      .select('id, role')
+      .select('id, role, organization_id, is_super_admin')
       .eq('auth_id', user.id)
       .single();
 
@@ -36,11 +134,10 @@ export async function POST(
       return badRequest('user_id and role are required');
     }
 
-    // Verify user is project owner or admin
-    // Fetch both owner_id and name in one query
-    const { data: project, error: projectError } = await supabase
+    // Get project to verify access - use admin client
+    const { data: project, error: projectError } = await adminClient
       .from('projects')
-      .select('owner_id, name')
+      .select('id, organization_id, owner_id, name')
       .eq('id', params.id)
       .single();
 
@@ -48,16 +145,35 @@ export async function POST(
       return notFound('Project not found');
     }
 
-    const isOwner = project.owner_id === userData.id;
+    // Verify access: super admin, project owner, project member, or org member
+    const isSuperAdmin = userData.role === 'admin' && userData.is_super_admin === true;
+    const isProjectOwner = project.owner_id === userData.id;
+    const projectInUserOrg = project.organization_id === organizationId;
+    
+    if (!isSuperAdmin && !isProjectOwner && !projectInUserOrg) {
+      // Check if user is a project member
+      const { data: projectMember } = await adminClient
+        .from('project_members')
+        .select('id')
+        .eq('project_id', params.id)
+        .eq('user_id', userData.id)
+        .single();
+      
+      if (!projectMember) {
+        return forbidden('You do not have access to this project');
+      }
+    }
+
+    // Check if user has permission to add members (owner, admin, or PM)
     const isAdmin = userData.role === 'admin';
     const isPM = userData.role === 'pm';
 
-    if (!isOwner && !isAdmin && !isPM) {
+    if (!isProjectOwner && !isAdmin && !isPM) {
       return forbidden('Only project owners, admins, or PMs can add members');
     }
 
-    // Check if member already exists
-    const { data: existingMember } = await supabase
+    // Check if member already exists - use admin client to avoid RLS issues
+    const { data: existingMember } = await adminClient
       .from('project_members')
       .select('id')
       .eq('project_id', params.id)
@@ -70,7 +186,6 @@ export async function POST(
 
     // Use admin client to bypass RLS for inserting members
     // This ensures the insert works even if RLS policies have issues
-    const adminClient = createAdminSupabaseClient();
     const { data: member, error: memberError } = await adminClient
       .from('project_members')
       .insert({
