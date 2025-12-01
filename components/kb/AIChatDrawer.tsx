@@ -145,29 +145,83 @@ export default function AIChatDrawer({ open, onClose, organizationId }: AIChatDr
                   p: 2,
                   maxWidth: '80%',
                   bgcolor: message.role === 'user' ? 'primary.main' : 'grey.100',
-                  color: message.role === 'user' ? 'primary.contrastText' : 'text.primary',
+                  color: message.role === 'user' ? 'primary.contrastText' : '#000000',
                 }}
               >
-                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', color: message.role === 'assistant' ? '#000000' : 'inherit' }}>
                   {message.content}
                 </Typography>
                 {message.sources && message.sources.length > 0 && (
-                  <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
-                    <Typography variant="caption" sx={{ display: 'block', mb: 1 }}>
+                  <Box 
+                    sx={{ 
+                      mt: 2, 
+                      pt: 2, 
+                      borderTop: 1, 
+                      borderColor: 'divider',
+                    }}
+                  >
+                    <Typography 
+                      variant="caption" 
+                      sx={{ 
+                        display: 'block', 
+                        mb: 1.5,
+                        fontWeight: 600,
+                        color: '#666',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        fontSize: '0.7rem',
+                      }}
+                    >
                       Sources:
                     </Typography>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                       {message.sources.map((source, idx) => (
                         <Link
                           key={idx}
                           href={`/kb/${source.article_slug}`}
                           sx={{ textDecoration: 'none' }}
                         >
-                          <Chip
-                            label={source.article_title}
-                            size="small"
-                            sx={{ fontSize: '0.7rem' }}
-                          />
+                          <Paper
+                            elevation={0}
+                            sx={{
+                              p: 1.5,
+                              bgcolor: '#ffffff',
+                              border: '1px solid #e0e0e0',
+                              borderRadius: 1,
+                              transition: 'all 0.2s ease',
+                              '&:hover': {
+                                bgcolor: '#f5f5f5',
+                                borderColor: '#bdbdbd',
+                                transform: 'translateY(-1px)',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                              },
+                            }}
+                          >
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color: '#000000 !important',
+                                fontWeight: 500,
+                                fontSize: '0.875rem',
+                                lineHeight: 1.4,
+                              }}
+                            >
+                              {source.article_title}
+                            </Typography>
+                            {source.relevance_score !== undefined && (
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  color: '#666 !important',
+                                  fontSize: '0.7rem',
+                                  mt: 0.5,
+                                  display: 'block',
+                                }}
+                              >
+                                Relevance: {Math.round(source.relevance_score * 100)}%
+                              </Typography>
+                            )}
+                          </Paper>
                         </Link>
                       ))}
                     </Box>

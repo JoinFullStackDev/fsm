@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Box,
@@ -28,7 +28,7 @@ import type { KnowledgeBaseArticleWithCategory, KnowledgeBaseCategoryWithChildre
 function KnowledgeBaseContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { features, organization } = useOrganization();
+  const { features, organization, loading: orgLoading } = useOrganization();
   const [articles, setArticles] = useState<KnowledgeBaseArticleWithCategory[]>([]);
   const [categories, setCategories] = useState<KnowledgeBaseCategoryWithChildren[]>([]);
   const [loading, setLoading] = useState(false);
@@ -40,26 +40,115 @@ function KnowledgeBaseContent() {
   const [totalPages, setTotalPages] = useState(1);
   const [chatOpen, setChatOpen] = useState(false);
   const selectedCategoryId = searchParams.get('category');
+  
+  // Memoize selectedCategoryId to prevent unnecessary re-renders
+  const memoizedCategoryId = useMemo(() => selectedCategoryId, [selectedCategoryId]);
+  
+  // Refs to prevent concurrent/duplicate requests
+  const isLoadingCategoriesRef = useRef(false);
+  const isLoadingArticlesRef = useRef(false);
+  const hasLoadedRef = useRef(false);
+  const hasInitializedRef = useRef(false);
+  const lastLoadKeyRef = useRef<string | null>(null);
+  
+  // Memoize knowledge base enabled check to prevent re-renders
+  // Use the actual boolean value, not the object reference
+  const isKnowledgeBaseEnabled = useMemo(() => {
+    return features?.knowledge_base_enabled === true;
+  }, [features?.knowledge_base_enabled]);
+  
+  // Track if we've already checked and loaded
+  const hasCheckedAccessRef = useRef(false);
+  const featuresProcessedRef = useRef<string | null>(null);
+  // Circuit breaker to prevent infinite retries
+  const retryCountRef = useRef(0);
+  const maxRetries = 2; // Only retry twice, then stop
+  const isCircuitOpenRef = useRef(false);
+  // Track if we've initiated loading for this combination
+  const loadingInitiatedRef = useRef<string | null>(null);
 
   const loadCategories = useCallback(async () => {
+    // Circuit breaker: stop if circuit is open
+    if (isCircuitOpenRef.current) {
+      return;
+    }
+    
+    // Prevent concurrent requests
+    if (isLoadingCategoriesRef.current) {
+      return;
+    }
+    
     try {
-      const response = await fetch('/api/kb/categories?include_counts=true');
+      isLoadingCategoriesRef.current = true;
+      const response = await fetch('/api/kb/categories?include_counts=true', {
+        signal: AbortSignal.timeout(10000), // 10 second timeout
+      });
+      
       if (response.ok) {
         const data = await response.json();
         setCategories(data.categories || []);
+        retryCountRef.current = 0; // Reset retry count on success
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Failed to load categories' }));
         console.error('Error loading categories:', errorData);
-        setError(errorData.error || 'Failed to load categories');
+        retryCountRef.current += 1;
+        
+        // Open circuit if too many retries
+        if (retryCountRef.current >= maxRetries) {
+          isCircuitOpenRef.current = true;
+          setError('Failed to load knowledge base. Please refresh the page or contact support.');
+          console.error('[KB Page] Circuit breaker opened - too many failures');
+        } else if (!hasLoadedRef.current) {
+          setError(errorData.error || 'Failed to load categories');
+        }
       }
     } catch (err) {
       console.error('Error loading categories:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load categories');
+      retryCountRef.current += 1;
+      
+      // Open circuit if too many retries
+      if (retryCountRef.current >= maxRetries) {
+        isCircuitOpenRef.current = true;
+        setError('Failed to load knowledge base. Please refresh the page or contact support.');
+        console.error('[KB Page] Circuit breaker opened - too many failures');
+      } else if (!hasLoadedRef.current) {
+        setError(err instanceof Error ? err.message : 'Failed to load categories');
+      }
+    } finally {
+      isLoadingCategoriesRef.current = false;
     }
   }, []);
 
   const loadArticles = useCallback(async () => {
+    // Circuit breaker: stop if circuit is open
+    if (isCircuitOpenRef.current) {
+      setLoading(false);
+      return;
+    }
+    
+    // Prevent concurrent requests
+    if (isLoadingArticlesRef.current) {
+      return;
+    }
+    
+    // Prevent duplicate loads - check if we've already loaded this exact combination
+    const currentLoadKey = `${memoizedCategoryId || 'none'}-${page}`;
+    
+    // Check if we've already initiated loading for this key
+    if (loadingInitiatedRef.current === currentLoadKey) {
+      return;
+    }
+    
+    // Check if we've already loaded this exact combination
+    if (hasLoadedRef.current && lastLoadKeyRef.current === currentLoadKey) {
+      return;
+    }
+    
+    // Set the initiated key IMMEDIATELY to prevent duplicate calls
+    loadingInitiatedRef.current = currentLoadKey;
+    
     try {
+      isLoadingArticlesRef.current = true;
       setLoading(true);
       setError(null);
 
@@ -69,19 +158,14 @@ function KnowledgeBaseContent() {
         published: 'true',
       });
 
-      if (selectedCategoryId) {
-        params.set('category_id', selectedCategoryId);
+      if (memoizedCategoryId) {
+        params.set('category_id', memoizedCategoryId);
       }
 
-      // Add timeout to prevent hanging
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-
+      // Shorter timeout to prevent hanging - 10 seconds
       const response = await fetch(`/api/kb/articles?${params}`, {
-        signal: controller.signal,
+        signal: AbortSignal.timeout(10000),
       });
-      
-      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Failed to load articles' }));
@@ -92,45 +176,126 @@ function KnowledgeBaseContent() {
       const articlesList = data.articles || [];
       const totalCount = data.pagination?.total || 0;
       
+      // Mark as successfully loaded
+      lastLoadKeyRef.current = currentLoadKey;
+      hasLoadedRef.current = true;
+      
       setArticles(articlesList);
       setTotalPages(Math.ceil(totalCount / 20));
+      retryCountRef.current = 0; // Reset retry count on success
       
-      // Log for debugging
-      console.log('[KB Page] Articles loaded:', {
-        count: articlesList.length,
-        total: totalCount,
-        page,
-        totalPages: Math.ceil(totalCount / 20),
-      });
+      // If no articles, this is a legitimate empty state, not an error
+      // The guards above prevent re-renders
     } catch (err) {
       console.error('Error loading articles:', err);
-      if (err instanceof Error && err.name === 'AbortError') {
+      retryCountRef.current += 1;
+      
+      // Open circuit if too many retries
+      if (retryCountRef.current >= maxRetries) {
+        isCircuitOpenRef.current = true;
+        setError('Failed to load knowledge base. The page may be experiencing issues. Please refresh or contact support.');
+        console.error('[KB Page] Circuit breaker opened - too many failures');
+      } else if (err instanceof Error && err.name === 'AbortError') {
         setError('Request timed out. Please try again.');
       } else {
         setError(err instanceof Error ? err.message : 'Failed to load articles');
       }
     } finally {
       setLoading(false);
+      isLoadingArticlesRef.current = false;
+      // Clear the initiated flag only if we're done (success or circuit breaker)
+      if (hasLoadedRef.current || isCircuitOpenRef.current) {
+        // Keep loadingInitiatedRef set to prevent re-initiation
+      }
     }
-  }, [selectedCategoryId, page]);
+  }, [memoizedCategoryId, page]);
 
   useEffect(() => {
-    // Wait for features to load before checking access
-    if (features === null || features === undefined) {
-      setLoading(true);
-      return; // Still loading
-    }
-
-    // Check module access
-    if (features.knowledge_base_enabled !== true) {
-      router.push('/dashboard');
-      setLoading(false);
+    // Circuit breaker: if circuit is open, don't do anything
+    if (isCircuitOpenRef.current) {
       return;
     }
 
-    loadCategories();
-    loadArticles();
-  }, [features, router, loadCategories, loadArticles]);
+    // Early return if already processing to prevent duplicate calls
+    if (isLoadingCategoriesRef.current || isLoadingArticlesRef.current) {
+      return;
+    }
+
+    // Wait for organization context to finish loading
+    if (orgLoading) {
+      // Only set loading if we haven't initialized yet
+      if (!hasInitializedRef.current) {
+        setLoading(true);
+      }
+      return; // Still loading organization context
+    }
+
+    // Wait for features to be available
+    if (features === null || features === undefined) {
+      // Only set loading if we haven't initialized yet
+      if (!hasInitializedRef.current) {
+        setLoading(true);
+      }
+      return; // Features not loaded yet
+    }
+
+    // Create a stable key for the current features state
+    const featuresKey = `${isKnowledgeBaseEnabled ? 'enabled' : 'disabled'}`;
+    
+    // Create a unique key for this combination of category and page
+    const loadKey = `${memoizedCategoryId || 'none'}-${page}`;
+    
+    // If features haven't changed AND category/page haven't changed, skip
+    if (featuresProcessedRef.current === featuresKey && 
+        lastLoadKeyRef.current === loadKey && 
+        hasInitializedRef.current) {
+      // Already initialized with same parameters, don't reload
+      return;
+    }
+    
+    // If we've already loaded data (even if empty), only reload if category/page changed
+    if (hasLoadedRef.current && lastLoadKeyRef.current === loadKey) {
+      return; // Already loaded this category/page combination
+    }
+
+    // Debug logging removed - guards are working correctly
+
+    // Update processed keys
+    featuresProcessedRef.current = featuresKey;
+    // Don't set lastLoadKeyRef here - let loadArticles set it to prevent race conditions
+
+    // Check module access - only check once unless features change
+    if (!isKnowledgeBaseEnabled) {
+      if (!hasCheckedAccessRef.current) {
+        router.push('/dashboard');
+        setLoading(false);
+        hasCheckedAccessRef.current = true;
+      }
+      return;
+    }
+
+    // Mark that we've checked access
+    hasCheckedAccessRef.current = true;
+
+    // Reset loaded flag when category or page changes
+    if (memoizedCategoryId !== null || page !== 1) {
+      hasLoadedRef.current = false;
+    }
+
+    // Mark as initialized
+    hasInitializedRef.current = true;
+
+    // Only load data if KB is enabled
+    // Use setTimeout to ensure refs are set before calling load functions
+    // This prevents race conditions where loadArticles might be called before hasLoadedRef is set
+    setTimeout(() => {
+      loadCategories();
+      loadArticles();
+    }, 0);
+    // Note: loadCategories and loadArticles are stable useCallback functions,
+    // so they don't need to be in the dependency array
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgLoading, isKnowledgeBaseEnabled, router, memoizedCategoryId, page]);
 
   const handleSearch = async (query: string) => {
     if (!query.trim()) {
@@ -166,7 +331,10 @@ function KnowledgeBaseContent() {
     }
   };
 
-  const displayArticles = searchQuery ? searchResults.map(r => r.article) : articles;
+  // Memoize displayArticles to prevent unnecessary recalculations
+  const displayArticles = useMemo(() => {
+    return searchQuery ? searchResults.map(r => r.article) : articles;
+  }, [searchQuery, searchResults, articles]);
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
