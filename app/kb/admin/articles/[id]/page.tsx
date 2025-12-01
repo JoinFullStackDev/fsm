@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   Box,
@@ -33,16 +33,7 @@ export default function ArticleEditorPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!isNew) {
-      loadArticle();
-    } else {
-      setLoading(false);
-    }
-    loadCategories();
-  }, [articleId, isNew]);
-
-  const loadArticle = async () => {
+  const loadArticle = useCallback(async () => {
     try {
       setLoading(true);
       // First try by ID, then by slug
@@ -58,9 +49,9 @@ export default function ArticleEditorPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [articleId]);
 
-  const loadCategories = async () => {
+  const loadCategories = useCallback(async () => {
     try {
       const response = await fetch('/api/kb/categories');
       if (response.ok) {
@@ -81,7 +72,16 @@ export default function ArticleEditorPage() {
     } catch (err) {
       console.error('Error loading categories:', err);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!isNew) {
+      loadArticle();
+    } else {
+      setLoading(false);
+    }
+    loadCategories();
+  }, [isNew, loadArticle, loadCategories]);
 
   const handleSave = async (data: {
     title: string;

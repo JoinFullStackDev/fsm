@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   List,
@@ -34,11 +34,7 @@ export default function VersionHistory({ articleId, onRestore }: VersionHistoryP
   const [viewingVersion, setViewingVersion] = useState<KnowledgeBaseVersion | null>(null);
   const [restoring, setRestoring] = useState(false);
 
-  useEffect(() => {
-    loadVersions();
-  }, [articleId]);
-
-  const loadVersions = async () => {
+  const loadVersions = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/kb/articles/${articleId}/versions`);
@@ -51,7 +47,11 @@ export default function VersionHistory({ articleId, onRestore }: VersionHistoryP
     } finally {
       setLoading(false);
     }
-  };
+  }, [articleId]);
+
+  useEffect(() => {
+    loadVersions();
+  }, [loadVersions]);
 
   const handleRestore = async (version: KnowledgeBaseVersion) => {
     if (!onRestore) return;

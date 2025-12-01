@@ -430,7 +430,7 @@ export default function TemplateBasedPhaseForm({
         </Box>
       </Grid>
     );
-  }, [data, updateField, getFieldValue, onBlur, theme.palette.error.main, theme.palette.text.primary, theme.palette.background.default, theme.palette.divider, theme.palette.text.secondary]);
+  }, [data, updateField, getFieldValue, onBlur, theme.palette.error.main, theme.palette.text.primary, theme.palette.background.default, theme.palette.text.secondary]);
 
   if (loading) {
     return (

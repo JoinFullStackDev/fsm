@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   Box,
@@ -29,11 +29,7 @@ export default function ArticlePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadArticle();
-  }, [slug]);
-
-  const loadArticle = async () => {
+  const loadArticle = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -55,7 +51,11 @@ export default function ArticlePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [slug]);
+
+  useEffect(() => {
+    loadArticle();
+  }, [loadArticle]);
 
   const handleExportPDF = async () => {
     if (!article) return;

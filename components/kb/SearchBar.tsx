@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box,
   TextField,
@@ -48,9 +48,9 @@ export default function SearchBar({
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Debounced search
-  const debouncedSearch = useCallback(
-    debounce((searchQuery: string) => {
+  // Debounced search - use useMemo to create debounced function
+  const debouncedSearchFn = useMemo(
+    () => debounce((searchQuery: string) => {
       if (searchQuery.trim().length > 0) {
         onSearch(searchQuery);
       } else {
@@ -61,11 +61,11 @@ export default function SearchBar({
   );
 
   useEffect(() => {
-    debouncedSearch(query);
+    debouncedSearchFn(query);
     return () => {
       // Cleanup function - debounce will handle cancellation internally
     };
-  }, [query, debouncedSearch]);
+  }, [query, debouncedSearchFn]);
 
   const handleClear = () => {
     setQuery('');

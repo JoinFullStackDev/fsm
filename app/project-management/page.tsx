@@ -74,7 +74,7 @@ export default function ProjectManagementPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, supabase]);
+  }, [page, pageSize]);
 
   useEffect(() => {
     loadProjects();

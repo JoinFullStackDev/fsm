@@ -188,7 +188,26 @@ export default function ProjectPage() {
       setProject(projectData);
       // Extract company name from project data
       // The API returns company as an object with id and name
-      setCompanyName(projectData.company?.name || null);
+      // Also check if company_id exists and fetch company via API if relation didn't work
+      if (projectData.company?.name) {
+        setCompanyName(projectData.company.name);
+      } else if (projectData.company_id) {
+        // If company relation didn't load, fetch company via API route to avoid RLS issues
+        try {
+          const companyResponse = await fetch(`/api/ops/companies/${projectData.company_id}`);
+          if (companyResponse.ok) {
+            const companyData = await companyResponse.json();
+            setCompanyName(companyData.name || null);
+          } else {
+            setCompanyName(null);
+          }
+        } catch (err) {
+          console.error('[ProjectPage] Error fetching company:', err);
+          setCompanyName(null);
+        }
+      } else {
+        setCompanyName(null);
+      }
 
       // Load creator information
       if (projectData.owner_id) {
@@ -277,15 +296,23 @@ export default function ProjectPage() {
       }
 
       // Load dashboard stats
-      // Member count
-      const { data: membersData } = await supabase
-        .from('project_members')
-        .select('user_id, user:users(id, name, email)')
-        .eq('project_id', projectId);
-      
-      if (membersData) {
-        setMemberCount(membersData.length);
-        setMembers(membersData.slice(0, 5)); // Show first 5 members
+      // Member count - use API route to avoid RLS issues
+      try {
+        const membersResponse = await fetch(`/api/projects/${projectId}/members`);
+        if (membersResponse.ok) {
+          const membersData = await membersResponse.json();
+          const membersArray = membersData.members || [];
+          setMemberCount(membersArray.length);
+          setMembers(membersArray.slice(0, 5)); // Show first 5 members
+        } else {
+          // If API fails, set empty array
+          setMemberCount(0);
+          setMembers([]);
+        }
+      } catch (err) {
+        console.error('[ProjectPage] Error loading members:', err);
+        setMemberCount(0);
+        setMembers([]);
       }
 
       // Export count
@@ -1185,6 +1212,7 @@ export default function ProjectPage() {
                           }}
                         >
                           <Avatar
+                            src={member.user?.avatar_url || undefined}
                             sx={{
                               width: 32,
                               height: 32,
