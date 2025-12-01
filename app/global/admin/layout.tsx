@@ -26,6 +26,7 @@ import {
   Security as SecurityIcon,
   Inventory as InventoryIcon,
   People as PeopleIcon,
+  MenuBook as MenuBookIcon,
 } from '@mui/icons-material';
 import { useRole } from '@/lib/hooks/useRole';
 import { createSupabaseClient } from '@/lib/supabaseClient';
@@ -135,6 +136,7 @@ export default function GlobalAdminLayout({ children }: GlobalAdminLayoutProps) 
     { path: '/global/admin/packages', label: 'Packages', icon: InventoryIcon },
     { path: '/global/admin/system', label: 'System Settings', icon: SettingsIcon },
     { path: '/global/admin/ai-usage', label: 'AI Usage', icon: AIIcon },
+    { path: '/global/admin/kb', label: 'Knowledge Base', icon: MenuBookIcon },
     { path: '/global/admin/stripe', label: 'Stripe Management', icon: StripeIcon },
   ];
 

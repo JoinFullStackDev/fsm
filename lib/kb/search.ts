@@ -188,11 +188,30 @@ async function performVectorSearch(
     // Calculate cosine similarity for each article
     const results = articles
       .map((article: any) => {
-        if (!article.vector || !Array.isArray(article.vector)) {
+        if (!article.vector) {
           return null;
         }
 
-        const similarity = cosineSimilarity(queryEmbedding, article.vector);
+        // Convert vector to array if it's a string (Supabase may return pgvector as string)
+        let vectorArray: number[];
+        if (typeof article.vector === 'string') {
+          try {
+            vectorArray = JSON.parse(article.vector);
+          } catch (parseError) {
+            logger.warn('[KB Search] Failed to parse vector string:', { id: article.id, error: parseError });
+            return null;
+          }
+        } else if (Array.isArray(article.vector)) {
+          vectorArray = article.vector;
+        } else {
+          return null;
+        }
+
+        if (!Array.isArray(vectorArray) || vectorArray.length === 0) {
+          return null;
+        }
+
+        const similarity = cosineSimilarity(queryEmbedding, vectorArray);
         return {
           article: article as KnowledgeBaseArticleWithCategory,
           relevance_score: similarity,
