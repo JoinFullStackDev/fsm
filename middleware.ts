@@ -1,6 +1,8 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
+import logger from '@/lib/utils/logger';
+import { setCsrfToken } from '@/lib/utils/csrf';
 
 export async function middleware(request: NextRequest) {
   // Let service worker requests pass through - Next.js will serve from public/sw.js
@@ -12,7 +14,63 @@ export async function middleware(request: NextRequest) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
   
   const cookieStore = await cookies();
-  const response = NextResponse.next();
+  let response = NextResponse.next();
+  
+  // Set CSRF token for page responses (not API routes)
+  // Skip API routes and static files
+  const isPageRequest = !request.nextUrl.pathname.startsWith('/api') && 
+                        !request.nextUrl.pathname.startsWith('/_next') &&
+                        !request.nextUrl.pathname.includes('.');
+  
+  if (isPageRequest) {
+    response = await setCsrfToken(response);
+  }
+
+  // Add security headers
+  const isProduction = process.env.NODE_ENV === 'production';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  
+  // Content Security Policy
+  // Allow Supabase, Stripe, and other trusted sources
+  const cspDirectives = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://js.stripe.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "img-src 'self' data: https: blob:",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "connect-src 'self' " + supabaseUrl + " https://api.stripe.com https://*.supabase.co wss://*.supabase.co",
+    "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "upgrade-insecure-requests",
+  ].join('; ');
+
+  response.headers.set('Content-Security-Policy', cspDirectives);
+  
+  // X-Frame-Options: Prevent clickjacking
+  response.headers.set('X-Frame-Options', 'DENY');
+  
+  // X-Content-Type-Options: Prevent MIME type sniffing
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  
+  // Referrer-Policy: Control referrer information
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  
+  // Permissions-Policy: Restrict browser features
+  response.headers.set(
+    'Permissions-Policy',
+    'camera=(), microphone=(), geolocation=(), interest-cohort=()'
+  );
+  
+  // Strict-Transport-Security: Force HTTPS in production
+  if (isProduction) {
+    response.headers.set(
+      'Strict-Transport-Security',
+      'max-age=31536000; includeSubDomains; preload'
+    );
+  }
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -75,34 +133,37 @@ export async function middleware(request: NextRequest) {
     }
 
     // Check if user is super admin
-    const { data: userData, error: dbUserError } = await supabase
+    // Use admin client to avoid RLS recursion
+    // Filter by auth_id (unique per user) - this is safe
+    const { createAdminSupabaseClient } = await import('@/lib/supabaseAdmin');
+    const adminClient = createAdminSupabaseClient();
+    const { data: userData, error: dbUserError } = await adminClient
       .from('users')
-      .select('id, email, role, auth_id, is_super_admin')
+      .select('id, email, role, auth_id, is_super_admin, is_company_admin, organization_id')
       .eq('auth_id', currentUserId)
       .single();
 
     if (dbUserError) {
-      const userEmail = user?.email || currentSession?.user?.email;
-      if (userEmail) {
-        const { data: emailUserData } = await supabase
-          .from('users')
-          .select('id, email, role, auth_id, is_super_admin')
-          .eq('email', userEmail)
-          .single();
-        
-        if (emailUserData && emailUserData.role === 'admin' && emailUserData.is_super_admin) {
-          return response;
-        }
-      }
-      // Let client-side handle it
-      return response;
+      // Fail securely - log error and deny access
+      logger.error('[Middleware] Authorization check failed for global admin route:', {
+        error: dbUserError,
+        userId: currentUserId,
+        path: request.nextUrl.pathname,
+      });
+      // Deny access when authorization check fails
+      return NextResponse.redirect(new URL('/auth/signin', request.url));
     }
 
     if (!userData) {
-      return response;
+      // Fail securely - no user data found
+      logger.warn('[Middleware] User data not found for global admin route:', {
+        userId: currentUserId,
+        path: request.nextUrl.pathname,
+      });
+      return NextResponse.redirect(new URL('/auth/signin', request.url));
     }
 
-    // Only allow super admins
+    // Only allow super admins (super admins can access all organizations)
     if (userData.role !== 'admin' || !userData.is_super_admin) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
@@ -132,35 +193,44 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/auth/signin', request.url));
     }
 
-    // Check if user is admin and super admin
-    const { data: userData, error: dbUserError } = await supabase
+    // Check if user is admin
+    // Use admin client to bypass RLS and avoid recursion
+    // Filter by auth_id (unique per user) - this is safe
+    const { createAdminSupabaseClient } = await import('@/lib/supabaseAdmin');
+    const adminClient = createAdminSupabaseClient();
+    const { data: userData, error: dbUserError } = await adminClient
       .from('users')
-      .select('id, email, role, auth_id, is_super_admin')
+      .select('id, email, role, auth_id, is_super_admin, organization_id')
       .eq('auth_id', currentUserId)
       .single();
 
     if (dbUserError) {
-      // If user not found by auth_id, try by email as fallback
-      const userEmail = user?.email || currentSession?.user?.email;
-      if (userEmail) {
-        const { data: emailUserData, error: emailError } = await supabase
-          .from('users')
-          .select('id, email, role, auth_id, is_super_admin')
-          .eq('email', userEmail)
-          .single();
-        
-        // Only allow admins with super_admin flag
-        if (emailUserData && emailUserData.role === 'admin' && emailUserData.is_super_admin) {
-          return response; // Allow access
-        }
-      }
-      // If error checking role, let client-side handle it (don't block)
-      // Client-side will check role and redirect if needed
-      return response;
+      // Fail securely - log error and deny access
+      logger.error('[Middleware] Authorization check failed for admin route:', {
+        error: dbUserError,
+        userId: currentUserId,
+        path: request.nextUrl.pathname,
+      });
+      // Deny access when authorization check fails
+      return NextResponse.redirect(new URL('/auth/signin', request.url));
     }
 
     if (!userData) {
-      return response;
+      // Fail securely - no user data found
+      logger.warn('[Middleware] User data not found for admin route:', {
+        userId: currentUserId,
+        path: request.nextUrl.pathname,
+      });
+      return NextResponse.redirect(new URL('/auth/signin', request.url));
+    }
+
+    // Verify user has organization (required for admin routes)
+    if (!userData.organization_id) {
+      logger.warn('[Middleware] User has no organization_id for admin route:', {
+        userId: userData.id,
+        path: request.nextUrl.pathname,
+      });
+      return NextResponse.redirect(new URL('/auth/signin', request.url));
     }
 
     // Allow admins (both organization admins and super admins) to access admin routes

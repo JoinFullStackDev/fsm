@@ -63,18 +63,32 @@ export async function GET(
     }
 
     // Get widget and dashboard
+    // Optimized: Simplified join - fetch dashboard separately if needed to avoid lateral join overhead
     const { data: widget, error: widgetError } = await supabase
       .from('dashboard_widgets')
-      .select('*, dashboard:dashboards(*)')
+      .select('*')
       .eq('id', params.widgetId)
       .eq('dashboard_id', params.id)
       .single();
+
+    // Fetch dashboard separately if needed (simpler than lateral join)
+    let dashboard = null;
+    if (!widgetError && widget) {
+      const { data: dashboardData } = await supabase
+        .from('dashboards')
+        .select('*')
+        .eq('id', params.id)
+        .single();
+      dashboard = dashboardData;
+    }
 
     if (widgetError || !widget) {
       return notFound('Widget not found');
     }
 
-    const dashboard = (widget as any).dashboard;
+    if (!dashboard) {
+      return notFound('Dashboard not found');
+    }
 
     // Verify access
     if (dashboard.is_personal) {

@@ -114,29 +114,36 @@ export default function ProjectTaskManagementPage() {
         return;
       }
 
-      // Get user record
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('auth_id', session.user.id)
-        .single();
-
-      if (userError || !userData) {
+      // Get user record via API to avoid RLS recursion
+      const userResponse = await fetch('/api/users/me');
+      if (!userResponse.ok) {
         setError('Failed to load user data');
+        setLoading(false);
+        return;
+      }
+      
+      const userData = await userResponse.json();
+      if (!userData || !userData.id) {
+        setError('User data not found');
         setLoading(false);
         return;
       }
 
       setCurrentUserId(userData.id);
+      const currentUser = userData; // API returns full user data
 
-      // Load project
-      const { data: projectData, error: projectError } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', projectId)
-        .single();
-
-      if (projectError || !projectData) {
+      // Load project via API route to avoid RLS recursion issues
+      const projectResponse = await fetch(`/api/projects/${projectId}`);
+      if (!projectResponse.ok) {
+        const errorData = await projectResponse.json();
+        setError(errorData.error || 'Project not found');
+        setLoading(false);
+        return;
+      }
+      
+      const projectData = await projectResponse.json();
+      
+      if (!projectData) {
         setError('Project not found');
         setLoading(false);
         return;
@@ -165,28 +172,29 @@ export default function ProjectTaskManagementPage() {
       }
       setPhaseNames(phaseNamesMap);
 
-      // Load project members
-      const { data: membersData, error: membersError } = await supabase
-        .from('project_members')
-        .select('user_id, users(id, name, email, avatar_url)')
-        .eq('project_id', projectId);
-
-      if (!membersError && membersData) {
-        const members = membersData
-          .map((m: any) => m.users)
-          .filter(Boolean)
-          .map((u: any) => ({
-            id: u.id,
-            name: u.name,
-            email: u.email,
-            avatar_url: u.avatar_url,
-            role: 'pm' as const,
-            auth_id: '',
-            created_at: '',
-          }));
-        setProjectMembers(members);
+      // Load project members via API route to avoid RLS recursion
+      const membersResponse = await fetch(`/api/projects/${projectId}/members`);
+      if (membersResponse.ok) {
+        const membersData = await membersResponse.json();
+        if (membersData.members) {
+          const members = membersData.members
+            .map((m: any) => m.user)
+            .filter(Boolean)
+            .map((u: any) => ({
+              id: u.id,
+              name: u.name,
+              email: u.email,
+              avatar_url: u.avatar_url,
+              role: 'pm' as const,
+              auth_id: '',
+              created_at: '',
+            }));
+          setProjectMembers(members);
+        } else {
+          setProjectMembers([]);
+        }
       } else {
-        // If no project members found, set empty array
+        // If API call fails, set empty array
         setProjectMembers([]);
       }
 

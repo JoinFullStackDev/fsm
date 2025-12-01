@@ -29,6 +29,7 @@ import type { UserRole } from '@/types/project';
 export function useRole() {
   const [role, setRole] = useState<UserRole | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState<boolean>(false);
+  const [isCompanyAdmin, setIsCompanyAdmin] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -52,48 +53,25 @@ export function useRole() {
 
       logger.debug('[useRole] Looking up user with auth_id:', session.user.id);
       
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id, email, role, auth_id, is_super_admin')
-        .eq('auth_id', session.user.id)
-        .single();
-
-      logger.debug('[useRole] User query result:', { 
-        userData, 
-        userError: userError?.message,
-        queryAuthId: session.user.id
-      });
-
-      if (userError) {
-        logger.error('[useRole] Error loading user role:', userError);
-        // Try to find user by email as fallback
-        if (session.user.email) {
-          logger.debug('[useRole] Trying fallback lookup by email:', session.user.email);
-          const { data: emailUserData, error: emailError } = await supabase
-            .from('users')
-            .select('id, email, role, auth_id, is_super_admin')
-            .eq('email', session.user.email)
-            .single();
-          
-          logger.debug('[useRole] Email lookup result:', { emailUserData, emailError: emailError?.message });
-          
-          if (emailUserData) {
-            logger.debug('[useRole] Found user by email, auth_id mismatch detected!');
-            logger.debug('[useRole] Database auth_id:', emailUserData.auth_id, 'Session user id:', session.user.id);
-            setRole(emailUserData.role as UserRole);
-            setIsSuperAdmin(emailUserData.is_super_admin || false);
-            setLoading(false);
-            return;
-          }
-        }
+      // Use API endpoint to avoid RLS recursion
+      const userResponse = await fetch('/api/users/me');
+      if (!userResponse.ok) {
+        logger.error('[useRole] Failed to fetch user:', userResponse.status);
         setLoading(false);
         return;
       }
+      
+      const userData = await userResponse.json();
+      logger.debug('[useRole] User query result:', { 
+        userData, 
+        queryAuthId: session.user.id
+      });
 
       if (userData) {
         logger.debug('[useRole] User role loaded successfully:', userData.role);
         setRole(userData.role as UserRole);
         setIsSuperAdmin(userData.is_super_admin || false);
+        setIsCompanyAdmin(userData.is_company_admin || false);
       } else {
         logger.warn('[useRole] No user data found for auth_id:', session.user.id);
       }
@@ -103,6 +81,6 @@ export function useRole() {
     loadRole();
   }, []); // Empty dependency array - only run once on mount
 
-  return { role, isSuperAdmin, loading };
+  return { role, isSuperAdmin, isCompanyAdmin, loading };
 }
 

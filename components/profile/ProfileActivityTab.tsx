@@ -38,11 +38,13 @@ export default function ProfileActivityTab() {
       return;
     }
 
-    const { data: userData } = await supabase
-      .from('users')
-      .select('id')
-      .eq('auth_id', session.user.id)
-      .single();
+    // Use API endpoint to avoid RLS recursion
+    const userResponse = await fetch('/api/users/me');
+    if (!userResponse.ok) {
+      setLoading(false);
+      return;
+    }
+    const userData = await userResponse.json();
 
     if (!userData) {
       setLoading(false);

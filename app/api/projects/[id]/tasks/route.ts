@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { unauthorized, badRequest, internalError, notFound } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 import { notifyTaskAssigned } from '@/lib/notifications';
@@ -21,7 +22,9 @@ export async function GET(
       return unauthorized('You must be logged in to view tasks');
     }
 
-    const { data: tasks, error } = await supabase
+    // Use admin client to avoid RLS recursion when querying tasks and users
+    const adminClient = createAdminSupabaseClient();
+    const { data: tasks, error } = await adminClient
       .from('project_tasks')
       .select(`
         *,

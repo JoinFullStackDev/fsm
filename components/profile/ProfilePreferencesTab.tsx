@@ -52,16 +52,13 @@ export default function ProfilePreferencesTab() {
       return;
     }
 
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('auth_id', session.user.id)
-      .single();
-
-    if (userError) {
+    // Use API endpoint to avoid RLS recursion
+    const userResponse = await fetch('/api/users/me');
+    if (!userResponse.ok) {
       setLoading(false);
       return;
     }
+    const userData = await userResponse.json();
 
     const user = userData as User;
     setProfile(user);

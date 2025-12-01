@@ -5,6 +5,7 @@
 
 import { NextResponse } from 'next/server';
 import logger from './logger';
+import { sanitizeErrorMessage, sanitizeErrorDetails, removeSensitiveInfo } from './errorSanitization';
 
 export enum ErrorCode {
   UNAUTHORIZED = 'UNAUTHORIZED',
@@ -28,23 +29,32 @@ export interface ApiErrorResponse {
  * @param message - User-friendly error message
  * @param code - Error code enum
  * @param status - HTTP status code
- * @param details - Additional error details
+ * @param details - Additional error details (will be sanitized)
  */
 function createErrorResponse(
   message: string,
   code: ErrorCode = ErrorCode.INTERNAL_ERROR,
   status: number = 500,
-  details?: string | Record<string, any>
+  details?: string | Record<string, any> | unknown
 ): NextResponse<ApiErrorResponse> {
+  // Log full error details server-side (for debugging)
   logger.error(`API Error [${status} - ${code}]: ${message}`, details);
   
+  // Sanitize message for client (remove sensitive info, use generic in production)
+  const sanitizedMessage = sanitizeErrorMessage(details || message, message);
+  const cleanedMessage = removeSensitiveInfo(sanitizedMessage);
+  
   const response: ApiErrorResponse = {
-    error: message,
+    error: cleanedMessage,
     code,
   };
 
+  // Sanitize details before sending to client
   if (details) {
-    response.details = details;
+    const sanitizedDetails = sanitizeErrorDetails(details);
+    if (sanitizedDetails) {
+      response.details = sanitizedDetails;
+    }
   }
 
   return NextResponse.json(response, { status });
@@ -102,11 +112,14 @@ export function conflict(message: string = 'Resource conflict', details?: string
 
 /**
  * Create an internal server error response (500)
+ * Error details are sanitized to prevent information disclosure
  */
 export function internalError(
   message: string = 'Internal server error',
-  details?: string | Record<string, any>
+  details?: string | Record<string, any> | unknown
 ): NextResponse<ApiErrorResponse> {
-  return createErrorResponse(message, ErrorCode.INTERNAL_ERROR, 500, details);
+  // Always use generic message for internal errors in production
+  const genericMessage = 'An internal error occurred. Please try again later.';
+  return createErrorResponse(genericMessage, ErrorCode.INTERNAL_ERROR, 500, details || message);
 }
 

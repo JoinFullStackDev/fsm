@@ -21,7 +21,7 @@ Add new columns to `packages` table:
 - `price_per_user_yearly` (numeric): Price per user for yearly billing
 - `stripe_price_id_monthly` (text): Stripe price ID for monthly billing
 - `stripe_price_id_yearly` (text): Stripe price ID for yearly billing
-- Remove `billing_interval` column (packages support both intervals)
+- Keep `billing_interval` column as legacy/deprecated (nullable) - packages support both intervals, but this field can serve as a default/fallback when both intervals are available
 - Keep existing `stripe_price_id` for backward compatibility (maps to monthly)
 
 ### Migration Strategy
@@ -46,7 +46,7 @@ Add new columns to `packages` table:
 
 **Changes:**
 
-- Remove `billing_interval` field (not per-package anymore)
+- Keep `billing_interval` field as legacy/deprecated (nullable) - can serve as default/fallback, but primary billing interval is now stored on subscription
 - Add `base_price_monthly: number | null`
 - Add `base_price_yearly: number | null`
 - Add `price_per_user_yearly: number | null`
@@ -142,7 +142,7 @@ Add new columns to `packages` table:
 
 ## Implementation Order
 
-1. **Database Migration** - Add new columns, remove `billing_interval`, migrate existing data
+1. **Database Migration** - Add new columns, keep `billing_interval` as legacy (nullable), migrate existing data
 2. **Type Definitions** - Update TypeScript interfaces
 3. **Package APIs** - Update create/update/read endpoints
 4. **Admin UI** - Update package management interface to show both prices
@@ -154,9 +154,10 @@ Add new columns to `packages` table:
 ## Backward Compatibility
 
 - Keep `stripe_price_id` field during transition (maps to monthly)
+- Keep `billing_interval` field on packages as legacy/deprecated (nullable) - can serve as default/fallback when both intervals are available, useful for UI display and migration
 - Migrate existing `stripe_price_id` to `stripe_price_id_monthly`
 - Gradually migrate all code to use new fields
-- Remove deprecated fields in future cleanup
+- Legacy fields (`stripe_price_id`, `billing_interval` on packages) can be removed in future cleanup after full migration
 
 ## Additional Changes Required
 

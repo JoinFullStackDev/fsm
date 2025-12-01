@@ -163,7 +163,7 @@ export async function GET(request: NextRequest) {
     if (subscription && subscription.package_id) {
       const { data: packageData, error: pkgError } = await adminClient
         .from('packages')
-        .select('id, name, price_per_user_monthly, features')
+        .select('id, name, pricing_model, base_price_monthly, base_price_yearly, price_per_user_monthly, price_per_user_yearly, stripe_price_id_monthly, stripe_price_id_yearly, features')
         .eq('id', subscription.package_id)
         .single();
 

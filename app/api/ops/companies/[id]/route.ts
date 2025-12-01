@@ -61,8 +61,9 @@ export async function GET(
 
     const { id } = params;
 
-    // Get company
-    const { data: company, error: companyError } = await supabase
+    // Get company - Use admin client to avoid RLS recursion
+    const adminClient = createAdminSupabaseClient();
+    const { data: company, error: companyError } = await adminClient
       .from('companies')
       .select('*')
       .eq('id', id)
@@ -76,8 +77,9 @@ export async function GET(
       return internalError('Failed to load company', { error: companyError?.message });
     }
 
-    // Validate organization access - always check organization
-    if (company.organization_id !== organizationId) {
+    // Validate organization access - super admins can see all companies
+    const isSuperAdmin = userData.role === 'admin' && userData.is_super_admin === true;
+    if (!isSuperAdmin && company.organization_id !== organizationId) {
       return forbidden('You do not have access to this company');
     }
 

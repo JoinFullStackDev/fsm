@@ -4,6 +4,7 @@ import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { unauthorized, notFound, internalError, badRequest, forbidden } from '@/lib/utils/apiErrors';
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { hasCustomDashboards } from '@/lib/packageLimits';
+import { isValidUUID } from '@/lib/utils/inputSanitization';
 import logger from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
@@ -17,6 +18,11 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Validate UUID format
+    if (!isValidUUID(params.id)) {
+      return badRequest('Invalid dashboard ID format');
+    }
+
     const supabase = await createServerSupabaseClient();
     const { data: { user: authUser } } = await supabase.auth.getUser();
 
@@ -70,37 +76,82 @@ export async function GET(
       return notFound('Dashboard not found');
     }
 
-    // Verify access
+    // Verify access with explicit organization_id validation
     if (dashboard.is_personal) {
       if (dashboard.owner_id !== userData.id) {
         return forbidden('You do not have access to this dashboard');
       }
     } else if (dashboard.organization_id) {
-      if (dashboard.organization_id !== organizationId) {
+      // Explicit validation: ensure dashboard organization_id matches user's organization_id
+      if (!dashboard.organization_id || dashboard.organization_id !== organizationId) {
+        logger.warn('[Dashboards API] Organization ID mismatch:', {
+          dashboardOrgId: dashboard.organization_id,
+          userOrgId: organizationId,
+          dashboardId: params.id,
+          userId: userData.id,
+        });
         return forbidden('You do not have access to this dashboard');
       }
+      // Additional defense-in-depth: verify organization_id is valid UUID format
+      if (typeof dashboard.organization_id !== 'string' || dashboard.organization_id.trim() === '') {
+        logger.error('[Dashboards API] Invalid organization_id in dashboard:', {
+          dashboardId: params.id,
+          organizationId: dashboard.organization_id,
+        });
+        return forbidden('Invalid dashboard configuration');
+      }
     } else if (dashboard.project_id) {
-      // Check project membership
-      const { data: project } = await supabase
+      // Check project membership and verify project belongs to user's organization
+      // Use admin client to avoid RLS recursion
+      const adminClient = createAdminSupabaseClient();
+      const { data: project } = await adminClient
         .from('projects')
-        .select('owner_id')
+        .select('owner_id, organization_id')
         .eq('id', dashboard.project_id)
         .single();
 
-      const { data: member } = await supabase
-        .from('project_members')
-        .select('id')
-        .eq('project_id', dashboard.project_id)
-        .eq('user_id', userData.id)
-        .single();
-
-      if (project?.owner_id !== userData.id && !member) {
+      if (!project) {
         return forbidden('You do not have access to this dashboard');
       }
+
+      // Check if user is project owner, project member, or project belongs to their organization
+      const isProjectOwner = project.owner_id === userData.id;
+      const projectInUserOrg = project.organization_id === organizationId;
+      const isSuperAdmin = userData.role === 'admin' && userData.is_super_admin === true;
+      
+      if (!isSuperAdmin && !isProjectOwner && !projectInUserOrg) {
+        // Check if user is a project member
+        const { data: member } = await adminClient
+          .from('project_members')
+          .select('id')
+          .eq('project_id', dashboard.project_id)
+          .eq('user_id', userData.id)
+          .single();
+
+        if (!member) {
+          logger.warn('[Dashboards API] Access denied - not project member:', {
+            projectOrgId: project.organization_id,
+            userOrgId: organizationId,
+            projectId: dashboard.project_id,
+            userId: userData.id,
+          });
+          return forbidden('You do not have access to this dashboard');
+        }
+      }
+    } else {
+      // Dashboard has no organization_id, project_id, or is_personal flag - invalid state
+      logger.error('[Dashboards API] Dashboard in invalid state:', {
+        dashboardId: params.id,
+        is_personal: dashboard.is_personal,
+        organization_id: dashboard.organization_id,
+        project_id: dashboard.project_id,
+      });
+      return forbidden('Invalid dashboard configuration');
     }
 
-    // Get widgets
-    const { data: widgets, error: widgetsError } = await supabase
+    // Get widgets - Use admin client to avoid RLS recursion
+    const adminClient = createAdminSupabaseClient();
+    const { data: widgets, error: widgetsError } = await adminClient
       .from('dashboard_widgets')
       .select('*')
       .eq('dashboard_id', params.id)

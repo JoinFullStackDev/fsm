@@ -62,8 +62,9 @@ export async function GET(
 
     const { id } = params;
 
-    // Get opportunity with company info
-    const { data: opportunity, error: opportunityError } = await supabase
+    // Get opportunity with company info - Use admin client to avoid RLS recursion
+    const adminClient = createAdminSupabaseClient();
+    const { data: opportunity, error: opportunityError } = await adminClient
       .from('opportunities')
       .select(`
         *,
@@ -81,10 +82,9 @@ export async function GET(
     }
 
     // Validate organization access (super admins can see all opportunities)
-    if (userData.role !== 'admin' || userData.is_super_admin !== true) {
-      if (opportunity.organization_id !== organizationId) {
-        return forbidden('You do not have access to this opportunity');
-      }
+    const isSuperAdmin = userData.role === 'admin' && userData.is_super_admin === true;
+    if (!isSuperAdmin && opportunity.organization_id !== organizationId) {
+      return forbidden('You do not have access to this opportunity');
     }
 
     return NextResponse.json(opportunity);

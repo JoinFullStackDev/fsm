@@ -1,42 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
-import { getOrganizationContext } from '@/lib/organizationContext';
-import { unauthorized, internalError } from '@/lib/utils/apiErrors';
+import { getOrganizationContextById } from '@/lib/organizationContext';
+import { getCachedContext, setCachedContext } from '@/lib/cache/organizationContextCache';
 import logger from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
-
-// Simple in-memory cache for organization context (30 second TTL)
-const contextCache = new Map<string, { data: any; expiresAt: number }>();
-const CACHE_TTL_MS = 30 * 1000; // 30 seconds
-
-function getCachedContext(userId: string): any | null {
-  const cached = contextCache.get(userId);
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.data;
-  }
-  if (cached) {
-    contextCache.delete(userId); // Remove expired entry
-  }
-  return null;
-}
-
-function setCachedContext(userId: string, data: any): void {
-  contextCache.set(userId, {
-    data,
-    expiresAt: Date.now() + CACHE_TTL_MS,
-  });
-  
-  // Clean up expired entries periodically (keep cache size reasonable)
-  if (contextCache.size > 100) {
-    const now = Date.now();
-    for (const [key, value] of contextCache.entries()) {
-      if (value.expiresAt <= now) {
-        contextCache.delete(key);
-      }
-    }
-  }
-}
 
 /**
  * GET /api/organization/context
@@ -48,7 +16,12 @@ export async function GET(request: NextRequest) {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      return unauthorized('You must be logged in to view organization context');
+      // Return empty context instead of error for unauthenticated users
+      return NextResponse.json({
+        organization: null,
+        subscription: null,
+        package: null,
+      });
     }
 
     // Check cache first
@@ -57,10 +30,98 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(cached);
     }
 
-    const context = await getOrganizationContext(supabase, user.id);
+    // Use admin client to bypass RLS and avoid recursion
+    // BUT still filter by the user's actual organization_id
+    const { createAdminSupabaseClient } = await import('@/lib/supabaseAdmin');
+    const adminClient = createAdminSupabaseClient();
+    
+    // Get user's organization_id directly with admin client (bypasses RLS)
+    // This is safe because we're filtering by auth_id which is unique per user
+    const { data: userRecord, error: userRecordError } = await adminClient
+      .from('users')
+      .select('id, organization_id, role, is_super_admin')
+      .eq('auth_id', user.id)
+      .single();
+
+    if (userRecordError || !userRecord) {
+      // User record doesn't exist - return empty context
+      logger.warn('[OrganizationContext API] User record not found:', { authId: user.id, error: userRecordError });
+      return NextResponse.json({
+        organization: null,
+        subscription: null,
+        package: null,
+      });
+    }
+
+    if (!userRecord.organization_id) {
+      // User has no organization - return empty context
+      logger.warn('[OrganizationContext API] User has no organization_id:', { userId: userRecord.id });
+      return NextResponse.json({
+        organization: null,
+        subscription: null,
+        package: null,
+      });
+    }
+
+    // Get organization context using admin client
+    // This is safe because we're passing the user's actual organization_id
+    logger.info('[OrganizationContext API] Fetching context for organization:', {
+      userId: userRecord.id,
+      organizationId: userRecord.organization_id,
+    });
+    
+    const context = await getOrganizationContextById(adminClient, userRecord.organization_id);
+    
+    // Log what we got
+    logger.info('[OrganizationContext API] Context fetched:', {
+      hasOrganization: !!context?.organization,
+      hasSubscription: !!context?.subscription,
+      hasPackage: !!context?.package,
+      subscriptionId: context?.subscription?.id,
+      packageId: context?.package?.id,
+      packageName: context?.package?.name,
+    });
+    
+    // Verify the context belongs to the user's organization (security check)
+    if (context && context.organization.id !== userRecord.organization_id) {
+      logger.error('[OrganizationContext API] Security check failed: context org mismatch', {
+        userId: userRecord.id,
+        userOrgId: userRecord.organization_id,
+        contextOrgId: context.organization.id,
+      });
+      return NextResponse.json({
+        organization: null,
+        subscription: null,
+        package: null,
+      });
+    }
 
     if (!context) {
-      return internalError('Failed to load organization context');
+      logger.warn('[OrganizationContext API] No context returned for organization:', {
+        userId: userRecord.id,
+        organizationId: userRecord.organization_id,
+      });
+      return NextResponse.json({
+        organization: null,
+        subscription: null,
+        package: null,
+      });
+    }
+    
+    if (!context.subscription) {
+      logger.warn('[OrganizationContext API] No subscription found for organization:', {
+        userId: userRecord.id,
+        organizationId: userRecord.organization_id,
+      });
+    }
+    
+    if (!context.package) {
+      logger.warn('[OrganizationContext API] No package found for organization:', {
+        userId: userRecord.id,
+        organizationId: userRecord.organization_id,
+        subscriptionId: context.subscription?.id,
+        packageId: context.subscription?.package_id,
+      });
     }
 
     // Cache the result
@@ -69,8 +130,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(context);
   } catch (error) {
     logger.error('Error in GET /api/organization/context:', error);
-    return internalError('Failed to load organization context', {
-      error: error instanceof Error ? error.message : 'Unknown error',
+    // Return empty context instead of error to prevent UI breakage
+    return NextResponse.json({
+      organization: null,
+      subscription: null,
+      package: null,
     });
   }
 }

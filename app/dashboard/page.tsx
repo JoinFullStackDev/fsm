@@ -61,6 +61,10 @@ function DashboardPageContent() {
   const [currentUserRole, setCurrentUserRole] = useState<'admin' | 'pm' | 'designer' | 'engineer' | null>(null);
 
   useEffect(() => {
+    // Don't wait indefinitely for organization context
+    // Proceed with loading dashboard data even if organization context isn't ready
+    // The organization context will load independently and update when ready
+
     // Check for pending user invites after signup
     const inviteDataStr = sessionStorage.getItem('pending_user_invites');
     const inviteUsers = searchParams.get('invite_users') === 'true';
@@ -91,60 +95,68 @@ function DashboardPageContent() {
     }
 
     const loadProjects = async () => {
-      // Log debug info from sign-in if available
-      const debugInfo = localStorage.getItem('signin_debug');
-      if (debugInfo) {
-        logger.debug('Sign-in debug info:', JSON.parse(debugInfo));
-        localStorage.removeItem('signin_debug');
-      }
-
-      // Wait a bit for session to be fully established (especially after redirect)
-      await new Promise(resolve => setTimeout(resolve, 200));
-
-      // Single session check to avoid rate limiting
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      const session = sessionData?.session;
-      
-      logger.debug('Dashboard session check:', { 
-        hasSession: !!session, 
-        userId: session?.user?.id,
-        sessionError: sessionError?.message 
-      });
-
-      if (!session) {
-        logger.error('No session in dashboard, redirecting to sign-in');
-        // Redirect to signin immediately if no session
-        router.push('/auth/signin');
-        return;
-      }
-
-      // Get user record
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id, role')
-        .eq('auth_id', session.user.id)
-        .single();
-
-      logger.debug('User record lookup:', { userData, userError: userError?.message });
-
-      if (userError || !userData) {
-        // User doesn't exist - redirect to signin
-        router.push('/auth/signin');
-        return;
-      }
-
-      // Store current user info
-      setCurrentUserId(userData.id);
-      setCurrentUserRole(userData.role as 'admin' | 'pm' | 'designer' | 'engineer' | null);
-
-      // Use API route to get projects (handles organization filtering and RLS properly)
       try {
+        setLoading(true);
+        
+        // Log debug info from sign-in if available
+        const debugInfo = localStorage.getItem('signin_debug');
+        if (debugInfo) {
+          logger.debug('Sign-in debug info:', JSON.parse(debugInfo));
+          localStorage.removeItem('signin_debug');
+        }
+
+        // Wait a bit for session to be fully established (especially after redirect)
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        // Single session check to avoid rate limiting
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        const session = sessionData?.session;
+        
+        logger.debug('Dashboard session check:', { 
+          hasSession: !!session, 
+          userId: session?.user?.id,
+          sessionError: sessionError?.message 
+        });
+
+        if (!session) {
+          logger.error('No session in dashboard, redirecting to sign-in');
+          // Redirect to signin immediately if no session
+          router.push('/auth/signin');
+          return;
+        }
+
+        // Get user database ID via API to avoid RLS recursion
+        // This is needed because assignee_id in tasks references users.id, not auth_id
+        try {
+          const userResponse = await fetch('/api/users/me');
+          if (userResponse.ok) {
+            const userData = await userResponse.json();
+            if (userData?.id) {
+              setCurrentUserId(userData.id);
+              setCurrentUserRole(userData.role || null);
+              logger.debug('[Dashboard] Set current user:', { userId: userData.id, role: userData.role });
+            } else {
+              logger.warn('[Dashboard] User data missing ID:', userData);
+              setCurrentUserId(null);
+              setCurrentUserRole(null);
+            }
+          } else {
+            logger.error('[Dashboard] Failed to load user data:', await userResponse.text());
+            setCurrentUserId(null);
+            setCurrentUserRole(null);
+          }
+        } catch (userErr) {
+          logger.error('[Dashboard] Error loading user data:', userErr);
+          setCurrentUserId(null);
+          setCurrentUserRole(null);
+        }
+
+        // Use API route to get projects (handles organization filtering and RLS properly)
         const response = await fetch('/api/projects?limit=100');
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ message: 'Failed to load projects' }));
           logger.error('[Dashboard] Failed to load projects:', errorData);
           setError(errorData.message || errorData.error || 'Failed to load projects');
-          setLoading(false);
           return;
         }
 
@@ -160,72 +172,85 @@ function DashboardPageContent() {
           logger.debug('[Dashboard] No projects found for user');
         }
 
-      // Remove duplicates
-      const uniqueProjects = Array.from(
-        new Map(allProjects.map((p: any) => [p.id, p])).values()
-      ) as Project[];
-      
-      setProjects(uniqueProjects);
+        // Remove duplicates
+        const uniqueProjects = Array.from(
+          new Map(allProjects.map((p: any) => [p.id, p])).values()
+        ) as Project[];
+        
+        setProjects(uniqueProjects);
 
-      // Load all tasks for user's projects
-      const projectIds = uniqueProjects.map((p) => p.id);
-      if (projectIds.length > 0) {
-        // Use API route or filter by project IDs - tasks inherit org through projects
-        const { data: tasksData, error: tasksError } = await supabase
-          .from('project_tasks')
-          .select('*')
-          .in('project_id', projectIds);
+        // Load all tasks for user's projects
+        const projectIds = uniqueProjects.map((p) => p.id);
+        if (projectIds.length > 0) {
+          // Use API route or filter by project IDs - tasks inherit org through projects
+          const { data: tasksData, error: tasksError } = await supabase
+            .from('project_tasks')
+            .select('*')
+            .in('project_id', projectIds);
 
-        if (tasksError) {
-          logger.error('[Dashboard] Error loading tasks:', tasksError);
-          setTasks([]);
+          if (tasksError) {
+            logger.error('[Dashboard] Error loading tasks:', tasksError);
+            setTasks([]);
+          } else {
+            setTasks((tasksData || []) as ProjectTask[]);
+            logger.debug('[Dashboard] Loaded tasks:', { count: tasksData?.length || 0 });
+          }
         } else {
-          setTasks((tasksData || []) as ProjectTask[]);
-          logger.debug('[Dashboard] Loaded tasks:', { count: tasksData?.length || 0 });
+          setTasks([]);
         }
-      } else {
-        setTasks([]);
-      }
 
-      // Load all organization users (for invite prompt)
-      const { data: orgUsersData } = await supabase
-        .from('users')
-        .select('id, email, name, role')
-        .eq('organization_id', userData.organization_id || '');
-      
-      if (orgUsersData) {
-        setUsers(orgUsersData.map((u: { id: string; email?: string; name?: string; role?: string }) => ({ id: u.id }) as User));
-      }
+        // Load all organization users (for invite prompt) - use API to avoid RLS
+        if (organization?.id) {
+          try {
+            const usersResponse = await fetch('/api/admin/users');
+            if (usersResponse.ok) {
+              const usersData = await usersResponse.json();
+              if (usersData?.users) {
+                setUsers(usersData.users.map((u: any) => ({ 
+                  id: u.id, 
+                  email: u.email, 
+                  name: u.name, 
+                  role: u.role 
+                })) as User[]);
+              }
+            }
+          } catch (usersErr) {
+            logger.error('[Dashboard] Error loading users:', usersErr);
+          }
+        }
 
-      // Load project members
-      const { data: membersData, error: membersError } = await supabase
-        .from('project_members')
-        .select('project_id, user_id, role, users(*)')
-        .in('project_id', projectIds.length > 0 ? projectIds : ['']);
+        // Load project members
+        if (projectIds.length > 0) {
+          const { data: membersData, error: membersError } = await supabase
+            .from('project_members')
+            .select('project_id, user_id, role, users(*)')
+            .in('project_id', projectIds);
 
-      if (!membersError && membersData) {
-        const members = membersData.map((m: any) => ({
-          project_id: m.project_id,
-          user_id: m.user_id,
-          role: m.role,
-          user: m.users,
-        }));
-        setProjectMembers(members);
+          if (!membersError && membersData) {
+            const members = membersData.map((m: any) => ({
+              project_id: m.project_id,
+              user_id: m.user_id,
+              role: m.role,
+              user: m.users,
+            }));
+            setProjectMembers(members);
 
-        // Merge project member users with existing org users (don't overwrite)
-        const projectMemberUsers = Array.from(
-          new Map(members.map((m: any) => [m.user.id, m.user])).values()
-        ) as User[];
-        // Merge with existing users, keeping org users as base
-        const allUsersMap = new Map(users.map(u => [u.id, u]));
-        projectMemberUsers.forEach(u => allUsersMap.set(u.id, u));
-        setUsers(Array.from(allUsersMap.values()));
-      }
-
-      setLoading(false);
+            // Merge project member users with existing org users (don't overwrite)
+            const projectMemberUsers = Array.from(
+              new Map(members.map((m: any) => [m.user.id, m.user])).values()
+            ) as User[];
+            // Merge with existing users, keeping org users as base
+            setUsers((prevUsers) => {
+              const allUsersMap = new Map(prevUsers.map(u => [u.id, u]));
+              projectMemberUsers.forEach(u => allUsersMap.set(u.id, u));
+              return Array.from(allUsersMap.values());
+            });
+          }
+        }
       } catch (fetchError) {
         logger.error('[Dashboard] Error fetching projects:', fetchError);
         setError(fetchError instanceof Error ? fetchError.message : 'Failed to load projects');
+      } finally {
         setLoading(false);
       }
     };
@@ -245,7 +270,7 @@ function DashboardPageContent() {
       subscription.unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router]); // supabase is a singleton, don't include it in deps
+  }, [router, organization]); // Include organization so we reload when it's available
 
   const handleCreateProject = () => {
     router.push('/project/new');

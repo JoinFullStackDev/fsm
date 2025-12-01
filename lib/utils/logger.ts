@@ -6,7 +6,11 @@
  * - logger.info() - Production-safe info logs (always logged)
  * - logger.warn() - Always logged
  * - logger.error() - Always logged with stack traces
+ * 
+ * SECURITY: All logs are automatically sanitized to prevent sensitive data exposure
  */
+
+import { redactSensitiveData, sanitizeLogMessage, containsSensitiveData } from './logSanitization';
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
@@ -24,7 +28,16 @@ const logger: Logger = {
    */
   debug: (...args: any[]) => {
     if (isDevelopment) {
-      console.log('[DEBUG]', ...args);
+      const sanitized = args.map(arg => {
+        if (containsSensitiveData(arg)) {
+          return redactSensitiveData(arg);
+        }
+        if (typeof arg === 'string') {
+          return sanitizeLogMessage(arg);
+        }
+        return arg;
+      });
+      console.log('[DEBUG]', ...sanitized);
     }
   },
 
@@ -33,7 +46,16 @@ const logger: Logger = {
    * Use for important information that should be visible in production
    */
   info: (...args: any[]) => {
-    console.log('[INFO]', ...args);
+    const sanitized = args.map(arg => {
+      if (containsSensitiveData(arg)) {
+        return redactSensitiveData(arg);
+      }
+      if (typeof arg === 'string') {
+        return sanitizeLogMessage(arg);
+      }
+      return arg;
+    });
+    console.log('[INFO]', ...sanitized);
   },
 
   /**
@@ -41,25 +63,41 @@ const logger: Logger = {
    * Use for warnings that should be visible in production
    */
   warn: (...args: any[]) => {
-    console.warn('[WARN]', ...args);
+    const sanitized = args.map(arg => {
+      if (containsSensitiveData(arg)) {
+        return redactSensitiveData(arg);
+      }
+      if (typeof arg === 'string') {
+        return sanitizeLogMessage(arg);
+      }
+      return arg;
+    });
+    console.warn('[WARN]', ...sanitized);
   },
 
   /**
    * Error logs - always shown with stack traces
    * Use for errors that need to be tracked in production
+   * Sensitive data is automatically redacted
    */
   error: (...args: any[]) => {
-    const errorArgs = args.map(arg => {
+    const sanitized = args.map(arg => {
       if (arg instanceof Error) {
         return {
-          message: arg.message,
-          stack: arg.stack,
+          message: sanitizeLogMessage(arg.message),
+          stack: arg.stack ? sanitizeLogMessage(arg.stack) : undefined,
           name: arg.name,
         };
       }
+      if (containsSensitiveData(arg)) {
+        return redactSensitiveData(arg);
+      }
+      if (typeof arg === 'string') {
+        return sanitizeLogMessage(arg);
+      }
       return arg;
     });
-    console.error('[ERROR]', ...errorArgs);
+    console.error('[ERROR]', ...sanitized);
   },
 };
 

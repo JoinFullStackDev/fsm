@@ -48,6 +48,7 @@ import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import LoadingSkeleton from '@/components/ui/LoadingSkeleton';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { getCsrfToken } from '@/lib/utils/csrfClient';
 import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import { generateCursorMasterPrompt } from '@/lib/exportHandlers/cursorBundle';
 import { calculatePhaseProgress } from '@/lib/phases/calculatePhaseProgress';
@@ -167,23 +168,26 @@ export default function ProjectPage() {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
 
-      // Load project with company info
-      const { data: projectData, error: projectError } = await supabase
-        .from('projects')
-        .select(`
-          *,
-          company:companies(id, name)
-        `)
-        .eq('id', projectId)
-        .single();
-
-      if (projectError || !projectData) {
-        setError(projectError?.message || 'Project not found');
+      // Load project via API route to avoid RLS recursion issues
+      const projectResponse = await fetch(`/api/projects/${projectId}`);
+      if (!projectResponse.ok) {
+        const errorData = await projectResponse.json();
+        setError(errorData.error || 'Project not found');
+        setLoading(false);
+        return;
+      }
+      
+      const projectData = await projectResponse.json();
+      
+      if (!projectData) {
+        setError('Project not found');
         setLoading(false);
         return;
       }
 
       setProject(projectData);
+      // Extract company name from project data
+      // The API returns company as an object with id and name
       setCompanyName(projectData.company?.name || null);
 
       // Load creator information
@@ -203,45 +207,57 @@ export default function ProjectPage() {
         }
       }
 
-      // Load phases with data for progress calculation (ordered by display_order)
-      let phasesData = null;
-      let phasesError = null;
-      let attempts = refreshNeeded ? 3 : 1;
+      // Use phases from API response if available, otherwise load separately
+      // The API returns phases array, but we need data field for progress calculation
+      let finalPhasesData: any[] = [];
       
-      for (let i = 0; i < attempts; i++) {
-        const result = await supabase
+      if (projectData.phases && Array.isArray(projectData.phases)) {
+        // Phases from API don't include data field, so we need to load it separately
+        // But use the phases structure from API to avoid RLS recursion
+        const phaseNumbers = projectData.phases.map((p: any) => p.phase_number);
+        
+        if (phaseNumbers.length > 0) {
+          // Load phase data separately - this is a simpler query that shouldn't cause recursion
+          const { data: phasesWithData, error: phasesError } = await supabase
+            .from('project_phases')
+            .select('phase_number, phase_name, display_order, completed, updated_at, data')
+            .eq('project_id', projectId)
+            .in('phase_number', phaseNumbers)
+            .eq('is_active', true)
+            .order('display_order', { ascending: true });
+          
+          if (phasesError) {
+            console.error('Error loading phase data:', phasesError);
+            // Use phases without data as fallback
+            finalPhasesData = projectData.phases;
+          } else {
+            finalPhasesData = phasesWithData || projectData.phases;
+          }
+        } else {
+          finalPhasesData = projectData.phases;
+        }
+      } else {
+        // Fallback: load phases directly if not in API response
+        const { data: phasesData, error: phasesError } = await supabase
           .from('project_phases')
           .select('phase_number, phase_name, display_order, completed, updated_at, data')
           .eq('project_id', projectId)
           .eq('is_active', true)
           .order('display_order', { ascending: true });
         
-        phasesData = result.data;
-        phasesError = result.error;
-        
-        if (!phasesError && phasesData && phasesData.length > 0) {
-          break;
-        }
-        
-        if (i < attempts - 1) {
-          await new Promise(resolve => setTimeout(resolve, 500));
+        if (phasesError) {
+          console.error('Error loading phases:', phasesError);
+          setError(phasesError.message);
+        } else {
+          finalPhasesData = phasesData || [];
         }
       }
-
-      if (phasesError) {
-        console.error('Error loading phases:', phasesError);
-        setError(phasesError.message);
-      } else {
-        setPhases(phasesData || []);
-        if (refreshNeeded && (!phasesData || phasesData.length === 0)) {
-          console.warn('No phases found after template change');
-          setError('Phases were not found after template change. Please refresh the page.');
-        }
-      }
+      
+      setPhases(finalPhasesData);
 
       // Load template field configs if project has a template_id
-      if (projectData.template_id && phasesData && phasesData.length > 0) {
-        const phaseNumbers = phasesData.map((p: any) => p.phase_number);
+      if (projectData.template_id && finalPhasesData && finalPhasesData.length > 0) {
+        const phaseNumbers = finalPhasesData.map((p: any) => p.phase_number);
         const { data: configsData, error: configsError } = await supabase
           .from('template_field_configs')
           .select('phase_number, field_key')
@@ -408,8 +424,15 @@ export default function ProjectPage() {
 
     setDeleting(true);
     try {
+      const csrfToken = getCsrfToken();
+      const headers: HeadersInit = {};
+      if (csrfToken) {
+        headers['x-csrf-token'] = csrfToken;
+      }
+
       const response = await fetch(`/api/projects/${project.id}`, {
         method: 'DELETE',
+        headers,
       });
 
       const data = await response.json();

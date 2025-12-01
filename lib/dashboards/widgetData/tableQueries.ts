@@ -14,6 +14,8 @@ export interface TableWidgetData {
 
 /**
  * Get tasks table data
+ * Optimized to reduce N+1 query pattern by fetching projects once
+ * Note: Still uses PostgREST for joins with users and projects tables
  */
 export async function getTasksTable(
   supabase: SupabaseClient,
@@ -28,6 +30,20 @@ export async function getTasksTable(
   }
 ): Promise<TableWidgetData> {
   try {
+    // Get project IDs first (only if not filtering by specific project)
+    let projectIds: string[] | null = null;
+    if (!options?.projectId) {
+      const { data: projects } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('organization_id', organizationId);
+
+      if (!projects || projects.length === 0) {
+        return { columns: ['Title', 'Status', 'Priority', 'Due Date', 'Assignee', 'Project'], rows: [] };
+      }
+      projectIds = projects.map(p => p.id);
+    }
+
     let query = supabase
       .from('project_tasks')
       .select(`
@@ -43,18 +59,10 @@ export async function getTasksTable(
     // Filter by organization via projects
     if (options?.projectId) {
       query = query.eq('project_id', options.projectId);
+    } else if (projectIds) {
+      query = query.in('project_id', projectIds);
     } else {
-      // Get all projects for organization
-      const { data: projects } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('organization_id', organizationId);
-
-      if (projects && projects.length > 0) {
-        query = query.in('project_id', projects.map(p => p.id));
-      } else {
-        return { columns: ['Title', 'Status', 'Priority', 'Due Date', 'Assignee', 'Project'], rows: [] };
-      }
+      return { columns: ['Title', 'Status', 'Priority', 'Due Date', 'Assignee', 'Project'], rows: [] };
     }
 
     if (options?.status && options.status.length > 0) {

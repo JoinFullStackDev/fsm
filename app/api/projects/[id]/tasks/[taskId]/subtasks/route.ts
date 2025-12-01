@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { unauthorized, notFound, badRequest, internalError } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 import type { ProjectTask } from '@/types/project';
@@ -20,8 +21,9 @@ export async function GET(
       return unauthorized('You must be logged in to view subtasks');
     }
 
-    // Verify parent task exists and user has access
-    const { data: parentTask, error: parentError } = await supabase
+    // Verify parent task exists and user has access - Use admin client to avoid RLS recursion
+    const adminClient = createAdminSupabaseClient();
+    const { data: parentTask, error: parentError } = await adminClient
       .from('project_tasks')
       .select('id, project_id')
       .eq('id', params.taskId)
@@ -32,8 +34,8 @@ export async function GET(
       return notFound('Parent task not found');
     }
 
-    // Get all subtasks
-    const { data: subtasks, error } = await supabase
+    // Get all subtasks - Use admin client to avoid RLS recursion
+    const { data: subtasks, error } = await adminClient
       .from('project_tasks')
       .select(`
         *,
@@ -79,8 +81,9 @@ export async function POST(
       return unauthorized('You must be logged in to create subtasks');
     }
 
-    // Verify parent task exists and user has access
-    const { data: parentTask, error: parentError } = await supabase
+    // Verify parent task exists and user has access - Use admin client to avoid RLS recursion
+    const adminClient = createAdminSupabaseClient();
+    const { data: parentTask, error: parentError } = await adminClient
       .from('project_tasks')
       .select('id, project_id, parent_task_id, phase_number')
       .eq('id', params.taskId)
@@ -123,8 +126,8 @@ export async function POST(
       ? dependencies 
       : (parentTask.id ? [parentTask.id] : []);
 
-    // Create subtask
-    const { data: subtask, error } = await supabase
+    // Create subtask - Use admin client to avoid RLS recursion
+    const { data: subtask, error } = await adminClient
       .from('project_tasks')
       .insert({
         project_id: params.id,

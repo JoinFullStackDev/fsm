@@ -4,6 +4,7 @@ import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { createApiKeyRecord } from '@/lib/apiKeys';
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { unauthorized, forbidden, badRequest, internalError } from '@/lib/utils/apiErrors';
+import { checkRateLimit, RATE_LIMIT_CONFIGS, getUserIdForRateLimit } from '@/lib/utils/rateLimit';
 import logger from '@/lib/utils/logger';
 import type { CreateApiKeyRequest } from '@/types/apiKeys';
 
@@ -15,6 +16,13 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request: NextRequest) {
   try {
+    // Apply rate limiting for admin endpoints
+    const userId = await getUserIdForRateLimit(request);
+    const rateLimitResponse = checkRateLimit(request, RATE_LIMIT_CONFIGS.admin, userId);
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
     const supabase = await createServerSupabaseClient();
     const { data: { session } } = await supabase.auth.getSession();
 
@@ -125,6 +133,13 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    // Apply rate limiting for admin endpoints
+    const userId = await getUserIdForRateLimit(request);
+    const rateLimitResponse = checkRateLimit(request, RATE_LIMIT_CONFIGS.admin, userId);
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
     const supabase = await createServerSupabaseClient();
     const { data: { session } } = await supabase.auth.getSession();
 

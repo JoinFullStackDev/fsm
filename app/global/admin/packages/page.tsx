@@ -88,6 +88,7 @@ const defaultFeatures: PackageFeatures = {
   analytics_enabled: false,
   api_access_enabled: false,
   custom_dashboards_enabled: false,
+  knowledge_base_enabled: false,
   support_level: 'community',
 };
 

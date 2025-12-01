@@ -104,28 +104,23 @@ export default function ProjectMembersPage() {
       setProjectName(projectData.name);
     }
 
-    // Load project members
-    const { data: membersData, error: membersError } = await supabase
-      .from('project_members')
-      .select(`
-        id,
-        user_id,
-        role,
-        user:users!project_members_user_id_fkey (
-          id,
-          name,
-          email
-        )
-      `)
-      .eq('project_id', projectId);
-
-    if (membersError) {
-      setError(membersError.message);
+    // Load project members via API route to avoid RLS recursion
+    const membersResponse = await fetch(`/api/projects/${projectId}/members`);
+    if (!membersResponse.ok) {
+      const errorData = await membersResponse.json();
+      setError(errorData.error || 'Failed to load project members');
       setLoading(false);
       return;
     }
-
-    setMembers((membersData || []) as any);
+    
+    const membersResponseData = await membersResponse.json();
+    const membersArray = membersResponseData.members || [];
+    
+    if (membersArray.length > 0) {
+      setMembers(membersArray as any);
+    } else {
+      setMembers([]);
+    }
 
     // Get current user's organization_id to filter users
     const { data: currentUser } = await supabase
@@ -156,7 +151,7 @@ export default function ProjectMembersPage() {
 
     if (usersData) {
       // Filter out users who are already members
-      const memberUserIds = new Set(membersData?.map((m: any) => m.user_id) || []);
+      const memberUserIds = new Set(membersArray.map((m: any) => m.user_id));
       setAvailableUsers(usersData.filter((u: any) => !memberUserIds.has(u.id)) as User[]);
     }
 

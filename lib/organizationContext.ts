@@ -32,6 +32,7 @@ export interface PackageFeatures {
   analytics_enabled: boolean;
   api_access_enabled: boolean;
   custom_dashboards_enabled: boolean;
+  knowledge_base_enabled: boolean;
   support_level: 'community' | 'email' | 'priority' | 'dedicated';
 }
 
@@ -88,18 +89,31 @@ export async function getUserOrganizationId(
   authUserId: string
 ): Promise<string | null> {
   try {
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('organization_id')
-      .eq('auth_id', authUserId)
-      .single();
+    // Try RPC function first (now fixed to avoid recursion)
+    const { data: orgId, error: rpcError } = await supabase.rpc('user_organization_id');
 
-    if (error) {
-      logger.error('[OrganizationContext] Error fetching user organization:', error);
-      return null;
+    if (!rpcError && orgId) {
+      return orgId;
     }
 
-    return user?.organization_id || null;
+    // Fallback: Direct query (RLS should allow reading own user record)
+    if (rpcError) {
+      logger.warn('[OrganizationContext] RPC user_organization_id failed, using direct query:', rpcError);
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('organization_id')
+        .eq('auth_id', authUserId)
+        .single();
+
+      if (error) {
+        logger.error('[OrganizationContext] Error fetching user organization:', error);
+        return null;
+      }
+
+      return user?.organization_id || null;
+    }
+
+    return null;
   } catch (error) {
     logger.error('[OrganizationContext] Error getting user organization:', error);
     return null;
@@ -294,12 +308,110 @@ export async function getOrganizationPackageFeatures(
   organizationId: string
 ): Promise<PackageFeatures | null> {
   try {
-    const context = await getOrganizationContextById(supabase, organizationId);
-    if (!context || !context.package) {
+    // Try regular client first - RLS policies should allow reading subscriptions/packages for user's organization
+    // Get subscription first
+    let subscription;
+    const { data: regularSubscription, error: regularSubError } = await supabase
+      .from('subscriptions')
+      .select('package_id')
+      .eq('organization_id', organizationId)
+      .in('status', ['active', 'trialing'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (regularSubError || !regularSubscription) {
+      // RLS might be blocking - try admin client as fallback
+      logger.warn('[OrganizationContext] Regular client failed, trying admin client:', {
+        organizationId,
+        error: regularSubError?.message,
+      });
+      
+      const { createAdminSupabaseClient } = await import('@/lib/supabaseAdmin');
+      const adminClient = createAdminSupabaseClient();
+      
+      const { data: adminSubscription, error: adminSubError } = await adminClient
+        .from('subscriptions')
+        .select('package_id')
+        .eq('organization_id', organizationId)
+        .in('status', ['active', 'trialing'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (adminSubError || !adminSubscription) {
+        // Try any subscription if no active one
+        const { data: anySubscription } = await adminClient
+          .from('subscriptions')
+          .select('package_id')
+          .eq('organization_id', organizationId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        subscription = anySubscription;
+      } else {
+        subscription = adminSubscription;
+      }
+    } else {
+      subscription = regularSubscription;
+    }
+
+    // If still no subscription, try any subscription with regular client
+    if (!subscription) {
+      const { data: anySubscription } = await supabase
+        .from('subscriptions')
+        .select('package_id')
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      subscription = anySubscription;
+    }
+
+    if (!subscription?.package_id) {
+      logger.warn('[OrganizationContext] No subscription found for organization:', { organizationId });
       return null;
     }
 
-    return context.package.features;
+    // Get package features - try regular client first, then admin client
+    let pkg;
+    const { data: regularPkg, error: regularPkgError } = await supabase
+      .from('packages')
+      .select('features')
+      .eq('id', subscription.package_id)
+      .single();
+
+    if (regularPkgError || !regularPkg) {
+      // RLS might be blocking - try admin client as fallback
+      logger.warn('[OrganizationContext] Regular client failed for package, trying admin client:', {
+        packageId: subscription.package_id,
+        error: regularPkgError?.message,
+      });
+      
+      const { createAdminSupabaseClient } = await import('@/lib/supabaseAdmin');
+      const adminClient = createAdminSupabaseClient();
+      
+      const { data: adminPkg, error: adminPkgError } = await adminClient
+        .from('packages')
+        .select('features')
+        .eq('id', subscription.package_id)
+        .single();
+
+      if (adminPkgError || !adminPkg) {
+        logger.error('[OrganizationContext] Error fetching package:', { 
+          packageId: subscription.package_id, 
+          error: adminPkgError 
+        });
+        return null;
+      }
+      
+      pkg = adminPkg;
+    } else {
+      pkg = regularPkg;
+    }
+
+    return pkg.features as PackageFeatures | null;
   } catch (error) {
     logger.error('[OrganizationContext] Error getting package features:', error);
     return null;
@@ -320,17 +432,23 @@ export async function hasFeatureAccess(
   feature: keyof PackageFeatures
 ): Promise<boolean> {
   try {
+    // Use regular client - RLS should allow reading own organization
     // First check organization module_overrides
-    const { data: organization } = await supabase
+    const { data: organization, error: orgError } = await supabase
       .from('organizations')
       .select('module_overrides')
       .eq('id', organizationId)
       .single();
 
+    if (orgError) {
+      logger.warn('[hasFeatureAccess] Error fetching organization:', { organizationId, error: orgError });
+    }
+
     if (organization?.module_overrides) {
       const overrides = organization.module_overrides as Record<string, boolean>;
       if (feature in overrides) {
         // Organization has an override for this feature
+        logger.debug('[hasFeatureAccess] Found module override:', { organizationId, feature, value: overrides[feature] });
         return overrides[feature] === true;
       }
     }
@@ -338,10 +456,25 @@ export async function hasFeatureAccess(
     // Fall back to package features
     const features = await getOrganizationPackageFeatures(supabase, organizationId);
     if (!features) {
+      logger.warn('[hasFeatureAccess] No package features found:', { organizationId, feature });
       return false;
     }
 
-    return features[feature] === true || features[feature] === null; // null means unlimited/enabled
+    const featureValue = features[feature];
+    
+    // For boolean features (ops_tool_enabled, ai_features_enabled, etc.), check if true
+    // For numeric/null features (max_templates, max_projects, etc.), check if not undefined
+    // null means unlimited/enabled for numeric features
+    if (typeof featureValue === 'boolean') {
+      const result = featureValue === true;
+      logger.debug('[hasFeatureAccess] Boolean feature check:', { organizationId, feature, value: featureValue, result });
+      return result;
+    }
+    
+    // For numeric/null features, undefined means no access, null or number means access
+    const result = featureValue !== undefined;
+    logger.debug('[hasFeatureAccess] Numeric/null feature check:', { organizationId, feature, value: featureValue, result });
+    return result;
   } catch (error) {
     logger.error('[OrganizationContext] Error checking feature access:', error);
     return false;

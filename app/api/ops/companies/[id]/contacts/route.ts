@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { sendContactAddedEmail } from '@/lib/emailNotifications';
 import { unauthorized, notFound, internalError, badRequest, forbidden } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
+import { sanitizeSearchInput } from '@/lib/utils/inputSanitization';
 import { createLeadFromContact } from '@/lib/ops/leads';
 import { createActivityFeedItem } from '@/lib/ops/activityFeed';
 import type { CompanyContact } from '@/types/ops';
@@ -42,8 +44,9 @@ export async function GET(
       return internalError('Failed to check company', { error: companyError?.message });
     }
 
-    // Build query
-    let query = supabase
+    // Build query - Use admin client to avoid RLS recursion
+    const adminClient = createAdminSupabaseClient();
+    let query = adminClient
       .from('company_contacts')
       .select('*')
       .eq('company_id', companyId)
@@ -51,7 +54,11 @@ export async function GET(
 
     // Apply filters
     if (search) {
-      query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%`);
+      // Sanitize search input to prevent SQL injection
+      const sanitizedSearch = sanitizeSearchInput(search);
+      if (sanitizedSearch) {
+        query = query.or(`first_name.ilike.%${sanitizedSearch}%,last_name.ilike.%${sanitizedSearch}%,email.ilike.%${sanitizedSearch}%`);
+      }
     }
     if (status) {
       query = query.eq('status', status);

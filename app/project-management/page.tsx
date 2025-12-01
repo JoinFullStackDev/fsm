@@ -28,6 +28,7 @@ import LoadingSkeleton from '@/components/ui/LoadingSkeleton';
 import EmptyState from '@/components/ui/EmptyState';
 import { FolderOpen as FolderIcon } from '@mui/icons-material';
 import SortableTable from '@/components/dashboard/SortableTable';
+import logger from '@/lib/utils/logger';
 import type { Project } from '@/types/project';
 
 export default function ProjectManagementPage() {
@@ -60,15 +61,20 @@ export default function ProjectManagementPage() {
         throw new Error(data.error || 'Failed to load projects');
       }
 
-      setProjects(data.data || []);
+      // Trust API response - it already filters by organization server-side
+      // Client-side verification removed to avoid RLS recursion issues
+      const projects = data.data || [];
+      setProjects(projects);
+      // Use total from API response for pagination
       setTotal(data.total || 0);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load projects';
       setError(errorMessage);
+      logger.error('[Project Management] Error loading projects:', err);
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize]);
+  }, [page, pageSize, supabase]);
 
   useEffect(() => {
     loadProjects();
@@ -86,29 +92,9 @@ export default function ProjectManagementPage() {
         throw new Error(error.error || 'Failed to initiate project');
       }
 
-      // Reload projects to get updated initiated_at
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { data: userData } = await supabase
-          .from('users')
-          .select('id')
-          .eq('auth_id', session.user.id)
-          .single();
-
-        if (userData) {
-          const { data: project } = await supabase
-            .from('projects')
-            .select('*')
-            .eq('id', projectId)
-            .single();
-
-          if (project) {
-            setProjects((prev) =>
-              prev.map((p) => (p.id === projectId ? (project as Project) : p))
-            );
-          }
-        }
-      }
+      // Reload projects list to get updated initiated_at
+      // Trust API to handle organization filtering
+      loadProjects();
 
       // Navigate to task management page
       router.push(`/project-management/${projectId}`);

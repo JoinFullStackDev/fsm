@@ -22,6 +22,7 @@ export interface User {
   preferences?: UserPreferences | null;
   is_active?: boolean;
   is_super_admin?: boolean; // Super admin users cannot be deleted
+  is_company_admin?: boolean; // Company admin (organization admin, not super admin)
   last_active_at?: string | null;
   invited_by_admin?: boolean;
   invite_created_at?: string | null;
@@ -265,7 +266,7 @@ export interface TaskComment {
   } | null;
 }
 
-export type NotificationType = 'task_assigned' | 'comment_created' | 'comment_mention' | 'project_created' | 'project_member_added';
+export type NotificationType = 'task_assigned' | 'comment_created' | 'comment_mention' | 'project_created' | 'project_member_added' | 'kb_article_published' | 'kb_article_updated' | 'kb_category_added' | 'kb_release_notes_published';
 
 export interface NotificationMetadata {
   task_id?: string;

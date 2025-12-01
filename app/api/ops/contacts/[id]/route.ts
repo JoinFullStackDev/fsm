@@ -62,8 +62,9 @@ export async function GET(
 
     const { id } = params;
 
-    // Get contact with company info and relations
-    const { data: contact, error: contactError } = await supabase
+    // Get contact with company info and relations - Use admin client to avoid RLS recursion
+    const adminClient = createAdminSupabaseClient();
+    const { data: contact, error: contactError } = await adminClient
       .from('company_contacts')
       .select(`
         *,
@@ -83,10 +84,9 @@ export async function GET(
     }
 
     // Validate organization access (super admins can see all contacts)
-    if (userData.role !== 'admin' || userData.is_super_admin !== true) {
-      if (contact.organization_id !== organizationId) {
-        return forbidden('You do not have access to this contact');
-      }
+    const isSuperAdmin = userData.role === 'admin' && userData.is_super_admin === true;
+    if (!isSuperAdmin && contact.organization_id !== organizationId) {
+      return forbidden('You do not have access to this contact');
     }
 
     return NextResponse.json(contact);

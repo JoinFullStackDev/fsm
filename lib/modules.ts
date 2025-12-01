@@ -72,6 +72,13 @@ export const AVAILABLE_MODULES: ModuleDefinition[] = [
     icon: 'Dashboard',
     category: 'Analytics',
   },
+  {
+    key: 'knowledge_base_enabled',
+    name: 'Knowledge Base',
+    description: 'AI-powered documentation hub with semantic search, Q&A chatbot, and article management',
+    icon: 'MenuBook',
+    category: 'Content',
+  },
 ];
 
 /**

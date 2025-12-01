@@ -4,6 +4,7 @@ import { unauthorized, internalError, badRequest, forbidden } from '@/lib/utils/
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { hasOpsTool } from '@/lib/packageLimits';
 import logger from '@/lib/utils/logger';
+import { sanitizeSearchInput } from '@/lib/utils/inputSanitization';
 import type { CompanyContactWithCompany } from '@/types/ops';
 
 export const dynamic = 'force-dynamic';
@@ -54,7 +55,11 @@ export async function GET(request: NextRequest) {
 
     // Apply filters
     if (search) {
-      query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%`);
+      // Sanitize search input to prevent SQL injection
+      const sanitizedSearch = sanitizeSearchInput(search);
+      if (sanitizedSearch) {
+        query = query.or(`first_name.ilike.%${sanitizedSearch}%,last_name.ilike.%${sanitizedSearch}%,email.ilike.%${sanitizedSearch}%`);
+      }
     }
     if (status) {
       query = query.eq('status', status);
