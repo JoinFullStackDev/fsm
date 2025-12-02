@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       return badRequest('User is not assigned to an organization');
     }
 
-    logger.info('[Admin Users] Fetching users for organization', {
+    logger.debug('[Admin Users] Fetching users for organization', {
       organizationId,
       userId: currentUser.id,
       isSuperAdmin: currentUser.is_super_admin
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     // Super admins can use /global/admin for cross-organization access
     // CRITICAL: Using adminClient bypasses RLS, so we MUST filter explicitly
     // Using .eq() which should exclude nulls, but we'll also filter in code as a safety measure
-    logger.info('[Admin Users] Building query with organization filter', {
+    logger.debug('[Admin Users] Building query with organization filter', {
       organizationId,
       organizationIdType: typeof organizationId,
       userId: currentUser.id
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
 
     const { data: users, error: usersError } = await query;
 
-    logger.info('[Admin Users] Query executed', {
+    logger.debug('[Admin Users] Query executed', {
       organizationId,
       usersReturned: users?.length || 0,
       hasError: !!usersError,
@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    logger.info('[Admin Users] Returning users for organization', {
+    logger.debug('[Admin Users] Returning users for organization', {
       organizationId,
       totalReturned: allUsers.length,
       filteredCount: filteredUsers.length,
@@ -134,7 +134,9 @@ export async function GET(request: NextRequest) {
     });
 
     // Return ONLY the filtered users - never trust the database query alone
-    return NextResponse.json({ users: filteredUsers }, { status: 200 });
+    const response = NextResponse.json({ users: filteredUsers }, { status: 200 });
+    response.headers.set('Cache-Control', 'private, max-age=30'); // 30 second cache for users list
+    return response;
   } catch (error) {
     logger.error('[Admin Users] Unexpected error:', error);
     return internalError('Failed to fetch users', { error: error instanceof Error ? error.message : 'Unknown error' });

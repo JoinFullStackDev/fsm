@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -89,9 +89,32 @@ export default function AdminSubscriptionTab() {
     pricingModel: 'per_user' | 'flat_rate' | null;
   } | null>(null);
 
-  const loadSubscription = useCallback(async () => {
+  // Request deduplication: track in-flight requests to prevent duplicate calls
+  const loadingSubscriptionRef = useRef(false);
+  const loadingPackagesRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const loadSubscription = useCallback(async (forceSync = false) => {
+    // Request deduplication: skip if already loading
+    if (loadingSubscriptionRef.current && !forceSync) {
+      return;
+    }
+
+    // Cancel previous request if still in flight
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller for this request
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
+    loadingSubscriptionRef.current = true;
     try {
-      const response = await fetch('/api/organization/subscription');
+      const url = forceSync 
+        ? '/api/organization/subscription?force_sync=true'
+        : '/api/organization/subscription';
+      const response = await fetch(url, { signal });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to load subscription');
@@ -145,14 +168,25 @@ export default function AdminSubscriptionTab() {
         }
       }
     } catch (err) {
+      // Don't show error if request was aborted (deduplication)
+      if (err instanceof Error && err.name === 'AbortError') {
+        return;
+      }
       console.error('[AdminSubscriptionTab] Error loading subscription:', err);
       showError(err instanceof Error ? err.message : 'Failed to load subscription details');
     } finally {
       setLoading(false);
+      loadingSubscriptionRef.current = false;
     }
   }, [showError, organization?.id]);
 
   const loadPackages = useCallback(async () => {
+    // Request deduplication: skip if already loading
+    if (loadingPackagesRef.current) {
+      return;
+    }
+
+    loadingPackagesRef.current = true;
     try {
       const response = await fetch('/api/packages');
       if (!response.ok) {
@@ -162,13 +196,23 @@ export default function AdminSubscriptionTab() {
       setPackages(data.packages || []);
     } catch (err) {
       console.error('Error loading packages:', err);
+    } finally {
+      loadingPackagesRef.current = false;
     }
   }, []);
 
   useEffect(() => {
     loadSubscription();
     loadPackages();
-  }, [loadSubscription, loadPackages]);
+
+    // Cleanup: abort any in-flight requests on unmount
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organization?.id]); // Only depend on organization ID to prevent re-render loops
 
   const handleChangePackage = async () => {
     if (!selectedPackageId) {
@@ -381,7 +425,7 @@ export default function AdminSubscriptionTab() {
           startIcon={<RefreshIcon />}
           onClick={() => {
             setLoading(true);
-            loadSubscription();
+            loadSubscription(true); // Force sync with Stripe
           }}
           disabled={loading}
         >

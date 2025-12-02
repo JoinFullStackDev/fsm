@@ -112,11 +112,14 @@ export default function OrganizationDetailPage() {
 
   // Dialog states
   const [changePackageDialog, setChangePackageDialog] = useState(false);
+  const [giftPackageDialog, setGiftPackageDialog] = useState(false);
   const [cancelDialog, setCancelDialog] = useState(false);
   const [collectPaymentDialog, setCollectPaymentDialog] = useState(false);
 
   // Form states
   const [selectedPackage, setSelectedPackage] = useState('');
+  const [giftPackageId, setGiftPackageId] = useState('');
+  const [giftBillingInterval, setGiftBillingInterval] = useState<'month' | 'year'>('month');
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentDescription, setPaymentDescription] = useState('');
   const [cancelImmediately, setCancelImmediately] = useState(false);
@@ -281,6 +284,39 @@ export default function OrganizationDetailPage() {
       loadOrganization();
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to change package');
+    }
+  };
+
+  const handleGiftPackage = async () => {
+    if (!giftPackageId) {
+      showError('Please select a package');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/global/admin/organizations/${params.id}/subscription`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'gift_package',
+          package_id: giftPackageId,
+          billing_interval: giftBillingInterval,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to gift package');
+      }
+
+      const data = await response.json();
+      showSuccess(`Package "${data.package?.name || 'selected package'}" gifted successfully`);
+      setGiftPackageDialog(false);
+      setGiftPackageId('');
+      setGiftBillingInterval('month');
+      loadOrganization();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to gift package');
     }
   };
 
@@ -603,6 +639,13 @@ export default function OrganizationDetailPage() {
             >
               {organization.subscription ? 'Change Package' : 'Create Subscription'}
             </Button>
+            <Button
+              variant="outlined"
+              color="success"
+              onClick={() => setGiftPackageDialog(true)}
+            >
+              Gift Package
+            </Button>
             {organization.subscription && (
               <>
                 {organization.subscription.cancel_at_period_end ? (
@@ -910,6 +953,69 @@ export default function OrganizationDetailPage() {
           <Button onClick={() => setChangePackageDialog(false)}>Cancel</Button>
           <Button onClick={handleChangePackage} variant="contained">
             Change Package
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Gift Package Dialog */}
+      <Dialog open={giftPackageDialog} onClose={() => setGiftPackageDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Gift Package</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            This will assign a package to this organization without payment. The subscription will be active immediately with no trial period.
+          </Alert>
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel>Select Package</InputLabel>
+            <Select
+              value={giftPackageId}
+              label="Select Package"
+              onChange={(e) => setGiftPackageId(e.target.value)}
+            >
+              {packages.map((pkg) => {
+                const pricingModel = pkg.pricing_model || 'per_user';
+                const monthlyPrice = pricingModel === 'per_user' 
+                  ? pkg.price_per_user_monthly 
+                  : pkg.base_price_monthly;
+                const yearlyPrice = pricingModel === 'per_user'
+                  ? pkg.price_per_user_yearly
+                  : pkg.base_price_yearly;
+                
+                let priceDisplay = '';
+                if (monthlyPrice && yearlyPrice) {
+                  priceDisplay = `$${monthlyPrice.toFixed(2)}/mo or $${yearlyPrice.toFixed(2)}/yr`;
+                } else if (monthlyPrice) {
+                  priceDisplay = `$${monthlyPrice.toFixed(2)}/mo`;
+                } else if (yearlyPrice) {
+                  priceDisplay = `$${yearlyPrice.toFixed(2)}/yr`;
+                } else {
+                  priceDisplay = 'Free';
+                }
+                
+                const suffix = pricingModel === 'per_user' ? '/user' : '';
+                return (
+                  <MenuItem key={pkg.id} value={pkg.id}>
+                    {pkg.name} - {priceDisplay}{suffix}
+                  </MenuItem>
+                );
+              })}
+            </Select>
+          </FormControl>
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel>Billing Interval</InputLabel>
+            <Select
+              value={giftBillingInterval}
+              label="Billing Interval"
+              onChange={(e) => setGiftBillingInterval(e.target.value as 'month' | 'year')}
+            >
+              <MenuItem value="month">Monthly</MenuItem>
+              <MenuItem value="year">Yearly</MenuItem>
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setGiftPackageDialog(false)}>Cancel</Button>
+          <Button onClick={handleGiftPackage} variant="contained" color="success">
+            Gift Package
           </Button>
         </DialogActions>
       </Dialog>

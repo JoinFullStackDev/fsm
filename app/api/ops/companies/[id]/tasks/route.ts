@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { sendTaskAssignedEmail } from '@/lib/emailNotifications';
 import { unauthorized, notFound, internalError, badRequest } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
@@ -14,9 +15,9 @@ export async function GET(
 ) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return unauthorized('You must be logged in to view tasks');
     }
 
@@ -24,8 +25,11 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const contactId = searchParams.get('contact_id');
 
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+
     // Verify company exists
-    const { data: company, error: companyError } = await supabase
+    const { data: company, error: companyError } = await adminClient
       .from('companies')
       .select('id')
       .eq('id', companyId)
@@ -40,7 +44,7 @@ export async function GET(
     }
 
     // Build query - get tasks for company and optionally filter by contact
-    let query = supabase
+    let query = adminClient
       .from('ops_tasks')
       .select(`
         *,
@@ -83,9 +87,9 @@ export async function POST(
 ) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return unauthorized('You must be logged in to create tasks');
     }
 
@@ -98,8 +102,11 @@ export async function POST(
       return badRequest('Task title is required');
     }
 
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+
     // Verify company exists
-    const { data: company, error: companyError } = await supabase
+    const { data: company, error: companyError } = await adminClient
       .from('companies')
       .select('id')
       .eq('id', companyId)
@@ -115,7 +122,7 @@ export async function POST(
 
     // Verify contact exists if provided
     if (contact_id) {
-      const { data: contact, error: contactError } = await supabase
+      const { data: contact, error: contactError } = await adminClient
         .from('company_contacts')
         .select('id, company_id')
         .eq('id', contact_id)
@@ -129,8 +136,8 @@ export async function POST(
       }
     }
 
-    // Create task
-    const { data: task, error: taskError } = await supabase
+    // Create task using admin client
+    const { data: task, error: taskError } = await adminClient
       .from('ops_tasks')
       .insert({
         company_id: companyId,
@@ -150,9 +157,9 @@ export async function POST(
       return internalError('Failed to create task', { error: taskError.message });
     }
 
-    // Create activity feed item
+    // Create activity feed item using admin client
     try {
-      await createActivityFeedItem(supabase, {
+      await createActivityFeedItem(adminClient, {
         company_id: companyId,
         related_entity_id: task.id,
         related_entity_type: 'task',
@@ -166,16 +173,16 @@ export async function POST(
 
     // Send email notification if task is assigned
     if (task.assigned_to) {
-      const { data: company } = await supabase
+      const { data: company } = await adminClient
         .from('companies')
         .select('name')
         .eq('id', companyId)
         .single();
 
-      const { data: assigner } = await supabase
+      const { data: assigner } = await adminClient
         .from('users')
         .select('id, name')
-        .eq('auth_id', session.user.id)
+        .eq('auth_id', user.id)
         .single();
 
       if (company && assigner) {

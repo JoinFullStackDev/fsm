@@ -19,6 +19,7 @@ import {
   NotificationsNone as NotificationsNoneIcon,
 } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
+import { useUser } from '@/components/providers/UserProvider';
 import logger from '@/lib/utils/logger';
 import type { Notification } from '@/types/project';
 import { formatDistanceToNow } from 'date-fns';
@@ -31,64 +32,56 @@ export default function NotificationBell({ onOpenDrawer }: NotificationBellProps
   const router = useRouter();
   const theme = useTheme();
   const supabase = createSupabaseClient();
+  const { user } = useUser();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const subscriptionRef = useRef<any>(null);
+  const loadingNotificationsRef = useRef(false); // Prevent duplicate notification loads
 
   const loadNotifications = useCallback(async () => {
+    // Prevent duplicate calls
+    if (loadingNotificationsRef.current) {
+      logger.debug('[NotificationBell] Notifications already loading, skipping duplicate call');
+      return;
+    }
+
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        logger.debug('[NotificationBell] No session found');
+      if (!user?.id) {
+        logger.debug('[NotificationBell] No user found');
+        setLoading(false);
+        loadingNotificationsRef.current = false;
         return;
       }
 
-      const { data: userData } = await supabase
-        .from('users')
-        .select('id')
-        .eq('auth_id', session.user.id)
-        .single();
-
-      if (!userData) {
-        logger.debug('[NotificationBell] No user data found');
-        return;
-      }
+      loadingNotificationsRef.current = true;
 
       // Fetch recent notifications
-      const response = await fetch(`/api/notifications?limit=10&read=false`);
+      const response = await fetch(`/api/notifications?limit=10&read=false`, {
+        cache: 'default', // Use browser cache
+      });
       if (!response.ok) {
         logger.error('[NotificationBell] Failed to fetch notifications:', response.status, response.statusText);
+        setLoading(false);
+        loadingNotificationsRef.current = false;
         return;
       }
 
       const data = await response.json();
-      logger.debug('[NotificationBell] Loaded notifications:', {
-        count: data.notifications?.length || 0,
-        unreadCount: data.unreadCount || 0,
-      });
       setNotifications(data.notifications || []);
       setUnreadCount(data.unreadCount || 0);
     } catch (error) {
       logger.error('[NotificationBell] Error loading notifications:', error);
     } finally {
       setLoading(false);
+      loadingNotificationsRef.current = false; // Reset loading flag
     }
-  }, [supabase]);
+  }, [user]);
 
   const setupRealtimeSubscription = useCallback(async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      const { data: userData } = await supabase
-        .from('users')
-        .select('id')
-        .eq('auth_id', session.user.id)
-        .single();
-
-      if (!userData) return;
+      if (!user?.id) return;
 
       // Subscribe to notifications table changes
       const channel = supabase
@@ -99,7 +92,7 @@ export default function NotificationBell({ onOpenDrawer }: NotificationBellProps
             event: '*',
             schema: 'public',
             table: 'notifications',
-            filter: `user_id=eq.${userData.id}`,
+            filter: `user_id=eq.${user.id}`,
           },
           (payload: any) => {
             if (payload.eventType === 'INSERT') {
@@ -127,7 +120,7 @@ export default function NotificationBell({ onOpenDrawer }: NotificationBellProps
     } catch (error) {
       logger.error('[NotificationBell] Error setting up subscription:', error);
     }
-  }, [supabase]);
+  }, [supabase, user]);
 
   useEffect(() => {
     loadNotifications();
@@ -138,7 +131,7 @@ export default function NotificationBell({ onOpenDrawer }: NotificationBellProps
         subscriptionRef.current.unsubscribe();
       }
     };
-  }, [loadNotifications, setupRealtimeSubscription]);
+  }, [loadNotifications, setupRealtimeSubscription, user]);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);

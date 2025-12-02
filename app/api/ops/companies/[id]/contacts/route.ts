@@ -17,9 +17,9 @@ export async function GET(
 ) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return unauthorized('You must be logged in to view contacts');
     }
 
@@ -28,8 +28,11 @@ export async function GET(
     const search = searchParams.get('search');
     const status = searchParams.get('status');
 
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+
     // Verify company exists
-    const { data: company, error: companyError } = await supabase
+    const { data: company, error: companyError } = await adminClient
       .from('companies')
       .select('id')
       .eq('id', companyId)
@@ -42,9 +45,6 @@ export async function GET(
       logger.error('Error checking company:', companyError);
       return internalError('Failed to check company', { error: companyError?.message });
     }
-
-    // Build query - Use admin client to avoid RLS recursion
-    const adminClient = createAdminSupabaseClient();
     let query = adminClient
       .from('company_contacts')
       .select('*')
@@ -83,9 +83,9 @@ export async function POST(
 ) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return unauthorized('You must be logged in to create contacts');
     }
 
@@ -120,24 +120,27 @@ export async function POST(
     }
 
     // Get user's organization
-    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    const organizationId = await getUserOrganizationId(supabase, user.id);
     if (!organizationId) {
       return badRequest('User is not assigned to an organization');
     }
 
-    // Get user record for created_by
-    const { data: userData, error: userError } = await supabase
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+
+    // Get user record for created_by using admin client
+    const { data: userData, error: userError } = await adminClient
       .from('users')
       .select('id')
-      .eq('auth_id', session.user.id)
+      .eq('auth_id', user.id)
       .single();
 
     if (userError || !userData) {
       return notFound('User');
     }
 
-    // Verify company exists and belongs to user's organization
-    const { data: company, error: companyError } = await supabase
+    // Verify company exists and belongs to user's organization using admin client
+    const { data: company, error: companyError } = await adminClient
       .from('companies')
       .select('id, organization_id')
       .eq('id', companyId)
@@ -156,9 +159,7 @@ export async function POST(
       return forbidden('Company does not belong to your organization');
     }
 
-    // Create contact with all fields
-    // Use admin client to bypass any triggers or RLS that might reference non-existent tables
-    const adminClient = createAdminSupabaseClient();
+    // Create contact with all fields using admin client
     const { data: contact, error: contactError } = await adminClient
       .from('company_contacts')
       .insert({
@@ -256,34 +257,43 @@ export async function POST(
     }
 
     // Send email notifications to organization admins
-    const { data: orgAdmins } = await supabase
-      .from('users')
-      .select('id')
-      .eq('organization_id', organizationId)
-      .eq('role', 'admin');
+    // Use admin client to bypass RLS and use is_company_admin field
+    try {
+      const { data: orgAdmins, error: orgAdminsError } = await adminClient
+        .from('users')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .eq('is_company_admin', true);
 
-    if (orgAdmins) {
-      const contactName = `${contact.first_name} ${contact.last_name}`;
-      const { data: company } = await supabase
-        .from('companies')
-        .select('name')
-        .eq('id', companyId)
-        .single();
+      if (orgAdminsError) {
+        logger.error('[Contact] Error fetching organization admins:', orgAdminsError);
+        // Don't fail the request if we can't fetch admins for email notifications
+      } else if (orgAdmins && orgAdmins.length > 0) {
+        const contactName = `${contact.first_name} ${contact.last_name}`;
+        const { data: company } = await adminClient
+          .from('companies')
+          .select('name')
+          .eq('id', companyId)
+          .single();
 
-      const contactLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/ops/companies/${companyId}/contacts/${contact.id}`;
-      
-      for (const admin of orgAdmins) {
-        if (admin.id !== userData.id) {
-          sendContactAddedEmail(
-            admin.id,
-            contactName,
-            company?.name || 'Unknown Company',
-            contactLink
-          ).catch((err) => {
-            logger.error('[Contact] Error sending email to admin:', err);
-          });
+        const contactLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/ops/companies/${companyId}/contacts/${contact.id}`;
+        
+        for (const admin of orgAdmins) {
+          if (admin.id !== userData.id) {
+            sendContactAddedEmail(
+              admin.id,
+              contactName,
+              company?.name || 'Unknown Company',
+              contactLink
+            ).catch((err) => {
+              logger.error('[Contact] Error sending email to admin:', err);
+            });
+          }
         }
       }
+    } catch (emailError) {
+      // Don't fail the request if email notification fails
+      logger.error('[Contact] Error in email notification process:', emailError);
     }
 
     return NextResponse.json(contact, { status: 201 });

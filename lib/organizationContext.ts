@@ -131,14 +131,18 @@ export async function getOrganizationContextById(
   organizationId: string
 ): Promise<OrganizationContext | null> {
   try {
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    // This is safe because we're filtering by organization_id which is application-level security
+    const adminClient = createAdminSupabaseClient();
+    
     // Parallelize organization and subscription queries (they don't depend on each other)
     const [orgResult, subResult] = await Promise.all([
-      supabase
+      adminClient
         .from('organizations')
         .select('*')
         .eq('id', organizationId)
         .single(),
-      supabase
+      adminClient
         .from('subscriptions')
         .select('*')
         .eq('organization_id', organizationId)
@@ -160,7 +164,7 @@ export async function getOrganizationContextById(
     // This ensures we can still load package features even if subscription is past_due or canceled
     if (!subscription && subError?.code === 'PGRST116') {
       logger.info('[OrganizationContext] No active/trialing subscription found, checking for any subscription');
-      const { data: anySubscription, error: anySubError } = await supabase
+      const { data: anySubscription, error: anySubError } = await adminClient
         .from('subscriptions')
         .select('*')
         .eq('organization_id', organizationId)
@@ -191,7 +195,7 @@ export async function getOrganizationContextById(
         subscriptionStatus: subscription.status,
       });
       
-      const { data: pkg, error: pkgError } = await supabase
+      const { data: pkg, error: pkgError } = await adminClient
         .from('packages')
         .select('*')
         .eq('id', subscription.package_id)
@@ -308,10 +312,13 @@ export async function getOrganizationPackageFeatures(
   organizationId: string
 ): Promise<PackageFeatures | null> {
   try {
-    // Try regular client first - RLS policies should allow reading subscriptions/packages for user's organization
+    // Use admin client directly to bypass RLS and avoid stack depth recursion issues
+    // This is safe because we're filtering by organization_id which is application-level security
+    const adminClient = createAdminSupabaseClient();
+    
     // Get subscription first
     let subscription;
-    const { data: regularSubscription, error: regularSubError } = await supabase
+    const { data: adminSubscription, error: adminSubError } = await adminClient
       .from('subscriptions')
       .select('package_id')
       .eq('organization_id', organizationId)
@@ -320,53 +327,19 @@ export async function getOrganizationPackageFeatures(
       .limit(1)
       .maybeSingle();
 
-    if (regularSubError || !regularSubscription) {
-      // RLS might be blocking - try admin client as fallback
-      logger.warn('[OrganizationContext] Regular client failed, trying admin client:', {
-        organizationId,
-        error: regularSubError?.message,
-      });
-      
-      const { createAdminSupabaseClient } = await import('@/lib/supabaseAdmin');
-      const adminClient = createAdminSupabaseClient();
-      
-      const { data: adminSubscription, error: adminSubError } = await adminClient
-        .from('subscriptions')
-        .select('package_id')
-        .eq('organization_id', organizationId)
-        .in('status', ['active', 'trialing'])
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (adminSubError || !adminSubscription) {
-        // Try any subscription if no active one
-        const { data: anySubscription } = await adminClient
-          .from('subscriptions')
-          .select('package_id')
-          .eq('organization_id', organizationId)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        
-        subscription = anySubscription;
-      } else {
-        subscription = adminSubscription;
-      }
-    } else {
-      subscription = regularSubscription;
-    }
-
-    // If still no subscription, try any subscription with regular client
-    if (!subscription) {
-      const { data: anySubscription } = await supabase
+    if (adminSubError || !adminSubscription) {
+      // Try any subscription if no active one
+      const { data: anySubscription } = await adminClient
         .from('subscriptions')
         .select('package_id')
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
+      
       subscription = anySubscription;
+    } else {
+      subscription = adminSubscription;
     }
 
     if (!subscription?.package_id) {
@@ -374,41 +347,19 @@ export async function getOrganizationPackageFeatures(
       return null;
     }
 
-    // Get package features - try regular client first, then admin client
-    let pkg;
-    const { data: regularPkg, error: regularPkgError } = await supabase
+    // Get package features using admin client
+    const { data: pkg, error: adminPkgError } = await adminClient
       .from('packages')
       .select('features')
       .eq('id', subscription.package_id)
       .single();
 
-    if (regularPkgError || !regularPkg) {
-      // RLS might be blocking - try admin client as fallback
-      logger.warn('[OrganizationContext] Regular client failed for package, trying admin client:', {
-        packageId: subscription.package_id,
-        error: regularPkgError?.message,
+    if (adminPkgError || !pkg) {
+      logger.error('[OrganizationContext] Error fetching package:', { 
+        packageId: subscription.package_id, 
+        error: adminPkgError 
       });
-      
-      const { createAdminSupabaseClient } = await import('@/lib/supabaseAdmin');
-      const adminClient = createAdminSupabaseClient();
-      
-      const { data: adminPkg, error: adminPkgError } = await adminClient
-        .from('packages')
-        .select('features')
-        .eq('id', subscription.package_id)
-        .single();
-
-      if (adminPkgError || !adminPkg) {
-        logger.error('[OrganizationContext] Error fetching package:', { 
-          packageId: subscription.package_id, 
-          error: adminPkgError 
-        });
-        return null;
-      }
-      
-      pkg = adminPkg;
-    } else {
-      pkg = regularPkg;
+      return null;
     }
 
     return pkg.features as PackageFeatures | null;
@@ -448,7 +399,6 @@ export async function hasFeatureAccess(
       const overrides = organization.module_overrides as Record<string, boolean>;
       if (feature in overrides) {
         // Organization has an override for this feature
-        logger.debug('[hasFeatureAccess] Found module override:', { organizationId, feature, value: overrides[feature] });
         return overrides[feature] === true;
       }
     }
@@ -466,15 +416,11 @@ export async function hasFeatureAccess(
     // For numeric/null features (max_templates, max_projects, etc.), check if not undefined
     // null means unlimited/enabled for numeric features
     if (typeof featureValue === 'boolean') {
-      const result = featureValue === true;
-      logger.debug('[hasFeatureAccess] Boolean feature check:', { organizationId, feature, value: featureValue, result });
-      return result;
+      return featureValue === true;
     }
     
     // For numeric/null features, undefined means no access, null or number means access
-    const result = featureValue !== undefined;
-    logger.debug('[hasFeatureAccess] Numeric/null feature check:', { organizationId, feature, value: featureValue, result });
-    return result;
+    return featureValue !== undefined;
   } catch (error) {
     logger.error('[OrganizationContext] Error checking feature access:', error);
     return false;

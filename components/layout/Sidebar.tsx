@@ -190,16 +190,20 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
     loadProjectPhaseProgress();
   }, [projects, supabase]);
 
-  // Load all templates (admin and PM only) - use API route to handle organization filtering
+  // Load templates lazily - only when sidebar is opened or after initial page load
+  // This reduces unnecessary API calls on page load
   useEffect(() => {
-    const loadTemplates = async () => {
-      if (role !== 'admin' && role !== 'pm') {
-        setTemplates([]);
-        return;
-      }
+    if (role !== 'admin' && role !== 'pm') {
+      setTemplates([]);
+      return;
+    }
 
+    // Delay loading templates to allow page to load first (lazy load)
+    const timer = setTimeout(async () => {
       try {
-        const response = await fetch('/api/admin/templates?limit=100');
+        const response = await fetch('/api/admin/templates?limit=100', {
+          cache: 'default', // Use browser cache
+        });
         if (response.ok) {
           const data = await response.json();
           const templatesList = (data.data || []).map((t: any) => ({ id: t.id, name: t.name }));
@@ -208,10 +212,10 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
       } catch (error) {
         console.error('Error loading templates:', error);
       }
-    };
+    }, open ? 500 : 2000); // Load faster if sidebar is already open
 
-    loadTemplates();
-  }, [role]);
+    return () => clearTimeout(timer);
+  }, [role, open]);
 
   // Load projects for project management (same as regular projects)
   useEffect(() => {

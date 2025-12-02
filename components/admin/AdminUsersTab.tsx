@@ -27,6 +27,7 @@ import {
   Select,
   Alert,
   Tooltip,
+  Dialog,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -46,8 +47,10 @@ import EmptyState from '@/components/ui/EmptyState';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import CreateUserDialog from '@/components/admin/CreateUserDialog';
 import ViewInviteDialog from '@/components/admin/ViewInviteDialog';
-import { People as PeopleIcon } from '@mui/icons-material';
+import { People as PeopleIcon, Edit as EditIcon } from '@mui/icons-material';
 import type { User, UserRole } from '@/types/project';
+import type { OrganizationRoleWithPermissions } from '@/types/organizationRoles';
+import UserRoleAssignment from './UserRoleAssignment';
 
 export default function AdminUsersTab() {
   const theme = useTheme();
@@ -75,6 +78,10 @@ export default function AdminUsersTab() {
     billingInterval: 'month' | 'year' | null;
     pricingModel: 'per_user' | 'flat_rate' | null;
   } | null>(null);
+  const [availableRoles, setAvailableRoles] = useState<OrganizationRoleWithPermissions[]>([]);
+  const [userRoles, setUserRoles] = useState<Record<string, string[]>>({}); // userId -> roleIds[]
+  const [roleAssignmentDialogOpen, setRoleAssignmentDialogOpen] = useState(false);
+  const [selectedUserForRoleAssignment, setSelectedUserForRoleAssignment] = useState<User | null>(null);
 
   // Debounce search term to avoid filtering on every keystroke
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -188,19 +195,80 @@ export default function AdminUsersTab() {
     }
   }, [organization?.id]);
 
+  const loadRoles = useCallback(async () => {
+    if (!organization?.id) return;
+    
+    try {
+      const response = await fetch('/api/organization/roles');
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableRoles(data.roles || []);
+      }
+    } catch (err) {
+      logger.error('[AdminUsersTab] Error loading roles:', err);
+    }
+  }, [organization?.id]);
+
+  const loadUserRoles = useCallback(async () => {
+    if (!organization?.id || users.length === 0) return;
+    
+    try {
+      // OPTIMIZED: Use batch endpoint instead of N individual API calls
+      // This reduces 50+ API calls to just 1 call
+      const response = await fetch('/api/organization/users/roles');
+      if (!response.ok) {
+        throw new Error('Failed to load user roles');
+      }
+      
+      const data = await response.json();
+      const allRoles = data.roles || {};
+      
+      // Extract custom role IDs (exclude default role) for each user
+      const rolesMap: Record<string, string[]> = {};
+      Object.keys(allRoles).forEach((userId) => {
+        const userRoles = allRoles[userId] || [];
+        const customRoleIds = userRoles
+          .filter((r: any) => !r.isDefault)
+          .map((r: any) => r.id);
+        rolesMap[userId] = customRoleIds;
+      });
+      
+      setUserRoles(rolesMap);
+    } catch (err) {
+      logger.error('[AdminUsersTab] Error loading user roles:', err);
+      // On error, set empty map to prevent UI issues
+      setUserRoles({});
+    }
+  }, [users, organization?.id]);
+
+  // Load users and roles on mount and when organization changes
   useEffect(() => {
     loadUsers();
-  }, [loadUsers]);
+    loadRoles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organization?.id]); // Only depend on organization ID, not the callbacks
 
+  // Load user limit when users change or organization changes
   useEffect(() => {
     if (users.length > 0 || !loading) {
       loadUserLimit();
     }
-  }, [users.length, loading, loadUserLimit]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [users.length, loading, organization?.id]); // Don't depend on callback
 
+  // Load subscription info when organization changes
   useEffect(() => {
     loadSubscriptionInfo();
-  }, [loadSubscriptionInfo]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organization?.id]); // Don't depend on callback
+
+  // Load user roles when users change
+  useEffect(() => {
+    if (users.length > 0) {
+      loadUserRoles();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [users.length, organization?.id]); // Only depend on users.length, not the full users array or callback
 
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
     // Verify user belongs to current organization before updating
@@ -723,6 +791,7 @@ export default function AdminUsersTab() {
               <TableCell sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Name</TableCell>
               <TableCell sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Email</TableCell>
               <TableCell sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Role</TableCell>
+              <TableCell sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Custom Roles</TableCell>
               <TableCell sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Status</TableCell>
               <TableCell sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Created</TableCell>
               <TableCell align="right" sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Actions</TableCell>
@@ -731,7 +800,7 @@ export default function AdminUsersTab() {
               <TableBody>
                 {filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} sx={{ py: 6 }}>
+                    <TableCell colSpan={8} sx={{ py: 6 }}>
                       <EmptyState
                         icon={<PeopleIcon sx={{ fontSize: 48 }} />}
                         title={searchTerm || roleFilter !== 'all' || activeFilter !== 'all' ? "No users found" : "No users yet"}
@@ -793,6 +862,39 @@ export default function AdminUsersTab() {
                               sx={{ fontWeight: 700, fontSize: '0.65rem' }}
                             />
                           )}
+                        </Box>
+                      </TableCell>
+                      <TableCell sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
+                        <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexWrap: 'wrap' }}>
+                          {userRoles[user.id]?.length > 0 ? (
+                            <>
+                              {userRoles[user.id].map((roleId) => {
+                                const role = availableRoles.find(r => r.id === roleId);
+                                return role ? (
+                                  <Chip
+                                    key={roleId}
+                                    label={role.name}
+                                    size="small"
+                                    sx={{ fontSize: '0.7rem' }}
+                                  />
+                                ) : null;
+                              })}
+                            </>
+                          ) : (
+                            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                              None
+                            </Typography>
+                          )}
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              setSelectedUserForRoleAssignment(user);
+                              setRoleAssignmentDialogOpen(true);
+                            }}
+                            sx={{ ml: 0.5 }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
                         </Box>
                       </TableCell>
                       <TableCell sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
@@ -996,6 +1098,45 @@ export default function AdminUsersTab() {
             setSelectedUserForInvite(null);
           }}
         />
+      )}
+
+      {/* Role Assignment Dialog */}
+      {selectedUserForRoleAssignment && organization?.id && (
+        <Dialog
+          open={roleAssignmentDialogOpen}
+          onClose={() => {
+            setRoleAssignmentDialogOpen(false);
+            setSelectedUserForRoleAssignment(null);
+          }}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{
+            sx: {
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+            },
+          }}
+        >
+          <Box sx={{ p: 3 }}>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+              Assign Roles: {selectedUserForRoleAssignment.name || selectedUserForRoleAssignment.email}
+            </Typography>
+            <UserRoleAssignment
+              userId={selectedUserForRoleAssignment.id}
+              organizationId={organization.id}
+              primaryRole={selectedUserForRoleAssignment.role}
+              assignedRoleIds={userRoles[selectedUserForRoleAssignment.id] || []}
+              availableRoles={availableRoles}
+              onRolesChange={(roleIds) => {
+                setUserRoles({
+                  ...userRoles,
+                  [selectedUserForRoleAssignment.id]: roleIds,
+                });
+                loadUserRoles(); // Refresh to get updated data
+              }}
+            />
+          </Box>
+        </Dialog>
       )}
     </Box>
   );

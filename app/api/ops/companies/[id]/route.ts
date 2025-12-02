@@ -83,19 +83,19 @@ export async function GET(
       return forbidden('You do not have access to this company');
     }
 
-    // Get counts (scoped to organization)
+    // Get counts (scoped to organization) using admin client to bypass RLS
     const [contactsResult, opportunitiesResult, projectsResult] = await Promise.all([
-      supabase
+      adminClient
         .from('company_contacts')
         .select('id', { count: 'exact', head: true })
         .eq('company_id', id)
         .eq('organization_id', organizationId),
-      supabase
+      adminClient
         .from('opportunities')
         .select('id', { count: 'exact', head: true })
         .eq('company_id', id)
         .eq('organization_id', organizationId),
-      supabase
+      adminClient
         .from('projects')
         .select('id', { count: 'exact', head: true })
         .eq('company_id', id)
@@ -175,8 +175,11 @@ export async function PUT(
       account_notes
     } = body;
 
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+
     // Get existing company to validate organization access
-    const { data: existingCompany, error: existingError } = await supabase
+    const { data: existingCompany, error: existingError } = await adminClient
       .from('companies')
       .select('organization_id')
       .eq('id', id)
@@ -216,8 +219,8 @@ export async function PUT(
     if (address_country !== undefined) updateData.address_country = address_country?.trim() || null;
     if (account_notes !== undefined) updateData.account_notes = account_notes || null;
 
-    // Update company
-    const { data: company, error: companyError } = await supabase
+    // Update company using admin client
+    const { data: company, error: companyError } = await adminClient
       .from('companies')
       .update(updateData)
       .eq('id', id)
@@ -291,8 +294,11 @@ export async function DELETE(
 
     const { id } = params;
 
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+
     // Check if company exists and validate organization access
-    const { data: company, error: checkError } = await supabase
+    const { data: company, error: checkError } = await adminClient
       .from('companies')
       .select('id, organization_id')
       .eq('id', id)
@@ -311,8 +317,8 @@ export async function DELETE(
       return forbidden('You do not have access to delete this company');
     }
 
-    // Delete company (cascade will handle related records)
-    const { error: deleteError } = await supabase
+    // Delete company (cascade will handle related records) using admin client
+    const { error: deleteError } = await adminClient
       .from('companies')
       .delete()
       .eq('id', id);

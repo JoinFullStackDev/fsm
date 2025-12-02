@@ -48,6 +48,19 @@ import {
   Folder as FolderIcon,
   Code as CodeIcon,
   Description as DescriptionIcon,
+  Person as PersonIcon,
+  AccountCircle as AccountCircleIcon,
+  AdminPanelSettings as AdminPanelSettingsIcon,
+  Business as BusinessIcon,
+  Contacts as ContactsIcon,
+  TrendingUp as TrendingUpIcon,
+  Article as ArticleIcon,
+  School as SchoolIcon,
+  SmartToy as SmartToyIcon,
+  CloudUpload as CloudUploadIcon,
+  Mouse as MouseIcon,
+  ArrowRight as ArrowRightIcon,
+  KeyboardArrowDown as ArrowDownIcon,
 } from '@mui/icons-material';
 
 interface TourStep {
@@ -64,7 +77,1325 @@ interface WelcomeTourProps {
   onComplete: () => void;
 }
 
-// Animated mock components
+// Animated mock components for new tour steps
+
+// Step 1: Profile Setup - Full width with sidebar and form side by side
+const MockProfileSetup = ({ theme }: { theme: any }) => {
+  const [step, setStep] = useState(0);
+  const [imageUploading, setImageUploading] = useState(false);
+  
+  useEffect(() => {
+    const sequence = [
+      { delay: 0, action: () => setStep(0) },
+      { delay: 2000, action: () => setStep(1) },
+      { delay: 4000, action: () => setStep(2) },
+      { delay: 6000, action: () => { setStep(3); setImageUploading(true); } },
+      { delay: 8000, action: () => { setImageUploading(false); setStep(0); } },
+    ];
+    
+    let timeoutIds: NodeJS.Timeout[] = [];
+    sequence.forEach(({ delay, action }) => {
+      timeoutIds.push(setTimeout(action, delay));
+    });
+    return () => timeoutIds.forEach(clearTimeout);
+  }, []);
+  
+  return (
+    <Box
+      sx={{
+        width: '100%',
+        display: 'flex',
+        gap: 3,
+        minHeight: '400px',
+      }}
+    >
+      {/* Left Sidebar - Profile Image */}
+      <motion.div
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        style={{ flex: '0 0 250px' }}
+      >
+        <Card
+          sx={{
+            p: 3,
+            height: '100%',
+            backgroundColor: theme.palette.background.paper,
+            border: `2px solid ${theme.palette.divider}`,
+            borderRadius: 3,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <motion.div
+            animate={{
+              scale: step === 3 ? [1, 1.1, 1] : 1,
+              borderColor: step === 3 ? theme.palette.primary.main : theme.palette.divider,
+            }}
+            transition={{ duration: 0.3 }}
+          >
+            <Box
+              sx={{
+                width: 150,
+                height: 150,
+                borderRadius: '50%',
+                border: `3px solid ${step === 3 ? theme.palette.primary.main : theme.palette.divider}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: step === 3 ? alpha(theme.palette.primary.main, 0.1) : theme.palette.action.hover,
+                position: 'relative',
+                overflow: 'hidden',
+                mb: 2,
+              }}
+            >
+              {imageUploading ? (
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                >
+                  <CloudUploadIcon sx={{ fontSize: 60, color: theme.palette.primary.main }} />
+                </motion.div>
+              ) : (
+                <AccountCircleIcon sx={{ fontSize: 120, color: theme.palette.text.secondary }} />
+              )}
+              {step === 3 && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  style={{
+                    position: 'absolute',
+                    bottom: 10,
+                    right: 10,
+                    backgroundColor: theme.palette.primary.main,
+                    borderRadius: '50%',
+                    width: 40,
+                    height: 40,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <AddIcon sx={{ fontSize: 24, color: theme.palette.background.default }} />
+                </motion.div>
+              )}
+            </Box>
+          </motion.div>
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary, textAlign: 'center' }}>
+            Click to upload profile image
+          </Typography>
+        </Card>
+      </motion.div>
+
+      {/* Right Side - Form Fields */}
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {[
+          { label: 'Full Name', value: 'John Doe', placeholder: 'Enter your full name' },
+          { label: 'Email', value: 'john@example.com', placeholder: 'Enter your email' },
+          { label: 'Bio', value: 'Product Manager & Designer', placeholder: 'Tell us about yourself' },
+        ].map((field, index) => (
+          <motion.div
+            key={index}
+            animate={{
+              borderColor: step === index ? theme.palette.primary.main : theme.palette.divider,
+              backgroundColor: step === index ? alpha(theme.palette.primary.main, 0.1) : theme.palette.action.hover,
+            }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card
+              sx={{
+                p: 2,
+                border: `2px solid ${step === index ? theme.palette.primary.main : theme.palette.divider}`,
+                borderRadius: 2,
+                backgroundColor: step === index ? alpha(theme.palette.primary.main, 0.1) : theme.palette.action.hover,
+              }}
+            >
+              <Typography variant="caption" sx={{ color: theme.palette.text.secondary, mb: 1, display: 'block', fontWeight: 500 }}>
+                {field.label}
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Typography variant="body2" sx={{ color: theme.palette.text.primary, flex: 1 }}>
+                  {step === index ? field.value : field.placeholder}
+                </Typography>
+                {step === index && (
+                  <motion.span
+                    animate={{ opacity: [1, 0, 1] }}
+                    transition={{ duration: 1, repeat: Infinity }}
+                    style={{
+                      display: 'inline-block',
+                      width: 2,
+                      height: 16,
+                      backgroundColor: theme.palette.text.primary,
+                      marginLeft: 8,
+                    }}
+                  />
+                )}
+              </Box>
+            </Card>
+          </motion.div>
+        ))}
+        
+        <motion.div
+          animate={{
+            backgroundColor: step === 3 ? theme.palette.primary.main : theme.palette.background.paper,
+          }}
+          style={{ marginTop: 'auto' }}
+        >
+          <Button
+            fullWidth
+            variant="contained"
+            sx={{
+              backgroundColor: step === 3 ? theme.palette.primary.main : theme.palette.background.paper,
+              color: step === 3 ? theme.palette.background.default : theme.palette.text.primary,
+              border: `2px solid ${step === 3 ? theme.palette.primary.main : theme.palette.divider}`,
+              fontWeight: 600,
+              py: 1.5,
+            }}
+          >
+            Save Profile
+          </Button>
+        </motion.div>
+      </Box>
+    </Box>
+  );
+};
+
+// Step 2: Admin Dashboard - Full width with sidebar nav, roles panel, and users panel
+const MockAdminDashboard = ({ theme }: { theme: any }) => {
+  const [activeTab, setActiveTab] = useState(0);
+  const [highlightedRole, setHighlightedRole] = useState<number | null>(null);
+  const [highlightedUser, setHighlightedUser] = useState<number | null>(null);
+  
+  useEffect(() => {
+    const sequence = [
+      { delay: 0, action: () => setActiveTab(0) },
+      { delay: 2000, action: () => { setActiveTab(1); setHighlightedRole(0); } },
+      { delay: 3500, action: () => setHighlightedRole(1) },
+      { delay: 5000, action: () => { setActiveTab(2); setHighlightedUser(0); } },
+      { delay: 6500, action: () => setHighlightedUser(1) },
+      { delay: 8000, action: () => { setActiveTab(0); setHighlightedRole(null); setHighlightedUser(null); } },
+    ];
+    
+    let timeoutIds: NodeJS.Timeout[] = [];
+    sequence.forEach(({ delay, action }) => {
+      timeoutIds.push(setTimeout(action, delay));
+    });
+    return () => timeoutIds.forEach(clearTimeout);
+  }, []);
+  
+  return (
+    <Box sx={{ width: '100%', display: 'flex', gap: 2, minHeight: '400px' }}>
+      {/* Left Sidebar - Navigation */}
+      <Card
+        sx={{
+          flex: '0 0 200px',
+          p: 2,
+          backgroundColor: theme.palette.background.paper,
+          border: `2px solid ${theme.palette.divider}`,
+          borderRadius: 3,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1,
+        }}
+      >
+        {[
+          { id: 0, label: 'Dashboard', icon: <DashboardIcon /> },
+          { id: 1, label: 'Roles', icon: <SettingsIcon /> },
+          { id: 2, label: 'Users', icon: <PersonIcon /> },
+        ].map((item) => (
+          <motion.div
+            key={item.id}
+            animate={{
+              backgroundColor: activeTab === item.id ? alpha(theme.palette.primary.main, 0.2) : theme.palette.action.hover,
+              borderColor: activeTab === item.id ? theme.palette.primary.main : theme.palette.divider,
+            }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card
+              sx={{
+                p: 1.5,
+                border: `2px solid ${activeTab === item.id ? theme.palette.primary.main : theme.palette.divider}`,
+                borderRadius: 2,
+                cursor: 'pointer',
+                backgroundColor: activeTab === item.id ? alpha(theme.palette.primary.main, 0.2) : theme.palette.action.hover,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {item.icon}
+                <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontWeight: activeTab === item.id ? 600 : 400 }}>
+                  {item.label}
+                </Typography>
+              </Box>
+            </Card>
+          </motion.div>
+        ))}
+      </Card>
+
+      {/* Middle Panel - Roles */}
+      <AnimatePresence mode="wait">
+        {activeTab === 1 && (
+          <motion.div
+            key="roles"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            style={{ flex: 1 }}
+          >
+            <Card
+              sx={{
+                p: 3,
+                height: '100%',
+                backgroundColor: theme.palette.background.paper,
+                border: `2px solid ${theme.palette.divider}`,
+                borderRadius: 3,
+              }}
+            >
+              <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 3, fontWeight: 600 }}>
+                Custom Roles
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {['Project Manager', 'Developer', 'Designer'].map((role, idx) => (
+                  <motion.div
+                    key={idx}
+                    animate={{
+                      borderColor: highlightedRole === idx ? theme.palette.primary.main : theme.palette.divider,
+                      backgroundColor: highlightedRole === idx ? alpha(theme.palette.primary.main, 0.1) : theme.palette.action.hover,
+                    }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Card
+                      sx={{
+                        p: 2,
+                        border: `2px solid ${highlightedRole === idx ? theme.palette.primary.main : theme.palette.divider}`,
+                        borderRadius: 2,
+                        backgroundColor: highlightedRole === idx ? alpha(theme.palette.primary.main, 0.1) : theme.palette.action.hover,
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="body1" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+                          {role}
+                        </Typography>
+                        {highlightedRole === idx && (
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                          >
+                            <CheckCircleIcon sx={{ color: theme.palette.primary.main }} />
+                          </motion.div>
+                        )}
+                      </Box>
+                    </Card>
+                  </motion.div>
+                ))}
+              </Box>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Right Panel - Users */}
+        {activeTab === 2 && (
+          <motion.div
+            key="users"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            style={{ flex: 1 }}
+          >
+            <Card
+              sx={{
+                p: 3,
+                height: '100%',
+                backgroundColor: theme.palette.background.paper,
+                border: `2px solid ${theme.palette.divider}`,
+                borderRadius: 3,
+              }}
+            >
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+                  Users
+                </Typography>
+                <Button
+                  size="small"
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  sx={{
+                    backgroundColor: theme.palette.primary.main,
+                    color: theme.palette.background.default,
+                  }}
+                >
+                  Add User
+                </Button>
+              </Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {['john@example.com', 'jane@example.com', 'bob@example.com'].map((email, idx) => (
+                  <motion.div
+                    key={idx}
+                    animate={{
+                      borderColor: highlightedUser === idx ? theme.palette.primary.main : theme.palette.divider,
+                      backgroundColor: highlightedUser === idx ? alpha(theme.palette.primary.main, 0.1) : theme.palette.action.hover,
+                    }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Card
+                      sx={{
+                        p: 2,
+                        border: `2px solid ${highlightedUser === idx ? theme.palette.primary.main : theme.palette.divider}`,
+                        borderRadius: 2,
+                        backgroundColor: highlightedUser === idx ? alpha(theme.palette.primary.main, 0.1) : theme.palette.action.hover,
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <AccountCircleIcon sx={{ fontSize: 32, color: theme.palette.text.secondary }} />
+                        <Typography variant="body2" sx={{ color: theme.palette.text.primary, flex: 1 }}>
+                          {email}
+                        </Typography>
+                        <Chip label="Active" size="small" sx={{ backgroundColor: alpha(theme.palette.primary.main, 0.2) }} />
+                      </Box>
+                    </Card>
+                  </motion.div>
+                ))}
+              </Box>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Box>
+  );
+};
+
+// Step 3: Companies, Contacts, Opportunities - Full width with tabs and panels side by side
+const MockCompaniesOps = ({ theme }: { theme: any }) => {
+  const [activeTab, setActiveTab] = useState(0);
+  const [highlightedCompany, setHighlightedCompany] = useState<number | null>(null);
+  const [highlightedContact, setHighlightedContact] = useState<number | null>(null);
+  const [highlightedOpp, setHighlightedOpp] = useState<number | null>(null);
+  
+  useEffect(() => {
+    const sequence = [
+      { delay: 0, action: () => { setActiveTab(0); setHighlightedCompany(0); } },
+      { delay: 2000, action: () => setHighlightedCompany(1) },
+      { delay: 3500, action: () => { setActiveTab(1); setHighlightedContact(0); } },
+      { delay: 5000, action: () => setHighlightedContact(1) },
+      { delay: 6500, action: () => { setActiveTab(2); setHighlightedOpp(0); } },
+      { delay: 8000, action: () => { setActiveTab(0); setHighlightedCompany(null); setHighlightedContact(null); setHighlightedOpp(null); } },
+    ];
+    
+    let timeoutIds: NodeJS.Timeout[] = [];
+    sequence.forEach(({ delay, action }) => {
+      timeoutIds.push(setTimeout(action, delay));
+    });
+    return () => timeoutIds.forEach(clearTimeout);
+  }, []);
+  
+  return (
+    <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 2, minHeight: '400px' }}>
+      {/* Tabs Navigation */}
+      <Box sx={{ display: 'flex', gap: 1, borderBottom: `2px solid ${theme.palette.divider}` }}>
+        {['Companies', 'Contacts', 'Opportunities'].map((tab, idx) => (
+          <motion.div
+            key={tab}
+            animate={{
+              borderBottomColor: activeTab === idx ? theme.palette.primary.main : 'transparent',
+              color: activeTab === idx ? theme.palette.primary.main : theme.palette.text.secondary,
+            }}
+            transition={{ duration: 0.3 }}
+          >
+            <Typography
+              variant="body1"
+              sx={{
+                px: 3,
+                py: 1.5,
+                fontWeight: activeTab === idx ? 600 : 400,
+                borderBottom: `3px solid ${activeTab === idx ? theme.palette.primary.main : 'transparent'}`,
+                cursor: 'pointer',
+              }}
+            >
+              {tab}
+            </Typography>
+          </motion.div>
+        ))}
+        <Box sx={{ flex: 1 }} />
+        <Button
+          size="small"
+          variant="contained"
+          startIcon={<AddIcon />}
+          sx={{
+            backgroundColor: theme.palette.primary.main,
+            color: theme.palette.background.default,
+          }}
+        >
+          Add New
+        </Button>
+      </Box>
+
+      {/* Content Panels */}
+      <Box sx={{ display: 'flex', gap: 2, flex: 1 }}>
+        {/* Companies Panel */}
+        {activeTab === 0 && (
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            style={{ flex: 1 }}
+          >
+            <Card
+              sx={{
+                p: 3,
+                height: '100%',
+                backgroundColor: theme.palette.background.paper,
+                border: `2px solid ${theme.palette.divider}`,
+                borderRadius: 3,
+              }}
+            >
+              <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 3, fontWeight: 600 }}>
+                Companies
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {['Acme Corporation', 'TechStart Inc', 'Global Solutions'].map((company, idx) => (
+                  <motion.div
+                    key={idx}
+                    animate={{
+                      borderColor: highlightedCompany === idx ? theme.palette.primary.main : theme.palette.divider,
+                      backgroundColor: highlightedCompany === idx ? alpha(theme.palette.primary.main, 0.1) : theme.palette.action.hover,
+                    }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Card
+                      sx={{
+                        p: 2,
+                        border: `2px solid ${highlightedCompany === idx ? theme.palette.primary.main : theme.palette.divider}`,
+                        borderRadius: 2,
+                        backgroundColor: highlightedCompany === idx ? alpha(theme.palette.primary.main, 0.1) : theme.palette.action.hover,
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <BusinessIcon sx={{ fontSize: 32, color: theme.palette.primary.main }} />
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="body1" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+                            {company}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                            Technology • San Francisco, CA
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Card>
+                  </motion.div>
+                ))}
+              </Box>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Contacts Panel */}
+        {activeTab === 1 && (
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            style={{ flex: 1 }}
+          >
+            <Card
+              sx={{
+                p: 3,
+                height: '100%',
+                backgroundColor: theme.palette.background.paper,
+                border: `2px solid ${theme.palette.divider}`,
+                borderRadius: 3,
+              }}
+            >
+              <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 3, fontWeight: 600 }}>
+                Company Contacts
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {['John Doe', 'Jane Smith', 'Bob Johnson'].map((name, idx) => (
+                  <motion.div
+                    key={idx}
+                    animate={{
+                      borderColor: highlightedContact === idx ? theme.palette.primary.main : theme.palette.divider,
+                      backgroundColor: highlightedContact === idx ? alpha(theme.palette.primary.main, 0.1) : theme.palette.action.hover,
+                    }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Card
+                      sx={{
+                        p: 2,
+                        border: `2px solid ${highlightedContact === idx ? theme.palette.primary.main : theme.palette.divider}`,
+                        borderRadius: 2,
+                        backgroundColor: highlightedContact === idx ? alpha(theme.palette.primary.main, 0.1) : theme.palette.action.hover,
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <ContactsIcon sx={{ fontSize: 24, color: theme.palette.primary.main }} />
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+                            {name}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                            {name.toLowerCase().replace(' ', '.')}@acme.com
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Card>
+                  </motion.div>
+                ))}
+              </Box>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Opportunities Panel */}
+        {activeTab === 2 && (
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            style={{ flex: 1 }}
+          >
+            <Card
+              sx={{
+                p: 3,
+                height: '100%',
+                backgroundColor: theme.palette.background.paper,
+                border: `2px solid ${theme.palette.divider}`,
+                borderRadius: 3,
+              }}
+            >
+              <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 3, fontWeight: 600 }}>
+                Opportunities
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {[
+                  { name: 'Product Launch Partnership', value: '$50,000', prob: '75%' },
+                  { name: 'Enterprise Contract', value: '$150,000', prob: '60%' },
+                  { name: 'Consulting Project', value: '$25,000', prob: '90%' },
+                ].map((opp, idx) => (
+                  <motion.div
+                    key={idx}
+                    animate={{
+                      borderColor: highlightedOpp === idx ? theme.palette.primary.main : theme.palette.divider,
+                      backgroundColor: highlightedOpp === idx ? alpha(theme.palette.primary.main, 0.1) : theme.palette.action.hover,
+                    }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Card
+                      sx={{
+                        p: 2,
+                        border: `2px solid ${highlightedOpp === idx ? theme.palette.primary.main : theme.palette.divider}`,
+                        borderRadius: 2,
+                        backgroundColor: highlightedOpp === idx ? alpha(theme.palette.primary.main, 0.1) : theme.palette.action.hover,
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box>
+                          <Typography variant="body1" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+                            {opp.name}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                            {opp.value} • {opp.prob} Probability
+                          </Typography>
+                        </Box>
+                        <TrendingUpIcon sx={{ fontSize: 32, color: theme.palette.primary.main }} />
+                      </Box>
+                    </Card>
+                  </motion.div>
+                ))}
+              </Box>
+            </Card>
+          </motion.div>
+        )}
+      </Box>
+    </Box>
+  );
+};
+
+// Step 4: Generate Template from PRD - Full width with PRD input, AI processing, and template preview side by side
+const MockTemplateGeneration = ({ theme }: { theme: any }) => {
+  const [step, setStep] = useState(0);
+  const [typing, setTyping] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [progress, setProgress] = useState(0);
+  
+  useEffect(() => {
+    const sequence = [
+      { delay: 0, action: () => setStep(0) },
+      { delay: 2000, action: () => setStep(1) },
+      { delay: 4000, action: () => { setStep(2); setGenerating(true); } },
+      { delay: 6000, action: () => { setStep(3); setGenerating(false); } },
+      { delay: 8000, action: () => { setStep(0); setProgress(0); } },
+    ];
+    
+    let timeoutIds: NodeJS.Timeout[] = [];
+    sequence.forEach(({ delay, action }) => {
+      timeoutIds.push(setTimeout(action, delay));
+    });
+    return () => timeoutIds.forEach(clearTimeout);
+  }, []);
+  
+  useEffect(() => {
+    if (generating) {
+      const interval = setInterval(() => {
+        setProgress((p) => Math.min(p + 10, 100));
+      }, 200);
+      return () => clearInterval(interval);
+    }
+  }, [generating]);
+  
+  const prdText = 'Build a mobile app for task management with user authentication, project creation, and real-time collaboration features.';
+  
+  useEffect(() => {
+    if (step === 1) {
+      let charIndex = 0;
+      const typeInterval = setInterval(() => {
+        if (charIndex < prdText.length) {
+          setTyping(prdText.substring(0, charIndex + 1));
+          charIndex++;
+        } else {
+          clearInterval(typeInterval);
+        }
+      }, 50);
+      return () => clearInterval(typeInterval);
+    } else {
+      setTyping('');
+    }
+  }, [step, prdText]);
+  
+  return (
+    <Box sx={{ width: '100%', display: 'flex', gap: 2, minHeight: '400px' }}>
+      {/* Left Panel - PRD Input */}
+      <Card
+        sx={{
+          flex: 1,
+          p: 3,
+          backgroundColor: theme.palette.background.paper,
+          border: `2px solid ${step >= 1 ? theme.palette.primary.main : theme.palette.divider}`,
+          borderRadius: 3,
+        }}
+      >
+        <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 2, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ArticleIcon sx={{ fontSize: 20 }} />
+          PRD Input
+        </Typography>
+        <Box
+          sx={{
+            minHeight: 200,
+            borderRadius: 2,
+            border: `2px solid ${step === 1 ? theme.palette.primary.main : theme.palette.divider}`,
+            p: 2,
+            backgroundColor: step === 1 ? alpha(theme.palette.primary.main, 0.1) : theme.palette.action.hover,
+          }}
+        >
+          <Typography variant="body2" sx={{ color: theme.palette.text.primary, whiteSpace: 'pre-wrap' }}>
+            {typing || 'Paste your PRD here...'}
+            {step === 1 && (
+              <motion.span
+                animate={{ opacity: [1, 0, 1] }}
+                transition={{ duration: 1, repeat: Infinity }}
+                style={{
+                  display: 'inline-block',
+                  width: 2,
+                  height: 16,
+                  backgroundColor: theme.palette.text.primary,
+                  marginLeft: 4,
+                }}
+              />
+            )}
+          </Typography>
+        </Box>
+        {step >= 2 && (
+          <Button
+            fullWidth
+            variant="contained"
+            startIcon={generating ? <AutoAwesomeIcon /> : <BuildIcon />}
+            disabled={generating}
+            sx={{
+              mt: 2,
+              backgroundColor: step === 2 ? theme.palette.primary.main : theme.palette.background.paper,
+              color: step === 2 ? theme.palette.background.default : theme.palette.text.primary,
+              border: `2px solid ${step === 2 ? theme.palette.primary.main : theme.palette.divider}`,
+              fontWeight: 600,
+            }}
+          >
+            {generating ? `Generating... ${progress}%` : 'Generate Template'}
+          </Button>
+        )}
+        {generating && (
+          <LinearProgress
+            variant="determinate"
+            value={progress}
+            sx={{
+              mt: 2,
+              height: 6,
+              borderRadius: 3,
+              backgroundColor: alpha(theme.palette.primary.main, 0.1),
+              '& .MuiLinearProgress-bar': {
+                backgroundColor: theme.palette.primary.main,
+                borderRadius: 3,
+              },
+            }}
+          />
+        )}
+      </Card>
+
+      {/* Right Panel - Template Preview */}
+      <Card
+        sx={{
+          flex: 1,
+          p: 3,
+          backgroundColor: theme.palette.background.paper,
+          border: `2px solid ${step === 3 ? theme.palette.primary.main : theme.palette.divider}`,
+          borderRadius: 3,
+        }}
+      >
+        <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 2, fontWeight: 600 }}>
+          Generated Template
+        </Typography>
+        {step === 3 ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+          >
+            <Card sx={{ p: 2, backgroundColor: alpha(theme.palette.primary.main, 0.1), border: `1px solid ${theme.palette.primary.main}` }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                <CheckCircleIcon sx={{ fontSize: 32, color: theme.palette.primary.main }} />
+                <Box>
+                  <Typography variant="body1" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+                    Task Management App Template
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                    6 phases • 24 fields configured
+                  </Typography>
+                </Box>
+              </Box>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {['Phase 1', 'Phase 2', 'Phase 3', 'Phase 4', 'Phase 5', 'Phase 6'].map((phase, idx) => (
+                  <Chip
+                    key={idx}
+                    label={phase}
+                    size="small"
+                    sx={{
+                      backgroundColor: alpha(theme.palette.primary.main, 0.2),
+                      color: theme.palette.text.primary,
+                      border: `1px solid ${theme.palette.primary.main}`,
+                    }}
+                  />
+                ))}
+              </Box>
+            </Card>
+          </motion.div>
+        ) : (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 200, color: theme.palette.text.secondary }}>
+            <Typography variant="body2">Template will appear here after generation</Typography>
+          </Box>
+        )}
+      </Card>
+    </Box>
+  );
+};
+
+// Step 5: Create First Project - Full width with form and template selector side by side
+const MockCreateProject = ({ theme }: { theme: any }) => {
+  const [focused, setFocused] = useState(0);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFocused((f) => (f + 1) % 3);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  return (
+    <Box sx={{ width: '100%', display: 'flex', gap: 2, minHeight: '400px' }}>
+      {/* Left Panel - Project Form */}
+      <Card
+        sx={{
+          flex: 1,
+          p: 3,
+          backgroundColor: theme.palette.background.paper,
+          border: `2px solid ${theme.palette.divider}`,
+          borderRadius: 3,
+        }}
+      >
+        <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 3, fontWeight: 600 }}>
+          New Project
+        </Typography>
+        <Box sx={{ mb: 2.5 }}>
+          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, mb: 1, display: 'block', fontWeight: 500 }}>
+            Project Name
+          </Typography>
+          <motion.div
+            animate={{
+              borderColor: focused === 0 ? theme.palette.primary.main : theme.palette.divider,
+              backgroundColor: focused === 0 ? alpha(theme.palette.primary.main, 0.1) : theme.palette.action.hover,
+            }}
+            transition={{ duration: 0.3 }}
+          >
+            <Box
+              sx={{
+                height: 45,
+                borderRadius: 2,
+                border: `2px solid ${focused === 0 ? theme.palette.primary.main : theme.palette.divider}`,
+                display: 'flex',
+                alignItems: 'center',
+                px: 2,
+              }}
+            >
+              <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
+                My First Project
+              </Typography>
+              {focused === 0 && (
+                <motion.span
+                  animate={{ opacity: [1, 0, 1] }}
+                  transition={{ duration: 1, repeat: Infinity }}
+                  style={{
+                    display: 'inline-block',
+                    width: 2,
+                    height: 16,
+                    backgroundColor: theme.palette.text.primary,
+                    marginLeft: 8,
+                  }}
+                />
+              )}
+            </Box>
+          </motion.div>
+        </Box>
+        <motion.div
+          animate={{
+            backgroundColor: focused === 2 ? theme.palette.primary.main : theme.palette.background.paper,
+          }}
+        >
+          <Button
+            fullWidth
+            variant="contained"
+            sx={{
+              mt: 2,
+              backgroundColor: focused === 2 ? theme.palette.primary.main : theme.palette.background.paper,
+              color: focused === 2 ? theme.palette.background.default : theme.palette.text.primary,
+              border: `2px solid ${focused === 2 ? theme.palette.primary.main : theme.palette.divider}`,
+              fontWeight: 600,
+              py: 1.5,
+            }}
+          >
+            Create Project
+          </Button>
+        </motion.div>
+      </Card>
+
+      {/* Right Panel - Template Selector */}
+      <Card
+        sx={{
+          flex: 1,
+          p: 3,
+          backgroundColor: theme.palette.background.paper,
+          border: `2px solid ${focused === 1 ? theme.palette.primary.main : theme.palette.divider}`,
+          borderRadius: 3,
+        }}
+      >
+        <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 3, fontWeight: 600 }}>
+          Select Template
+        </Typography>
+        <motion.div
+          animate={{
+            borderColor: focused === 1 ? theme.palette.primary.main : theme.palette.divider,
+            backgroundColor: focused === 1 ? alpha(theme.palette.primary.main, 0.1) : theme.palette.action.hover,
+          }}
+          transition={{ duration: 0.3 }}
+        >
+          <Card
+            sx={{
+              p: 2,
+              border: `2px solid ${focused === 1 ? theme.palette.primary.main : theme.palette.divider}`,
+              borderRadius: 2,
+              backgroundColor: focused === 1 ? alpha(theme.palette.primary.main, 0.1) : theme.palette.action.hover,
+              mb: 2,
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <BuildIcon sx={{ fontSize: 32, color: theme.palette.primary.main }} />
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="body1" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+                  Task Management App Template
+                </Typography>
+                <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                  6 phases • 24 fields
+                </Typography>
+              </Box>
+              {focused === 1 && (
+                <CheckCircleIcon sx={{ fontSize: 24, color: theme.palette.primary.main }} />
+              )}
+            </Box>
+          </Card>
+        </motion.div>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+          {['E-commerce', 'SaaS Platform', 'Mobile App'].map((template, idx) => (
+            <Chip
+              key={idx}
+              label={template}
+              size="small"
+              sx={{
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.secondary,
+                border: `1px solid ${theme.palette.divider}`,
+              }}
+            />
+          ))}
+        </Box>
+      </Card>
+    </Box>
+  );
+};
+
+// Step 6: Initiate Project Management - Full width with phases list and active phase detail side by side
+const MockProjectManagement = ({ theme }: { theme: any }) => {
+  const [activePhase, setActivePhase] = useState(0);
+  const [progressValues, setProgressValues] = useState([0, 0, 0, 0, 0, 0]);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActivePhase((p) => {
+        const next = (p + 1) % 6;
+        setProgressValues((prev) => {
+          const newValues = [...prev];
+          if (next < prev.length) {
+            newValues[next] = Math.min(prev[next] + 20, 100);
+          }
+          return newValues;
+        });
+        return next;
+      });
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  const phases = [
+    { name: 'Concept Framing', icon: <RocketLaunchIcon sx={{ fontSize: 16 }} />, desc: 'Define the problem and value proposition' },
+    { name: 'Product Strategy', icon: <AutoAwesomeIcon sx={{ fontSize: 16 }} />, desc: 'Personas, outcomes, and features' },
+    { name: 'Rapid Prototype', icon: <BuildIcon sx={{ fontSize: 16 }} />, desc: 'Screens, flows, components' },
+    { name: 'Analysis', icon: <DescriptionIcon sx={{ fontSize: 16 }} />, desc: 'Entities, APIs, acceptance criteria' },
+    { name: 'Build Accelerator', icon: <CodeIcon sx={{ fontSize: 16 }} />, desc: 'Architecture and coding standards' },
+    { name: 'QA & Hardening', icon: <CheckCircleIcon sx={{ fontSize: 16 }} />, desc: 'Testing and launch readiness' },
+  ];
+  
+  return (
+    <Box sx={{ width: '100%', display: 'flex', gap: 2, minHeight: '400px' }}>
+      {/* Left Panel - Phases List */}
+      <Card
+        sx={{
+          flex: '0 0 300px',
+          p: 2,
+          backgroundColor: theme.palette.background.paper,
+          border: `2px solid ${theme.palette.divider}`,
+          borderRadius: 3,
+          overflowY: 'auto',
+        }}
+      >
+        <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 2, fontWeight: 600 }}>
+          Project Phases
+        </Typography>
+        {phases.map((phase, index) => (
+          <motion.div
+            key={index}
+            animate={{ 
+              opacity: index === activePhase ? 1 : 0.6,
+              scale: index === activePhase ? 1.02 : 1,
+            }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card
+              sx={{
+                mb: 1.5,
+                backgroundColor: index === activePhase 
+                  ? alpha(theme.palette.primary.main, 0.1)
+                  : theme.palette.action.hover,
+                border: `2px solid ${
+                  index === activePhase 
+                    ? theme.palette.primary.main 
+                    : theme.palette.divider
+                }`,
+                borderRadius: 2,
+                p: 1.5,
+                cursor: 'pointer',
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                {phase.icon}
+                <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontWeight: index === activePhase ? 600 : 400, flex: 1 }}>
+                  {phase.name}
+                </Typography>
+                <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600 }}>
+                  {progressValues[index]}%
+                </Typography>
+              </Box>
+              <LinearProgress
+                variant="determinate"
+                value={progressValues[index]}
+                sx={{
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                  '& .MuiLinearProgress-bar': {
+                    backgroundColor: index === activePhase 
+                      ? theme.palette.primary.main
+                      : theme.palette.text.primary,
+                    borderRadius: 2,
+                  },
+                }}
+              />
+            </Card>
+          </motion.div>
+        ))}
+      </Card>
+
+      {/* Right Panel - Active Phase Detail */}
+      <Card
+        sx={{
+          flex: 1,
+          p: 3,
+          backgroundColor: theme.palette.background.paper,
+          border: `2px solid ${theme.palette.primary.main}`,
+          borderRadius: 3,
+        }}
+      >
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activePhase}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+              {phases[activePhase].icon}
+              <Typography variant="h5" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+                {phases[activePhase].name}
+              </Typography>
+            </Box>
+            <Typography variant="body1" sx={{ color: theme.palette.text.secondary, mb: 3 }}>
+              {phases[activePhase].desc}
+            </Typography>
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="caption" sx={{ color: theme.palette.text.secondary, mb: 1, display: 'block' }}>
+                Progress
+              </Typography>
+              <LinearProgress
+                variant="determinate"
+                value={progressValues[activePhase]}
+                sx={{
+                  height: 12,
+                  borderRadius: 6,
+                  backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                  '& .MuiLinearProgress-bar': {
+                    backgroundColor: theme.palette.primary.main,
+                    borderRadius: 6,
+                  },
+                }}
+              />
+              <Typography variant="h4" sx={{ color: theme.palette.primary.main, mt: 1, fontWeight: 700 }}>
+                {progressValues[activePhase]}%
+              </Typography>
+            </Box>
+            <Button
+              variant="contained"
+              fullWidth
+              sx={{
+                backgroundColor: theme.palette.primary.main,
+                color: theme.palette.background.default,
+                fontWeight: 600,
+                py: 1.5,
+              }}
+            >
+              Continue Phase
+            </Button>
+          </motion.div>
+        </AnimatePresence>
+      </Card>
+    </Box>
+  );
+};
+
+// Step 7: Knowledge Base & AI Tool - Full width with search, articles list, and AI response side by side
+const MockKnowledgeBase = ({ theme }: { theme: any }) => {
+  const [step, setStep] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [aiThinking, setAiThinking] = useState(false);
+  
+  useEffect(() => {
+    const sequence = [
+      { delay: 0, action: () => { setStep(0); setSearchQuery(''); } },
+      { delay: 2000, action: () => { setStep(1); setSearchQuery('project management'); } },
+      { delay: 4000, action: () => { setStep(2); setAiThinking(true); } },
+      { delay: 6000, action: () => { setStep(3); setAiThinking(false); } },
+      { delay: 8000, action: () => { setStep(0); setSearchQuery(''); } },
+    ];
+    
+    let timeoutIds: NodeJS.Timeout[] = [];
+    sequence.forEach(({ delay, action }) => {
+      timeoutIds.push(setTimeout(action, delay));
+    });
+    return () => timeoutIds.forEach(clearTimeout);
+  }, []);
+  
+  return (
+    <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 2, minHeight: '400px' }}>
+      {/* Search Bar */}
+      <motion.div
+        animate={{
+          borderColor: step >= 1 ? theme.palette.primary.main : theme.palette.divider,
+          backgroundColor: step >= 1 ? alpha(theme.palette.primary.main, 0.1) : theme.palette.action.hover,
+        }}
+      >
+        <Box
+          sx={{
+            height: 50,
+            borderRadius: 2,
+            border: `2px solid ${step >= 1 ? theme.palette.primary.main : theme.palette.divider}`,
+            display: 'flex',
+            alignItems: 'center',
+            px: 2,
+            backgroundColor: step >= 1 ? alpha(theme.palette.primary.main, 0.1) : theme.palette.action.hover,
+          }}
+        >
+          <AutoAwesomeIcon sx={{ fontSize: 20, color: theme.palette.primary.main, mr: 1 }} />
+          <Typography variant="body2" sx={{ color: theme.palette.text.primary, flex: 1 }}>
+            {searchQuery || 'Search knowledge base or ask AI...'}
+          </Typography>
+          {step >= 1 && (
+            <motion.span
+              animate={{ opacity: [1, 0, 1] }}
+              transition={{ duration: 1, repeat: Infinity }}
+              style={{
+                display: 'inline-block',
+                width: 2,
+                height: 16,
+                backgroundColor: theme.palette.text.primary,
+                marginLeft: 8,
+              }}
+            />
+          )}
+        </Box>
+      </motion.div>
+
+      {/* Content Panels */}
+      <Box sx={{ display: 'flex', gap: 2, flex: 1 }}>
+        {/* Left Panel - Articles List */}
+        <Card
+          sx={{
+            flex: '0 0 300px',
+            p: 2,
+            backgroundColor: theme.palette.background.paper,
+            border: `2px solid ${theme.palette.divider}`,
+            borderRadius: 3,
+          }}
+        >
+          <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 2, fontWeight: 600 }}>
+            Knowledge Base
+          </Typography>
+          {step >= 1 ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {['Project Management Basics', 'AI Tools Guide', 'Best Practices', 'Getting Started'].map((article, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.1 }}
+                >
+                  <Card
+                    sx={{
+                      p: 1.5,
+                      backgroundColor: theme.palette.action.hover,
+                      border: `1px solid ${theme.palette.divider}`,
+                      borderRadius: 2,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <DescriptionIcon sx={{ fontSize: 18, color: theme.palette.primary.main }} />
+                      <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
+                        {article}
+                      </Typography>
+                    </Box>
+                  </Card>
+                </motion.div>
+              ))}
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 200, color: theme.palette.text.secondary }}>
+              <Typography variant="body2">Search to find articles</Typography>
+            </Box>
+          )}
+        </Card>
+
+        {/* Right Panel - AI Response */}
+        <Card
+          sx={{
+            flex: 1,
+            p: 3,
+            backgroundColor: theme.palette.background.paper,
+            border: `2px solid ${step >= 2 ? theme.palette.primary.main : theme.palette.divider}`,
+            borderRadius: 3,
+          }}
+        >
+          <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 2, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <SmartToyIcon sx={{ fontSize: 24, color: theme.palette.primary.main }} />
+            AI Assistant
+          </Typography>
+          {step >= 2 ? (
+            <AnimatePresence mode="wait">
+              {aiThinking ? (
+                <motion.div
+                  key="thinking"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'center', minHeight: 200 }}>
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                    >
+                      <SmartToyIcon sx={{ fontSize: 48, color: theme.palette.primary.main }} />
+                    </motion.div>
+                    <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
+                      AI is thinking...
+                    </Typography>
+                  </Box>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="response"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                >
+                  <Card sx={{ p: 3, backgroundColor: alpha(theme.palette.primary.main, 0.05), border: `1px solid ${theme.palette.primary.main}` }}>
+                    <Typography variant="body1" sx={{ color: theme.palette.text.primary, mb: 2 }}>
+                      Based on your knowledge base, here are the best practices for project management:
+                    </Typography>
+                    <Box sx={{ pl: 2 }}>
+                      {[
+                        'Define clear project objectives',
+                        'Break down work into manageable phases',
+                        'Use AI tools to accelerate development',
+                        'Maintain regular team communication',
+                      ].map((tip, idx) => (
+                        <Typography key={idx} variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+                          • {tip}
+                        </Typography>
+                      ))}
+                    </Box>
+                  </Card>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          ) : (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 200, color: theme.palette.text.secondary }}>
+              <Typography variant="body2">Ask a question to get AI assistance</Typography>
+            </Box>
+          )}
+        </Card>
+      </Box>
+    </Box>
+  );
+};
+
+// Legacy components (keeping for reference but not used)
 const MockDashboard = ({ theme }: { theme: any }) => {
   const [highlighted, setHighlighted] = useState(0);
   
@@ -894,265 +2225,53 @@ const MockKeyboard = ({ theme }: { theme: any }) => {
 
 const getTourSteps = (theme: any): TourStep[] => [
   {
-    title: 'Welcome to The FullStack Method™ App',
-    description: 'Get started',
-    icon: <RocketLaunchIcon />,
-    mockComponent: <MockDashboard theme={theme} />,
-    content: (
-      <Box>
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 2, textAlign: 'center', fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif' }}>
-            Welcome to The FullStack Method™ App
-          </Typography>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <Typography variant="body1" sx={{ color: theme.palette.text.primary, mb: 3, textAlign: 'center' }}>
-            Transform how you build products with our AI-accelerated project management platform.
-          </Typography>
-        </motion.div>
-        {[
-          'Work through 6 structured phases from concept to launch',
-          'Create reusable templates to accelerate future projects',
-          'Generate structured blueprints optimized for AI coding tools',
-          'Collaborate with your team using role-based access control',
-        ].map((item, index) => (
-          <motion.div
-            key={index}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 + index * 0.1 }}
-          >
-            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Box
-                component="span"
-                sx={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  backgroundColor: theme.palette.primary.main,
-                  flexShrink: 0,
-                }}
-              />
-              {item}
-            </Typography>
-          </motion.div>
-        ))}
-      </Box>
-    ),
+    title: 'Complete Your Profile',
+    description: 'Set up your account',
+    icon: <PersonIcon />,
+    mockComponent: <MockProfileSetup theme={theme} />,
+    content: <Box />, // Empty - no text content
   },
   {
-    title: 'Create Your First Template',
-    description: 'Build reusable workflows',
-    icon: <BuildIcon />,
-    mockComponent: <MockTemplateBuilder theme={theme} />,
-    content: (
-      <Box>
-        <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 2, textAlign: 'center', fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif' }}>
-          Create Your First Template
-        </Typography>
-        <Typography variant="body1" sx={{ color: theme.palette.text.primary, mb: 2 }}>
-          Templates let you standardize your workflow and reuse field configurations across projects.
-        </Typography>
-        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
-          • Navigate to <strong>Admin → Templates</strong> (admin only)
-        </Typography>
-        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
-          • Click &quot;Create Template&quot; or use the AI Template Generator
-        </Typography>
-        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
-          • Build custom field configurations for each phase
-        </Typography>
-        <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-          • Save templates as public or private for your team
-        </Typography>
-      </Box>
-    ),
+    title: 'Admin Dashboard Setup',
+    description: 'Create roles and add users',
+    icon: <AdminPanelSettingsIcon />,
+    mockComponent: <MockAdminDashboard theme={theme} />,
+    content: <Box />, // Empty - no text content
   },
   {
-    title: 'Start Your First Project',
-    description: 'Begin your journey',
+    title: 'Manage Companies & Opportunities',
+    description: 'Build your pipeline',
+    icon: <BusinessIcon />,
+    mockComponent: <MockCompaniesOps theme={theme} />,
+    content: <Box />, // Empty - no text content
+  },
+  {
+    title: 'Generate Template from PRD',
+    description: 'AI-powered template creation',
+    icon: <ArticleIcon />,
+    mockComponent: <MockTemplateGeneration theme={theme} />,
+    content: <Box />, // Empty - no text content
+  },
+  {
+    title: 'Create Your First Project',
+    description: 'Start your journey',
     icon: <PlayArrowIcon />,
-    mockComponent: <MockProjectForm theme={theme} />,
-    content: (
-      <Box>
-        <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 2, textAlign: 'center', fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif' }}>
-          Start Your First Project
-        </Typography>
-        <Typography variant="body1" sx={{ color: theme.palette.text.primary, mb: 2 }}>
-          Create a new project to begin applying The FullStack Method™ to your product.
-        </Typography>
-        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
-          • Click &quot;Create Project&quot; from your dashboard
-        </Typography>
-        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
-          • Give your project a name and description
-        </Typography>
-        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
-          • Optionally select a template to pre-fill phase data
-        </Typography>
-        <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-          • Choose your primary development tool (Cursor, Replit, etc.)
-        </Typography>
-      </Box>
-    ),
+    mockComponent: <MockCreateProject theme={theme} />,
+    content: <Box />, // Empty - no text content
   },
   {
-    title: 'Manage Your First Project',
-    description: 'Navigate phases',
+    title: 'Initiate Project Management',
+    description: 'Work through phases',
     icon: <SettingsIcon />,
-    mockComponent: <MockProjectDashboard theme={theme} />,
-    content: (
-      <Box>
-        <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 2, textAlign: 'center', fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif' }}>
-          Manage Your First Project
-        </Typography>
-        <Typography variant="body1" sx={{ color: theme.palette.text.primary, mb: 2 }}>
-          Work through the 6 phases systematically to build your product blueprint.
-        </Typography>
-        <Box sx={{ pl: 2, mb: 2 }}>
-          <Typography variant="body2" sx={{ color: theme.palette.text.primary, mb: 0.5 }}>
-            1. Concept Framing - Define the problem and value proposition
-          </Typography>
-          <Typography variant="body2" sx={{ color: theme.palette.text.primary, mb: 0.5 }}>
-            2. Product Strategy - Personas, outcomes, and features
-          </Typography>
-          <Typography variant="body2" sx={{ color: theme.palette.text.primary, mb: 0.5 }}>
-            3. Rapid Prototype Definition - Screens, flows, components
-          </Typography>
-          <Typography variant="body2" sx={{ color: theme.palette.text.primary, mb: 0.5 }}>
-            4. Analysis & User Stories - Entities, APIs, acceptance criteria
-          </Typography>
-          <Typography variant="body2" sx={{ color: theme.palette.text.primary, mb: 0.5 }}>
-            5. Build Accelerator - Architecture and coding standards
-          </Typography>
-          <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
-            6. QA & Hardening - Testing and launch readiness
-          </Typography>
-        </Box>
-        <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-          Use AI Assist buttons (✨) throughout to generate content quickly!
-        </Typography>
-      </Box>
-    ),
+    mockComponent: <MockProjectManagement theme={theme} />,
+    content: <Box />, // Empty - no text content
   },
   {
-    title: 'Export Your Blueprints',
-    description: 'Generate deliverables',
-    icon: <DownloadIcon />,
-    mockComponent: <MockExportDialog theme={theme} />,
-    content: (
-      <Box>
-        <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 2, textAlign: 'center', fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif' }}>
-          Export Your Blueprints
-        </Typography>
-        <Typography variant="body1" sx={{ color: theme.palette.text.primary, mb: 2 }}>
-          Once you&apos;ve completed your phases, export structured blueprints for your team and AI tools.
-        </Typography>
-        <Box sx={{ backgroundColor: theme.palette.action.hover, p: 2, borderRadius: 2, mb: 2, border: `1px solid ${theme.palette.divider}` }}>
-          <Typography variant="body2" sx={{ color: theme.palette.text.primary, mb: 1, fontWeight: 600 }}>
-            📦 Blueprint Bundle
-          </Typography>
-          <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 2 }}>
-            Complete structured JSON/Markdown files with all phase data, organized by folder structure. Perfect for documentation and team handoffs.
-          </Typography>
-          <Typography variant="body2" sx={{ color: theme.palette.text.primary, mb: 1, fontWeight: 600 }}>
-            🤖 Cursor Bundle
-          </Typography>
-          <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-            Master prompt and specifications optimized for AI coding tools like Cursor, Replit, and Lovable. Includes all context needed for code generation.
-          </Typography>
-        </Box>
-        <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-          Both bundles are exported as ZIP files with organized folder structures ready to use.
-        </Typography>
-      </Box>
-    ),
-  },
-  {
-    title: 'Keyboard Shortcuts',
-    description: 'Work faster',
-    icon: <KeyboardIcon />,
-    mockComponent: <MockKeyboard theme={theme} />,
-    content: (
-      <Box>
-        <Typography variant="h6" sx={{ color: theme.palette.text.primary, mb: 2, textAlign: 'center', fontWeight: 600, fontFamily: 'var(--font-rubik), Rubik, sans-serif' }}>
-          Keyboard Shortcuts
-        </Typography>
-        <Typography variant="body1" sx={{ color: theme.palette.text.primary, mb: 2 }}>
-          Master these shortcuts to work more efficiently:
-        </Typography>
-        <Box sx={{ backgroundColor: theme.palette.action.hover, p: 2, borderRadius: 2, border: `1px solid ${theme.palette.divider}` }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-            <Box
-              sx={{
-                backgroundColor: theme.palette.background.paper,
-                px: 1.5,
-                py: 0.5,
-                borderRadius: 1,
-                mr: 2,
-                fontFamily: 'monospace',
-                fontSize: '0.875rem',
-                color: theme.palette.text.primary,
-                border: `1px solid ${theme.palette.divider}`,
-              }}
-            >
-              Ctrl/Cmd + S
-            </Box>
-            <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
-              Save phase data
-            </Typography>
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-            <Box
-              sx={{
-                backgroundColor: theme.palette.background.paper,
-                px: 1.5,
-                py: 0.5,
-                borderRadius: 1,
-                mr: 2,
-                fontFamily: 'monospace',
-                fontSize: '0.875rem',
-                color: theme.palette.text.primary,
-                border: `1px solid ${theme.palette.divider}`,
-              }}
-            >
-              Ctrl/Cmd + K
-            </Box>
-            <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
-              Show all keyboard shortcuts
-            </Typography>
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Box
-              sx={{
-                backgroundColor: theme.palette.background.paper,
-                px: 1.5,
-                py: 0.5,
-                borderRadius: 1,
-                mr: 2,
-                fontFamily: 'monospace',
-                fontSize: '0.875rem',
-                color: theme.palette.text.primary,
-                border: `1px solid ${theme.palette.divider}`,
-              }}
-            >
-              Esc
-            </Box>
-            <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
-              Close dialogs and modals
-            </Typography>
-          </Box>
-        </Box>
-      </Box>
-    ),
+    title: 'Knowledge Base & AI Assistant',
+    description: 'Learn and get help',
+    icon: <SchoolIcon />,
+    mockComponent: <MockKnowledgeBase theme={theme} />,
+    content: <Box />, // Empty - no text content
   },
 ];
 
@@ -1187,7 +2306,7 @@ export default function WelcomeTour({ open, onClose, onComplete }: WelcomeTourPr
     <Dialog
       open={open}
       onClose={handleSkip}
-      maxWidth="md"
+      maxWidth="lg"
       fullWidth
       PaperProps={{
         sx: {
@@ -1321,30 +2440,15 @@ export default function WelcomeTour({ open, onClose, onComplete }: WelcomeTourPr
                         }}
                       >
                         {step.mockComponent ? (
-                          <Grid container spacing={3} sx={{ alignItems: 'center' }}>
-                            <Grid item xs={12} md={7}>
-                              <motion.div
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ delay: 0.2, duration: 0.5 }}
-                              >
-                                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '250px' }}>
-                                  {step.mockComponent}
-                                </Box>
-                              </motion.div>
-                            </Grid>
-                            <Grid item xs={12} md={5}>
-                              <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.3, duration: 0.5 }}
-                              >
-                                <Box sx={{ maxWidth: '400px', mx: { xs: 'auto', md: 0 } }}>
-                                  {step.content}
-                                </Box>
-                              </motion.div>
-                            </Grid>
-                          </Grid>
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: 0.2, duration: 0.5 }}
+                          >
+                            <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                              {step.mockComponent}
+                            </Box>
+                          </motion.div>
                         ) : (
                           <motion.div
                             initial={{ opacity: 0, y: 20 }}

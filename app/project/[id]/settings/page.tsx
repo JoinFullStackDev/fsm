@@ -26,6 +26,7 @@ import { createSupabaseClient } from '@/lib/supabaseClient';
 import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import { useNotification } from '@/components/providers/NotificationProvider';
+import { getCsrfHeaders } from '@/lib/utils/csrfClient';
 import type { Project, ProjectStatus, PrimaryTool, ProjectTemplate, UserRole } from '@/types/project';
 
 interface ProjectMember {
@@ -223,9 +224,7 @@ export default function ProjectSettingsPage() {
 
     const response = await fetch(`/api/projects/${projectId}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getCsrfHeaders(),
       body: JSON.stringify({
         name,
         description,
@@ -270,7 +269,7 @@ export default function ProjectSettingsPage() {
     try {
       const response = await fetch(`/api/projects/${projectId}/members`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getCsrfHeaders(),
         body: JSON.stringify({
           user_id: selectedUserId,
           role: selectedRole,

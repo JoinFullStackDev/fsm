@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { unauthorized, internalError, badRequest, notFound, forbidden } from '@/lib/utils/apiErrors';
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { hasOpsTool } from '@/lib/packageLimits';
@@ -39,9 +40,12 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10', 10);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+
     // Build query - always filter by organization
     // Even super admins should only see their organization's opportunities in the ops tool
-    let query = supabase
+    let query = adminClient
       .from('opportunities')
       .select(`
         *,
@@ -125,8 +129,11 @@ export async function POST(request: NextRequest) {
       return badRequest('Opportunity name is required');
     }
 
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+
     // Verify company exists and belongs to user's organization
-    const { data: company, error: companyError } = await supabase
+    const { data: company, error: companyError } = await adminClient
       .from('companies')
       .select('id, organization_id')
       .eq('id', company_id)
@@ -145,8 +152,8 @@ export async function POST(request: NextRequest) {
       return forbidden('Company does not belong to your organization');
     }
 
-    // Create opportunity with organization_id
-    const { data: opportunity, error: opportunityError } = await supabase
+    // Create opportunity with organization_id using admin client
+    const { data: opportunity, error: opportunityError } = await adminClient
       .from('opportunities')
       .insert({
         organization_id: organizationId,
@@ -181,8 +188,8 @@ export async function POST(request: NextRequest) {
     // If source is "Converted", automatically convert to project
     if (source === 'Converted') {
       try {
-        // Get user record for project owner
-        const { data: userData, error: userError } = await supabase
+        // Get user record for project owner using admin client
+        const { data: userData, error: userError } = await adminClient
           .from('users')
           .select('id')
           .eq('auth_id', user.id)
@@ -192,16 +199,16 @@ export async function POST(request: NextRequest) {
           logger.error('Error getting user for conversion:', userError);
           // Continue without conversion if user lookup fails
         } else {
-          // Convert opportunity to project
+          // Convert opportunity to project using admin client
           const project = await convertOpportunityToProject(
-            supabase,
+            adminClient,
             opportunity,
             userData.id,
             organizationId
           );
 
-          // Update opportunity status to 'converted'
-          await supabase
+          // Update opportunity status to 'converted' using admin client
+          await adminClient
             .from('opportunities')
             .update({ status: 'converted' })
             .eq('id', opportunity.id);

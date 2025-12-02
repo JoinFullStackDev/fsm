@@ -73,8 +73,8 @@ export async function GET(request: NextRequest) {
       return badRequest('Invalid organization assignment. Please contact support.');
     }
 
-    // Log for debugging
-    logger.info('[Projects API] User organization context:', {
+    // Log for debugging (debug level to reduce console noise)
+    logger.debug('[Projects API] User organization context:', {
       userId: userData.id,
       authId: authUser.id,
       organizationId,
@@ -215,17 +215,19 @@ export async function GET(request: NextRequest) {
       
       if (allAccessibleProjectIds.length === 0) {
         // User has no accessible projects
-        return NextResponse.json({
+        const response = NextResponse.json({
           data: [],
           total: 0,
           limit,
           offset,
         });
+        response.headers.set('Cache-Control', 'private, max-age=10'); // 10 second cache for empty results
+        return response;
       }
       
       // 4. Build final query - CRITICAL: ALWAYS filter by organization_id at database level
       // This is the PRIMARY security control - organization_id filter MUST be enforced
-      logger.info('[Projects API] Building query with organization filter:', {
+      logger.debug('[Projects API] Building query with organization filter:', {
         userId: userData.id,
         organizationId,
         ownedCount: ownedProjectIds.length,
@@ -254,8 +256,8 @@ export async function GET(request: NextRequest) {
     // Apply pagination
     query = query.range(offset, offset + limit - 1);
 
-    // Log query details before execution
-    logger.info('[Projects API] Executing query with filters:', {
+    // Log query details before execution (debug level to reduce console noise)
+    logger.debug('[Projects API] Executing query with filters:', {
       userId: userData.id,
       organizationId,
       isSuperAdmin: userData.role === 'admin' && userData.is_super_admin === true,
@@ -267,8 +269,8 @@ export async function GET(request: NextRequest) {
     // Execute query with organization_id filter enforced
     const { data: projects, error: projectsError, count } = await query;
     
-    // Log query execution results for debugging
-    logger.info('[Projects API] Query executed:', {
+    // Log query execution results for debugging (debug level to reduce console noise)
+    logger.debug('[Projects API] Query executed:', {
       projectsReturned: projects?.length || 0,
       countFromDB: count || 0,
       organizationId,
@@ -280,8 +282,8 @@ export async function GET(request: NextRequest) {
       return internalError('Failed to load projects', { error: projectsError.message });
     }
 
-    // Log raw results before filtering
-    logger.info('[Projects API] Raw query results:', {
+    // Log raw results before filtering (debug level to reduce console noise)
+    logger.debug('[Projects API] Raw query results:', {
       projectsReturned: projects?.length || 0,
       organizationId,
       projectOrganizationIds: projects?.map((p: any) => ({
@@ -367,12 +369,14 @@ export async function GET(request: NextRequest) {
     // Since we're filtering by organization_id and accessible IDs, use the filtered count
     const totalCount = finalSecurityCheck.length;
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       data: finalSecurityCheck,
       total: totalCount,
       limit,
       offset,
     });
+    response.headers.set('Cache-Control', 'private, max-age=10'); // 10 second cache for projects list
+    return response;
   } catch (error) {
     logger.error('Error in GET /api/projects:', error);
     return internalError('Failed to load projects', { error: error instanceof Error ? error.message : 'Unknown error' });

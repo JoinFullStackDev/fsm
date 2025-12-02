@@ -84,12 +84,12 @@ export default function TemplatesPage() {
     
     try {
       // Get current user ID
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser) {
         const { data: userData } = await supabase
           .from('users')
           .select('id')
-          .eq('auth_id', session.user.id)
+          .eq('auth_id', authUser.id)
           .single();
         if (userData) {
           setCurrentUserId(userData.id);
@@ -187,8 +187,8 @@ export default function TemplatesPage() {
       return;
     }
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return;
 
     if (editingTemplate) {
       // Update existing template

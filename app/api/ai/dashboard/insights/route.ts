@@ -55,13 +55,16 @@ export async function POST(request: NextRequest) {
       return badRequest('User is not assigned to an organization');
     }
 
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+
     // Check module access
-    const hasDashboardsAccess = await hasCustomDashboards(supabase, organizationId);
+    const hasDashboardsAccess = await hasCustomDashboards(adminClient, organizationId);
     if (!hasDashboardsAccess) {
       return forbidden('Custom dashboards are not enabled for your organization');
     }
 
-    const hasAIAccess = await hasAIFeatures(supabase, organizationId);
+    const hasAIAccess = await hasAIFeatures(adminClient, organizationId);
     if (!hasAIAccess) {
       return forbidden('AI features are not enabled for your organization');
     }
@@ -73,8 +76,8 @@ export async function POST(request: NextRequest) {
       return badRequest('dashboard_id is required');
     }
 
-    // Get dashboard
-    const { data: dashboard, error: dashboardError } = await supabase
+    // Get dashboard using admin client
+    const { data: dashboard, error: dashboardError } = await adminClient
       .from('dashboards')
       .select('*, widgets:dashboard_widgets(*)')
       .eq('id', dashboard_id)
@@ -94,13 +97,13 @@ export async function POST(request: NextRequest) {
         return forbidden('You do not have access to this dashboard');
       }
     } else if (dashboard.project_id) {
-      const { data: project } = await supabase
+      const { data: project } = await adminClient
         .from('projects')
         .select('owner_id')
         .eq('id', dashboard.project_id)
         .single();
 
-      const { data: member } = await supabase
+      const { data: member } = await adminClient
         .from('project_members')
         .select('id')
         .eq('project_id', dashboard.project_id)
@@ -112,8 +115,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get Gemini config
-    const geminiConfig = await getGeminiConfig(supabase);
+    // Get Gemini config using admin client
+    const geminiConfig = await getGeminiConfig(adminClient);
     if (!geminiConfig || !geminiConfig.enabled || !geminiConfig.apiKey) {
       return badRequest('AI service is not configured');
     }
@@ -136,7 +139,7 @@ export async function POST(request: NextRequest) {
             case 'metric':
               if (dataSource) {
                 const filters = dataset.filters || {};
-                widgetData = await fetchMetricData(supabase, organizationId, dataSource, dataset, userData.id);
+                widgetData = await fetchMetricData(adminClient, organizationId, dataSource, dataset, userData.id);
               }
               break;
               
@@ -147,13 +150,13 @@ export async function POST(request: NextRequest) {
                   dateRange: dataset.filters?.dateRange,
                   groupBy: dataset.groupBy || 'day',
                 };
-                widgetData = await fetchChartData(supabase, organizationId, dataSource || dataSources, dataset, options);
+                widgetData = await fetchChartData(adminClient, organizationId, dataSource || dataSources, dataset, options);
               }
               break;
               
             case 'table':
               if (dataSource) {
-                widgetData = await fetchTableData(supabase, organizationId, dataSource, dataset);
+                widgetData = await fetchTableData(adminClient, organizationId, dataSource, dataset);
               }
               break;
           }

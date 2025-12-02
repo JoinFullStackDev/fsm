@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { unauthorized, internalError, badRequest, forbidden } from '@/lib/utils/apiErrors';
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { hasOpsTool } from '@/lib/packageLimits';
@@ -42,9 +43,12 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10', 10);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+
     // Build query - always filter by organization
     // Even super admins should only see their organization's contacts in the ops tool
-    let query = supabase
+    let query = adminClient
       .from('company_contacts')
       .select(`
         *,

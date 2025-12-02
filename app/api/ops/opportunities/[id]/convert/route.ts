@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { unauthorized, notFound, internalError, badRequest, conflict } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
@@ -13,27 +14,30 @@ export async function POST(
 ) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return unauthorized('You must be logged in to convert opportunities');
     }
 
     const { id: opportunityId } = params;
 
-    // Get user record
-    const { data: userData, error: userError } = await supabase
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+
+    // Get user record using admin client
+    const { data: userData, error: userError } = await adminClient
       .from('users')
       .select('id')
-      .eq('auth_id', session.user.id)
+      .eq('auth_id', user.id)
       .single();
 
     if (userError || !userData) {
       return notFound('User');
     }
 
-    // Get opportunity
-    const { data: opportunity, error: opportunityError } = await supabase
+    // Get opportunity using admin client
+    const { data: opportunity, error: opportunityError } = await adminClient
       .from('opportunities')
       .select('*')
       .eq('id', opportunityId)
@@ -49,8 +53,8 @@ export async function POST(
 
     // Check if opportunity is already converted
     if (opportunity.status === 'converted') {
-      // Check if project already exists
-      const { data: existingProject } = await supabase
+      // Check if project already exists using admin client
+      const { data: existingProject } = await adminClient
         .from('projects')
         .select('id')
         .eq('opportunity_id', opportunityId)
@@ -62,7 +66,7 @@ export async function POST(
     }
 
     // Get user's organization
-    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    const organizationId = await getUserOrganizationId(supabase, user.id);
     if (!organizationId) {
       return badRequest('User is not assigned to an organization');
     }
@@ -71,9 +75,9 @@ export async function POST(
     const body = await request.json().catch(() => ({}));
     const { template_id, member_ids } = body;
 
-    // Convert opportunity to project
+    // Convert opportunity to project using admin client
     const project = await convertOpportunityToProject(
-      supabase,
+      adminClient,
       opportunity,
       userData.id,
       organizationId,
@@ -81,8 +85,8 @@ export async function POST(
       member_ids || []
     );
 
-    // Update opportunity status to 'converted'
-    await supabase
+    // Update opportunity status to 'converted' using admin client
+    await adminClient
       .from('opportunities')
       .update({ status: 'converted' })
       .eq('id', opportunityId);

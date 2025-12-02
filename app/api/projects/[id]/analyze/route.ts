@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { analyzeProject, mergeTasks } from '@/lib/ai/projectAnalyzer';
 import { sendProjectInitiatedEmail } from '@/lib/emailNotifications';
 import logger from '@/lib/utils/logger';
@@ -19,8 +20,11 @@ export async function POST(
       return unauthorized('You must be logged in to analyze projects');
     }
 
-    // Get user record
-    const { data: userData, error: userError } = await supabase
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+
+    // Get user record using admin client
+    const { data: userData, error: userError } = await adminClient
       .from('users')
       .select('id')
       .eq('auth_id', user.id)
@@ -30,8 +34,8 @@ export async function POST(
       return notFound('User');
     }
 
-    // Get project
-    const { data: project, error: projectError } = await supabase
+    // Get project using admin client
+    const { data: project, error: projectError } = await adminClient
       .from('projects')
       .select('*')
       .eq('id', params.id)
@@ -41,8 +45,8 @@ export async function POST(
       return notFound('Project');
     }
 
-    // Get all active phases with data (ordered by display_order)
-    const { data: phases, error: phasesError } = await supabase
+    // Get all active phases with data (ordered by display_order) using admin client
+    const { data: phases, error: phasesError } = await adminClient
       .from('project_phases')
       .select('phase_number, phase_name, display_order, data, completed')
       .eq('project_id', params.id)
@@ -54,10 +58,10 @@ export async function POST(
       return internalError('Failed to load project phases', { error: phasesError.message });
     }
 
-    // Check if project is using default template
+    // Check if project is using default template using admin client
     let isDefaultTemplate = false;
     if (project.template_id) {
-      const { data: template } = await supabase
+      const { data: template } = await adminClient
         .from('project_templates')
         .select('name')
         .eq('id', project.template_id)
@@ -69,8 +73,8 @@ export async function POST(
       isDefaultTemplate = true;
     }
 
-    // Get existing tasks
-    const { data: existingTasks, error: tasksError } = await supabase
+    // Get existing tasks using admin client
+    const { data: existingTasks, error: tasksError } = await adminClient
       .from('project_tasks')
       .select('*')
       .eq('project_id', params.id);
@@ -105,10 +109,10 @@ export async function POST(
       error = err instanceof Error ? err.message : 'Unknown error';
       logger.error('[Project Analyze] Error:', err);
       
-      // Log error to activity logs
+      // Log error to activity logs using admin client
       const responseTime = Date.now() - startTime;
       Promise.resolve(
-        supabase
+        adminClient
           .from('activity_logs')
           .insert({
             user_id: userData.id,
@@ -149,9 +153,9 @@ export async function POST(
     const estimatedOutputTokens = Math.ceil(estimatedResponseLength / 4);
     const estimatedCost = (estimatedInputTokens * 0.075 / 1_000_000) + (estimatedOutputTokens * 0.30 / 1_000_000);
 
-    // Log AI usage for project analysis with enhanced metadata (non-blocking)
+    // Log AI usage for project analysis with enhanced metadata (non-blocking) using admin client
     Promise.resolve(
-      supabase
+      adminClient
         .from('activity_logs')
         .insert({
           user_id: userData.id,
@@ -182,8 +186,8 @@ export async function POST(
     const isInitial = !project.initiated_at;
     const analysisType: ProjectAnalysis['analysis_type'] = isInitial ? ANALYSIS_TYPES.INITIAL : ANALYSIS_TYPES.UPDATE;
 
-    // Create analysis record
-    const { data: analysis, error: analysisInsertError } = await supabase
+    // Create analysis record using admin client
+    const { data: analysis, error: analysisInsertError } = await adminClient
       .from('project_analyses')
       .insert({
         project_id: params.id,
@@ -212,9 +216,9 @@ export async function POST(
       analysis.id
     );
 
-    // Update project if this is initial analysis
+    // Update project if this is initial analysis using admin client
     if (isInitial) {
-      await supabase
+      await adminClient
         .from('projects')
         .update({
           initiated_at: new Date().toISOString(),
@@ -236,8 +240,8 @@ export async function POST(
         });
       }
 
-      // Notify project members
-      const { data: members } = await supabase
+      // Notify project members using admin client
+      const { data: members } = await adminClient
         .from('project_members')
         .select('user_id')
         .eq('project_id', params.id);
@@ -277,7 +281,7 @@ export async function POST(
       if (task.start_date !== undefined) updateData.start_date = task.start_date; // CRITICAL: Include start_date
       if (task.due_date !== undefined) updateData.due_date = task.due_date; // CRITICAL: Include due_date
 
-      const { error } = await supabase
+      const { error } = await adminClient
         .from('project_tasks')
         .update(updateData)
         .eq('id', task.id);
@@ -304,7 +308,7 @@ export async function POST(
         logger.debug(`  - "${task.title}" (Phase ${task.phase_number}): start_date = ${task.start_date || 'null'}, due_date = ${task.due_date || 'null'}`);
       });
 
-      const { data: insertedTasks, error } = await supabase
+      const { data: insertedTasks, error } = await adminClient
         .from('project_tasks')
         .insert(tasksToInsert)
         .select();
@@ -321,9 +325,9 @@ export async function POST(
       }
     }
 
-    // Archive old tasks
+    // Archive old tasks using admin client
     for (const task of toArchive) {
-      const { error } = await supabase
+      const { error } = await adminClient
         .from('project_tasks')
         .update({
           status: 'archived',

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { unauthorized, notFound, internalError, badRequest, forbidden } from '@/lib/utils/apiErrors';
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { hasOpsTool } from '@/lib/packageLimits';
@@ -37,9 +38,12 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10', 10);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+
     // Build query - always filter by organization
     // Even super admins should only see their organization's companies in the ops tool
-    let query = supabase
+    let query = adminClient
       .from('companies')
       .select('*', { count: 'exact' })
       .eq('organization_id', organizationId)
@@ -68,20 +72,21 @@ export async function GET(request: NextRequest) {
     }
 
     // Get counts for each company (scoped to organization)
+    // Use admin client to bypass RLS for count queries as well
     const companiesWithCounts: CompanyWithCounts[] = await Promise.all(
       (companies || []).map(async (company: Company) => {
         const [contactsResult, opportunitiesResult, projectsResult] = await Promise.all([
-          supabase
+          adminClient
             .from('company_contacts')
             .select('id', { count: 'exact', head: true })
             .eq('company_id', company.id)
             .eq('organization_id', organizationId),
-          supabase
+          adminClient
             .from('opportunities')
             .select('id', { count: 'exact', head: true })
             .eq('company_id', company.id)
             .eq('organization_id', organizationId),
-          supabase
+          adminClient
             .from('projects')
             .select('id', { count: 'exact', head: true })
             .eq('company_id', company.id)
@@ -112,14 +117,14 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return unauthorized('You must be logged in to create companies');
     }
 
     // Get user's organization
-    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    const organizationId = await getUserOrganizationId(supabase, user.id);
     if (!organizationId) {
       return badRequest('User is not assigned to an organization');
     }
@@ -134,7 +139,7 @@ export async function POST(request: NextRequest) {
     const { data: userData, error: userError } = await supabase
       .from('users')
       .select('id')
-      .eq('auth_id', session.user.id)
+      .eq('auth_id', user.id)
       .single();
 
     if (userError || !userData) {
@@ -154,7 +159,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Create company with all fields and organization_id
-    const { data: company, error: companyError } = await supabase
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+    const { data: company, error: companyError } = await adminClient
       .from('companies')
       .insert({
         organization_id: organizationId,
@@ -181,25 +188,34 @@ export async function POST(request: NextRequest) {
     }
 
     // Send email notifications to organization admins
-    const { data: orgAdmins } = await supabase
-      .from('users')
-      .select('id')
-      .eq('organization_id', organizationId)
-      .eq('role', 'admin');
+    // Use admin client to bypass RLS and use is_company_admin field
+    try {
+      const { data: orgAdmins, error: orgAdminsError } = await adminClient
+        .from('users')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .eq('is_company_admin', true);
 
-    if (orgAdmins) {
-      const companyLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/ops/companies/${company.id}`;
-      for (const admin of orgAdmins) {
-        if (admin.id !== userData.id) {
-          sendCompanyAddedEmail(
-            admin.id,
-            company.name,
-            companyLink
-          ).catch((err) => {
-            logger.error('[Company] Error sending email to admin:', err);
-          });
+      if (orgAdminsError) {
+        logger.error('[Company] Error fetching organization admins:', orgAdminsError);
+        // Don't fail the request if we can't fetch admins for email notifications
+      } else if (orgAdmins && orgAdmins.length > 0) {
+        const companyLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/ops/companies/${company.id}`;
+        for (const admin of orgAdmins) {
+          if (admin.id !== userData.id) {
+            sendCompanyAddedEmail(
+              admin.id,
+              company.name,
+              companyLink
+            ).catch((err) => {
+              logger.error('[Company] Error sending email to admin:', err);
+            });
+          }
         }
       }
+    } catch (emailError) {
+      // Don't fail the request if email notification fails
+      logger.error('[Company] Error in email notification process:', emailError);
     }
 
     return NextResponse.json(company, { status: 201 });

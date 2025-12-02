@@ -50,6 +50,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const supabase = createSupabaseClient();
   const loadingRef = useRef(false); // Request deduplication: prevent multiple simultaneous requests
+  const abortControllerRef = useRef<AbortController | null>(null); // Track abort controller for cancellation
 
   const loadOrganizationContext = useCallback(async () => {
     // Request deduplication: if already loading, skip
@@ -57,13 +58,18 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Cancel previous request if still in flight
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
     try {
       loadingRef.current = true;
       setLoading(true);
       setError(null);
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) {
         setOrganization(null);
         setSubscription(null);
         setPackage(null);
@@ -74,6 +80,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
 
       // Fetch organization context from API with timeout
       const controller = new AbortController();
+      abortControllerRef.current = controller; // Store for potential cancellation
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       
       try {
@@ -103,11 +110,13 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       } catch (fetchErr) {
         clearTimeout(timeoutId);
         if (fetchErr instanceof Error && fetchErr.name === 'AbortError') {
-          logger.warn('[OrganizationProvider] Organization context request timed out');
+          // Request was aborted (deduplication or timeout) - don't show error
+          logger.warn('[OrganizationProvider] Organization context request aborted');
           // Don't set error - allow app to continue without organization context
           setOrganization(null);
           setSubscription(null);
           setPackage(null);
+          return; // Exit early, don't throw
         } else {
           throw fetchErr;
         }
@@ -119,6 +128,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
       loadingRef.current = false;
+      abortControllerRef.current = null; // Clear abort controller
     }
   }, [supabase]);
 
@@ -143,6 +153,10 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       authSubscription.unsubscribe();
       if (debounceTimer) {
         clearTimeout(debounceTimer);
+      }
+      // Cleanup: abort any in-flight requests on unmount
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
     };
   }, [loadOrganizationContext, supabase]);
