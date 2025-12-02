@@ -142,7 +142,9 @@ export async function POST(
         event_type: 'attachment_uploaded',
         message: `Attachment "${file_name.trim()}" uploaded to contact ${contact.first_name} ${contact.last_name} by ${userName}`,
       });
-      logger.info('Created activity feed item for attachment:', activityResult.id);
+      if (activityResult) {
+        logger.info('Created activity feed item for attachment:', activityResult.id);
+      }
     } catch (activityError: any) {
       logger.error('Error creating activity feed item for attachment:', {
         error: activityError,

@@ -165,7 +165,9 @@ export async function POST(
         event_type: 'interaction_created',
         message: message,
       });
-      logger.info('Created activity feed item for interaction:', activityResult.id);
+      if (activityResult) {
+        logger.info('Created activity feed item for interaction:', activityResult.id);
+      }
     } catch (activityError: any) {
       logger.error('Error creating activity feed item for interaction:', {
         error: activityError,

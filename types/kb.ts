@@ -214,6 +214,8 @@ export interface RelatedContent {
     id: string;
     title: string;
     project_id: string;
+    project_name?: string;
+    matching_keywords?: string[];
   }>;
   dashboards?: Array<{
     id: string;
@@ -223,6 +225,9 @@ export interface RelatedContent {
     id: string;
     project_id: string;
     phase_number: number;
+    phase_name?: string;
+    project_name?: string;
+    matching_keywords?: string[];
   }>;
 }
 
