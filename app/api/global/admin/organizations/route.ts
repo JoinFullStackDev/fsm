@@ -15,8 +15,14 @@ export async function GET(request: NextRequest) {
     await requireSuperAdmin(request);
     const adminClient = createAdminSupabaseClient();
 
+    // Add query timeout and limit to prevent database overload
+    // Limit to 1000 organizations max (should be more than enough)
+    const MAX_ORGANIZATIONS = 1000;
+    const QUERY_TIMEOUT_MS = 5000; // 5 seconds max
+
     // Get all organizations with subscription and package info
-    const { data: organizations, error: orgError } = await adminClient
+    // Use Promise.race to implement timeout
+    const queryPromise = adminClient
       .from('organizations')
       .select(`
         *,
@@ -34,54 +40,129 @@ export async function GET(request: NextRequest) {
           )
         )
       `)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(MAX_ORGANIZATIONS);
+
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Query timeout')), QUERY_TIMEOUT_MS);
+    });
+
+    const { data: organizations, error: orgError } = await Promise.race([
+      queryPromise,
+      timeoutPromise,
+    ]).catch(() => {
+      return { data: null, error: { message: 'Query timeout - too many organizations' } };
+    }) as { data: any[] | null; error: any };
 
     if (orgError) {
       logger.error('Error loading organizations:', orgError);
+      if (orgError.message?.includes('timeout')) {
+        return internalError('Query timeout - too many organizations to load. Please use pagination.', { error: orgError.message });
+      }
       return internalError('Failed to load organizations', { error: orgError.message });
     }
 
-    // Get usage counts for each organization
-    const organizationsWithDetails = await Promise.all(
-      (organizations || []).map(async (org: any) => {
-        const [usersResult, projectsResult] = await Promise.all([
-          adminClient
+    if (!organizations) {
+      return internalError('Failed to load organizations - query returned no data');
+    }
+
+    // OPTIMIZED: Get all usage counts in 2 queries instead of N*2 queries
+    // This prevents N+1 query problem and database overload
+    const [userCountsResult, projectCountsResult] = await Promise.all([
+      // Get user counts for all organizations in one query using RPC function
+      (async () => {
+        try {
+          const result = await adminClient.rpc('get_organization_user_counts');
+          return result;
+        } catch (error) {
+          logger.warn('[Global Admin Organizations] RPC function not available, using fallback:', error);
+          // Fallback: Fetch all users and count in memory (less efficient but works)
+          const result = await adminClient
             .from('users')
-            .select('id', { count: 'exact', head: true })
-            .eq('organization_id', org.id),
-          adminClient
+            .select('organization_id');
+          const counts: Record<string, number> = {};
+          result.data?.forEach((user: any) => {
+            if (user.organization_id) {
+              counts[user.organization_id] = (counts[user.organization_id] || 0) + 1;
+            }
+          });
+          return { data: counts, error: null };
+        }
+      })(),
+      // Get project counts for all organizations in one query using RPC function
+      (async () => {
+        try {
+          const result = await adminClient.rpc('get_organization_project_counts');
+          return result;
+        } catch (error) {
+          logger.warn('[Global Admin Organizations] RPC function not available, using fallback:', error);
+          // Fallback: Fetch all projects and count in memory (less efficient but works)
+          const result = await adminClient
             .from('projects')
-            .select('id', { count: 'exact', head: true })
-            .eq('organization_id', org.id),
-        ]);
+            .select('organization_id');
+          const counts: Record<string, number> = {};
+          result.data?.forEach((project: any) => {
+            if (project.organization_id) {
+              counts[project.organization_id] = (counts[project.organization_id] || 0) + 1;
+            }
+          });
+          return { data: counts, error: null };
+        }
+      })(),
+    ]);
 
-        const subscription = org.subscriptions && org.subscriptions.length > 0 ? org.subscriptions[0] : null;
-        const packageData = subscription?.packages || null;
+    // Parse counts from RPC results (RPC returns array of {organization_id, count})
+    const userCounts: Record<string, number> = {};
+    const projectCounts: Record<string, number> = {};
 
-        return {
-          ...org,
-          subscription: subscription
-            ? {
-                id: subscription.id,
-                package_id: subscription.package_id,
-                status: subscription.status,
-                current_period_start: subscription.current_period_start,
-                current_period_end: subscription.current_period_end,
-              }
-            : null,
-          package: packageData
-            ? {
-                id: packageData.id,
-                name: packageData.name,
-                price_per_user_monthly: packageData.price_per_user_monthly,
-                features: packageData.features,
-              }
-            : null,
-          user_count: usersResult.count || 0,
-          project_count: projectsResult.count || 0,
-        };
-      })
-    );
+    if (userCountsResult.data && Array.isArray(userCountsResult.data)) {
+      // RPC returned array of {organization_id, count}
+      userCountsResult.data.forEach((item: any) => {
+        userCounts[item.organization_id] = Number(item.count) || 0;
+      });
+    } else if (userCountsResult.data && typeof userCountsResult.data === 'object') {
+      // Fallback returned object map
+      Object.assign(userCounts, userCountsResult.data);
+    }
+
+    if (projectCountsResult.data && Array.isArray(projectCountsResult.data)) {
+      // RPC returned array of {organization_id, count}
+      projectCountsResult.data.forEach((item: any) => {
+        projectCounts[item.organization_id] = Number(item.count) || 0;
+      });
+    } else if (projectCountsResult.data && typeof projectCountsResult.data === 'object') {
+      // Fallback returned object map
+      Object.assign(projectCounts, projectCountsResult.data);
+    }
+
+    // Map organizations with counts (no individual queries needed)
+    const organizationsWithDetails = (organizations || []).map((org: any) => {
+      const subscription = org.subscriptions && org.subscriptions.length > 0 ? org.subscriptions[0] : null;
+      const packageData = subscription?.packages || null;
+
+      return {
+        ...org,
+        subscription: subscription
+          ? {
+              id: subscription.id,
+              package_id: subscription.package_id,
+              status: subscription.status,
+              current_period_start: subscription.current_period_start,
+              current_period_end: subscription.current_period_end,
+            }
+          : null,
+        package: packageData
+          ? {
+              id: packageData.id,
+              name: packageData.name,
+              price_per_user_monthly: packageData.price_per_user_monthly,
+              features: packageData.features,
+            }
+          : null,
+        user_count: userCounts[org.id] || 0,
+        project_count: projectCounts[org.id] || 0,
+      };
+    });
 
     return NextResponse.json({ organizations: organizationsWithDetails });
   } catch (error) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Box,
@@ -35,6 +35,7 @@ import EmployeeProjectMapping from '@/components/dashboard/EmployeeProjectMappin
 import { format } from 'date-fns';
 import { useSearchParams } from 'next/navigation';
 import { useOrganization } from '@/components/providers/OrganizationProvider';
+import { useUser } from '@/components/providers/UserProvider';
 import CreateUserDialog from '@/components/admin/CreateUserDialog';
 import { Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText } from '@mui/material';
 import type { Project } from '@/types/project';
@@ -47,6 +48,7 @@ function DashboardPageContent() {
   const searchParams = useSearchParams();
   const supabase = createSupabaseClient();
   const { organization, features } = useOrganization();
+  const { user } = useUser();
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -57,8 +59,10 @@ function DashboardPageContent() {
   const [showInvitePrompt, setShowInvitePrompt] = useState(false);
   const [showCreateUserDialog, setShowCreateUserDialog] = useState(false);
   const [pendingInvites, setPendingInvites] = useState<{ quantity: number; organizationId: string } | null>(null);
+  const [usersLoaded, setUsersLoaded] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<'admin' | 'pm' | 'designer' | 'engineer' | null>(null);
+  const loadingProjectsRef = useRef(false); // Prevent duplicate project loads
 
   useEffect(() => {
     // Don't wait indefinitely for organization context
@@ -95,7 +99,14 @@ function DashboardPageContent() {
     }
 
     const loadProjects = async () => {
+      // Prevent duplicate calls
+      if (loadingProjectsRef.current) {
+        logger.debug('[Dashboard] Projects already loading, skipping duplicate call');
+        return;
+      }
+
       try {
+        loadingProjectsRef.current = true;
         setLoading(true);
         
         // Log debug info from sign-in if available
@@ -125,34 +136,20 @@ function DashboardPageContent() {
           return;
         }
 
-        // Get user database ID via API to avoid RLS recursion
-        // This is needed because assignee_id in tasks references users.id, not auth_id
-        try {
-          const userResponse = await fetch('/api/users/me');
-          if (userResponse.ok) {
-            const userData = await userResponse.json();
-            if (userData?.id) {
-              setCurrentUserId(userData.id);
-              setCurrentUserRole(userData.role || null);
-              logger.debug('[Dashboard] Set current user:', { userId: userData.id, role: userData.role });
-            } else {
-              logger.warn('[Dashboard] User data missing ID:', userData);
-              setCurrentUserId(null);
-              setCurrentUserRole(null);
-            }
-          } else {
-            logger.error('[Dashboard] Failed to load user data:', await userResponse.text());
-            setCurrentUserId(null);
-            setCurrentUserRole(null);
-          }
-        } catch (userErr) {
-          logger.error('[Dashboard] Error loading user data:', userErr);
+        // Use user from UserProvider (already cached and loaded)
+        if (user?.id) {
+          setCurrentUserId(user.id);
+          setCurrentUserRole(user.role || null);
+          logger.debug('[Dashboard] Set current user:', { userId: user.id, role: user.role });
+        } else {
           setCurrentUserId(null);
           setCurrentUserRole(null);
         }
 
         // Use API route to get projects (handles organization filtering and RLS properly)
-        const response = await fetch('/api/projects?limit=100');
+        const response = await fetch('/api/projects?limit=100', {
+          cache: 'default', // Use browser cache
+        });
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ message: 'Failed to load projects' }));
           logger.error('[Dashboard] Failed to load projects:', errorData);
@@ -199,25 +196,9 @@ function DashboardPageContent() {
           setTasks([]);
         }
 
-        // Load all organization users (for invite prompt) - use API to avoid RLS
-        if (organization?.id) {
-          try {
-            const usersResponse = await fetch('/api/admin/users');
-            if (usersResponse.ok) {
-              const usersData = await usersResponse.json();
-              if (usersData?.users) {
-                setUsers(usersData.users.map((u: any) => ({ 
-                  id: u.id, 
-                  email: u.email, 
-                  name: u.name, 
-                  role: u.role 
-                })) as User[]);
-              }
-            }
-          } catch (usersErr) {
-            logger.error('[Dashboard] Error loading users:', usersErr);
-          }
-        }
+        // Don't load users on initial page load - lazy load when invite dialog is opened
+        // This reduces unnecessary API calls on page load
+        // Users will be loaded when showInvitePrompt becomes true
 
         // Load project members
         if (projectIds.length > 0) {
@@ -247,12 +228,13 @@ function DashboardPageContent() {
             });
           }
         }
-      } catch (fetchError) {
-        logger.error('[Dashboard] Error fetching projects:', fetchError);
-        setError(fetchError instanceof Error ? fetchError.message : 'Failed to load projects');
-      } finally {
-        setLoading(false);
-      }
+        } catch (fetchError) {
+          logger.error('[Dashboard] Error fetching projects:', fetchError);
+          setError(fetchError instanceof Error ? fetchError.message : 'Failed to load projects');
+        } finally {
+          setLoading(false);
+          loadingProjectsRef.current = false; // Reset loading flag
+        }
     };
 
     // Set up auth state listener to handle session initialization after redirect
@@ -280,6 +262,32 @@ function DashboardPageContent() {
     router.push('/projects');
   };
 
+  // Lazy load users when invite prompt is shown
+  useEffect(() => {
+    if (showInvitePrompt && !usersLoaded && organization?.id) {
+      const loadUsers = async () => {
+        try {
+          const usersResponse = await fetch('/api/admin/users');
+          if (usersResponse.ok) {
+            const usersData = await usersResponse.json();
+            if (usersData?.users) {
+              setUsers(usersData.users.map((u: any) => ({ 
+                id: u.id, 
+                email: u.email, 
+                name: u.name, 
+                role: u.role 
+              })) as User[]);
+              setUsersLoaded(true);
+            }
+          }
+        } catch (usersErr) {
+          logger.error('[Dashboard] Error loading users:', usersErr);
+        }
+      };
+      loadUsers();
+    }
+  }, [showInvitePrompt, usersLoaded, organization?.id]);
+
   // Calculate stats
   const stats = {
     total: projects.length,
@@ -289,7 +297,7 @@ function DashboardPageContent() {
     completedTasks: tasks.filter(t => t.status === 'done').length,
     inProgressTasks: tasks.filter(t => t.status === 'in_progress').length,
     todoTasks: tasks.filter(t => t.status === 'todo').length,
-    teamMembers: users.length,
+    teamMembers: users.length, // Will be 0 until users are loaded (only needed for invite prompt)
     recent: projects.slice(0, 10), // Most recent 10 projects for table
   };
 

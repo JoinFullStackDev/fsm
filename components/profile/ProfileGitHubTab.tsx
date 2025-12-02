@@ -17,46 +17,34 @@ import {
 } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useNotification } from '@/components/providers/NotificationProvider';
+import { useUser } from '@/components/providers/UserProvider';
 import type { User } from '@/types/project';
 
 export default function ProfileGitHubTab() {
   const theme = useTheme();
   const supabase = createSupabaseClient();
   const { showSuccess, showError } = useNotification();
+  const { user, loading: userLoading, refresh } = useUser(); // Use UserProvider instead of direct API call
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<User | null>(null);
   const [githubConnected, setGithubConnected] = useState(false);
 
-  const loadProfile = useCallback(async () => {
-    setLoading(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+  // Load profile data from UserProvider (no redundant API call)
+  useEffect(() => {
+    if (userLoading) {
+      setLoading(true);
+      return;
+    }
+
+    if (!user) {
       setLoading(false);
       return;
     }
 
-    // Use API endpoint to avoid RLS recursion
-    const userResponse = await fetch('/api/users/me');
-    if (!userResponse.ok) {
-      setLoading(false);
-      return;
-    }
-    const userData = await userResponse.json();
-
-    if (!userData) {
-      setLoading(false);
-      return;
-    }
-
-    const user = userData as User;
     setProfile(user);
     setGithubConnected(!!user.github_username || !!user.github_access_token);
     setLoading(false);
-  }, [supabase]);
-
-  useEffect(() => {
-    loadProfile();
-  }, [loadProfile]);
+  }, [user, userLoading]);
 
   const handleConnectGitHub = () => {
     // TODO: Implement GitHub OAuth flow
@@ -93,7 +81,7 @@ export default function ProfileGitHubTab() {
       }
 
       showSuccess('GitHub disconnected successfully');
-      await loadProfile();
+      await refresh(); // Refresh user data from UserProvider
     } catch (err) {
       showError('Failed to disconnect GitHub: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }

@@ -126,77 +126,19 @@ function SignupCallbackPageContent() {
           session = retrySession;
         }
 
-        if (!session) {
-          // If still no session, user needs to confirm email
-          // Show a friendly message instead of redirecting immediately
-          setNeedsEmailConfirmation(true);
-          setLoading(false);
-          // Keep signup_data in sessionStorage so they can complete after email confirmation
-          return;
-        }
+        // Check if email confirmation is needed (but continue with subscription creation)
+        const needsEmailConfirmation = !session;
 
-        // Step 4: Create user record
-        logger.info('[SignupCallback] Creating user record with organization:', {
-          email,
-          organizationId: orgData.id,
-        });
-
-        const userResponse = await fetch('/api/auth/create-user-with-org', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email,
-            name,
-            role: 'admin',
-            organization_id: orgData.id,
-          }),
-        });
-
-        if (!userResponse.ok) {
-          const errorData = await userResponse.json();
-          logger.error('[SignupCallback] Failed to create user record:', {
-            error: errorData.error,
-            organizationId: orgData.id,
-            email,
-          });
-          throw new Error(errorData.error || 'Failed to create user record');
-        }
-
-        // Verify user was assigned to correct organization
-        const { user: createdUser } = await userResponse.json();
-        if (!createdUser) {
-          logger.error('[SignupCallback] User creation returned no user data');
-          throw new Error('User record creation failed. Please try signing in.');
-        }
-
-        if (createdUser.organization_id !== orgData.id) {
-          logger.error('[SignupCallback] Organization assignment mismatch:', {
-            expectedOrgId: orgData.id,
-            actualOrgId: createdUser.organization_id,
-            userId: createdUser.id,
-            email,
-          });
-          throw new Error('User was assigned to incorrect organization. Please contact support.');
-        }
-
-        logger.info('[SignupCallback] User successfully created and assigned to organization:', {
-          userId: createdUser.id,
-          email: createdUser.email,
-          organizationId: createdUser.organization_id,
-          role: createdUser.role,
-        });
-
-        // Step 5: Create subscription and update organization with Stripe data
-        // The subscription was already created by Stripe, we just need to link it
-        // CRITICAL: Subscription creation must succeed - user has already paid
-        // IDEMPOTENCY: Check if subscription already exists (webhook might have created it)
-        
-        // Get Stripe subscription and customer from checkout session
-        logger.info('[SignupCallback] Fetching checkout session:', {
+        // Step 4: Create subscription FIRST (user has already paid!)
+        // This must happen even if email confirmation is needed
+        logger.info('[SignupCallback] Creating subscription (payment already completed):', {
           sessionId,
           organizationId: orgData.id,
+          packageId,
+          needsEmailConfirmation,
         });
-        
+
+        // Get Stripe subscription and customer from checkout session
         const stripeResponse = await fetch(`/api/stripe/get-checkout-session?session_id=${sessionId}`);
         if (!stripeResponse.ok) {
           const errorData = await stripeResponse.json().catch(() => ({ error: 'Failed to fetch checkout session' }));
@@ -228,24 +170,69 @@ function SignupCallbackPageContent() {
           throw new Error('Payment information is incomplete. Please contact support.');
         }
 
-        // Update organization with Stripe customer ID (non-critical, but log failures)
-        const customerUpdateResponse = await fetch('/api/organization/update-stripe-customer', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            organization_id: orgData.id,
-            stripe_customer_id: customer_id,
-          }),
-        });
+        // Update organization with Stripe customer ID (with retry logic)
+        let customerIdUpdated = false;
+        const maxCustomerRetries = 3;
         
-        if (!customerUpdateResponse.ok) {
-          logger.warn('[SignupCallback] Failed to update customer ID (may already be set):', {
-            organizationId: orgData.id,
-            customerId: customer_id,
-          });
+        for (let attempt = 0; attempt < maxCustomerRetries; attempt++) {
+          try {
+            if (attempt > 0) {
+              const delay = 500 * Math.pow(2, attempt - 1);
+              logger.info('[SignupCallback] Retrying customer ID update (attempt ' + (attempt + 1) + '):', {
+                delay,
+                organizationId: orgData.id,
+                customerId: customer_id,
+              });
+              await new Promise(resolve => setTimeout(resolve, delay));
+            }
+
+            const customerUpdateResponse = await fetch('/api/organization/update-stripe-customer', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                organization_id: orgData.id,
+                stripe_customer_id: customer_id,
+              }),
+            });
+            
+            if (customerUpdateResponse.ok) {
+              customerIdUpdated = true;
+              logger.info('[SignupCallback] Successfully updated customer ID:', {
+                organizationId: orgData.id,
+                customerId: customer_id,
+                attempt: attempt + 1,
+              });
+              break;
+            } else {
+              const errorData = await customerUpdateResponse.json().catch(() => ({ error: 'Unknown error' }));
+              logger.warn('[SignupCallback] Customer ID update attempt ' + (attempt + 1) + ' failed:', {
+                error: errorData.error,
+                organizationId: orgData.id,
+                customerId: customer_id,
+                attempt: attempt + 1,
+              });
+              
+              if (attempt === maxCustomerRetries - 1) {
+                logger.warn('[SignupCallback] Failed to update customer ID after all retries (webhook will handle):', {
+                  organizationId: orgData.id,
+                  customerId: customer_id,
+                });
+              }
+            }
+          } catch (err) {
+            logger.error('[SignupCallback] Error updating customer ID (attempt ' + (attempt + 1) + '):', {
+              error: err instanceof Error ? err.message : 'Unknown error',
+              organizationId: orgData.id,
+              customerId: customer_id,
+            });
+            
+            if (attempt === maxCustomerRetries - 1) {
+              logger.warn('[SignupCallback] Customer ID update failed after all retries, continuing (webhook will handle)');
+            }
+          }
         }
 
-        // Get full subscription details from Stripe
+        // Create subscription record
         const fullSubscriptionResponse = await fetch(`/api/stripe/get-subscription?subscription_id=${subscription_id}`);
         let fullSubscription = null;
         if (fullSubscriptionResponse.ok) {
@@ -254,13 +241,11 @@ function SignupCallbackPageContent() {
           logger.warn('[SignupCallback] Failed to fetch full subscription details, using checkout session data');
         }
 
-        // Create subscription record with full details (API route handles idempotency)
         if (!packageId) {
           logger.error('[SignupCallback] Missing packageId in signup data, cannot create subscription');
           throw new Error('Package ID is missing. Please try signing up again.');
         }
         
-        // Extract billing_interval from Stripe subscription metadata, price recurring interval, or signup data
         let subscriptionBillingInterval: 'month' | 'year' = 'month';
         if (fullSubscription?.items?.[0]?.price?.recurring?.interval) {
           subscriptionBillingInterval = fullSubscription.items[0].price.recurring.interval as 'month' | 'year';
@@ -275,17 +260,14 @@ function SignupCallbackPageContent() {
           billingInterval: subscriptionBillingInterval,
         });
         
-        // Extract and validate dates from Stripe subscription
         let periodStart: string;
         let periodEnd: string;
         
-        // Try to get dates from fullSubscription first (most reliable)
         if (fullSubscription?.current_period_start && typeof fullSubscription.current_period_start === 'number' && fullSubscription.current_period_start > 0) {
           periodStart = new Date(fullSubscription.current_period_start * 1000).toISOString();
         } else if (subscription?.current_period_start && typeof subscription.current_period_start === 'number' && subscription.current_period_start > 0) {
           periodStart = new Date(subscription.current_period_start * 1000).toISOString();
         } else {
-          // Fallback: use current time
           periodStart = new Date().toISOString();
           logger.warn('[SignupCallback] Using fallback for current_period_start - Stripe did not provide valid date');
         }
@@ -295,7 +277,6 @@ function SignupCallbackPageContent() {
         } else if (subscription?.current_period_end && typeof subscription.current_period_end === 'number' && subscription.current_period_end > 0) {
           periodEnd = new Date(subscription.current_period_end * 1000).toISOString();
         } else {
-          // Fallback: calculate end date based on billing interval
           const startDate = new Date(periodStart);
           if (subscriptionBillingInterval === 'year') {
             startDate.setFullYear(startDate.getFullYear() + 1);
@@ -306,7 +287,6 @@ function SignupCallbackPageContent() {
           logger.warn('[SignupCallback] Using calculated fallback for current_period_end - Stripe did not provide valid date');
         }
         
-        // Validate dates are not epoch 0 (January 1, 1970)
         const startDateObj = new Date(periodStart);
         const endDateObj = new Date(periodEnd);
         if (startDateObj.getTime() === 0 || startDateObj.getFullYear() < 2020) {
@@ -330,13 +310,6 @@ function SignupCallbackPageContent() {
           periodEnd = fallbackStart.toISOString();
         }
         
-        logger.info('[SignupCallback] Subscription dates prepared:', {
-          periodStart,
-          periodEnd,
-          billingInterval: subscriptionBillingInterval,
-          fromFullSubscription: !!fullSubscription?.current_period_start,
-        });
-        
         const subscriptionData = {
           organization_id: orgData.id,
           package_id: packageId,
@@ -348,14 +321,12 @@ function SignupCallbackPageContent() {
           current_period_end: periodEnd,
         };
 
-        // CRITICAL: Subscription creation must succeed - retry once if it fails
         let subCreateResponse = await fetch('/api/organization/subscription', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(subscriptionData),
         });
 
-        // If first attempt fails, retry once (webhook might be processing)
         if (!subCreateResponse.ok) {
           const errorData = await subCreateResponse.json();
           logger.warn('[SignupCallback] First subscription creation attempt failed, retrying:', {
@@ -364,7 +335,6 @@ function SignupCallbackPageContent() {
             organizationId: orgData.id,
           });
           
-          // Wait 2 seconds and retry
           await new Promise(resolve => setTimeout(resolve, 2000));
           
           subCreateResponse = await fetch('/api/organization/subscription', {
@@ -383,16 +353,13 @@ function SignupCallbackPageContent() {
             packageId,
           });
           
-          // If subscription already exists (webhook created it), verify it exists
           if (errorData.error?.includes('already has')) {
             logger.info('[SignupCallback] Subscription may already exist, verifying...');
-            // Verify subscription exists in database
             const verifyResponse = await fetch(`/api/organization/subscription`);
             if (verifyResponse.ok) {
               const { subscription: existingSub } = await verifyResponse.json();
               if (existingSub && existingSub.stripe_subscription_id === subscription_id) {
                 logger.info('[SignupCallback] Subscription verified, continuing signup');
-                // Subscription exists and matches - continue
               } else {
                 throw new Error('Subscription creation failed. Please contact support with your payment confirmation.');
               }
@@ -409,42 +376,9 @@ function SignupCallbackPageContent() {
             stripeSubscriptionId: createdSub.stripe_subscription_id,
             organizationId: orgData.id,
           });
-          
-          // Verify subscription was actually created
-          if (!createdSub || !createdSub.id) {
-            logger.error('[SignupCallback] Subscription creation returned invalid data:', createdSub);
-            throw new Error('Subscription creation verification failed. Please contact support.');
-          }
-          
-          // CRITICAL: Verify subscription exists in database by querying it
-          const verifySubResponse = await fetch(`/api/organization/subscription`);
-          if (verifySubResponse.ok) {
-            const { subscription: verifiedSub } = await verifySubResponse.json();
-            if (verifiedSub && verifiedSub.id === createdSub.id && verifiedSub.stripe_subscription_id === subscription_id) {
-              logger.info('[SignupCallback] Subscription verified in database:', {
-                subscriptionId: verifiedSub.id,
-                organizationId: verifiedSub.organization_id,
-                stripeSubscriptionId: verifiedSub.stripe_subscription_id,
-                hasPeriodStart: !!verifiedSub.current_period_start,
-                hasPeriodEnd: !!verifiedSub.current_period_end,
-              });
-            } else {
-              logger.error('[SignupCallback] Subscription verification failed - data mismatch:', {
-                createdSubId: createdSub.id,
-                verifiedSubId: verifiedSub?.id,
-                createdStripeId: createdSub.stripe_subscription_id,
-                verifiedStripeId: verifiedSub?.stripe_subscription_id,
-              });
-              throw new Error('Subscription was created but verification failed. Please contact support.');
-            }
-          } else {
-            logger.warn('[SignupCallback] Could not verify subscription in database (may need to refresh)');
-            // Don't fail signup if verification query fails - subscription was created
-          }
         }
 
-        // IDEMPOTENCY: Update organization status to active
-        // The update-status API will check current status and prevent downgrades
+        // Update organization status to active
         const statusUpdateResponse = await fetch('/api/organization/update-status', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -456,15 +390,149 @@ function SignupCallbackPageContent() {
 
         if (!statusUpdateResponse.ok) {
           const statusError = await statusUpdateResponse.json();
-          // If status update was skipped (already active), that's fine
           if (!statusError.skipped) {
             logger.warn('[SignupCallback] Failed to update organization status:', {
               organizationId: orgData.id,
               error: statusError.error,
             });
-            // Non-critical, but log it
           }
         }
+
+        // If email confirmation is needed, show message and return early
+        // User record will be created by trigger when they confirm email
+        if (needsEmailConfirmation) {
+          logger.info('[SignupCallback] Email confirmation needed, subscription created successfully:', {
+            organizationId: orgData.id,
+            subscriptionId: subscription_id,
+            customerId: customer_id,
+          });
+          setNeedsEmailConfirmation(true);
+          setLoading(false);
+          // Keep signup_data in sessionStorage so they can complete after email confirmation
+          return;
+        }
+
+        // Step 5: Create user record with retry logic (only if session exists)
+        logger.info('[SignupCallback] Creating user record with organization:', {
+          email,
+          organizationId: orgData.id,
+        });
+
+        // Retry logic for user creation (handles race conditions with trigger)
+        let createdUser = null;
+        let userResponse = null;
+        const maxRetries = 3;
+        let lastError = null;
+
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+          try {
+            if (attempt > 0) {
+              // Exponential backoff: 500ms, 1000ms, 2000ms
+              const delay = 500 * Math.pow(2, attempt - 1);
+              logger.info('[SignupCallback] Retrying user creation (attempt ' + (attempt + 1) + '):', {
+                delay,
+                organizationId: orgData.id,
+                email,
+              });
+              await new Promise(resolve => setTimeout(resolve, delay));
+            }
+
+            userResponse = await fetch('/api/auth/create-user-with-org', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email,
+                name,
+                role: 'admin',
+                organization_id: orgData.id,
+              }),
+            });
+
+            if (!userResponse.ok) {
+              const errorData = await userResponse.json();
+              lastError = errorData.error || 'Failed to create user record';
+              logger.warn('[SignupCallback] User creation attempt ' + (attempt + 1) + ' failed:', {
+                error: lastError,
+                organizationId: orgData.id,
+                email,
+                attempt: attempt + 1,
+                maxRetries,
+              });
+              
+              // If it's the last attempt, throw error
+              if (attempt === maxRetries - 1) {
+                throw new Error(lastError);
+              }
+              continue; // Retry
+            }
+
+            // Verify user was assigned to correct organization
+            const responseData = await userResponse.json();
+            createdUser = responseData.user;
+            
+            if (!createdUser) {
+              lastError = 'User creation returned no user data';
+              logger.warn('[SignupCallback] User creation attempt ' + (attempt + 1) + ' returned no user data');
+              
+              if (attempt === maxRetries - 1) {
+                throw new Error('User record creation failed. Please try signing in.');
+              }
+              continue; // Retry
+            }
+
+            // Verify organization assignment
+            if (createdUser.organization_id !== orgData.id) {
+              lastError = 'User was assigned to incorrect organization';
+              logger.error('[SignupCallback] Organization assignment mismatch (attempt ' + (attempt + 1) + '):', {
+                expectedOrgId: orgData.id,
+                actualOrgId: createdUser.organization_id,
+                userId: createdUser.id,
+                email,
+              });
+              
+              // If it's the last attempt, throw error
+              if (attempt === maxRetries - 1) {
+                throw new Error('User was assigned to incorrect organization. Please contact support.');
+              }
+              
+              // Wait a bit longer before retrying organization assignment
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              continue; // Retry
+            }
+
+            // Success - break out of retry loop
+            break;
+          } catch (err) {
+            lastError = err instanceof Error ? err.message : 'Unknown error';
+            logger.error('[SignupCallback] Error in user creation attempt ' + (attempt + 1) + ':', {
+              error: lastError,
+              organizationId: orgData.id,
+              email,
+            });
+            
+            if (attempt === maxRetries - 1) {
+              throw err;
+            }
+          }
+        }
+
+        // Final verification
+        if (!createdUser || createdUser.organization_id !== orgData.id) {
+          logger.error('[SignupCallback] Failed to create/assign user after all retries:', {
+            hasUser: !!createdUser,
+            expectedOrgId: orgData.id,
+            actualOrgId: createdUser?.organization_id,
+            email,
+          });
+          throw new Error('Failed to assign user to organization after multiple attempts. Please contact support.');
+        }
+
+        logger.info('[SignupCallback] User successfully created and assigned to organization:', {
+          userId: createdUser.id,
+          email: createdUser.email,
+          organizationId: createdUser.organization_id,
+          role: createdUser.role,
+        });
 
         // Step 6: Store user quantity for invite prompt (if more than 1 user was purchased)
         if (userQuantity > 1) {

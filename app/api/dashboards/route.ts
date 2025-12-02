@@ -61,8 +61,11 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type'); // 'personal', 'organization', 'project', or null for all
     const projectId = searchParams.get('project_id');
 
-    // Build query
-    let query = supabase
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+
+    // Build query using admin client
+    let query = adminClient
       .from('dashboards')
       .select('*')
       .order('created_at', { ascending: false });
@@ -76,8 +79,8 @@ export async function GET(request: NextRequest) {
       if (projectId) {
         query = query.eq('is_personal', false).eq('project_id', projectId);
       } else {
-        // Get all projects user has access to
-        const { data: userProjects } = await supabase
+        // Get all projects user has access to using admin client
+        const { data: userProjects } = await adminClient
           .from('project_members')
           .select('project_id')
           .eq('user_id', userData.id);
@@ -90,16 +93,16 @@ export async function GET(request: NextRequest) {
         }
       }
     } else {
-      // All dashboards user has access to
+      // All dashboards user has access to using admin client
       // Personal dashboards
-      const personalQuery = supabase
+      const personalQuery = adminClient
         .from('dashboards')
         .select('*')
         .eq('is_personal', true)
         .eq('owner_id', userData.id);
 
       // Organization dashboards
-      const orgQuery = supabase
+      const orgQuery = adminClient
         .from('dashboards')
         .select('*')
         .eq('is_personal', false)
@@ -107,13 +110,13 @@ export async function GET(request: NextRequest) {
         .is('project_id', null);
 
       // Project dashboards
-      const { data: userProjects } = await supabase
+      const { data: userProjects } = await adminClient
         .from('project_members')
         .select('project_id')
         .eq('user_id', userData.id);
 
       const projectIds = userProjects?.map(p => p.project_id) || [];
-      let projectQuery = supabase
+      let projectQuery = adminClient
         .from('dashboards')
         .select('*')
         .eq('is_personal', false);
@@ -209,6 +212,9 @@ export async function POST(request: NextRequest) {
       return forbidden('Custom dashboards are not enabled for your organization');
     }
 
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+
     const body = await request.json();
     const { name, description, is_personal, organization_id, project_id, is_default, layout } = body;
 
@@ -236,9 +242,9 @@ export async function POST(request: NextRequest) {
         return forbidden('You can only create dashboards for your own organization');
       }
 
-      // Validate project access
+      // Validate project access using admin client
       if (project_id) {
-        const { data: project, error: projectError } = await supabase
+        const { data: project, error: projectError } = await adminClient
           .from('projects')
           .select('id, owner_id, organization_id')
           .eq('id', project_id)
@@ -248,8 +254,8 @@ export async function POST(request: NextRequest) {
           return notFound('Project not found');
         }
 
-        // Check if user is project owner or member
-        const { data: member } = await supabase
+        // Check if user is project owner or member using admin client
+        const { data: member } = await adminClient
           .from('project_members')
           .select('id')
           .eq('project_id', project_id)
@@ -267,9 +273,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // If setting as default, unset other defaults in the same scope
+    // If setting as default, unset other defaults in the same scope using admin client
     if (is_default === true) {
-      let unsetQuery = supabase
+      let unsetQuery = adminClient
         .from('dashboards')
         .update({ is_default: false })
         .eq('is_default', true);
@@ -302,7 +308,8 @@ export async function POST(request: NextRequest) {
       insertData.project_id = project_id;
     }
 
-    const { data: dashboard, error: insertError } = await supabase
+    // Create dashboard using admin client
+    const { data: dashboard, error: insertError } = await adminClient
       .from('dashboards')
       .insert(insertData)
       .select()

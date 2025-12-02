@@ -27,7 +27,9 @@ export async function GET(request: NextRequest) {
     // Check cache first
     const cached = getCachedContext(user.id);
     if (cached) {
-      return NextResponse.json(cached);
+      const response = NextResponse.json(cached);
+      response.headers.set('Cache-Control', 'private, max-age=30'); // 30 second browser cache
+      return response;
     }
 
     // Use admin client to bypass RLS and avoid recursion
@@ -65,21 +67,19 @@ export async function GET(request: NextRequest) {
 
     // Get organization context using admin client
     // This is safe because we're passing the user's actual organization_id
-    logger.info('[OrganizationContext API] Fetching context for organization:', {
+    // Reduced logging to debug level to reduce overhead (was causing excessive logs)
+    logger.debug('[OrganizationContext API] Fetching context for organization:', {
       userId: userRecord.id,
       organizationId: userRecord.organization_id,
     });
     
     const context = await getOrganizationContextById(adminClient, userRecord.organization_id);
     
-    // Log what we got
-    logger.info('[OrganizationContext API] Context fetched:', {
+    // Log what we got (debug level only)
+    logger.debug('[OrganizationContext API] Context fetched:', {
       hasOrganization: !!context?.organization,
       hasSubscription: !!context?.subscription,
       hasPackage: !!context?.package,
-      subscriptionId: context?.subscription?.id,
-      packageId: context?.package?.id,
-      packageName: context?.package?.name,
     });
     
     // Verify the context belongs to the user's organization (security check)
@@ -127,7 +127,9 @@ export async function GET(request: NextRequest) {
     // Cache the result
     setCachedContext(user.id, context);
 
-    return NextResponse.json(context);
+    const response = NextResponse.json(context);
+    response.headers.set('Cache-Control', 'private, max-age=30'); // 30 second browser cache
+    return response;
   } catch (error) {
     logger.error('Error in GET /api/organization/context:', error);
     // Return empty context instead of error to prevent UI breakage

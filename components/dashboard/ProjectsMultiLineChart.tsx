@@ -63,6 +63,10 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(1200);
   
+  // Ensure projects and tasks are arrays (memoized to prevent unnecessary re-renders)
+  const safeProjects = useMemo(() => Array.isArray(projects) ? projects : [], [projects]);
+  const safeTasks = useMemo(() => Array.isArray(tasks) ? tasks : [], [tasks]);
+  
   // Update container width on resize
   useEffect(() => {
     const updateWidth = () => {
@@ -98,17 +102,40 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
   const dateRange = useMemo(() => {
     const dates: Date[] = [];
     
-    // Add project dates
-    projects.forEach((project) => {
-      if (project.created_at) dates.push(parseISO(project.created_at));
-      if (project.updated_at) dates.push(parseISO(project.updated_at));
+    // Add project dates with error handling
+    safeProjects.forEach((project) => {
+      try {
+        if (project?.created_at) {
+          const date = parseISO(project.created_at);
+          if (!isNaN(date.getTime())) dates.push(date);
+        }
+        if (project?.updated_at) {
+          const date = parseISO(project.updated_at);
+          if (!isNaN(date.getTime())) dates.push(date);
+        }
+      } catch (e) {
+        // Skip invalid dates silently
+      }
     });
     
-    // Add task dates
-    tasks.forEach((task) => {
-      if (task.created_at) dates.push(parseISO(task.created_at));
-      if (task.start_date) dates.push(parseISO(task.start_date));
-      if (task.due_date) dates.push(parseISO(task.due_date));
+    // Add task dates with error handling
+    safeTasks.forEach((task) => {
+      try {
+        if (task?.created_at) {
+          const date = parseISO(task.created_at);
+          if (!isNaN(date.getTime())) dates.push(date);
+        }
+        if (task?.start_date) {
+          const date = parseISO(task.start_date);
+          if (!isNaN(date.getTime())) dates.push(date);
+        }
+        if (task?.due_date) {
+          const date = parseISO(task.due_date);
+          if (!isNaN(date.getTime())) dates.push(date);
+        }
+      } catch (e) {
+        // Skip invalid dates silently
+      }
     });
     
     if (dates.length === 0) {
@@ -124,7 +151,7 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
     const end = startOfDay(new Date(maxDate.getTime() + 7 * 24 * 60 * 60 * 1000));
     
     return { start, end };
-  }, [projects, tasks]);
+  }, [safeProjects, safeTasks]);
 
   const timelineDays = useMemo(() => {
     return eachDayOfInterval({ start: dateRange.start, end: dateRange.end });
@@ -158,24 +185,38 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
     });
 
     // Count tasks created per day
-    tasks.forEach((task) => {
-      if (task.created_at) {
-        const key = format(startOfDay(parseISO(task.created_at)), 'yyyy-MM-dd');
-        const point = dataMap.get(key);
-        if (point) {
-          point.tasksCreated++;
+    tasks?.forEach((task) => {
+      try {
+        if (task?.created_at) {
+          const date = parseISO(task.created_at);
+          if (!isNaN(date.getTime())) {
+            const key = format(startOfDay(date), 'yyyy-MM-dd');
+            const point = dataMap.get(key);
+            if (point) {
+              point.tasksCreated++;
+            }
+          }
         }
+      } catch (e) {
+        // Skip invalid dates
       }
     });
 
     // Count tasks completed per day
-    tasks.forEach((task) => {
-      if (task.status === 'done' && task.updated_at) {
-        const key = format(startOfDay(parseISO(task.updated_at)), 'yyyy-MM-dd');
-        const point = dataMap.get(key);
-        if (point) {
-          point.tasksCompleted++;
+    tasks?.forEach((task) => {
+      try {
+        if (task?.status === 'done' && task?.updated_at) {
+          const date = parseISO(task.updated_at);
+          if (!isNaN(date.getTime())) {
+            const key = format(startOfDay(date), 'yyyy-MM-dd');
+            const point = dataMap.get(key);
+            if (point) {
+              point.tasksCompleted++;
+            }
+          }
         }
+      } catch (e) {
+        // Skip invalid dates
       }
     });
 
@@ -186,115 +227,173 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
       if (!point) return;
 
       // Tasks in progress
-      const tasksInProgress = tasks.filter((task) => {
-        if (task.status !== 'in_progress') return false;
-        const created = task.created_at ? parseISO(task.created_at) : null;
-        // Tasks in progress don't have a completed date
-        return !created || !isAfter(day, created);
-      }).length;
+      const tasksInProgress = tasks?.filter((task) => {
+        try {
+          if (task?.status !== 'in_progress') return false;
+          if (!task?.created_at) return true; // Count if no created date
+          const created = parseISO(task.created_at);
+          if (isNaN(created.getTime())) return true; // Count if invalid date
+          return !isAfter(day, created);
+        } catch {
+          return false;
+        }
+      }).length || 0;
       point.tasksInProgress = tasksInProgress;
 
       // Tasks todo
-      const tasksTodo = tasks.filter((task) => {
-        if (task.status !== 'todo') return false;
-        const created = task.created_at ? parseISO(task.created_at) : null;
-        // Tasks todo don't have a completed date
-        return !created || !isAfter(day, created);
-      }).length;
+      const tasksTodo = tasks?.filter((task) => {
+        try {
+          if (task?.status !== 'todo') return false;
+          if (!task?.created_at) return true; // Count if no created date
+          const created = parseISO(task.created_at);
+          if (isNaN(created.getTime())) return true; // Count if invalid date
+          return !isAfter(day, created);
+        } catch {
+          return false;
+        }
+      }).length || 0;
       point.tasksTodo = tasksTodo;
 
       // Tasks overdue (due date passed and not completed)
-      const tasksOverdue = tasks.filter((task) => {
-        if (!task.due_date || task.status === 'done') return false;
-        const dueDate = parseISO(task.due_date);
-        const created = task.created_at ? parseISO(task.created_at) : null;
-        return (
-          isBefore(dueDate, day) &&
-          (!created || !isAfter(day, created))
-        );
-      }).length;
+      const tasksOverdue = tasks?.filter((task) => {
+        try {
+          if (!task?.due_date || task?.status === 'done') return false;
+          const dueDate = parseISO(task.due_date);
+          if (isNaN(dueDate.getTime())) return false;
+          const created = task?.created_at ? parseISO(task.created_at) : null;
+          if (created && isNaN(created.getTime())) return false;
+          return (
+            isBefore(dueDate, day) &&
+            (!created || !isAfter(day, created))
+          );
+        } catch {
+          return false;
+        }
+      }).length || 0;
       point.tasksOverdue = tasksOverdue;
 
       // Tasks due soon (within 7 days)
       const sevenDaysLater = new Date(day.getTime() + 7 * 24 * 60 * 60 * 1000);
-      const tasksDueSoon = tasks.filter((task) => {
-        if (!task.due_date || task.status === 'done') return false;
-        const dueDate = parseISO(task.due_date);
-        const created = task.created_at ? parseISO(task.created_at) : null;
-        return (
-          !isBefore(dueDate, day) &&
-          !isAfter(dueDate, sevenDaysLater) &&
-          (!created || !isAfter(day, created))
-        );
-      }).length;
+      const tasksDueSoon = tasks?.filter((task) => {
+        try {
+          if (!task?.due_date || task?.status === 'done') return false;
+          const dueDate = parseISO(task.due_date);
+          if (isNaN(dueDate.getTime())) return false;
+          const created = task?.created_at ? parseISO(task.created_at) : null;
+          if (created && isNaN(created.getTime())) return false;
+          return (
+            !isBefore(dueDate, day) &&
+            !isAfter(dueDate, sevenDaysLater) &&
+            (!created || !isAfter(day, created))
+          );
+        } catch {
+          return false;
+        }
+      }).length || 0;
       point.tasksDueSoon = tasksDueSoon;
 
       // Tasks by priority
-      const tasksHighPriority = tasks.filter((task) => {
-        if (task.priority !== 'high') return false;
-        const created = task.created_at ? parseISO(task.created_at) : null;
-        const completed = task.status === 'done' && task.updated_at ? parseISO(task.updated_at) : null;
-        return (
-          (!created || !isAfter(day, created)) &&
-          (!completed || !isBefore(day, completed))
-        );
-      }).length;
+      const tasksHighPriority = tasks?.filter((task) => {
+        try {
+          if (task?.priority !== 'high') return false;
+          const created = task?.created_at ? parseISO(task.created_at) : null;
+          const completed = task?.status === 'done' && task?.updated_at ? parseISO(task.updated_at) : null;
+          if (created && isNaN(created.getTime())) return false;
+          if (completed && isNaN(completed.getTime())) return false;
+          return (
+            (!created || !isAfter(day, created)) &&
+            (!completed || !isBefore(day, completed))
+          );
+        } catch {
+          return false;
+        }
+      }).length || 0;
       point.tasksHighPriority = tasksHighPriority;
 
-      const tasksMediumPriority = tasks.filter((task) => {
-        if (task.priority !== 'medium') return false;
-        const created = task.created_at ? parseISO(task.created_at) : null;
-        const completed = task.status === 'done' && task.updated_at ? parseISO(task.updated_at) : null;
-        return (
-          (!created || !isAfter(day, created)) &&
-          (!completed || !isBefore(day, completed))
-        );
-      }).length;
+      const tasksMediumPriority = tasks?.filter((task) => {
+        try {
+          if (task?.priority !== 'medium') return false;
+          const created = task?.created_at ? parseISO(task.created_at) : null;
+          const completed = task?.status === 'done' && task?.updated_at ? parseISO(task.updated_at) : null;
+          if (created && isNaN(created.getTime())) return false;
+          if (completed && isNaN(completed.getTime())) return false;
+          return (
+            (!created || !isAfter(day, created)) &&
+            (!completed || !isBefore(day, completed))
+          );
+        } catch {
+          return false;
+        }
+      }).length || 0;
       point.tasksMediumPriority = tasksMediumPriority;
 
-      const tasksLowPriority = tasks.filter((task) => {
-        if (task.priority !== 'low') return false;
-        const created = task.created_at ? parseISO(task.created_at) : null;
-        const completed = task.status === 'done' && task.updated_at ? parseISO(task.updated_at) : null;
-        return (
-          (!created || !isAfter(day, created)) &&
-          (!completed || !isBefore(day, completed))
-        );
-      }).length;
+      const tasksLowPriority = tasks?.filter((task) => {
+        try {
+          if (task?.priority !== 'low') return false;
+          const created = task?.created_at ? parseISO(task.created_at) : null;
+          const completed = task?.status === 'done' && task?.updated_at ? parseISO(task.updated_at) : null;
+          if (created && isNaN(created.getTime())) return false;
+          if (completed && isNaN(completed.getTime())) return false;
+          return (
+            (!created || !isAfter(day, created)) &&
+            (!completed || !isBefore(day, completed))
+          );
+        } catch {
+          return false;
+        }
+      }).length || 0;
       point.tasksLowPriority = tasksLowPriority;
 
-      const tasksCriticalPriority = tasks.filter((task) => {
-        if (task.priority !== 'critical') return false;
-        const created = task.created_at ? parseISO(task.created_at) : null;
-        const completed = task.status === 'done' && task.updated_at ? parseISO(task.updated_at) : null;
-        return (
-          (!created || !isAfter(day, created)) &&
-          (!completed || !isBefore(day, completed))
-        );
-      }).length;
+      const tasksCriticalPriority = tasks?.filter((task) => {
+        try {
+          if (task?.priority !== 'critical') return false;
+          const created = task?.created_at ? parseISO(task.created_at) : null;
+          const completed = task?.status === 'done' && task?.updated_at ? parseISO(task.updated_at) : null;
+          if (created && isNaN(created.getTime())) return false;
+          if (completed && isNaN(completed.getTime())) return false;
+          return (
+            (!created || !isAfter(day, created)) &&
+            (!completed || !isBefore(day, completed))
+          );
+        } catch {
+          return false;
+        }
+      }).length || 0;
       point.tasksCriticalPriority = tasksCriticalPriority;
 
       // Tasks assigned vs unassigned
-      const tasksAssigned = tasks.filter((task) => {
-        if (!task.assignee_id) return false;
-        const created = task.created_at ? parseISO(task.created_at) : null;
-        const completed = task.status === 'done' && task.updated_at ? parseISO(task.updated_at) : null;
-        return (
-          (!created || !isAfter(day, created)) &&
-          (!completed || !isBefore(day, completed))
-        );
-      }).length;
+      const tasksAssigned = tasks?.filter((task) => {
+        try {
+          if (!task?.assignee_id) return false;
+          const created = task?.created_at ? parseISO(task.created_at) : null;
+          const completed = task?.status === 'done' && task?.updated_at ? parseISO(task.updated_at) : null;
+          if (created && isNaN(created.getTime())) return false;
+          if (completed && isNaN(completed.getTime())) return false;
+          return (
+            (!created || !isAfter(day, created)) &&
+            (!completed || !isBefore(day, completed))
+          );
+        } catch {
+          return false;
+        }
+      }).length || 0;
       point.tasksAssigned = tasksAssigned;
 
-      const tasksUnassigned = tasks.filter((task) => {
-        if (task.assignee_id) return false;
-        const created = task.created_at ? parseISO(task.created_at) : null;
-        const completed = task.status === 'done' && task.updated_at ? parseISO(task.updated_at) : null;
-        return (
-          (!created || !isAfter(day, created)) &&
-          (!completed || !isBefore(day, completed))
-        );
-      }).length;
+      const tasksUnassigned = tasks?.filter((task) => {
+        try {
+          if (task?.assignee_id) return false;
+          const created = task?.created_at ? parseISO(task.created_at) : null;
+          const completed = task?.status === 'done' && task?.updated_at ? parseISO(task.updated_at) : null;
+          if (created && isNaN(created.getTime())) return false;
+          if (completed && isNaN(completed.getTime())) return false;
+          return (
+            (!created || !isAfter(day, created)) &&
+            (!completed || !isBefore(day, completed))
+          );
+        } catch {
+          return false;
+        }
+      }).length || 0;
       point.tasksUnassigned = tasksUnassigned;
     });
 
@@ -305,32 +404,49 @@ export default function ProjectsMultiLineChart({ projects, tasks }: ProjectsMult
       if (!point) return;
 
       // Projects created
-      const projectsCreated = projects.filter((project) => {
-        if (!project.created_at) return false;
-        const created = parseISO(project.created_at);
-        return !isAfter(day, created);
-      }).length;
+      const projectsCreated = projects?.filter((project) => {
+        try {
+          if (!project?.created_at) return false;
+          const created = parseISO(project.created_at);
+          if (isNaN(created.getTime())) return false;
+          return !isAfter(day, created);
+        } catch {
+          return false;
+        }
+      }).length || 0;
       point.projectsCreated = projectsCreated;
 
       // Projects in progress
-      const projectsInProgress = projects.filter((project) => {
-        if (project.status !== 'in_progress') return false;
-        const created = project.created_at ? parseISO(project.created_at) : null;
-        return !created || !isAfter(day, created);
-      }).length;
+      const projectsInProgress = projects?.filter((project) => {
+        try {
+          if (project?.status !== 'in_progress') return false;
+          if (!project?.created_at) return true; // Count if no created date
+          const created = parseISO(project.created_at);
+          if (isNaN(created.getTime())) return true; // Count if invalid date
+          return !isAfter(day, created);
+        } catch {
+          return false;
+        }
+      }).length || 0;
       point.projectsInProgress = projectsInProgress;
 
       // Projects blueprint ready
-      const projectsBlueprintReady = projects.filter((project) => {
-        if (project.status !== 'blueprint_ready') return false;
-        const created = project.created_at ? parseISO(project.created_at) : null;
-        return !created || !isAfter(day, created);
-      }).length;
+      const projectsBlueprintReady = projects?.filter((project) => {
+        try {
+          if (project?.status !== 'blueprint_ready') return false;
+          if (!project?.created_at) return true; // Count if no created date
+          const created = parseISO(project.created_at);
+          if (isNaN(created.getTime())) return true; // Count if invalid date
+          return !isAfter(day, created);
+        } catch {
+          return false;
+        }
+      }).length || 0;
       point.projectsBlueprintReady = projectsBlueprintReady;
     });
 
     return Array.from(dataMap.values());
-  }, [timelineDays, tasks, projects]);
+  }, [timelineDays, projects, tasks]); // safeProjects and safeTasks are memoized from projects/tasks
 
   // Calculate chart dimensions - use container width or fallback to 1200
   const chartWidth = Math.max(containerWidth - 48, 800); // Subtract padding from container

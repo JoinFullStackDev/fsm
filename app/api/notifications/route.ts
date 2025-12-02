@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { unauthorized, notFound, badRequest, internalError } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 import { PAGINATION_DEFAULTS } from '@/lib/constants';
@@ -14,8 +15,11 @@ export async function GET(request: NextRequest) {
       return unauthorized('You must be logged in to view notifications');
     }
 
-    // Get user record
-    const { data: userData, error: userError } = await supabase
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+    
+    // Get user record using admin client
+    const { data: userData, error: userError } = await adminClient
       .from('users')
       .select('id')
       .eq('auth_id', user.id)
@@ -31,8 +35,8 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || String(PAGINATION_DEFAULTS.LIMIT));
     const offset = parseInt(searchParams.get('offset') || String(PAGINATION_DEFAULTS.OFFSET));
 
-    // Build query
-    let query = supabase
+    // Build query using admin client
+    let query = adminClient
       .from('notifications')
       .select('*')
       .eq('user_id', userData.id)
@@ -53,17 +57,19 @@ export async function GET(request: NextRequest) {
       return internalError('Failed to load notifications', { error: error.message });
     }
 
-    // Get unread count
-    const { count: unreadCount } = await supabase
+    // Get unread count using admin client
+    const { count: unreadCount } = await adminClient
       .from('notifications')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userData.id)
       .eq('read', false);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       notifications: notifications || [],
       unreadCount: unreadCount || 0,
     });
+    response.headers.set('Cache-Control', 'private, max-age=5'); // 5 second cache for notifications
+    return response;
   } catch (error) {
     logger.error('Error in GET /api/notifications:', error);
     return internalError('Failed to load notifications', { error: error instanceof Error ? error.message : 'Unknown error' });

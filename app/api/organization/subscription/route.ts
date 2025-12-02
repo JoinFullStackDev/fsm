@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     // First, try to get active or trialing subscription
     let { data: subscription, error: subError } = await adminClient
       .from('subscriptions')
-      .select('id, status, current_period_start, current_period_end, cancel_at_period_end, stripe_subscription_id, stripe_price_id, package_id')
+      .select('id, status, current_period_start, current_period_end, cancel_at_period_end, stripe_subscription_id, stripe_price_id, package_id, updated_at')
       .eq('organization_id', organizationId)
       .in('status', ['active', 'trialing'])
       .order('created_at', { ascending: false })
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       logger.info('[Subscription API] No active/trialing subscription found, checking for any subscription');
       const { data: anySubscription, error: anySubError } = await adminClient
         .from('subscriptions')
-        .select('id, status, current_period_start, current_period_end, cancel_at_period_end, stripe_subscription_id, stripe_price_id, package_id')
+        .select('id, status, current_period_start, current_period_end, cancel_at_period_end, stripe_subscription_id, stripe_price_id, package_id, updated_at')
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -60,7 +60,32 @@ export async function GET(request: NextRequest) {
     }
 
     // If subscription has a Stripe subscription ID, sync latest data from Stripe
+    // Only sync if data is stale (older than 5 minutes) or if force_sync query param is present
+    // This prevents unnecessary Stripe API calls on every page load
+    let shouldSync = false;
     if (subscription && subscription.stripe_subscription_id) {
+      const searchParams = request.nextUrl.searchParams;
+      const forceSync = searchParams.get('force_sync') === 'true';
+      
+      if (forceSync) {
+        shouldSync = true; // Always sync if explicitly requested
+      } else {
+        // Check if subscription data is stale (older than 5 minutes)
+        const updatedAt = (subscription as any).updated_at;
+        if (!updatedAt) {
+          shouldSync = true; // If no updated_at, sync to get it
+        } else {
+          const lastUpdated = new Date(updatedAt);
+          const now = new Date();
+          const minutesSinceUpdate = (now.getTime() - lastUpdated.getTime()) / (1000 * 60);
+          
+          // Only sync if data is older than 5 minutes
+          shouldSync = minutesSinceUpdate > 5;
+        }
+      }
+    }
+
+    if (shouldSync && subscription && subscription.stripe_subscription_id) {
       try {
         const stripe = await getStripeClient();
         if (stripe) {

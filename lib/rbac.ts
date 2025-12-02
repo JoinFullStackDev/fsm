@@ -1,4 +1,5 @@
 import type { UserRole } from '@/types/project';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export type Permission = 
   | 'view_all_projects'
@@ -142,5 +143,159 @@ export function getRolePermissions(userRole: UserRole): Permission[] {
  */
 export function getProjectMemberPermissions(memberRole: ProjectMemberRole): Permission[] {
   return PROJECT_MEMBER_PERMISSIONS[memberRole] ?? [];
+}
+
+/**
+ * Get all permissions for a user (primary role + custom roles)
+ * @param supabase - Supabase client instance
+ * @param userId - User database ID
+ * @param organizationId - Organization ID
+ * @returns Array of all permissions the user has
+ */
+export async function getUserPermissions(
+  supabase: SupabaseClient,
+  userId: string,
+  organizationId: string
+): Promise<Permission[]> {
+  try {
+    // Get user's primary role
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !user) {
+      return [];
+    }
+
+    const primaryRole = user.role as UserRole;
+    const permissions = new Set<Permission>(ROLE_PERMISSIONS[primaryRole] ?? []);
+
+    // Get custom roles assigned to user
+    const { data: userRoles, error: rolesError } = await supabase
+      .from('user_organization_roles')
+      .select(`
+        role_id,
+        organization_roles!inner(
+          id,
+          role_permissions(permission)
+        )
+      `)
+      .eq('user_id', userId)
+      .eq('organization_id', organizationId);
+
+    if (!rolesError && userRoles) {
+      // Add permissions from custom roles
+      for (const userRole of userRoles) {
+        const orgRole = userRole.organization_roles as any;
+        if (orgRole?.role_permissions) {
+          for (const perm of orgRole.role_permissions) {
+            permissions.add(perm.permission as Permission);
+          }
+        }
+      }
+    }
+
+    return Array.from(permissions);
+  } catch (error) {
+    console.error('[RBAC] Error getting user permissions:', error);
+    return [];
+  }
+}
+
+/**
+ * Check if a user has a specific permission (checks primary role + custom roles)
+ * @param supabase - Supabase client instance
+ * @param userId - User database ID
+ * @param organizationId - Organization ID
+ * @param permission - Permission to check
+ * @returns True if user has the permission
+ */
+export async function hasUserPermission(
+  supabase: SupabaseClient,
+  userId: string,
+  organizationId: string,
+  permission: Permission
+): Promise<boolean> {
+  const permissions = await getUserPermissions(supabase, userId, organizationId);
+  return permissions.includes(permission);
+}
+
+/**
+ * Get all roles for a user (primary role + custom roles)
+ * @param supabase - Supabase client instance
+ * @param userId - User database ID
+ * @param organizationId - Organization ID
+ * @returns Array of role objects with id, name, and isDefault flag
+ */
+export async function getUserRoles(
+  supabase: SupabaseClient,
+  userId: string,
+  organizationId: string
+): Promise<Array<{ id: string; name: string; isDefault: boolean }>> {
+  try {
+    const roles: Array<{ id: string; name: string; isDefault: boolean }> = [];
+
+    // Get user's primary role
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', userId)
+      .single();
+
+    if (!userError && user) {
+      const primaryRole = user.role as UserRole;
+      
+      // Find the default role record for this organization
+      const { data: defaultRole } = await supabase
+        .from('organization_roles')
+        .select('id, name, is_default')
+        .eq('organization_id', organizationId)
+        .eq('name', primaryRole)
+        .eq('is_default', true)
+        .single();
+
+      if (defaultRole) {
+        roles.push({
+          id: defaultRole.id,
+          name: defaultRole.name,
+          isDefault: true,
+        });
+      }
+    }
+
+    // Get custom roles
+    const { data: userRoles, error: rolesError } = await supabase
+      .from('user_organization_roles')
+      .select(`
+        role_id,
+        organization_roles!inner(
+          id,
+          name,
+          is_default
+        )
+      `)
+      .eq('user_id', userId)
+      .eq('organization_id', organizationId);
+
+    if (!rolesError && userRoles) {
+      for (const userRole of userRoles) {
+        const orgRole = userRole.organization_roles as any;
+        if (orgRole) {
+          roles.push({
+            id: orgRole.id,
+            name: orgRole.name,
+            isDefault: orgRole.is_default,
+          });
+        }
+      }
+    }
+
+    return roles;
+  } catch (error) {
+    console.error('[RBAC] Error getting user roles:', error);
+    return [];
+  }
 }
 

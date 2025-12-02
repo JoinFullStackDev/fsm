@@ -218,6 +218,105 @@ export async function PUT(
       return NextResponse.json({ message: 'Package changed successfully' });
     }
 
+    if (action === 'gift_package' && package_id) {
+      // Gift a package to an organization without Stripe payment
+      // This is for super admin gifting accounts
+      
+      // Get package details
+      const { data: packageData, error: pkgError } = await adminClient
+        .from('packages')
+        .select('id, name')
+        .eq('id', package_id)
+        .single();
+
+      if (pkgError || !packageData) {
+        return badRequest('Package not found');
+      }
+
+      // Determine billing interval: use provided one, or fall back to existing subscription's interval, or default to 'month'
+      const targetBillingInterval = billing_interval || subscription?.billing_interval || 'month';
+
+      // Calculate period dates
+      const periodStart = new Date().toISOString();
+      const periodEnd = new Date();
+      if (targetBillingInterval === 'year') {
+        periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+      } else {
+        periodEnd.setMonth(periodEnd.getMonth() + 1);
+      }
+
+      if (subscription) {
+        // Update existing subscription
+        await adminClient
+          .from('subscriptions')
+          .update({
+            package_id: package_id,
+            stripe_subscription_id: null, // Clear Stripe ID if it exists
+            stripe_price_id: null, // Clear price ID
+            billing_interval: targetBillingInterval,
+            status: 'active',
+            current_period_start: periodStart,
+            current_period_end: periodEnd.toISOString(),
+            cancel_at_period_end: false,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', subscription.id);
+
+        logger.info('[GiftPackage] Updated existing subscription:', {
+          subscriptionId: subscription.id,
+          organizationId: params.id,
+          packageId: package_id,
+          billingInterval: targetBillingInterval,
+        });
+      } else {
+        // Create new subscription without Stripe
+        await adminClient
+          .from('subscriptions')
+          .insert({
+            organization_id: params.id,
+            package_id: package_id,
+            stripe_subscription_id: null,
+            stripe_price_id: null,
+            billing_interval: targetBillingInterval,
+            status: 'active',
+            current_period_start: periodStart,
+            current_period_end: periodEnd.toISOString(),
+            cancel_at_period_end: false,
+          });
+
+        logger.info('[GiftPackage] Created new subscription:', {
+          organizationId: params.id,
+          packageId: package_id,
+          billingInterval: targetBillingInterval,
+        });
+      }
+
+      // Update organization status to active (no trial for gifted accounts)
+      await adminClient
+        .from('organizations')
+        .update({
+          subscription_status: 'active',
+          trial_ends_at: null, // No trial for gifted accounts
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', params.id);
+
+      logger.info('[GiftPackage] Successfully gifted package to organization:', {
+        organizationId: params.id,
+        packageId: package_id,
+        packageName: packageData.name,
+        billingInterval: targetBillingInterval,
+      });
+
+      return NextResponse.json({ 
+        message: 'Package gifted successfully',
+        package: {
+          id: package_id,
+          name: packageData.name,
+        },
+      });
+    }
+
     if (action === 'cancel' && subscription?.stripe_subscription_id) {
       const isConfigured = await isStripeConfigured();
       if (!isConfigured) {

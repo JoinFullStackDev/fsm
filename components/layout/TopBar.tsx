@@ -24,13 +24,16 @@ import {
   Menu as MenuIcon,
   Dashboard as DashboardIcon,
   HelpOutline as HelpIcon,
+  Feedback as FeedbackIcon,
 } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useRole } from '@/lib/hooks/useRole';
 import { useOrganization } from '@/components/providers/OrganizationProvider';
+import { useUser } from '@/components/providers/UserProvider';
 import NotificationBell from '@/components/notifications/NotificationBell';
 import NotificationDrawer from '@/components/notifications/NotificationDrawer';
 import WelcomeTour from '@/components/ui/WelcomeTour';
+import RequestSubmissionDialog from '@/components/layout/RequestSubmissionDialog';
 import type { User } from '@/types/project';
 
 interface TopBarProps {
@@ -45,44 +48,12 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
   const supabase = createSupabaseClient();
   const { role, isSuperAdmin, loading: roleLoading } = useRole();
   const { features, loading: orgLoading } = useOrganization();
+  const { user, loading: userLoading } = useUser();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   
-  // Debug: Log feature flags
-  useEffect(() => {
-    if (!orgLoading && features) {
-      console.log('[TopBar] Knowledge base enabled:', features.knowledge_base_enabled);
-      console.log('[TopBar] All features:', features);
-    }
-  }, [features, orgLoading]);
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
   const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
   const [welcomeTourOpen, setWelcomeTourOpen] = useState(false);
-
-  const loadUser = useCallback(async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setLoading(false);
-        return;
-      }
-
-      // Use API endpoint to avoid RLS recursion
-      const userResponse = await fetch('/api/users/me');
-      if (userResponse.ok) {
-        const userData = await userResponse.json();
-        setUser(userData as User);
-      }
-    } catch (error) {
-      console.error('Error loading user:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [supabase]);
-
-  useEffect(() => {
-    loadUser();
-  }, [loadUser]);
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -148,7 +119,7 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
 
         {/* Right side icons */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {!loading && (
+          {!userLoading && (
             <>
               <IconButton
                 onClick={() => setWelcomeTourOpen(true)}
@@ -161,6 +132,18 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
                 title="Welcome Tour"
               >
                 <RocketLaunchIcon />
+              </IconButton>
+              <IconButton
+                onClick={() => setRequestDialogOpen(true)}
+                sx={{
+                  color: theme.palette.text.primary,
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+                title="Submit Feature Request or Bug Report"
+              >
+                <FeedbackIcon />
               </IconButton>
               {!orgLoading && !roleLoading && (features?.knowledge_base_enabled === true || isSuperAdmin) && (
                 <IconButton
@@ -324,6 +307,10 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
         open={welcomeTourOpen}
         onClose={() => setWelcomeTourOpen(false)}
         onComplete={() => setWelcomeTourOpen(false)}
+      />
+      <RequestSubmissionDialog
+        open={requestDialogOpen}
+        onClose={() => setRequestDialogOpen(false)}
       />
     </AppBar>
   );

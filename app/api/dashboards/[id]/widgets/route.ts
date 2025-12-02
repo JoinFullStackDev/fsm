@@ -59,8 +59,11 @@ export async function POST(
       return forbidden('Custom dashboards are not enabled for your organization');
     }
 
-    // Get dashboard and verify access
-    const { data: dashboard, error: dashboardError } = await supabase
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+
+    // Get dashboard and verify access using admin client
+    const { data: dashboard, error: dashboardError } = await adminClient
       .from('dashboards')
       .select('*')
       .eq('id', params.id)
@@ -84,14 +87,14 @@ export async function POST(
         return forbidden('Only admins and PMs can add widgets to organization dashboards');
       }
     } else if (dashboard.project_id) {
-      // Check project membership
-      const { data: project } = await supabase
+      // Check project membership using admin client
+      const { data: project } = await adminClient
         .from('projects')
         .select('owner_id')
         .eq('id', dashboard.project_id)
         .single();
 
-      const { data: member } = await supabase
+      const { data: member } = await adminClient
         .from('project_members')
         .select('id')
         .eq('project_id', dashboard.project_id)
@@ -118,7 +121,8 @@ export async function POST(
       settings: settings || {},
     };
 
-    const { data: widget, error: insertError } = await supabase
+    // Create widget using admin client
+    const { data: widget, error: insertError } = await adminClient
       .from('dashboard_widgets')
       .insert(insertData)
       .select()

@@ -65,6 +65,16 @@ export async function POST(request: NextRequest) {
 
     if (existingUser) {
       // User exists (likely created by trigger) - update organization_id and name if needed
+      // Check if user already has wrong organization assigned (shouldn't happen with fixed trigger, but handle it)
+      if (existingUser.organization_id && existingUser.organization_id !== organization_id) {
+        logger.warn('[CreateUserWithOrg] User already has different organization_id assigned:', {
+          userId: existingUser.id,
+          currentOrgId: existingUser.organization_id,
+          expectedOrgId: organization_id,
+          email,
+        });
+      }
+      
       logger.info('User already exists, updating:', { 
         userId: existingUser.id, 
         currentOrgId: existingUser.organization_id,
@@ -79,63 +89,149 @@ export async function POST(request: NextRequest) {
         updates.name = name.trim();
       }
 
-      const { error: updateError } = await adminClient
-        .from('users')
-        .update(updates)
-        .eq('id', existingUser.id);
+      // Retry logic for update (handles race conditions)
+      const maxRetries = 3;
+      let userRecord = null;
+      let lastError = null;
 
-      if (updateError) {
-        logger.error('Error updating user:', updateError);
-        logger.error('Update details:', {
-          userId: existingUser.id,
-          updates,
-          errorCode: updateError.code,
-          errorMessage: updateError.message,
-          errorDetails: updateError.details,
-          errorHint: updateError.hint,
-        });
-        
-        let errorMessage = 'Failed to update user';
-        if (updateError.code === '23503') {
-          errorMessage = 'Invalid organization. Please try signing up again.';
-        } else if (updateError.hint) {
-          errorMessage = updateError.hint;
-        } else if (updateError.message) {
-          errorMessage = updateError.message;
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          if (attempt > 0) {
+            // Exponential backoff: 500ms, 1000ms
+            const delay = 500 * Math.pow(2, attempt - 1);
+            logger.info('[CreateUserWithOrg] Retrying user update (attempt ' + (attempt + 1) + '):', {
+              delay,
+              userId: existingUser.id,
+              organizationId: organization_id,
+            });
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+
+          const { error: updateError } = await adminClient
+            .from('users')
+            .update(updates)
+            .eq('id', existingUser.id);
+
+          if (updateError) {
+            lastError = updateError;
+            logger.warn('[CreateUserWithOrg] Update attempt ' + (attempt + 1) + ' failed:', {
+              error: updateError.message,
+              errorCode: updateError.code,
+              userId: existingUser.id,
+              attempt: attempt + 1,
+            });
+            
+            if (attempt === maxRetries - 1) {
+              logger.error('Error updating user after all retries:', updateError);
+              logger.error('Update details:', {
+                userId: existingUser.id,
+                updates,
+                errorCode: updateError.code,
+                errorMessage: updateError.message,
+                errorDetails: updateError.details,
+                errorHint: updateError.hint,
+              });
+              
+              let errorMessage = 'Failed to update user';
+              if (updateError.code === '23503') {
+                errorMessage = 'Invalid organization. Please try signing up again.';
+              } else if (updateError.hint) {
+                errorMessage = updateError.hint;
+              } else if (updateError.message) {
+                errorMessage = updateError.message;
+              }
+              
+              return internalError(errorMessage, { 
+                error: updateError.message,
+                details: updateError.details,
+                hint: updateError.hint,
+                code: updateError.code,
+              });
+            }
+            continue; // Retry
+          }
+
+          // Fetch updated user record
+          const { data: fetchedUser } = await adminClient
+            .from('users')
+            .select('id, name, email, role, organization_id')
+            .eq('id', existingUser.id)
+            .single();
+
+          if (!fetchedUser) {
+            lastError = 'User record not found after update';
+            logger.warn('[CreateUserWithOrg] User record not found after update (attempt ' + (attempt + 1) + ')');
+            
+            if (attempt === maxRetries - 1) {
+              return internalError('User record not found after update', {
+                userId: existingUser.id,
+              });
+            }
+            continue; // Retry
+          }
+
+          // Verify organization assignment
+          if (fetchedUser.organization_id !== organization_id) {
+            lastError = 'Organization assignment mismatch';
+            logger.warn('[CreateUserWithOrg] Organization assignment mismatch after update (attempt ' + (attempt + 1) + '):', {
+              userId: fetchedUser.id,
+              expectedOrgId: organization_id,
+              actualOrgId: fetchedUser.organization_id,
+            });
+            
+            if (attempt === maxRetries - 1) {
+              logger.error('[CreateUserWithOrg] Organization assignment mismatch after all retries:', {
+                userId: fetchedUser.id,
+                expectedOrgId: organization_id,
+                actualOrgId: fetchedUser.organization_id,
+              });
+              return internalError('Failed to assign user to organization', {
+                expectedOrgId: organization_id,
+                actualOrgId: fetchedUser.organization_id,
+              });
+            }
+            
+            // Wait a bit longer before retrying
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            continue; // Retry
+          }
+
+          userRecord = fetchedUser;
+          break; // Success
+        } catch (err) {
+          lastError = err instanceof Error ? err.message : 'Unknown error';
+          logger.error('[CreateUserWithOrg] Error in update attempt ' + (attempt + 1) + ':', {
+            error: lastError,
+            userId: existingUser.id,
+            organizationId: organization_id,
+          });
+          
+          if (attempt === maxRetries - 1) {
+            return internalError('Failed to update user after retries', {
+              error: lastError,
+              userId: existingUser.id,
+            });
+          }
         }
-        
-        return internalError(errorMessage, { 
-          error: updateError.message,
-          details: updateError.details,
-          hint: updateError.hint,
-          code: updateError.code,
-        });
       }
 
-      // Fetch updated user record
-      const { data: userRecord } = await adminClient
-        .from('users')
-        .select('id, name, email, role, organization_id')
-        .eq('id', existingUser.id)
-        .single();
-
-      // Verify organization assignment
-      if (userRecord && userRecord.organization_id !== organization_id) {
-        logger.error('[CreateUserWithOrg] Organization assignment mismatch after update:', {
-          userId: userRecord.id,
+      if (!userRecord || userRecord.organization_id !== organization_id) {
+        logger.error('[CreateUserWithOrg] Failed to update user after all retries:', {
+          hasUser: !!userRecord,
           expectedOrgId: organization_id,
-          actualOrgId: userRecord.organization_id,
+          actualOrgId: userRecord?.organization_id,
+          userId: existingUser.id,
         });
-        return internalError('Failed to assign user to organization', {
+        return internalError('Failed to assign user to organization after retries', {
           expectedOrgId: organization_id,
-          actualOrgId: userRecord.organization_id,
+          actualOrgId: userRecord?.organization_id,
         });
       }
 
       logger.info('[CreateUserWithOrg] User updated and verified:', {
-        userId: userRecord?.id,
-        email: userRecord?.email,
-        organizationId: userRecord?.organization_id,
+        userId: userRecord.id,
+        email: userRecord.email,
+        organizationId: userRecord.organization_id,
       });
 
       return NextResponse.json({ user: userRecord });

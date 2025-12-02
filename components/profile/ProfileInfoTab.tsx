@@ -15,12 +15,14 @@ import { useTheme } from '@mui/material/styles';
 import { Save as SaveIcon, CloudUpload as UploadIcon } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useNotification } from '@/components/providers/NotificationProvider';
+import { useUser } from '@/components/providers/UserProvider';
 import type { User } from '@/types/project';
 
 export default function ProfileInfoTab() {
   const theme = useTheme();
   const supabase = createSupabaseClient();
   const { showSuccess, showError } = useNotification();
+  const { user, loading: userLoading, refresh } = useUser(); // Use UserProvider instead of direct API call
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,32 +39,19 @@ export default function ProfileInfoTab() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
-  const loadProfile = useCallback(async () => {
-    setLoading(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+  // Load profile data from UserProvider (no redundant API call)
+  useEffect(() => {
+    if (userLoading) {
+      setLoading(true);
+      return;
+    }
+
+    if (!user) {
       setError('Not authenticated');
       setLoading(false);
       return;
     }
 
-    // Use API endpoint to avoid RLS recursion
-    const userResponse = await fetch('/api/users/me');
-    if (!userResponse.ok) {
-      const errorData = await userResponse.json().catch(() => ({ error: 'Failed to load profile' }));
-      setError(errorData.error || 'Failed to load profile');
-      setLoading(false);
-      return;
-    }
-    const userData = await userResponse.json();
-
-    if (!userData) {
-      setError('User data not found');
-      setLoading(false);
-      return;
-    }
-
-    const user = userData as User;
     setProfile(user);
     setFormData({
       name: user.name || '',
@@ -75,11 +64,7 @@ export default function ProfileInfoTab() {
     });
     setAvatarPreview(user.avatar_url || null);
     setLoading(false);
-  }, [supabase]);
-
-  useEffect(() => {
-    loadProfile();
-  }, [loadProfile]);
+  }, [user, userLoading]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -230,7 +215,7 @@ export default function ProfileInfoTab() {
       }
 
       showSuccess('Profile updated successfully!');
-      await loadProfile();
+      await refresh(); // Refresh user data from UserProvider
     } catch (err) {
       showError('Failed to save profile: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {

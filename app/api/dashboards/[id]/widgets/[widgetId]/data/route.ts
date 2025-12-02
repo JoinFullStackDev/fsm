@@ -56,25 +56,28 @@ export async function GET(
       return internalError('User is not assigned to an organization');
     }
 
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+
     // Check module access
-    const hasAccess = await hasCustomDashboards(supabase, organizationId);
+    const hasAccess = await hasCustomDashboards(adminClient, organizationId);
     if (!hasAccess) {
       return forbidden('Custom dashboards are not enabled for your organization');
     }
 
-    // Get widget and dashboard
+    // Get widget and dashboard using admin client
     // Optimized: Simplified join - fetch dashboard separately if needed to avoid lateral join overhead
-    const { data: widget, error: widgetError } = await supabase
+    const { data: widget, error: widgetError } = await adminClient
       .from('dashboard_widgets')
       .select('*')
       .eq('id', params.widgetId)
       .eq('dashboard_id', params.id)
       .single();
 
-    // Fetch dashboard separately if needed (simpler than lateral join)
+    // Fetch dashboard separately if needed (simpler than lateral join) using admin client
     let dashboard = null;
     if (!widgetError && widget) {
-      const { data: dashboardData } = await supabase
+      const { data: dashboardData } = await adminClient
         .from('dashboards')
         .select('*')
         .eq('id', params.id)
@@ -100,14 +103,14 @@ export async function GET(
         return forbidden('You do not have access to this widget');
       }
     } else if (dashboard.project_id) {
-      // Check project membership
-      const { data: project } = await supabase
+      // Check project membership using admin client
+      const { data: project } = await adminClient
         .from('projects')
         .select('owner_id')
         .eq('id', dashboard.project_id)
         .single();
 
-      const { data: member } = await supabase
+      const { data: member } = await adminClient
         .from('project_members')
         .select('id')
         .eq('project_id', dashboard.project_id)
@@ -131,16 +134,16 @@ export async function GET(
           if (!dataSource) {
             return badRequest('Metric widget requires a dataSource');
           }
-          widgetData = await fetchMetricData(supabase, organizationId, dataSource, dataset, userData.id);
+          widgetData = await fetchMetricData(adminClient, organizationId, dataSource, dataset, userData.id);
           break;
         case 'chart':
           if (!dataSource && (!dataSources || dataSources.length === 0)) {
             return badRequest('Chart widget requires at least one dataSource');
           }
-          widgetData = await fetchChartData(supabase, organizationId, dataSource || dataSources, dataset);
+          widgetData = await fetchChartData(adminClient, organizationId, dataSource || dataSources, dataset);
           break;
         case 'table':
-          widgetData = await fetchTableData(supabase, organizationId, dataSource, dataset);
+          widgetData = await fetchTableData(adminClient, organizationId, dataSource, dataset);
           break;
         case 'ai_insight':
           // AI insights are generated on-demand, not fetched

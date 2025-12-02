@@ -21,11 +21,13 @@ import {
   Analytics as AnalyticsIcon,
   VpnKey as VpnKeyIcon,
   CreditCard as CreditCardIcon,
+  Security as SecurityIcon,
 } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useRole } from '@/lib/hooks/useRole';
 import { useOrganization } from '@/components/providers/OrganizationProvider';
 import AdminUsersTab from '@/components/admin/AdminUsersTab';
+import AdminRolesTab from '@/components/admin/AdminRolesTab';
 import AdminThemeTab from '@/components/admin/AdminThemeTab';
 import AdminApiConfigTab from '@/components/admin/AdminApiConfigTab';
 import AdminSystemTab from '@/components/admin/AdminSystemTab';
@@ -59,7 +61,7 @@ export default function AdminPage() {
   const theme = useTheme();
   const router = useRouter();
   const supabase = createSupabaseClient();
-  const { role, isSuperAdmin, loading: roleLoading } = useRole();
+  const { role, isSuperAdmin, isCompanyAdmin, loading: roleLoading } = useRole();
   const { organization, features } = useOrganization();
   // Initialize activeTab: 0 for admin (Users), 1 for PM (Theme)
   const [activeTab, setActiveTab] = useState(0);
@@ -82,13 +84,13 @@ export default function AdminPage() {
   const loadStats = useCallback(async () => {
     try {
       // Get current user's organization
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) return;
 
       const { data: currentUser } = await supabase
         .from('users')
         .select('organization_id, is_super_admin')
-        .eq('auth_id', session.user.id)
+        .eq('auth_id', authUser.id)
         .single();
 
       const orgId = currentUser?.organization_id;
@@ -272,6 +274,9 @@ export default function AdminPage() {
               iconPosition="start" 
               label="Users"
             />
+            {isCompanyAdmin && (
+              <Tab icon={<SecurityIcon />} iconPosition="start" label="Roles" />
+            )}
             {showApiKeysTab && (
               <Tab icon={<VpnKeyIcon />} iconPosition="start" label="API Keys" />
             )}
@@ -293,9 +298,16 @@ export default function AdminPage() {
             <AdminUsersTab />
           </TabPanel>
           
-          {/* Tab 1: API Keys (conditional - only if showApiKeysTab) */}
-          {showApiKeysTab && (
+          {/* Tab 1: Roles (company admin only) */}
+          {isCompanyAdmin && (
             <TabPanel value={activeTab} index={1}>
+              <AdminRolesTab />
+            </TabPanel>
+          )}
+          
+          {/* Tab index calculation: 2 if Roles shown, 1 if not (API Keys conditional) */}
+          {showApiKeysTab && (
+            <TabPanel value={activeTab} index={isCompanyAdmin ? 2 : 1}>
               {!apiAccessEnabled && isSuperAdmin && (
                 <Alert severity="warning" sx={{ mb: 2 }}>
                   API Keys tab is shown via super admin override. API Access module is currently disabled for this organization.
@@ -314,34 +326,32 @@ export default function AdminPage() {
             </TabPanel>
           )}
           
-          {/* Tab index calculation: 2 if API Keys shown, 1 if not */}
-          <TabPanel value={activeTab} index={showApiKeysTab ? 2 : 1}>
+          {/* Tab index calculation: Theme tab */}
+          <TabPanel value={activeTab} index={isCompanyAdmin ? (showApiKeysTab ? 3 : 2) : (showApiKeysTab ? 2 : 1)}>
             <AdminThemeTab />
           </TabPanel>
           
-          {/* Tab index calculation: 3 if API Keys shown, 2 if not */}
-          <TabPanel value={activeTab} index={showApiKeysTab ? 3 : 2}>
+          {/* Tab index calculation: Subscription tab */}
+          <TabPanel value={activeTab} index={isCompanyAdmin ? (showApiKeysTab ? 4 : 3) : (showApiKeysTab ? 3 : 2)}>
             <AdminSubscriptionTab />
           </TabPanel>
           
-          {/* Tab index calculation: 4 if API Keys shown, 3 if not (super admin only) */}
+          {/* Tab index calculation: API Config (super admin only) */}
           {isSuperAdmin && (
-            <TabPanel value={activeTab} index={showApiKeysTab ? 4 : 3}>
+            <TabPanel value={activeTab} index={isCompanyAdmin ? (showApiKeysTab ? 5 : 4) : (showApiKeysTab ? 4 : 3)}>
               <AdminApiConfigTab />
             </TabPanel>
           )}
           
-          {/* Tab index calculation: 5 if API Keys shown, 4 if not (super admin only) */}
+          {/* Tab index calculation: System (super admin only) */}
           {isSuperAdmin && (
-            <TabPanel value={activeTab} index={showApiKeysTab ? 5 : 4}>
+            <TabPanel value={activeTab} index={isCompanyAdmin ? (showApiKeysTab ? 6 : 5) : (showApiKeysTab ? 5 : 4)}>
               <AdminSystemTab />
             </TabPanel>
           )}
           
-          {/* Tab index calculation: 
-              - If super admin: 6 if API Keys shown, 5 if not
-              - If not super admin: 4 if API Keys shown, 3 if not */}
-          <TabPanel value={activeTab} index={isSuperAdmin ? (showApiKeysTab ? 6 : 5) : (showApiKeysTab ? 4 : 3)}>
+          {/* Tab index calculation: Analytics */}
+          <TabPanel value={activeTab} index={isSuperAdmin ? (isCompanyAdmin ? (showApiKeysTab ? 7 : 6) : (showApiKeysTab ? 6 : 5)) : (isCompanyAdmin ? (showApiKeysTab ? 5 : 4) : (showApiKeysTab ? 4 : 3))}>
             <AdminAnalyticsTab />
           </TabPanel>
         </Box>

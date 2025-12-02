@@ -406,22 +406,57 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session):
     // For signup flow, organization might not exist yet or might be identified by name
     let organizationId: string | null | undefined = metadata?.organization_id;
     
-    // If this is a signup and we don't have organization_id, try to find by name
+    // If this is a signup and we don't have organization_id, try to find by name (with retries)
     if (!organizationId && metadata?.is_signup === 'true' && metadata?.organization_name) {
-      const { data: org } = await supabase
-        .from('organizations')
-        .select('id')
-        .eq('name', metadata.organization_name)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const maxRetries = 3;
+      let foundOrg = null;
       
-      if (org) {
-        organizationId = org.id;
-      } else {
-        logger.warn('[Stripe] Checkout session completed for signup but organization not found:', {
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        if (attempt > 0) {
+          // Exponential backoff: 1s, 2s
+          const delay = 1000 * attempt;
+          logger.info('[Stripe] Retrying organization lookup by name (attempt ' + (attempt + 1) + '):', {
+            delay,
+            sessionId: session.id,
+            organizationName: metadata.organization_name,
+          });
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+
+        const { data: org, error: orgError } = await supabase
+          .from('organizations')
+          .select('id')
+          .eq('name', metadata.organization_name)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (org) {
+          foundOrg = org;
+          organizationId = org.id;
+          logger.info('[Stripe] Found organization by name:', {
+            sessionId: session.id,
+            organizationId: org.id,
+            organizationName: metadata.organization_name,
+            attempt: attempt + 1,
+          });
+          break;
+        } else if (orgError && orgError.code !== 'PGRST116') {
+          // Real error (not just "not found")
+          logger.error('[Stripe] Error looking up organization by name:', {
+            error: orgError.message,
+            sessionId: session.id,
+            organizationName: metadata.organization_name,
+            attempt: attempt + 1,
+          });
+        }
+      }
+      
+      if (!foundOrg) {
+        logger.warn('[Stripe] Checkout session completed for signup but organization not found after retries:', {
           sessionId: session.id,
           organizationName: metadata.organization_name,
+          maxRetries,
         });
         // Organization might not be created yet - callback will handle it
         return;
@@ -448,23 +483,49 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session):
       return;
     }
 
-    // Update organization with Stripe customer ID if available and not already set
+    // Update organization with Stripe customer ID if available
+    // Always update if customer ID is different (handles race conditions)
     const customerId = session.customer 
       ? (typeof session.customer === 'string' ? session.customer : session.customer.id)
       : null;
     
-    if (customerId && !orgCheck.stripe_customer_id) {
-      await supabase
-        .from('organizations')
-        .update({
-          stripe_customer_id: customerId,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', organizationId);
-      
-      logger.info('[Stripe] Updated organization with customer ID:', {
+    if (customerId) {
+      // Update even if already set (handles race conditions and ensures consistency)
+      if (orgCheck.stripe_customer_id !== customerId) {
+        const { error: customerUpdateError } = await supabase
+          .from('organizations')
+          .update({
+            stripe_customer_id: customerId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', organizationId);
+        
+        if (customerUpdateError) {
+          logger.error('[Stripe] Error updating organization with customer ID:', {
+            error: customerUpdateError.message,
+            organizationId,
+            customerId,
+            sessionId: session.id,
+          });
+        } else {
+          logger.info('[Stripe] Updated organization with customer ID:', {
+            organizationId,
+            customerId,
+            previousCustomerId: orgCheck.stripe_customer_id || null,
+            sessionId: session.id,
+          });
+        }
+      } else {
+        logger.debug('[Stripe] Customer ID already set to correct value (idempotent):', {
+          organizationId,
+          customerId,
+          sessionId: session.id,
+        });
+      }
+    } else {
+      logger.warn('[Stripe] Checkout session completed but no customer ID in session:', {
+        sessionId: session.id,
         organizationId,
-        customerId,
       });
     }
 

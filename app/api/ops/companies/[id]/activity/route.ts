@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { unauthorized, notFound, internalError } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 import { getActivityFeedForCompany } from '@/lib/ops/activityFeed';
@@ -12,9 +13,9 @@ export async function GET(
 ) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (authError || !user) {
       return unauthorized('You must be logged in to view activity feed');
     }
 
@@ -23,8 +24,11 @@ export async function GET(
     const limit = parseInt(searchParams.get('limit') || '50', 10);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+
     // Verify company exists
-    const { data: company, error: companyError } = await supabase
+    const { data: company, error: companyError } = await adminClient
       .from('companies')
       .select('id')
       .eq('id', companyId)
@@ -38,8 +42,8 @@ export async function GET(
       return internalError('Failed to check company', { error: companyError?.message });
     }
 
-    // Get activity feed
-    const activityFeed = await getActivityFeedForCompany(supabase, companyId, limit, offset);
+    // Get activity feed using admin client to bypass RLS
+    const activityFeed = await getActivityFeedForCompany(adminClient, companyId, limit, offset);
 
     return NextResponse.json(activityFeed);
   } catch (error) {

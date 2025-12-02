@@ -65,8 +65,11 @@ export async function GET(
       return forbidden('Custom dashboards are not enabled for your organization');
     }
 
-    // Get dashboard
-    const { data: dashboard, error: dashboardError } = await supabase
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+
+    // Get dashboard using admin client
+    const { data: dashboard, error: dashboardError } = await adminClient
       .from('dashboards')
       .select('*')
       .eq('id', params.id)
@@ -149,8 +152,7 @@ export async function GET(
       return forbidden('Invalid dashboard configuration');
     }
 
-    // Get widgets - Use admin client to avoid RLS recursion
-    const adminClient = createAdminSupabaseClient();
+    // Get widgets using admin client
     const { data: widgets, error: widgetsError } = await adminClient
       .from('dashboard_widgets')
       .select('*')
@@ -226,8 +228,11 @@ export async function PUT(
       return forbidden('Custom dashboards are not enabled for your organization');
     }
 
-    // Get existing dashboard
-    const { data: existingDashboard, error: existingError } = await supabase
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+
+    // Get existing dashboard using admin client
+    const { data: existingDashboard, error: existingError } = await adminClient
       .from('dashboards')
       .select('*')
       .eq('id', params.id)
@@ -251,14 +256,14 @@ export async function PUT(
         return forbidden('Only admins and PMs can update organization dashboards');
       }
     } else if (existingDashboard.project_id) {
-      // Check project membership
-      const { data: project } = await supabase
+      // Check project membership using admin client
+      const { data: project } = await adminClient
         .from('projects')
         .select('owner_id')
         .eq('id', existingDashboard.project_id)
         .single();
 
-      const { data: member } = await supabase
+      const { data: member } = await adminClient
         .from('project_members')
         .select('id')
         .eq('project_id', existingDashboard.project_id)
@@ -291,9 +296,9 @@ export async function PUT(
     if (is_default !== undefined) {
       updateData.is_default = is_default === true;
 
-      // If setting as default, unset other defaults in the same scope
+      // If setting as default, unset other defaults in the same scope using admin client
       if (is_default === true) {
-        let unsetQuery = supabase
+        let unsetQuery = adminClient
           .from('dashboards')
           .update({ is_default: false })
           .eq('is_default', true)
@@ -315,7 +320,8 @@ export async function PUT(
       updateData.layout = layout || {};
     }
 
-    const { data: dashboard, error: updateError } = await supabase
+    // Update dashboard using admin client
+    const { data: dashboard, error: updateError } = await adminClient
       .from('dashboards')
       .update(updateData)
       .eq('id', params.id)
@@ -387,8 +393,11 @@ export async function DELETE(
       return forbidden('Custom dashboards are not enabled for your organization');
     }
 
-    // Get existing dashboard
-    const { data: existingDashboard, error: existingError } = await supabase
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+
+    // Get existing dashboard using admin client
+    const { data: existingDashboard, error: existingError } = await adminClient
       .from('dashboards')
       .select('*')
       .eq('id', params.id)
@@ -412,14 +421,14 @@ export async function DELETE(
         return forbidden('Only admins and PMs can delete organization dashboards');
       }
     } else if (existingDashboard.project_id) {
-      // Check project membership
-      const { data: project } = await supabase
+      // Check project membership using admin client
+      const { data: project } = await adminClient
         .from('projects')
         .select('owner_id')
         .eq('id', existingDashboard.project_id)
         .single();
 
-      const { data: member } = await supabase
+      const { data: member } = await adminClient
         .from('project_members')
         .select('id')
         .eq('project_id', existingDashboard.project_id)
@@ -431,8 +440,8 @@ export async function DELETE(
       }
     }
 
-    // Delete dashboard (widgets will be cascade deleted)
-    const { error: deleteError } = await supabase
+    // Delete dashboard (widgets will be cascade deleted) using admin client
+    const { error: deleteError } = await adminClient
       .from('dashboards')
       .delete()
       .eq('id', params.id);

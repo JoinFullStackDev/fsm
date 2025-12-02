@@ -53,14 +53,17 @@ export async function PUT(
       return badRequest('User is not assigned to an organization');
     }
 
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+
     // Check module access
-    const hasAccess = await hasCustomDashboards(supabase, organizationId);
+    const hasAccess = await hasCustomDashboards(adminClient, organizationId);
     if (!hasAccess) {
       return forbidden('Custom dashboards are not enabled for your organization');
     }
 
-    // Get widget and dashboard
-    const { data: widget, error: widgetError } = await supabase
+    // Get widget and dashboard using admin client
+    const { data: widget, error: widgetError } = await adminClient
       .from('dashboard_widgets')
       .select('*, dashboard:dashboards(*)')
       .eq('id', params.widgetId)
@@ -87,14 +90,14 @@ export async function PUT(
         return forbidden('Only admins and PMs can update widgets in organization dashboards');
       }
     } else if (dashboard.project_id) {
-      // Check project membership
-      const { data: project } = await supabase
+      // Check project membership using admin client
+      const { data: project } = await adminClient
         .from('projects')
         .select('owner_id')
         .eq('id', dashboard.project_id)
         .single();
 
-      const { data: member } = await supabase
+      const { data: member } = await adminClient
         .from('project_members')
         .select('id')
         .eq('project_id', dashboard.project_id)
@@ -123,7 +126,7 @@ export async function PUT(
       updateData.settings = settings;
     }
 
-    const { data: updatedWidget, error: updateError } = await supabase
+    const { data: updatedWidget, error: updateError } = await adminClient
       .from('dashboard_widgets')
       .update(updateData)
       .eq('id', params.widgetId)
@@ -189,14 +192,17 @@ export async function DELETE(
       return badRequest('User is not assigned to an organization');
     }
 
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+
     // Check module access
-    const hasAccess = await hasCustomDashboards(supabase, organizationId);
+    const hasAccess = await hasCustomDashboards(adminClient, organizationId);
     if (!hasAccess) {
       return forbidden('Custom dashboards are not enabled for your organization');
     }
 
-    // Get widget and dashboard
-    const { data: widget, error: widgetError } = await supabase
+    // Get widget and dashboard using admin client
+    const { data: widget, error: widgetError } = await adminClient
       .from('dashboard_widgets')
       .select('*, dashboard:dashboards(*)')
       .eq('id', params.widgetId)
@@ -223,14 +229,14 @@ export async function DELETE(
         return forbidden('Only admins and PMs can delete widgets in organization dashboards');
       }
     } else if (dashboard.project_id) {
-      // Check project membership
-      const { data: project } = await supabase
+      // Check project membership using admin client
+      const { data: project } = await adminClient
         .from('projects')
         .select('owner_id')
         .eq('id', dashboard.project_id)
         .single();
 
-      const { data: member } = await supabase
+      const { data: member } = await adminClient
         .from('project_members')
         .select('id')
         .eq('project_id', dashboard.project_id)
@@ -242,7 +248,7 @@ export async function DELETE(
       }
     }
 
-    const { error: deleteError } = await supabase
+    const { error: deleteError } = await adminClient
       .from('dashboard_widgets')
       .delete()
       .eq('id', params.widgetId);
