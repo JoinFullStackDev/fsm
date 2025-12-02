@@ -27,6 +27,12 @@ import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { createMockUser, createMockProject, createMockPhase } from '@/lib/test-helpers';
 
+// Helper to generate test UUIDs
+function generateTestUUID(seed: number = 1): string {
+  const hex = seed.toString(16).padStart(8, '0');
+  return `${hex}0000-0000-4000-8000-${hex}00000000`;
+}
+
 jest.mock('@/lib/supabaseServer');
 jest.mock('@/lib/supabaseAdmin');
 jest.mock('@/lib/organizationContext', () => ({
@@ -40,6 +46,10 @@ jest.mock('@/lib/utils/logger', () => ({
     warn: jest.fn(),
     error: jest.fn(),
   },
+}));
+jest.mock('@/lib/utils/csrf', () => ({
+  requireCsrfToken: jest.fn().mockResolvedValue(null),
+  shouldSkipCsrf: jest.fn().mockReturnValue(false),
 }));
 
 // Helper to create chainable query mocks
@@ -76,6 +86,9 @@ describe('/api/projects/[id]/phases', () => {
     from: jest.fn(),
   };
 
+  // Valid UUID for organization_id
+  const validOrgId = '00000123-0000-4000-8000-000001230000';
+
   beforeEach(() => {
     jest.clearAllMocks();
     // Reset from() mock to ensure clean state
@@ -84,24 +97,24 @@ describe('/api/projects/[id]/phases', () => {
     mockSupabaseClient.auth.getUser.mockReset();
     (createServerSupabaseClient as jest.Mock).mockResolvedValue(mockSupabaseClient);
     (createAdminSupabaseClient as jest.Mock).mockReturnValue(mockAdminClient);
-    (getUserOrganizationId as jest.Mock).mockResolvedValue('org-123');
+    (getUserOrganizationId as jest.Mock).mockResolvedValue(validOrgId);
   });
 
   describe('GET', () => {
     it('should return phases for project', async () => {
-      const mockUser = createMockUser({ organization_id: 'org-123' });
+      const mockUser = createMockUser({ organization_id: validOrgId });
       const mockProject = createMockProject({ 
         owner_id: mockUser.id,
-        organization_id: 'org-123',
+        organization_id: validOrgId,
       });
       const mockPhases = [
-        createMockPhase({ phase_number: 1 }),
-        createMockPhase({ phase_number: 2 }),
+        createMockPhase({ phase_number: 1, project_id: mockProject.id }),
+        createMockPhase({ phase_number: 2, project_id: mockProject.id }),
       ];
 
       mockSupabaseClient.auth.getUser.mockResolvedValue({
         data: {
-          user: { id: 'auth-123' },
+          user: { id: mockUser.auth_id },
         },
         error: null,
       });
@@ -110,7 +123,7 @@ describe('/api/projects/[id]/phases', () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({
-          data: { id: mockUser.id, role: mockUser.role, organization_id: 'org-123', is_super_admin: false },
+          data: { id: mockUser.id, role: mockUser.role, organization_id: validOrgId, is_super_admin: false },
           error: null,
         }),
       };
@@ -119,7 +132,7 @@ describe('/api/projects/[id]/phases', () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({
-          data: { owner_id: mockProject.owner_id, organization_id: 'org-123' },
+          data: { owner_id: mockProject.owner_id, organization_id: validOrgId },
           error: null,
         }),
       };
@@ -138,8 +151,8 @@ describe('/api/projects/[id]/phases', () => {
         .mockReturnValueOnce(mockProjectQuery) // Project lookup
         .mockReturnValueOnce(mockPhasesQuery); // Phases lookup
 
-      const request = new NextRequest('http://localhost:3000/api/projects/project-1/phases');
-      const response = await GET(request, { params: { id: 'project-1' } });
+      const request = new NextRequest(`http://localhost:3000/api/projects/${mockProject.id}/phases`);
+      const response = await GET(request, { params: { id: mockProject.id } });
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -152,19 +165,20 @@ describe('/api/projects/[id]/phases', () => {
         error: { message: 'Not authenticated' },
       });
 
-      const request = new NextRequest('http://localhost:3000/api/projects/project-1/phases');
-      const response = await GET(request, { params: { id: 'project-1' } });
+      const request = new NextRequest(`http://localhost:3000/api/projects/${mockProject.id}/phases`);
+      const response = await GET(request, { params: { id: mockProject.id } });
 
       expect(response.status).toBe(401);
     });
 
     it('should return 403 when user is not owner or member', async () => {
-      const mockUser = createMockUser({ id: 'user-2', organization_id: 'org-123' });
-      const mockProject = createMockProject({ owner_id: 'user-1', organization_id: 'org-456' });
+      const otherUser = createMockUser({ id: generateTestUUID(2), organization_id: validOrgId });
+      const mockUser = createMockUser({ organization_id: validOrgId });
+      const mockProject = createMockProject({ owner_id: otherUser.id, organization_id: generateTestUUID(456) });
 
       mockSupabaseClient.auth.getUser.mockResolvedValue({
         data: {
-          user: { id: 'auth-123' },
+          user: { id: mockUser.auth_id },
         },
         error: null,
       });
@@ -173,7 +187,7 @@ describe('/api/projects/[id]/phases', () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({
-          data: { id: mockUser.id, role: mockUser.role, organization_id: 'org-123', is_super_admin: false },
+          data: { id: mockUser.id, role: mockUser.role, organization_id: validOrgId, is_super_admin: false },
           error: null,
         }),
       };
@@ -182,7 +196,7 @@ describe('/api/projects/[id]/phases', () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({
-          data: { owner_id: mockProject.owner_id, organization_id: 'org-456' },
+          data: { owner_id: mockProject.owner_id, organization_id: mockProject.organization_id },
           error: null,
         }),
       };
@@ -201,8 +215,8 @@ describe('/api/projects/[id]/phases', () => {
         .mockReturnValueOnce(mockProjectQuery) // Project lookup
         .mockReturnValueOnce(mockMemberQuery); // Member check
 
-      const request = new NextRequest('http://localhost:3000/api/projects/project-1/phases');
-      const response = await GET(request, { params: { id: 'project-1' } });
+      const request = new NextRequest(`http://localhost:3000/api/projects/${mockProject.id}/phases`);
+      const response = await GET(request, { params: { id: mockProject.id } });
 
       expect(response.status).toBe(403);
     });
@@ -210,16 +224,16 @@ describe('/api/projects/[id]/phases', () => {
 
   describe('POST', () => {
     it('should create phase when user is owner', async () => {
-      const mockUser = createMockUser({ organization_id: 'org-123' });
+      const mockUser = createMockUser({ organization_id: validOrgId });
       const mockProject = createMockProject({ 
         owner_id: mockUser.id,
-        organization_id: 'org-123',
+        organization_id: validOrgId,
       });
       const newPhase = createMockPhase({ phase_number: 3 });
 
       mockSupabaseClient.auth.getUser.mockResolvedValue({
         data: {
-          user: { id: 'auth-123' },
+          user: { id: mockUser.auth_id },
         },
         error: null,
       });
@@ -228,7 +242,7 @@ describe('/api/projects/[id]/phases', () => {
         select: jest.fn(),
         eq: jest.fn(),
         single: jest.fn().mockResolvedValue({
-          data: { id: mockUser.id, role: mockUser.role, organization_id: 'org-123', is_super_admin: false },
+          data: { id: mockUser.id, role: mockUser.role, organization_id: validOrgId, is_super_admin: false },
           error: null,
         }),
       };
@@ -240,7 +254,7 @@ describe('/api/projects/[id]/phases', () => {
         select: jest.fn(),
         eq: jest.fn(),
         single: jest.fn().mockResolvedValue({
-          data: { owner_id: mockProject.owner_id, organization_id: 'org-123' },
+          data: { owner_id: mockProject.owner_id, organization_id: validOrgId },
           error: null,
         }),
       };
@@ -291,7 +305,7 @@ describe('/api/projects/[id]/phases', () => {
         select: jest.fn(),
         eq: jest.fn(),
         single: jest.fn().mockResolvedValue({
-          data: { id: mockUser.id, role: mockUser.role, organization_id: 'org-123', is_super_admin: false },
+          data: { id: mockUser.id, role: mockUser.role, organization_id: validOrgId, is_super_admin: false },
           error: null,
         }),
       };
@@ -306,14 +320,14 @@ describe('/api/projects/[id]/phases', () => {
         .mockReturnValueOnce(mockExistingPhasesQuery) // Existing phases check
         .mockReturnValueOnce(mockInsertQuery); // Phase insert
 
-      const request = new NextRequest('http://localhost:3000/api/projects/project-1/phases', {
+      const request = new NextRequest(`http://localhost:3000/api/projects/${mockProject.id}/phases`, {
         method: 'POST',
         body: JSON.stringify({
           phase_name: 'New Phase',
         }),
       });
 
-      const response = await POST(request, { params: { id: 'project-1' } });
+      const response = await POST(request, { params: { id: mockProject.id } });
       const data = await response.json();
 
       if (response.status !== 201) {
@@ -327,16 +341,16 @@ describe('/api/projects/[id]/phases', () => {
 
   describe('PATCH', () => {
     it('should update phase', async () => {
-      const mockUser = createMockUser({ organization_id: 'org-123' });
+      const mockUser = createMockUser({ organization_id: validOrgId });
       const mockProject = createMockProject({ 
         owner_id: mockUser.id,
-        organization_id: 'org-123',
+        organization_id: validOrgId,
       });
       const updatedPhase = createMockPhase({ completed: true });
 
       mockSupabaseClient.auth.getUser.mockResolvedValue({
         data: {
-          user: { id: 'auth-123' },
+          user: { id: mockUser.auth_id },
         },
         error: null,
       });
@@ -345,7 +359,7 @@ describe('/api/projects/[id]/phases', () => {
         select: jest.fn(),
         eq: jest.fn(),
         single: jest.fn().mockResolvedValue({
-          data: { id: mockUser.id, role: mockUser.role, organization_id: 'org-123', is_super_admin: false },
+          data: { id: mockUser.id, role: mockUser.role, organization_id: validOrgId, is_super_admin: false },
           error: null,
         }),
       };
@@ -357,7 +371,7 @@ describe('/api/projects/[id]/phases', () => {
         select: jest.fn(),
         eq: jest.fn(),
         single: jest.fn().mockResolvedValue({
-          data: { owner_id: mockProject.owner_id, organization_id: 'org-123' },
+          data: { owner_id: mockProject.owner_id, organization_id: validOrgId },
           error: null,
         }),
       };
@@ -391,7 +405,7 @@ describe('/api/projects/[id]/phases', () => {
         select: jest.fn(),
         eq: jest.fn(),
         single: jest.fn().mockResolvedValue({
-          data: { id: mockUser.id, role: mockUser.role, organization_id: 'org-123', is_super_admin: false },
+          data: { id: mockUser.id, role: mockUser.role, organization_id: validOrgId, is_super_admin: false },
           error: null,
         }),
       };
@@ -405,7 +419,7 @@ describe('/api/projects/[id]/phases', () => {
         .mockReturnValueOnce(mockMemberQuery) // Member check
         .mockReturnValueOnce(mockUpdateQuery); // Phase update (with chained eq calls)
 
-      const request = new NextRequest('http://localhost:3000/api/projects/project-1/phases', {
+      const request = new NextRequest(`http://localhost:3000/api/projects/${mockProject.id}/phases`, {
         method: 'PATCH',
         body: JSON.stringify({
           phase_id: 'phase-1',
@@ -413,7 +427,7 @@ describe('/api/projects/[id]/phases', () => {
         }),
       });
 
-      const response = await PATCH(request, { params: { id: 'project-1' } });
+      const response = await PATCH(request, { params: { id: mockProject.id } });
       const data = await response.json();
 
       if (response.status !== 200) {

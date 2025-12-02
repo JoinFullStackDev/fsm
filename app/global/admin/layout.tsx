@@ -11,7 +11,6 @@ import {
   ListItemIcon,
   ListItemText,
   Typography,
-  Divider,
   CircularProgress,
   useMediaQuery,
   Tooltip,
