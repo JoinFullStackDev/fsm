@@ -12,6 +12,78 @@ import type { ArticleUpdateInput } from '@/types/kb';
 export const dynamic = 'force-dynamic';
 
 /**
+ * GET /api/kb/articles/[id]
+ * Get an article by ID
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+
+    if (!authUser) {
+      return unauthorized('You must be logged in to view articles');
+    }
+
+    // Get user record
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id, role, organization_id, is_super_admin')
+      .eq('auth_id', authUser.id)
+      .single();
+
+    if (userError || !userData) {
+      return unauthorized('User record not found');
+    }
+
+    const organizationId = userData.organization_id;
+
+    // Get article
+    const { data: article, error: fetchError } = await supabase
+      .from('knowledge_base_articles')
+      .select(`
+        *,
+        category:knowledge_base_categories(*)
+      `)
+      .eq('id', params.id)
+      .single();
+
+    if (fetchError || !article) {
+      return notFound('Article not found');
+    }
+
+    // Check access - allow if:
+    // 1. User is super admin
+    // 2. Article is global (organization_id is null)
+    // 3. Article belongs to user's organization
+    if (article.organization_id !== organizationId) {
+      if (article.organization_id !== null || !userData.is_super_admin) {
+        // For non-super-admins, check if article is published and they have KB access
+        if (!article.published) {
+          return forbidden('You do not have permission to view this article');
+        }
+        
+        // Check KB access for viewing published articles
+        if (organizationId) {
+          const { hasKnowledgeBaseAccess } = await import('@/lib/packageLimits');
+          const hasAccess = await hasKnowledgeBaseAccess(supabase, organizationId);
+          if (!hasAccess) {
+            return forbidden('Knowledge base is not enabled for your organization');
+          }
+        }
+      }
+    }
+
+    return NextResponse.json(article);
+  } catch (error) {
+    logger.error('[KB Articles API] Exception in GET:', error);
+    return internalError('Failed to fetch article');
+  }
+}
+
+/**
  * PUT /api/kb/articles/[id]
  * Update an article
  */

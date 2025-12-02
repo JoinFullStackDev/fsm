@@ -28,6 +28,9 @@ import { createMockProject, createMockUser } from '@/lib/test-helpers';
 
 jest.mock('@/lib/supabaseServer');
 jest.mock('@/lib/supabaseAdmin');
+jest.mock('@/lib/organizationContext', () => ({
+  getUserOrganizationId: jest.fn(),
+}));
 jest.mock('@/lib/notifications', () => ({
   notifyProjectCreated: jest.fn(),
 }));
@@ -46,6 +49,18 @@ jest.mock('@/lib/utils/logger', () => ({
     error: jest.fn(),
   },
 }));
+jest.mock('@/lib/utils/csrf', () => ({
+  requireCsrfToken: jest.fn().mockResolvedValue(null),
+  shouldSkipCsrf: jest.fn().mockReturnValue(false),
+}));
+
+import { getUserOrganizationId } from '@/lib/organizationContext';
+
+// Helper to generate test UUIDs (matching test-helpers.ts)
+function generateTestUUID(seed: number = 1): string {
+  const hex = seed.toString(16).padStart(8, '0');
+  return `${hex}0000-0000-4000-8000-${hex}00000000`;
+}
 
 describe('/api/projects', () => {
   const mockSupabaseClient = {
@@ -59,24 +74,30 @@ describe('/api/projects', () => {
     from: jest.fn(),
   };
 
+  // Valid UUID for organization_id
+  const validOrgId = '00000123-0000-4000-8000-000001230000';
+
   beforeEach(() => {
     jest.clearAllMocks();
     (createServerSupabaseClient as jest.Mock).mockResolvedValue(mockSupabaseClient);
     (createAdminSupabaseClient as jest.Mock).mockReturnValue(mockAdminClient);
+    (getUserOrganizationId as jest.Mock).mockResolvedValue(validOrgId);
+    // Mock RPC call for user_organization_id
+    mockSupabaseClient.rpc = jest.fn().mockResolvedValue({ data: validOrgId, error: null });
   });
 
   describe('GET', () => {
     it('should return projects for authenticated user', async () => {
       const mockUser = createMockUser({ 
         role: 'engineer',
-        organization_id: 'org-123',
+        organization_id: validOrgId,
         is_super_admin: false,
       }); // Non-admin user
-      const mockProjects = [createMockProject(), createMockProject({ id: 'project-2' })];
+      const mockProjects = [createMockProject(), createMockProject({ id: generateTestUUID(101) })];
 
       mockSupabaseClient.auth.getUser.mockResolvedValue({
         data: {
-          user: { id: 'auth-123', email: 'test@example.com' },
+          user: { id: mockUser.auth_id, email: 'test@example.com' },
         },
       });
 
@@ -94,44 +115,71 @@ describe('/api/projects', () => {
         }),
       };
 
-      // Mock project_members query (for non-admin users)
-      // Returns empty array, so code will use .eq('owner_id', userData.id) path
-      const mockProjectMembersQueryBuilder = {
+      // Mock admin client queries (route uses adminClient for most queries)
+      // 1. Owned projects query: adminClient.from('projects').select('id').eq('organization_id').eq('owner_id')
+      // The route chains: .eq('organization_id').eq('owner_id') then awaits the result
+      // Supabase query builders are thenable, so we need to make it awaitable
+      const ownedProjectsResult = {
+        data: mockProjects.map(p => ({ id: p.id })),
+        error: null,
+      };
+      const mockOwnedProjectsQuery: any = {
+        select: jest.fn(function() { return this; }),
+        eq: jest.fn(function() { return this; }),
+        then: jest.fn((resolve) => Promise.resolve(ownedProjectsResult).then(resolve)),
+        catch: jest.fn(),
+      };
+
+      // 2. Member projects query: adminClient.from('project_members').select(...).eq('user_id')
+      const mockMemberProjectsQuery: any = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockResolvedValue({
-          data: [],
+          data: [], // No member projects for this test
           error: null,
         }),
       };
 
-      // Create a chainable query builder for projects
-      // Since memberProjectIds is empty, code will use .eq('owner_id', userData.id)
-      // The builder needs to support: select() -> eq() -> order() -> range()
-      // select() is called with { count: 'exact' } so it needs to handle that
-      const mockProjectsQueryBuilder: any = {};
-      mockProjectsQueryBuilder.select = jest.fn().mockReturnValue(mockProjectsQueryBuilder);
-      mockProjectsQueryBuilder.eq = jest.fn().mockReturnValue(mockProjectsQueryBuilder);
-      mockProjectsQueryBuilder.or = jest.fn().mockReturnValue(mockProjectsQueryBuilder);
-      mockProjectsQueryBuilder.order = jest.fn().mockReturnValue(mockProjectsQueryBuilder);
-      mockProjectsQueryBuilder.range = jest.fn().mockResolvedValue({
-        data: mockProjects,
-        error: null,
-        count: mockProjects.length,
-      });
+      // 3. Verified projects query: adminClient.from('projects').select('id, organization_id').in('id').eq('organization_id')
+      const mockVerifiedProjectsQuery: any = {
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockResolvedValue({
+          data: mockProjects.map(p => ({ id: p.id, organization_id: validOrgId })),
+          error: null,
+        }),
+      };
 
-      // Mock the from() calls in order as they appear in the route:
-      // 1. users table (line 27 - for user lookup with regular client)
-      // 2. projects table (line 71 - start projects query with select)
-      // 3. project_members table (line 90 - to check membership, inside else block)
+      // 4. Final projects query: adminClient.from('projects').select(...).eq('organization_id').in('id').order().range()
+      const mockFinalProjectsQuery: any = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        range: jest.fn().mockResolvedValue({
+          data: mockProjects,
+          error: null,
+          count: mockProjects.length,
+        }),
+      };
+
+      // Mock regular client: users table lookup
       mockSupabaseClient.from
-        .mockReturnValueOnce(mockUserQuery) // 1. users table
-        .mockReturnValueOnce(mockProjectsQueryBuilder) // 2. projects table (called first, before project_members check)
-        .mockReturnValueOnce(mockProjectMembersQueryBuilder); // 3. project_members table
+        .mockReturnValueOnce(mockUserQuery); // users table
+
+      // Mock admin client queries in order:
+      mockAdminClient.from
+        .mockReturnValueOnce(mockOwnedProjectsQuery) // 1. owned projects
+        .mockReturnValueOnce(mockMemberProjectsQuery) // 2. member projects
+        .mockReturnValueOnce(mockVerifiedProjectsQuery) // 3. verified projects
+        .mockReturnValueOnce(mockFinalProjectsQuery); // 4. final projects query
 
       const request = new NextRequest('http://localhost:3000/api/projects');
       const response = await GET(request);
       const data = await response.json();
 
+      if (response.status !== 200) {
+        console.error('Test failed with status:', response.status, 'Error:', JSON.stringify(data, null, 2));
+      }
 
       expect(response.status).toBe(200);
       expect(data).toEqual({
@@ -156,11 +204,13 @@ describe('/api/projects', () => {
     });
 
     it('should return 404 when user not found', async () => {
+      const mockUser = createMockUser();
       mockSupabaseClient.auth.getUser.mockResolvedValue({
         data: {
-          user: { id: 'auth-123', email: 'test@example.com' },
+          user: { id: mockUser.auth_id, email: 'test@example.com' },
         },
       });
+      (getUserOrganizationId as jest.Mock).mockResolvedValue(null);
 
       const mockUserQuery = {
         select: jest.fn().mockReturnThis(),
@@ -194,7 +244,7 @@ describe('/api/projects', () => {
   describe('POST', () => {
     it('should create project with valid data', async () => {
       const mockUser = createMockUser({ 
-        organization_id: 'org-123',
+        organization_id: validOrgId,
         email: 'test@example.com',
         name: 'Test User',
       });
@@ -202,7 +252,7 @@ describe('/api/projects', () => {
 
       mockSupabaseClient.auth.getUser.mockResolvedValue({
         data: {
-          user: { id: 'auth-123', email: 'test@example.com' },
+          user: { id: mockUser.auth_id, email: 'test@example.com' },
         },
       });
 
@@ -219,6 +269,12 @@ describe('/api/projects', () => {
           error: null,
         }),
       };
+
+      // Mock RPC call for create_project_with_org
+      mockAdminClient.rpc = jest.fn().mockResolvedValue({
+        data: newProject,
+        error: null,
+      });
 
       const mockAdminProjectQuery = {
         insert: jest.fn().mockReturnThis(),
@@ -262,9 +318,10 @@ describe('/api/projects', () => {
     });
 
     it('should return 400 when name is missing', async () => {
+      const mockUser = createMockUser();
       mockSupabaseClient.auth.getUser.mockResolvedValue({
         data: {
-          user: { id: 'auth-123', email: 'test@example.com' },
+          user: { id: mockUser.auth_id, email: 'test@example.com' },
         },
       });
 

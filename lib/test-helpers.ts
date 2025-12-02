@@ -52,15 +52,25 @@ export interface MockTask {
 }
 
 /**
+ * Generate a valid UUID v4 for testing
+ */
+function generateTestUUID(seed: number = 1): string {
+  // Generate deterministic UUIDs for testing based on seed
+  // Format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+  const hex = seed.toString(16).padStart(8, '0');
+  return `${hex}0000-0000-4000-8000-${hex}00000000`;
+}
+
+/**
  * Create a mock user
  */
 export function createMockUser(overrides?: Partial<MockUser>): MockUser {
   return {
-    id: 'user-1',
+    id: generateTestUUID(1), // user-1 equivalent
     email: 'test@example.com',
     name: 'Test User',
     role: 'engineer',
-    auth_id: 'auth-123',
+    auth_id: generateTestUUID(123), // auth-123 equivalent
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     ...overrides,
@@ -72,7 +82,7 @@ export function createMockUser(overrides?: Partial<MockUser>): MockUser {
  */
 export function createMockProject(overrides?: Partial<MockProject>): MockProject {
   return {
-    id: 'project-1',
+    id: generateTestUUID(100), // project-1 equivalent
     name: 'Test Project',
     description: 'Test Description',
     status: 'in-progress',
@@ -89,8 +99,8 @@ export function createMockProject(overrides?: Partial<MockProject>): MockProject
  */
 export function createMockPhase(overrides?: Partial<MockPhase>): MockPhase {
   return {
-    id: 'phase-1',
-    project_id: 'project-1',
+    id: generateTestUUID(200), // phase-1 equivalent
+    project_id: generateTestUUID(100), // project-1 equivalent
     phase_number: 1,
     phase_name: 'Test Phase',
     phase_data: {},
@@ -109,8 +119,8 @@ export function createMockPhase(overrides?: Partial<MockPhase>): MockPhase {
  */
 export function createMockTask(overrides?: Partial<MockTask>): MockTask {
   return {
-    id: 'task-1',
-    project_id: 'project-1',
+    id: generateTestUUID(300), // task-1 equivalent
+    project_id: generateTestUUID(100), // project-1 equivalent
     phase_number: 1,
     title: 'Test Task',
     description: 'Test Description',
