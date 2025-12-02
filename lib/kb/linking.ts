@@ -167,6 +167,8 @@ export async function findRelatedTasks(
   id: string;
   title: string;
   project_id: string;
+  project_name?: string;
+  matching_keywords?: string[];
 }>> {
   try {
     // Extract keywords from article title and summary
@@ -176,13 +178,14 @@ export async function findRelatedTasks(
       return [];
     }
 
-    // Get project IDs for the organization first
+    // Get project IDs and names for the organization
     const { data: orgProjects } = await supabase
       .from('projects')
-      .select('id')
+      .select('id, name')
       .eq('organization_id', organizationId);
     
     const projectIds = orgProjects?.map(p => p.id) || [];
+    const projectMap = new Map(orgProjects?.map(p => [p.id, p.name]) || []);
     
     if (projectIds.length === 0) {
       return [];
@@ -191,21 +194,36 @@ export async function findRelatedTasks(
     // Search for tasks with matching keywords
     const { data: tasks, error } = await supabase
       .from('project_tasks')
-      .select('id, title, project_id')
+      .select('id, title, project_id, description')
       .in('project_id', projectIds)
-      .or(keywords.map(kw => `title.ilike.%${kw}%,description.ilike.%${kw}%`).join(','))
-      .limit(limit);
+      .limit(limit * 2); // Get more to filter and find matches
 
     if (error) {
       logger.error('[KB Linking] Error finding related tasks:', error);
       return [];
     }
 
-    return (tasks || []).map((task: any) => ({
-      id: task.id,
-      title: task.title,
-      project_id: task.project_id,
-    }));
+    // Filter tasks that contain keywords and find matching keywords
+    const relatedTasks = (tasks || [])
+      .map((task: any) => {
+        const taskText = `${task.title} ${task.description || ''}`.toLowerCase();
+        const matchingKeywords = keywords.filter(kw => 
+          taskText.includes(kw.toLowerCase())
+        );
+        return { task, matchingKeywords };
+      })
+      .filter(({ matchingKeywords }) => matchingKeywords.length > 0)
+      .sort((a, b) => b.matchingKeywords.length - a.matchingKeywords.length) // Sort by number of matches
+      .slice(0, limit)
+      .map(({ task, matchingKeywords }) => ({
+        id: task.id,
+        title: task.title,
+        project_id: task.project_id,
+        project_name: projectMap.get(task.project_id) || undefined,
+        matching_keywords: matchingKeywords.slice(0, 3), // Show up to 3 matching keywords
+      }));
+
+    return relatedTasks;
   } catch (error) {
     logger.error('[KB Linking] Exception finding related tasks:', error);
     return [];
@@ -275,12 +293,15 @@ export async function findRelatedPhases(
   id: string;
   project_id: string;
   phase_number: number;
+  phase_name?: string;
+  project_name?: string;
+  matching_keywords?: string[];
 }>> {
   try {
     // Get projects for the organization
     const { data: projects } = await supabase
       .from('projects')
-      .select('id')
+      .select('id, name')
       .eq('organization_id', organizationId);
 
     if (!projects || projects.length === 0) {
@@ -288,6 +309,7 @@ export async function findRelatedPhases(
     }
 
     const projectIds = projects.map(p => p.id);
+    const projectMap = new Map(projects.map(p => [p.id, p.name]));
     const keywords = extractKeywords(article.title + ' ' + (article.summary || ''));
 
     if (keywords.length === 0) {
@@ -297,7 +319,7 @@ export async function findRelatedPhases(
     // Search phases by project and keywords in phase data
     const { data: phases, error } = await supabase
       .from('project_phases')
-      .select('id, project_id, phase_number, data')
+      .select('id, project_id, phase_number, phase_name, data')
       .in('project_id', projectIds)
       .limit(limit * 2); // Get more to filter by keyword match
 
@@ -306,17 +328,25 @@ export async function findRelatedPhases(
       return [];
     }
 
-    // Filter phases that contain keywords in their data
+    // Filter phases that contain keywords in their data and find matching keywords
     const relatedPhases = (phases || [])
-      .filter((phase: any) => {
+      .map((phase: any) => {
         const phaseData = JSON.stringify(phase.data || {}).toLowerCase();
-        return keywords.some(kw => phaseData.includes(kw.toLowerCase()));
+        const matchingKeywords = keywords.filter(kw => 
+          phaseData.includes(kw.toLowerCase())
+        );
+        return { phase, matchingKeywords };
       })
+      .filter(({ matchingKeywords }) => matchingKeywords.length > 0)
+      .sort((a, b) => b.matchingKeywords.length - a.matchingKeywords.length) // Sort by number of matches
       .slice(0, limit)
-      .map((phase: any) => ({
+      .map(({ phase, matchingKeywords }) => ({
         id: phase.id,
         project_id: phase.project_id,
         phase_number: phase.phase_number,
+        phase_name: phase.phase_name || undefined,
+        project_name: projectMap.get(phase.project_id) || undefined,
+        matching_keywords: matchingKeywords.slice(0, 3), // Show up to 3 matching keywords
       }));
 
     return relatedPhases;
@@ -355,9 +385,9 @@ export async function findAllRelatedContent(
     const relatedArticles = await findRelatedArticles(supabase, articleId, 5);
 
     // Find related tasks, dashboards, and phases if organization ID is available
-    let relatedTasks: Array<{ id: string; title: string; project_id: string }> = [];
+    let relatedTasks: Array<{ id: string; title: string; project_id: string; project_name?: string; matching_keywords?: string[] }> = [];
     let relatedDashboards: Array<{ id: string; name: string }> = [];
-    let relatedPhases: Array<{ id: string; project_id: string; phase_number: number }> = [];
+    let relatedPhases: Array<{ id: string; project_id: string; phase_number: number; phase_name?: string; project_name?: string; matching_keywords?: string[] }> = [];
 
     if (organizationId) {
       [relatedTasks, relatedDashboards, relatedPhases] = await Promise.all([

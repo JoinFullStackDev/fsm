@@ -131,7 +131,9 @@ export async function POST(
         event_type: 'tag_added',
         message: `Tag "${tag_name.trim()}" added to contact ${contact.first_name} ${contact.last_name} by ${userName}`,
       });
-      logger.info('Created activity feed item for tag:', activityResult.id);
+      if (activityResult) {
+        logger.info('Created activity feed item for tag:', activityResult.id);
+      }
     } catch (activityError: any) {
       logger.error('Error creating activity feed item for tag:', {
         error: activityError,

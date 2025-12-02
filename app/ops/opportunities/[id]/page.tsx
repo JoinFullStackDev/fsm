@@ -308,7 +308,7 @@ export default function OpportunityDetailPage() {
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4, px: { xs: 0, md: 3 } }}>
       {/* Header */}
-      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { xs: 'flex-start', md: 'center' }, gap: { xs: 2, md: 2 }, mb: 3, px: { xs: 2, md: 0 } }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { xs: 'flex-start', md: 'center' }, justifyContent: { xs: 'flex-start', md: 'space-between' }, gap: { xs: 2, md: 2 }, mb: 3, px: { xs: 2, md: 0 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: { xs: '100%', md: 'auto' } }}>
           <IconButton
             onClick={() => router.push('/ops/opportunities')}

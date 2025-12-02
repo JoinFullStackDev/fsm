@@ -22,6 +22,7 @@ import { createSupabaseClient } from '@/lib/supabaseClient';
 import { getDefaultPhaseData } from '@/lib/phaseSchemas';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { validateProjectName } from '@/lib/utils/validation';
+import { getCsrfHeaders } from '@/lib/utils/csrfClient';
 import type { ProjectStatus, PrimaryTool, ProjectTemplate } from '@/types/project';
 import type { Company } from '@/types/ops';
 
@@ -70,11 +71,12 @@ export default function NewProjectPage() {
     setLoadingTemplates(true);
     try {
       // Use API route to get templates (handles organization filtering)
+      // API returns: org-specific templates (is_public=true OR created_by=user) + global public templates (is_publicly_available=true)
       const response = await fetch('/api/admin/templates?limit=100');
       if (response.ok) {
         const data = await response.json();
-        // Filter to only show public templates or templates from user's organization
-        const templatesData = (data.data || []).filter((t: ProjectTemplate) => t.is_public);
+        // API already filters correctly, so use all returned templates
+        const templatesData = data.data || [];
         setTemplates(templatesData);
       }
     } catch (err) {
@@ -105,40 +107,13 @@ export default function NewProjectPage() {
     try {
       setLoadingUsers(true);
       
-      // Get current user's organization_id to filter users
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      // Use API route to get users (handles organization filtering server-side)
+      const response = await fetch('/api/users');
+      if (response.ok) {
+        const usersData = await response.json();
+        setUsers(usersData || []);
+      } else {
         setUsers([]);
-        return;
-      }
-
-      const { data: currentUser } = await supabase
-        .from('users')
-        .select('organization_id, role, is_super_admin')
-        .eq('auth_id', session.user.id)
-        .single();
-
-      // Load users from the same organization (or all users if super admin)
-      let usersQuery = supabase
-        .from('users')
-        .select('id, name, email, role')
-        .order('name');
-
-      // Filter by organization unless user is super admin
-      if (currentUser && !(currentUser.role === 'admin' && currentUser.is_super_admin === true)) {
-        if (currentUser.organization_id) {
-          usersQuery = usersQuery.eq('organization_id', currentUser.organization_id);
-        } else {
-          // User has no organization, show no users
-          setUsers([]);
-          return;
-        }
-      }
-
-      const { data: usersData, error: usersError } = await usersQuery;
-
-      if (!usersError && usersData) {
-        setUsers(usersData);
       }
     } catch (err) {
       console.error('Error loading users:', err);
@@ -146,7 +121,7 @@ export default function NewProjectPage() {
     } finally {
       setLoadingUsers(false);
     }
-  }, [supabase]);
+  }, []);
 
   const loadPackageLimits = useCallback(async () => {
     try {
@@ -240,7 +215,7 @@ export default function NewProjectPage() {
     try {
       const response = await fetch('/api/projects', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getCsrfHeaders(),
         body: JSON.stringify({
           name,
           description,

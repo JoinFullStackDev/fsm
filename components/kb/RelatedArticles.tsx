@@ -69,7 +69,7 @@ export default function RelatedArticles({ articleId, organizationId }: RelatedAr
   }
 
   return (
-    <Box sx={{ mt: 4 }}>
+    <Box sx={{ mt: 4, maxWidth: 900, mx: 'auto', px: 3 }}>
       <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
         Related Content
       </Typography>
@@ -122,8 +122,50 @@ export default function RelatedArticles({ articleId, organizationId }: RelatedAr
                   key={task.id}
                   button
                   onClick={() => router.push(`/project/${task.project_id}`)}
+                  sx={{
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    py: 1.5,
+                    '&:hover': {
+                      backgroundColor: 'action.hover',
+                    },
+                  }}
                 >
-                  <ListItemText primary={task.title} />
+                  <Box sx={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body1" sx={{ fontWeight: 600, mb: 0.5 }}>
+                        {task.title}
+                      </Typography>
+                      {task.project_name && (
+                        <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
+                          {task.project_name}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                  {task.matching_keywords && task.matching_keywords.length > 0 && (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', mr: 0.5 }}>
+                        Matches:
+                      </Typography>
+                      {task.matching_keywords.map((keyword, idx) => (
+                        <Chip
+                          key={idx}
+                          label={keyword}
+                          size="small"
+                          sx={{
+                            height: 20,
+                            fontSize: '0.7rem',
+                            backgroundColor: 'primary.light',
+                            color: 'primary.contrastText',
+                            '& .MuiChip-label': {
+                              px: 1,
+                            },
+                          }}
+                        />
+                      ))}
+                    </Box>
+                  )}
                 </ListItem>
               ))}
             </List>
@@ -169,9 +211,60 @@ export default function RelatedArticles({ articleId, organizationId }: RelatedAr
                 <ListItem
                   key={phase.id}
                   button
-                  onClick={() => router.push(`/project/${phase.project_id}`)}
+                  onClick={() => router.push(`/project/${phase.project_id}/phase/${phase.phase_number}`)}
+                  sx={{
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    py: 1.5,
+                    '&:hover': {
+                      backgroundColor: 'action.hover',
+                    },
+                  }}
                 >
-                  <ListItemText primary={`Phase ${phase.phase_number}`} />
+                  <Box sx={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
+                    <Box>
+                      <Typography variant="body1" sx={{ fontWeight: 600, mb: 0.5 }}>
+                        {phase.phase_name || `Phase ${phase.phase_number}`}
+                      </Typography>
+                      {phase.project_name && (
+                        <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
+                          {phase.project_name}
+                        </Typography>
+                      )}
+                    </Box>
+                    <Chip
+                      label={`Phase ${phase.phase_number}`}
+                      size="small"
+                      sx={{
+                        backgroundColor: 'action.hover',
+                        color: 'text.secondary',
+                        fontSize: '0.75rem',
+                      }}
+                    />
+                  </Box>
+                  {phase.matching_keywords && phase.matching_keywords.length > 0 && (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', mr: 0.5 }}>
+                        Matches:
+                      </Typography>
+                      {phase.matching_keywords.map((keyword, idx) => (
+                        <Chip
+                          key={idx}
+                          label={keyword}
+                          size="small"
+                          sx={{
+                            height: 20,
+                            fontSize: '0.7rem',
+                            backgroundColor: 'primary.light',
+                            color: 'primary.contrastText',
+                            '& .MuiChip-label': {
+                              px: 1,
+                            },
+                          }}
+                        />
+                      ))}
+                    </Box>
+                  )}
                 </ListItem>
               ))}
             </List>

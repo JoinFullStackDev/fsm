@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Typography, Chip, Breadcrumbs, Link, IconButton, Tooltip } from '@mui/material';
+import { Box, Typography, Chip, IconButton, Tooltip } from '@mui/material';
 import ReactMarkdown from 'react-markdown';
 // Note: react-syntax-highlighter may need to be installed: npm install react-syntax-highlighter @types/react-syntax-highlighter
 // For now, using a simple code block renderer
@@ -40,15 +40,7 @@ export default function ArticleViewer({ article, onExportPDF }: ArticleViewerPro
 
   return (
     <Box sx={{ maxWidth: 900, mx: 'auto', px: 3, py: 4 }}>
-      {/* Breadcrumbs */}
-      {article.category && (
-        <Breadcrumbs sx={{ mb: 2 }}>
-          <Link href="/kb" color="inherit">
-            Knowledge Base
-          </Link>
-          <Typography color="text.primary">{article.category.name}</Typography>
-        </Breadcrumbs>
-      )}
+      {/* Breadcrumbs removed - handled by parent page component */}
 
       {/* Header */}
       <Box sx={{ mb: 3 }}>

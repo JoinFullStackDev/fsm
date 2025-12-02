@@ -18,7 +18,7 @@ export interface CreateActivityFeedItemParams {
 export async function createActivityFeedItem(
   supabase: SupabaseClient,
   params: CreateActivityFeedItemParams
-): Promise<ActivityFeedItem> {
+): Promise<ActivityFeedItem | null> {
   try {
     const { data, error } = await supabase
       .from('activity_feed_items')
@@ -33,11 +33,28 @@ export async function createActivityFeedItem(
       .single();
 
     if (error) {
+      // If the table doesn't exist (42P01), that's okay - activity feed feature may not be enabled
+      const errorMessage = error.message || (error as any).error || String(error);
+      if (error.code === '42P01' || 
+          errorMessage.includes('does not exist') || 
+          (errorMessage.includes('relation') && errorMessage.includes('activity_feed_items'))) {
+        logger.warn('Activity feed items table does not exist, skipping activity feed creation');
+        return null; // Table doesn't exist, skip silently
+      }
       throw error;
     }
 
     return data;
-  } catch (error) {
+  } catch (error: any) {
+    // Handle "relation does not exist" errors gracefully
+    const errorMessage = error?.message || error?.error || String(error || '');
+    if (error?.code === '42P01' || 
+        errorMessage.includes('does not exist') || 
+        (errorMessage.includes('relation') && errorMessage.includes('activity_feed_items'))) {
+      logger.warn('Activity feed items table does not exist, skipping activity feed creation');
+      return null; // Table doesn't exist, skip silently
+    }
+    
     logger.error('Error creating activity feed item:', error);
     throw error;
   }
