@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -12,9 +12,10 @@ import {
   Typography,
   CircularProgress,
   Alert,
+  Chip,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { Close as CloseIcon, AutoAwesome as AutoAwesomeIcon } from '@mui/icons-material';
+import { Close as CloseIcon, AutoAwesome as AutoAwesomeIcon, Warning as WarningIcon } from '@mui/icons-material';
 import type { PreviewTask } from '@/types/taskGenerator';
 
 interface TaskGeneratorModalProps {
@@ -35,6 +36,60 @@ export default function TaskGeneratorModal({
   const [context, setContext] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sowMembers, setSowMembers] = useState<Array<{
+    user_id: string;
+    name: string;
+    role_name: string;
+    current_task_count: number;
+    is_overworked: boolean;
+  }>>([]);
+  const [loadingSOW, setLoadingSOW] = useState(false);
+
+  // Load active SOW members when modal opens
+  useEffect(() => {
+    if (open) {
+      loadActiveSOWMembers();
+    } else {
+      setSowMembers([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, projectId]);
+
+  const loadActiveSOWMembers = async () => {
+    setLoadingSOW(true);
+    try {
+      // Get active SOW
+      const sowResponse = await fetch(`/api/projects/${projectId}/sow`);
+      if (!sowResponse.ok) {
+        return;
+      }
+
+      const sowData = await sowResponse.json();
+      const activeSOW = (sowData.sows || []).find((s: any) => s.status === 'active');
+      
+      if (!activeSOW) {
+        return;
+      }
+
+      // Get SOW members
+      const membersResponse = await fetch(`/api/projects/${projectId}/sow/${activeSOW.id}/members`);
+      if (membersResponse.ok) {
+        const membersData = await membersResponse.json();
+        const members = (membersData.members || []).map((m: any) => ({
+          user_id: m.project_member?.user_id || '',
+          name: m.project_member?.user?.name || m.project_member?.user?.email || 'Unknown',
+          role_name: m.role_name || 'Unknown',
+          current_task_count: m.task_count || 0,
+          is_overworked: m.is_overworked || false,
+        }));
+        setSowMembers(members);
+      }
+    } catch (error) {
+      console.error('[TaskGeneratorModal] Error loading SOW members:', error);
+    } finally {
+      setLoadingSOW(false);
+    }
+  };
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -121,6 +176,32 @@ export default function TaskGeneratorModal({
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Enter a PRD, specification, or prompt describing the tasks you want to generate. The AI will create tasks, extract dates, and check for duplicates.
         </Typography>
+
+        {/* SOW Team Members Info */}
+        {!loadingSOW && sowMembers.length > 0 && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              Active Scope of Work found with {sowMembers.length} team members.
+              Tasks will be auto-assigned based on roles.
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
+              {sowMembers.map((member) => (
+                <Chip
+                  key={member.user_id}
+                  label={`${member.name} (${member.role_name}) - ${member.current_task_count} tasks`}
+                  color={member.is_overworked ? 'error' : 'default'}
+                  size="small"
+                  icon={member.is_overworked ? <WarningIcon /> : undefined}
+                />
+              ))}
+            </Box>
+            {sowMembers.some(m => m.is_overworked) && (
+              <Typography variant="caption" color="warning.main" sx={{ mt: 1, display: 'block' }}>
+                ⚠️ Some team members are overworked. AI will avoid assigning tasks to them when possible.
+              </Typography>
+            )}
+          </Alert>
+        )}
 
         <TextField
           fullWidth

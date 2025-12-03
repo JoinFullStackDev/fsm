@@ -319,19 +319,26 @@ export default function AdminUsersTab() {
       return;
     }
 
-    const { error: updateError } = await supabase
-      .from('users')
-      .update({ is_active: !isActive })
-      .eq('id', userId)
-      .eq('organization_id', organization?.id || ''); // Additional safety check
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ is_active: !isActive }),
+      });
 
-    if (updateError) {
-      showError('Failed to update user status: ' + updateError.message);
-      return;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update user status');
+      }
+
+      const data = await response.json();
+      setUsers(users.map(u => u.id === userId ? { ...u, is_active: !isActive } : u));
+      showSuccess(`User ${!isActive ? 'activated' : 'deactivated'} successfully`);
+    } catch (error) {
+      showError('Failed to update user status: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
-
-    setUsers(users.map(u => u.id === userId ? { ...u, is_active: !isActive } : u));
-    showSuccess(`User ${!isActive ? 'activated' : 'deactivated'} successfully`);
   };
 
   const handleViewInvite = (user: User) => {

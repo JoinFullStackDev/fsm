@@ -197,6 +197,7 @@ export interface ProjectTask {
   assignee_id: string | null;
   start_date: string | null;
   due_date: string | null;
+  estimated_hours: number | null; // Estimated hours to complete this task
   tags: string[];
   notes: string | null;
   dependencies: string[];
@@ -292,5 +293,171 @@ export interface Notification {
   read_at: string | null;
   metadata: NotificationMetadata;
   created_at: string;
+}
+
+// ============================================
+// SCOPE OF WORK (SOW) TYPES
+// ============================================
+
+export type SOWStatus = 'draft' | 'review' | 'approved' | 'active' | 'completed' | 'archived';
+
+export interface SOWTimeline {
+  start_date: string;
+  end_date: string;
+  milestones?: Array<{
+    name: string;
+    date: string;
+    description?: string;
+  }>;
+}
+
+export interface SOWBudget {
+  estimated_hours?: number;
+  hourly_rate?: number;
+  total_budget?: number;
+  currency?: string;
+}
+
+export interface ScopeOfWork {
+  id: string;
+  project_id: string | null; // Nullable for opportunity-based SOWs
+  opportunity_id: string | null; // Nullable for project-based SOWs
+  version: number;
+  title: string;
+  description: string | null;
+  objectives: string[];
+  deliverables: string[];
+  timeline: SOWTimeline;
+  budget: SOWBudget;
+  assumptions: string[];
+  constraints: string[];
+  exclusions: string[];
+  acceptance_criteria: string[];
+  status: SOWStatus;
+  created_by: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SOWResourceAllocation {
+  id: string;
+  sow_id: string;
+  user_id: string;
+  role: UserRole;
+  allocated_hours_per_week: number;
+  allocated_percentage: number | null;
+  start_date: string;
+  end_date: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SOWProjectMember {
+  id: string;
+  sow_id: string;
+  project_member_id: string;
+  organization_role_id: string; // References organization_roles.id
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined data
+  project_member?: {
+    id: string;
+    user_id: string;
+    role: UserRole; // Legacy role from project_members (fallback)
+    user?: {
+      id: string;
+      name: string | null;
+      email: string;
+    };
+  };
+  organization_role?: {
+    id: string;
+    name: string;
+    description: string | null;
+    organization_id: string;
+  } | null; // Can be null if no org role assigned
+}
+
+export interface SOWMemberWithStats extends SOWProjectMember {
+  task_count: number;
+  task_count_by_status: {
+    todo: number;
+    in_progress: number;
+    done: number;
+  };
+  workload_summary?: UserWorkloadSummary;
+  is_overworked?: boolean;
+  // Computed fields for convenience
+  role_name: string; // organization_role.name or project_member.role (fallback)
+  role_description: string | null; // organization_role.description or null
+}
+
+export interface SOWWithAllocations extends ScopeOfWork {
+  resource_allocations?: SOWResourceAllocation[];
+  project_members?: SOWMemberWithStats[]; // NEW
+}
+
+// ============================================
+// RESOURCE ALLOCATION TYPES
+// ============================================
+
+export interface UserCapacity {
+  id: string;
+  user_id: string;
+  default_hours_per_week: number;
+  max_hours_per_week: number;
+  is_active: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectMemberAllocation {
+  id: string;
+  project_id: string;
+  user_id: string;
+  allocated_hours_per_week: number;
+  start_date: string | null; // Optional - NULL means ongoing allocation
+  end_date: string | null; // Optional - NULL means ongoing allocation
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserWorkloadSummary {
+  user_id: string;
+  max_hours_per_week: number;
+  default_hours_per_week: number;
+  allocated_hours_per_week: number;
+  available_hours_per_week: number;
+  utilization_percentage: number;
+  is_over_allocated: boolean;
+  start_date: string;
+  end_date: string;
+  projects?: Array<{
+    project_id: string;
+    project_name: string;
+    allocated_hours_per_week: number;
+    start_date: string;
+    end_date: string;
+  }>;
+}
+
+export interface ResourceAllocationConflict {
+  user_id: string;
+  user_name: string;
+  conflict_type: 'over_allocated' | 'date_overlap' | 'exceeds_capacity';
+  message: string;
+  current_allocation: number;
+  max_capacity: number;
+  conflicting_projects?: Array<{
+    project_id: string;
+    project_name: string;
+    allocated_hours: number;
+  }>;
 }
 

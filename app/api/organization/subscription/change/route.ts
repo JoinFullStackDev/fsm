@@ -211,7 +211,12 @@ export async function POST(request: NextRequest) {
       })
       .eq('id', subscription.id);
 
-    return NextResponse.json({ success: true });
+    // Return success with cache invalidation flag
+    // Client will clear cache when it sees this flag
+    return NextResponse.json({ 
+      success: true,
+      clearCache: true, // Signal client to clear package context cache
+    });
   } catch (error) {
     logger.error('Error in POST /api/organization/subscription/change:', error);
     return internalError('Failed to change package', {

@@ -55,49 +55,40 @@ export default function EditTemplatePage() {
   const loadTemplate = useCallback(async () => {
     setLoading(true);
     
-    // Load template metadata
-    const { data: templateData, error: templateError } = await supabase
-      .from('project_templates')
-      .select('*')
-      .eq('id', templateId)
-      .single();
+    try {
+      // Use API endpoint to avoid RLS recursion issues
+      const response = await fetch(`/api/admin/templates/${templateId}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        setError(errorData.error || 'Template not found');
+        setLoading(false);
+        return;
+      }
 
-    if (templateError || !templateData) {
-      setError(templateError?.message || 'Template not found');
+      const data = await response.json();
+      const templateData = data.template;
+      const phasesData = data.phases || [];
+
+      setTemplate(templateData);
+      
+      // Load template metadata for editing
+      setTemplateName(templateData.name || '');
+      setTemplateDescription(templateData.description || '');
+      setTemplateCategory(templateData.category || '');
+      setTemplateIsPublic(templateData.is_public || false);
+
+      // Ensure phases exist (backward compatibility)
+      const ensuredPhases = await ensurePhasesExist(templateId, supabase);
+
+      // Store template phases (use loaded phases or fallback to ensured phases)
+      const loadedPhases = (phasesData.length > 0 ? phasesData : ensuredPhases) as TemplatePhase[];
+      setTemplatePhases(loadedPhases);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load template');
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setTemplate(templateData);
-    
-    // Load template metadata for editing
-    setTemplateName(templateData.name || '');
-    setTemplateDescription(templateData.description || '');
-    setTemplateCategory(templateData.category || '');
-    setTemplateIsPublic(templateData.is_public || false);
-
-    // Ensure phases exist (backward compatibility)
-    const ensuredPhases = await ensurePhasesExist(templateId, supabase);
-
-    // Load template phases (ordered by display_order, only active)
-    const { data: phasesData, error: phasesError } = await supabase
-      .from('template_phases')
-      .select('*')
-      .eq('template_id', templateId)
-      .eq('is_active', true)
-      .order('display_order', { ascending: true });
-
-    if (phasesError) {
-      setError(phasesError.message);
-      setLoading(false);
-      return;
-    }
-
-    // Store template phases (use loaded phases or fallback to ensured phases)
-    const loadedPhases = (phasesData || ensuredPhases) as TemplatePhase[];
-    setTemplatePhases(loadedPhases);
-
-    setLoading(false);
   }, [templateId, supabase]);
 
   useEffect(() => {
@@ -128,20 +119,30 @@ export default function EditTemplatePage() {
       return;
     }
 
+    // Check if template is global (cannot be edited)
+    if (template?.is_publicly_available) {
+      showError('Cannot edit global templates. Please duplicate the template to create your own copy.');
+      return;
+    }
+
     setSavingMetadata(true);
     try {
-      const { error: updateError } = await supabase
-        .from('project_templates')
-        .update({
+      const response = await fetch(`/api/admin/templates/${templateId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           name: templateName.trim(),
           description: templateDescription.trim(),
           category: templateCategory.trim(),
           is_public: templateIsPublic,
-        })
-        .eq('id', templateId);
+        }),
+      });
 
-      if (updateError) {
-        throw updateError;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update template');
       }
 
       showSuccess('Template metadata updated successfully');
@@ -161,14 +162,35 @@ export default function EditTemplatePage() {
       return (
         <Box>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
-              Template Settings
-            </Typography>
-            {!editingMetadata && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+                Template Settings
+              </Typography>
+              {template?.is_publicly_available && (
+                <Chip
+                  label="Global Template"
+                  size="small"
+                  sx={{
+                    backgroundColor: theme.palette.info.main,
+                    color: theme.palette.background.default,
+                    fontWeight: 600,
+                  }}
+                  title="This is a global template and cannot be edited. Duplicate it to create your own copy."
+                />
+              )}
+            </Box>
+            {!editingMetadata && !template?.is_publicly_available && (
               <Button
                 variant="outlined"
                 startIcon={<EditIcon />}
-                onClick={() => setEditingMetadata(true)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (template?.is_publicly_available) {
+                    return;
+                  }
+                  setEditingMetadata(true);
+                }}
                 sx={{
                   borderColor: theme.palette.text.primary,
                   color: theme.palette.text.primary,
@@ -183,6 +205,11 @@ export default function EditTemplatePage() {
             )}
           </Box>
 
+          {template?.is_publicly_available && (
+            <Alert severity="info" sx={{ mb: 3 }}>
+              This is a global template and cannot be edited. Please duplicate the template to create your own copy that you can edit.
+            </Alert>
+          )}
           {editingMetadata ? (
             <Box sx={{ maxWidth: 800 }}>
               <TextField
@@ -192,6 +219,7 @@ export default function EditTemplatePage() {
                 onChange={(e) => setTemplateName(e.target.value)}
                 required
                 margin="normal"
+                disabled={template?.is_publicly_available}
                 sx={{ mb: 2 }}
               />
               <TextField
@@ -202,6 +230,7 @@ export default function EditTemplatePage() {
                 multiline
                 rows={3}
                 margin="normal"
+                disabled={template?.is_publicly_available}
                 sx={{ mb: 2 }}
               />
               <TextField
@@ -211,6 +240,7 @@ export default function EditTemplatePage() {
                 onChange={(e) => setTemplateCategory(e.target.value)}
                 placeholder="e.g., SaaS, E-commerce, Mobile App"
                 margin="normal"
+                disabled={template?.is_publicly_available}
                 sx={{ mb: 2 }}
               />
               <FormControlLabel
@@ -218,6 +248,7 @@ export default function EditTemplatePage() {
                   <Switch
                     checked={templateIsPublic}
                     onChange={(e) => setTemplateIsPublic(e.target.checked)}
+                    disabled={template?.is_publicly_available}
                     sx={{
                       '& .MuiSwitch-switchBase.Mui-checked': {
                         color: theme.palette.text.primary,
@@ -232,8 +263,22 @@ export default function EditTemplatePage() {
                 <Button
                   variant="outlined"
                   startIcon={<SaveIcon />}
-                  onClick={handleSaveMetadata}
-                  disabled={savingMetadata || !templateName.trim()}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (template?.is_publicly_available) {
+                      showError('Cannot edit global templates. Please duplicate the template to create your own copy.');
+                      return;
+                    }
+                    handleSaveMetadata();
+                  }}
+                  disabled={savingMetadata || !templateName.trim() || template?.is_publicly_available}
+                  onMouseDown={(e) => {
+                    if (template?.is_publicly_available) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }
+                  }}
                   sx={{
                     borderColor: theme.palette.text.primary,
                     color: theme.palette.text.primary,

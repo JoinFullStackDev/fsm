@@ -565,8 +565,11 @@ export async function DELETE(
       }
     }
 
-    // Delete the project (cascade will handle related records)
-    const { error: deleteError } = await supabase
+    // Delete the project using admin client to bypass RLS
+    // This is necessary because cascade operations (like updating invoices when project_id is set to NULL)
+    // may trigger other operations that need to bypass RLS
+    const adminClient = createAdminSupabaseClient();
+    const { error: deleteError } = await adminClient
       .from('projects')
       .delete()
       .eq('id', params.id);

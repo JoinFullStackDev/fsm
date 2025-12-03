@@ -203,7 +203,17 @@ export default function CronStatusSection() {
           </Box>
           {!status.cronSecretConfigured && (
             <Alert severity="warning" sx={{ mt: 1 }}>
-              CRON_SECRET is not configured. It&apos;s recommended to set this in production to secure the cron endpoint.
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                CRON_SECRET is not configured
+              </Typography>
+              <Typography variant="body2" component="div">
+                To secure your cron endpoint in production, set the <code style={{ backgroundColor: theme.palette.background.default, padding: '2px 4px', borderRadius: 2 }}>CRON_SECRET</code> environment variable:
+                <Box component="ul" sx={{ mt: 1, mb: 0, pl: 2 }}>
+                  <li><strong>Vercel:</strong> Project Settings → Environment Variables → Add <code>CRON_SECRET</code></li>
+                  <li><strong>Other platforms:</strong> Set <code>CRON_SECRET</code> in your hosting environment variables</li>
+                </Box>
+                Once set, external cron services must include <code style={{ backgroundColor: theme.palette.background.default, padding: '2px 4px', borderRadius: 2 }}>Authorization: Bearer YOUR_CRON_SECRET</code> header when calling the endpoint.
+              </Typography>
             </Alert>
           )}
         </Box>

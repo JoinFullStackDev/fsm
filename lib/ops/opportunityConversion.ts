@@ -81,6 +81,38 @@ export async function convertOpportunityToProject(
       await adminClient.from('project_members').insert(memberInserts);
     }
 
+    // Transfer SOWs from opportunity to project
+    try {
+      const { createAdminSupabaseClient } = await import('@/lib/supabaseAdmin');
+      const adminClient = createAdminSupabaseClient();
+      
+      // Find all SOWs linked to this opportunity
+      const { data: opportunitySOWs, error: sowError } = await adminClient
+        .from('project_scope_of_work')
+        .select('*')
+        .eq('opportunity_id', opportunity.id)
+        .is('project_id', null);
+
+      if (!sowError && opportunitySOWs && opportunitySOWs.length > 0) {
+        // Update each SOW to link to the new project
+        for (const sow of opportunitySOWs) {
+          await adminClient
+            .from('project_scope_of_work')
+            .update({
+              project_id: project.id,
+              opportunity_id: null, // Clear opportunity_id after transfer
+              status: sow.status === 'draft' ? 'active' : sow.status, // Activate draft SOWs
+            })
+            .eq('id', sow.id);
+
+          logger.info(`Transferred SOW ${sow.id} (version ${sow.version}) from opportunity ${opportunity.id} to project ${project.id}`);
+        }
+      }
+    } catch (sowTransferError) {
+      logger.error('Error transferring SOWs from opportunity to project:', sowTransferError);
+      // Don't fail the conversion if SOW transfer fails - log and continue
+    }
+
     // Create activity feed item
     try {
       await createActivityFeedItem(supabase, {

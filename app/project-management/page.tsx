@@ -28,6 +28,7 @@ import LoadingSkeleton from '@/components/ui/LoadingSkeleton';
 import EmptyState from '@/components/ui/EmptyState';
 import { FolderOpen as FolderIcon } from '@mui/icons-material';
 import SortableTable from '@/components/dashboard/SortableTable';
+import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
 import logger from '@/lib/utils/logger';
 import type { Project } from '@/types/project';
 
@@ -42,6 +43,7 @@ export default function ProjectManagementPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const loadProjects = useCallback(async () => {
     setLoading(true);
@@ -201,7 +203,7 @@ export default function ProjectManagementPage() {
           title="No projects yet"
           description="Create a project to get started with project management and task tracking."
           actionLabel="Create Project"
-          onAction={() => router.push('/project/new')}
+          onAction={() => setCreateDialogOpen(true)}
         />
       ) : (
         <SortableTable
@@ -401,6 +403,16 @@ export default function ProjectManagementPage() {
           />
         </Box>
       )}
+
+      {/* Create Project Dialog */}
+      <CreateProjectDialog
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+        onSuccess={(project) => {
+          setCreateDialogOpen(false);
+          router.push(`/project/${project.id}`);
+        }}
+      />
     </Box>
   );
 }

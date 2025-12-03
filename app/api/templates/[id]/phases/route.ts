@@ -1,8 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { unauthorized, notFound, forbidden, badRequest, internalError } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 import type { TemplatePhase } from '@/types/project';
+
+/**
+ * Check if template is global (is_publicly_available = true)
+ * Returns true if global, false otherwise
+ */
+async function isGlobalTemplate(templateId: string): Promise<boolean> {
+  const adminClient = createAdminSupabaseClient();
+  const { data: template } = await adminClient
+    .from('project_templates')
+    .select('is_publicly_available')
+    .eq('id', templateId)
+    .single();
+  
+  return template?.is_publicly_available === true;
+}
 
 // GET - List all phases for a template (ordered by display_order)
 export async function GET(
@@ -80,6 +96,11 @@ export async function POST(
     // Allow admins and PMs to manage template phases
     if (currentUser.role !== 'admin' && currentUser.role !== 'pm') {
       return forbidden('Admin or PM access required');
+    }
+
+    // Prevent editing global templates
+    if (await isGlobalTemplate(params.id)) {
+      return forbidden('Cannot edit global templates. Please duplicate the template to create your own copy.');
     }
 
     const body = await request.json();
@@ -168,6 +189,11 @@ export async function PATCH(
       return forbidden('Admin or PM access required');
     }
 
+    // Prevent editing global templates
+    if (await isGlobalTemplate(params.id)) {
+      return forbidden('Cannot edit global templates. Please duplicate the template to create your own copy.');
+    }
+
     const body = await request.json();
     const { phase_id, phase_name, display_order, data, is_active } = body;
 
@@ -238,6 +264,11 @@ export async function DELETE(
     // Allow admins and PMs to manage template phases
     if (currentUser.role !== 'admin' && currentUser.role !== 'pm') {
       return forbidden('Admin or PM access required');
+    }
+
+    // Prevent editing global templates
+    if (await isGlobalTemplate(params.id)) {
+      return forbidden('Cannot edit global templates. Please duplicate the template to create your own copy.');
     }
 
     const { searchParams } = new URL(request.url);

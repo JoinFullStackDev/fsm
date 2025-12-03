@@ -191,25 +191,38 @@ export default function TemplatesPage() {
     if (!authUser) return;
 
     if (editingTemplate) {
-      // Update existing template
-      const { error: updateError } = await supabase
-        .from('project_templates')
-        .update({
-          name: formData.name,
-          description: formData.description || null,
-          is_public: formData.is_public,
-          is_publicly_available: formData.is_publicly_available,
-          category: formData.category || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', editingTemplate.id);
+      // Check if template is global (cannot be edited)
+      if (editingTemplate.is_publicly_available) {
+        showError('Cannot edit global templates. Please duplicate the template to create your own copy.');
+        return;
+      }
 
-      if (updateError) {
-        showError('Failed to update template: ' + updateError.message);
-      } else {
+      // Update existing template via API endpoint
+      try {
+        const response = await fetch(`/api/admin/templates/${editingTemplate.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: formData.name,
+            description: formData.description || null,
+            is_public: formData.is_public,
+            category: formData.category || null,
+            // Note: is_publicly_available cannot be changed via this endpoint
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to update template');
+        }
+
         showSuccess('Template updated successfully!');
         handleCloseDialog();
         loadTemplates();
+      } catch (error) {
+        showError(error instanceof Error ? error.message : 'Failed to update template');
       }
     } else {
       // Create new template via API route (handles organization_id and package limits)
@@ -530,10 +543,24 @@ export default function TemplatesPage() {
                   key: 'name',
                   label: 'Template Name',
                   sortable: true,
-                  render: (value) => (
-                    <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
-                      {value}
-                    </Typography>
+                  render: (value, template) => (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
+                        {value}
+                      </Typography>
+                      {(template as any)?.is_publicly_available && (
+                        <Chip
+                          label="Global"
+                          size="small"
+                          sx={{
+                            backgroundColor: theme.palette.info.main,
+                            color: theme.palette.background.default,
+                            fontWeight: 600,
+                          }}
+                          title="Global template - cannot be edited or deleted. Duplicate to create your own copy."
+                        />
+                      )}
+                    </Box>
                   ),
                 },
                 {
@@ -639,15 +666,27 @@ export default function TemplatesPage() {
                         size="small"
                         onClick={(e) => {
                           e.stopPropagation();
+                          e.preventDefault();
+                          if (template.is_publicly_available) {
+                            showError('Cannot edit global templates. Please duplicate the template to create your own copy.');
+                            return;
+                          }
                           router.push(`/admin/templates/${template.id}/builder`);
                         }}
+                        disabled={template.is_publicly_available}
+                        onMouseDown={(e) => {
+                          if (template.is_publicly_available) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }
+                        }}
                         sx={{
-                          color: theme.palette.text.primary,
+                          color: template.is_publicly_available ? theme.palette.text.disabled : theme.palette.text.primary,
                           '&:hover': {
-                            backgroundColor: theme.palette.action.hover,
+                            backgroundColor: template.is_publicly_available ? 'transparent' : theme.palette.action.hover,
                           },
                         }}
-                        title="Build Template"
+                        title={template.is_publicly_available ? 'Cannot edit global templates. Duplicate to create your own copy.' : 'Build Template'}
                         aria-label={`Build template ${template.name}`}
                       >
                         <BuildIcon fontSize="small" />
@@ -656,15 +695,27 @@ export default function TemplatesPage() {
                         size="small"
                         onClick={(e) => {
                           e.stopPropagation();
+                          e.preventDefault();
+                          if (template.is_publicly_available) {
+                            showError('Cannot edit global templates. Please duplicate the template to create your own copy.');
+                            return;
+                          }
                           router.push(`/admin/templates/${template.id}/edit`);
                         }}
+                        disabled={template.is_publicly_available}
+                        onMouseDown={(e) => {
+                          if (template.is_publicly_available) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }
+                        }}
                         sx={{
-                          color: theme.palette.text.primary,
+                          color: template.is_publicly_available ? theme.palette.text.disabled : theme.palette.text.primary,
                           '&:hover': {
-                            backgroundColor: theme.palette.action.hover,
+                            backgroundColor: template.is_publicly_available ? 'transparent' : theme.palette.action.hover,
                           },
                         }}
-                        title="Edit Template"
+                        title={template.is_publicly_available ? 'Cannot edit global templates. Duplicate to create your own copy.' : 'Edit Template'}
                         aria-label={`Edit template ${template.name}`}
                       >
                         <EditIcon fontSize="small" />
@@ -686,8 +737,8 @@ export default function TemplatesPage() {
                       >
                         <ContentCopyIcon fontSize="small" />
                       </IconButton>
-                      {/* PMs can only delete templates they created */}
-                      {(role === 'admin' || (role === 'pm' && template.created_by === currentUserId)) && (
+                      {/* PMs can only delete templates they created, and cannot delete global templates */}
+                      {(role === 'admin' || (role === 'pm' && template.created_by === currentUserId)) && !template.is_publicly_available && (
                         <IconButton
                           size="small"
                           onClick={(e) => {

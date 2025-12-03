@@ -37,33 +37,9 @@ export async function GET(request: NextRequest) {
       return notFound('User not found');
     }
 
-    // Check if organization has template access based on package features
-    // If max_templates is defined (null = unlimited, number = limited), they have access to view
-    // undefined means no access, null means unlimited, number means limited
-    const packageFeatures = await getOrganizationPackageFeatures(supabase, organizationId);
-    
-    logger.debug('[Templates API] Package features check:', {
-      organizationId,
-      hasFeatures: !!packageFeatures,
-      maxTemplates: packageFeatures?.max_templates,
-      packageName: packageFeatures ? 'unknown' : 'none',
-    });
-    
-    if (!packageFeatures) {
-      logger.error('[Templates API] No package features found - RLS or subscription issue:', {
-        organizationId,
-        userId: userData.id,
-      });
-      return forbidden('Template access not available - unable to load package features. Please contact support.');
-    }
-    
-    if (packageFeatures.max_templates === undefined) {
-      logger.warn('[Templates API] Template access denied - max_templates is undefined:', {
-        organizationId,
-        packageFeatures: Object.keys(packageFeatures),
-      });
-      return forbidden('Template access not available in your package');
-    }
+    // Note: All users can VIEW templates (org templates + global public templates)
+    // The max_templates check only applies to CREATING templates (handled in POST endpoint)
+    // This allows users to use templates even if their package doesn't allow creating new ones
 
     // Get query parameters
     const { searchParams } = new URL(request.url);
@@ -92,17 +68,17 @@ export async function GET(request: NextRequest) {
       count = allCount || 0;
     } else {
       // Regular users see templates that match:
-      // 1. Templates from their organization where (is_public = true OR created_by = current user)
-      // 2. OR templates where is_publicly_available = true (from any organization)
+      // 1. ALL templates from their organization (regardless of is_public flag)
+      // 2. Global templates where is_publicly_available = true (from any organization, excluding ones already in org)
       
-      // Fetch organization templates (public or created by user)
+      // Fetch ALL organization templates (all members should see all org templates)
       const { data: orgTemplates, error: orgError } = await adminClient
         .from('project_templates')
         .select('*')
-        .eq('organization_id', organizationId)
-        .or(`is_public.eq.true,created_by.eq.${userData.id}`);
+        .eq('organization_id', organizationId);
 
-      // Fetch publicly available templates
+      // Fetch globally available templates (from any organization)
+      // Exclude templates that are already in the user's organization to avoid duplicates
       const { data: publicTemplates, error: publicError } = await adminClient
         .from('project_templates')
         .select('*')
@@ -113,23 +89,26 @@ export async function GET(request: NextRequest) {
         return internalError('Failed to load templates', { error: (orgError || publicError)?.message });
       }
 
-      // Combine and deduplicate templates
-      const allTemplates = [...(orgTemplates || []), ...(publicTemplates || [])];
-      const uniqueTemplates = Array.from(
-        new Map(allTemplates.map(t => [t.id, t])).values()
-      );
+      // Get org template IDs to exclude from global templates (avoid duplicates)
+      const orgTemplateIds = new Set((orgTemplates || []).map(t => t.id));
+
+      // Filter out global templates that are already in the organization
+      const globalTemplates = (publicTemplates || []).filter(t => !orgTemplateIds.has(t.id));
+
+      // Combine organization templates and global templates
+      const allTemplates = [...(orgTemplates || []), ...globalTemplates];
 
       // Sort by created_at descending
-      uniqueTemplates.sort((a, b) => {
+      allTemplates.sort((a, b) => {
         const dateA = new Date(a.created_at).getTime();
         const dateB = new Date(b.created_at).getTime();
         return dateB - dateA;
       });
 
-      count = uniqueTemplates.length;
+      count = allTemplates.length;
       
       // Apply pagination
-      templates = uniqueTemplates.slice(offset, offset + limit);
+      templates = allTemplates.slice(offset, offset + limit);
     }
 
     const templatesError = null;

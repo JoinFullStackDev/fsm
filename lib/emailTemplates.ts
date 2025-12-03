@@ -5,6 +5,7 @@
 
 import { createAdminSupabaseClient } from './supabaseAdmin';
 import logger from './utils/logger';
+import { generateEmailWrapper, generateButton, EMAIL_BRAND_COLORS } from './emailTemplateBase';
 
 export interface EmailTemplate {
   subject: string;
@@ -81,46 +82,31 @@ async function getAppName(): Promise<string> {
  */
 export async function getPasswordResetTemplate(
   userName: string,
-  resetLink: string
+  resetLink: string,
+  organizationId?: string | null
 ): Promise<EmailTemplate> {
   const appName = await getAppName();
+  const content = `
+    <h2 style="margin-top: 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 24px; font-weight: 600;">Reset Your Password</h2>
+    <p style="margin: 0 0 16px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">Hello ${userName},</p>
+    <p style="margin: 0 0 24px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">You requested to reset your password for your ${appName} account.</p>
+    <p style="margin: 0 0 24px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">Click the button below to reset your password:</p>
+    ${generateButton('Reset Password', resetLink)}
+    <p style="margin: 24px 0 0 0; color: ${EMAIL_BRAND_COLORS.textLight}; font-size: 14px; line-height: 1.6;">This link will expire in 1 hour.</p>
+    <p style="margin: 16px 0 0 0; color: ${EMAIL_BRAND_COLORS.textLight}; font-size: 14px; line-height: 1.6;">If you didn't request this password reset, please ignore this email.</p>
+  `;
+
+  const defaultHtml = await generateEmailWrapper({ content, organizationId, preheader: 'Reset your password' });
   const defaultTemplate: EmailTemplate = {
     subject: 'Reset Your Password',
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .button { display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 20px 0; }
-          .footer { margin-top: 30px; font-size: 12px; color: #666; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h2>Reset Your Password</h2>
-          <p>Hello {{userName}},</p>
-          <p>You requested to reset your password for your {{appName}} account.</p>
-          <p>Click the button below to reset your password:</p>
-          <a href="{{resetLink}}" class="button">Reset Password</a>
-          <p>This link will expire in 1 hour.</p>
-          <p>If you didn't request this password reset, please ignore this email.</p>
-          <div class="footer">
-            <p>This is an automated message from {{appName}}.</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `,
+    html: defaultHtml,
     text: `Hello ${userName},\n\nYou requested to reset your password for your ${appName} account.\n\nClick the link below to reset your password:\n${resetLink}\n\nThis link will expire in 1 hour.\n\nIf you didn't request this password reset, please ignore this email.`,
   };
 
   const template = await getTemplate('email_password_reset_template', defaultTemplate);
   return {
     subject: replaceVariables(template.subject, { userName, appName }),
-    html: replaceVariables(template.html, { userName, resetLink, appName }),
+    html: template.html,
     text: template.text ? replaceVariables(template.text, { userName, resetLink, appName }) : undefined,
   };
 }
@@ -132,39 +118,28 @@ export async function getProjectCreatedTemplate(
   recipientName: string,
   projectName: string,
   creatorName: string,
-  projectLink: string
+  projectLink: string,
+  organizationId?: string | null
 ): Promise<EmailTemplate> {
   const appName = await getAppName();
+  const content = `
+    <h2 style="margin-top: 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 24px; font-weight: 600;">New Project Created</h2>
+    <p style="margin: 0 0 16px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">Hello ${recipientName},</p>
+    <p style="margin: 0 0 24px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">${creatorName} has created a new project: <strong style="color: ${EMAIL_BRAND_COLORS.primary}; font-weight: 600;">${projectName}</strong></p>
+    ${generateButton('View Project', projectLink)}
+  `;
+
+  const defaultHtml = await generateEmailWrapper({ content, organizationId, preheader: `New project: ${projectName}` });
   const defaultTemplate: EmailTemplate = {
     subject: 'New Project Created: {{projectName}}',
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .button { display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 20px 0; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h2>New Project Created</h2>
-          <p>Hello {{recipientName}},</p>
-          <p>{{creatorName}} has created a new project: <strong>{{projectName}}</strong></p>
-          <a href="{{projectLink}}" class="button">View Project</a>
-        </div>
-      </body>
-      </html>
-    `,
+    html: defaultHtml,
     text: `Hello ${recipientName},\n\n${creatorName} has created a new project: ${projectName}\n\nView it here: ${projectLink}`,
   };
 
   const template = await getTemplate('email_project_created_template', defaultTemplate);
   return {
     subject: replaceVariables(template.subject, { projectName }),
-    html: replaceVariables(template.html, { recipientName, projectName, creatorName, projectLink, appName }),
+    html: template.html,
     text: template.text ? replaceVariables(template.text, { recipientName, projectName, creatorName, projectLink, appName }) : undefined,
   };
 }
@@ -175,40 +150,29 @@ export async function getProjectCreatedTemplate(
 export async function getProjectInitiatedTemplate(
   recipientName: string,
   projectName: string,
-  projectLink: string
+  projectLink: string,
+  organizationId?: string | null
 ): Promise<EmailTemplate> {
   const appName = await getAppName();
+  const content = `
+    <h2 style="margin-top: 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 24px; font-weight: 600;">Project Management Initiated</h2>
+    <p style="margin: 0 0 16px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">Hello ${recipientName},</p>
+    <p style="margin: 0 0 16px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">Project management has been initiated for <strong style="color: ${EMAIL_BRAND_COLORS.primary}; font-weight: 600;">${projectName}</strong>.</p>
+    <p style="margin: 0 0 24px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">Tasks are being generated and the project is ready for management.</p>
+    ${generateButton('View Project', projectLink)}
+  `;
+
+  const defaultHtml = await generateEmailWrapper({ content, organizationId, preheader: `Project management started: ${projectName}` });
   const defaultTemplate: EmailTemplate = {
     subject: 'Project Management Initiated: {{projectName}}',
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .button { display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 20px 0; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h2>Project Management Initiated</h2>
-          <p>Hello {{recipientName}},</p>
-          <p>Project management has been initiated for <strong>{{projectName}}</strong>.</p>
-          <p>Tasks are being generated and the project is ready for management.</p>
-          <a href="{{projectLink}}" class="button">View Project</a>
-        </div>
-      </body>
-      </html>
-    `,
+    html: defaultHtml,
     text: `Hello ${recipientName},\n\nProject management has been initiated for ${projectName}.\n\nTasks are being generated and the project is ready for management.\n\nView it here: ${projectLink}`,
   };
 
   const template = await getTemplate('email_project_initiated_template', defaultTemplate);
   return {
     subject: replaceVariables(template.subject, { projectName }),
-    html: replaceVariables(template.html, { recipientName, projectName, projectLink, appName }),
+    html: template.html,
     text: template.text ? replaceVariables(template.text, { recipientName, projectName, projectLink, appName }) : undefined,
   };
 }
@@ -221,41 +185,48 @@ export async function getTaskAssignedTemplate(
   taskTitle: string,
   projectName: string,
   assignerName: string,
-  taskLink: string
+  taskLink: string,
+  organizationId?: string | null
 ): Promise<EmailTemplate> {
   const appName = await getAppName();
+  const content = `
+    <h2 style="margin-top: 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 24px; font-weight: 600;">New Task Assigned</h2>
+    <p style="margin: 0 0 16px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">Hello ${recipientName},</p>
+    <p style="margin: 0 0 16px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">${assignerName} has assigned you a new task: <strong style="color: ${EMAIL_BRAND_COLORS.primary}; font-weight: 600;">${taskTitle}</strong></p>
+    <p style="margin: 0 0 24px 0; color: ${EMAIL_BRAND_COLORS.textLight}; font-size: 14px; line-height: 1.6;">Project: ${projectName}</p>
+    ${generateButton('View Task', taskLink)}
+  `;
+
+  const defaultHtml = await generateEmailWrapper({ content, organizationId, preheader: `New task: ${taskTitle}` });
   const defaultTemplate: EmailTemplate = {
     subject: 'New Task Assigned: {{taskTitle}}',
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .button { display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 20px 0; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h2>New Task Assigned</h2>
-          <p>Hello {{recipientName}},</p>
-          <p>{{assignerName}} has assigned you a new task: <strong>{{taskTitle}}</strong></p>
-          <p>Project: {{projectName}}</p>
-          <a href="{{taskLink}}" class="button">View Task</a>
-        </div>
-      </body>
-      </html>
-    `,
+    html: defaultHtml,
     text: `Hello ${recipientName},\n\n${assignerName} has assigned you a new task: ${taskTitle}\n\nProject: ${projectName}\n\nView it here: ${taskLink}`,
   };
 
-  const template = await getTemplate('email_task_assigned_template', defaultTemplate);
+  let template: EmailTemplate = defaultTemplate;
+  try {
+    const fetchedTemplate = await getTemplate('email_task_assigned_template', defaultTemplate);
+    if (fetchedTemplate && fetchedTemplate.html) {
+      template = fetchedTemplate;
+    } else {
+      logger.warn('[EmailTemplates] Invalid template returned from getTemplate, using default');
+    }
+  } catch (error) {
+    logger.error('[EmailTemplates] Error getting template, using default:', error);
+  }
+  
+  // Ensure we always have valid template properties
+  const finalTemplate: EmailTemplate = {
+    subject: template?.subject || defaultTemplate.subject,
+    html: template?.html || defaultTemplate.html,
+    text: template?.text || defaultTemplate.text,
+  };
+  
   return {
-    subject: replaceVariables(template.subject, { taskTitle }),
-    html: replaceVariables(template.html, { recipientName, taskTitle, projectName, assignerName, taskLink, appName }),
-    text: template.text ? replaceVariables(template.text, { recipientName, taskTitle, projectName, assignerName, taskLink, appName }) : undefined,
+    subject: replaceVariables(finalTemplate.subject, { taskTitle }),
+    html: finalTemplate.html,
+    text: finalTemplate.text ? replaceVariables(finalTemplate.text, { recipientName, taskTitle, projectName, assignerName, taskLink, appName }) : finalTemplate.text,
   };
 }
 
@@ -267,40 +238,29 @@ export async function getTaskUpdatedTemplate(
   taskTitle: string,
   projectName: string,
   updateDetails: string,
-  taskLink: string
+  taskLink: string,
+  organizationId?: string | null
 ): Promise<EmailTemplate> {
   const appName = await getAppName();
+  const content = `
+    <h2 style="margin-top: 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 24px; font-weight: 600;">Task Updated</h2>
+    <p style="margin: 0 0 16px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">Hello ${recipientName},</p>
+    <p style="margin: 0 0 16px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">The task <strong style="color: ${EMAIL_BRAND_COLORS.primary}; font-weight: 600;">${taskTitle}</strong> in project ${projectName} has been updated.</p>
+    <p style="margin: 0 0 24px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">${updateDetails}</p>
+    ${generateButton('View Task', taskLink)}
+  `;
+
+  const defaultHtml = await generateEmailWrapper({ content, organizationId, preheader: `Task updated: ${taskTitle}` });
   const defaultTemplate: EmailTemplate = {
     subject: 'Task Updated: {{taskTitle}}',
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .button { display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 20px 0; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h2>Task Updated</h2>
-          <p>Hello {{recipientName}},</p>
-          <p>The task <strong>{{taskTitle}}</strong> in project {{projectName}} has been updated.</p>
-          <p>{{updateDetails}}</p>
-          <a href="{{taskLink}}" class="button">View Task</a>
-        </div>
-      </body>
-      </html>
-    `,
+    html: defaultHtml,
     text: `Hello ${recipientName},\n\nThe task ${taskTitle} in project ${projectName} has been updated.\n\n${updateDetails}\n\nView it here: ${taskLink}`,
   };
 
   const template = await getTemplate('email_task_updated_template', defaultTemplate);
   return {
     subject: replaceVariables(template.subject, { taskTitle }),
-    html: replaceVariables(template.html, { recipientName, taskTitle, projectName, updateDetails, taskLink, appName }),
+    html: template.html,
     text: template.text ? replaceVariables(template.text, { recipientName, taskTitle, projectName, updateDetails, taskLink, appName }) : undefined,
   };
 }
@@ -312,39 +272,28 @@ export async function getContactAddedTemplate(
   recipientName: string,
   contactName: string,
   companyName: string,
-  contactLink: string
+  contactLink: string,
+  organizationId?: string | null
 ): Promise<EmailTemplate> {
   const appName = await getAppName();
+  const content = `
+    <h2 style="margin-top: 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 24px; font-weight: 600;">New Contact Added</h2>
+    <p style="margin: 0 0 16px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">Hello ${recipientName},</p>
+    <p style="margin: 0 0 24px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">A new contact <strong style="color: ${EMAIL_BRAND_COLORS.primary}; font-weight: 600;">${contactName}</strong> has been added to ${companyName}.</p>
+    ${generateButton('View Contact', contactLink)}
+  `;
+
+  const defaultHtml = await generateEmailWrapper({ content, organizationId, preheader: `New contact: ${contactName}` });
   const defaultTemplate: EmailTemplate = {
     subject: 'New Contact Added: {{contactName}}',
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .button { display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 20px 0; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h2>New Contact Added</h2>
-          <p>Hello {{recipientName}},</p>
-          <p>A new contact <strong>{{contactName}}</strong> has been added to {{companyName}}.</p>
-          <a href="{{contactLink}}" class="button">View Contact</a>
-        </div>
-      </body>
-      </html>
-    `,
+    html: defaultHtml,
     text: `Hello ${recipientName},\n\nA new contact ${contactName} has been added to ${companyName}.\n\nView it here: ${contactLink}`,
   };
 
   const template = await getTemplate('email_contact_added_template', defaultTemplate);
   return {
     subject: replaceVariables(template.subject, { contactName }),
-    html: replaceVariables(template.html, { recipientName, contactName, companyName, contactLink, appName }),
+    html: template.html,
     text: template.text ? replaceVariables(template.text, { recipientName, contactName, companyName, contactLink, appName }) : undefined,
   };
 }
@@ -355,39 +304,28 @@ export async function getContactAddedTemplate(
 export async function getCompanyAddedTemplate(
   recipientName: string,
   companyName: string,
-  companyLink: string
+  companyLink: string,
+  organizationId?: string | null
 ): Promise<EmailTemplate> {
   const appName = await getAppName();
+  const content = `
+    <h2 style="margin-top: 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 24px; font-weight: 600;">New Company Added</h2>
+    <p style="margin: 0 0 16px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">Hello ${recipientName},</p>
+    <p style="margin: 0 0 24px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">A new company <strong style="color: ${EMAIL_BRAND_COLORS.primary}; font-weight: 600;">${companyName}</strong> has been added to your organization.</p>
+    ${generateButton('View Company', companyLink)}
+  `;
+
+  const defaultHtml = await generateEmailWrapper({ content, organizationId, preheader: `New company: ${companyName}` });
   const defaultTemplate: EmailTemplate = {
     subject: 'New Company Added: {{companyName}}',
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .button { display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 20px 0; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h2>New Company Added</h2>
-          <p>Hello {{recipientName}},</p>
-          <p>A new company <strong>{{companyName}}</strong> has been added to your organization.</p>
-          <a href="{{companyLink}}" class="button">View Company</a>
-        </div>
-      </body>
-      </html>
-    `,
+    html: defaultHtml,
     text: `Hello ${recipientName},\n\nA new company ${companyName} has been added to your organization.\n\nView it here: ${companyLink}`,
   };
 
   const template = await getTemplate('email_company_added_template', defaultTemplate);
   return {
     subject: replaceVariables(template.subject, { companyName }),
-    html: replaceVariables(template.html, { recipientName, companyName, companyLink, appName }),
+    html: template.html,
     text: template.text ? replaceVariables(template.text, { recipientName, companyName, companyLink, appName }) : undefined,
   };
 }
@@ -397,39 +335,28 @@ export async function getCompanyAddedTemplate(
  */
 export async function getWelcomeTemplate(
   userName: string,
-  loginLink: string
+  loginLink: string,
+  organizationId?: string | null
 ): Promise<EmailTemplate> {
   const appName = await getAppName();
+  const content = `
+    <h2 style="margin-top: 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 24px; font-weight: 600;">Welcome to ${appName}!</h2>
+    <p style="margin: 0 0 16px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">Hello ${userName},</p>
+    <p style="margin: 0 0 24px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">Welcome to ${appName}! We're excited to have you on board.</p>
+    ${generateButton('Get Started', loginLink)}
+  `;
+
+  const defaultHtml = await generateEmailWrapper({ content, organizationId, preheader: 'Welcome to ' + appName });
   const defaultTemplate: EmailTemplate = {
     subject: 'Welcome to {{appName}}',
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .button { display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 20px 0; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h2>Welcome to {{appName}}!</h2>
-          <p>Hello {{userName}},</p>
-          <p>Welcome to {{appName}}! We're excited to have you on board.</p>
-          <a href="{{loginLink}}" class="button">Get Started</a>
-        </div>
-      </body>
-      </html>
-    `,
+    html: defaultHtml,
     text: `Hello ${userName},\n\nWelcome to ${appName}! We're excited to have you on board.\n\nGet started here: ${loginLink}`,
   };
 
   const template = await getTemplate('email_signup_template', defaultTemplate);
   return {
     subject: replaceVariables(template.subject, { appName }),
-    html: replaceVariables(template.html, { userName, loginLink, appName }),
+    html: template.html,
     text: template.text ? replaceVariables(template.text, { userName, loginLink, appName }) : undefined,
   };
 }
@@ -494,80 +421,45 @@ export async function getPrePaymentConfirmationTemplate(
   if (packageDetails.features.customDashboards) featuresList.push('Custom Dashboards');
   featuresList.push(`${packageDetails.features.supportLevel.charAt(0).toUpperCase() + packageDetails.features.supportLevel.slice(1)} Support`);
   
+  const featuresHtml = featuresList.map(f => `<li style="padding: 8px 0; border-bottom: 1px solid ${EMAIL_BRAND_COLORS.border}; list-style: none;"><span style="color: ${EMAIL_BRAND_COLORS.success}; font-weight: bold; margin-right: 10px;">✓</span>${f}</li>`).join('');
+  const quantityDisplay = packageDetails.quantity > 1 
+    ? `<p style="margin: 0 0 16px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;"><strong>Number of Users:</strong> ${packageDetails.quantity}</p>`
+    : '';
+
+  const content = `
+    <h2 style="margin-top: 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 24px; font-weight: 600;">We're Excited to Have You!</h2>
+    <p style="margin: 0 0 16px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">Hello ${userName},</p>
+    <p style="margin: 0 0 16px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">Thank you for choosing ${appName}! We're thrilled that you've selected the <strong style="color: ${EMAIL_BRAND_COLORS.primary}; font-weight: 600;">${packageName}</strong> plan.</p>
+    <p style="margin: 0 0 24px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">We'll confirm your account once your payment has been processed. Here are the details of your selected package:</p>
+    
+    <div style="background: ${EMAIL_BRAND_COLORS.white}; padding: 20px; border-radius: 8px; margin: 24px 0; border-left: 4px solid ${EMAIL_BRAND_COLORS.primary};">
+      <h3 style="margin-top: 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 20px; font-weight: 600;">${packageName}</h3>
+      <div style="font-size: 24px; font-weight: bold; color: ${EMAIL_BRAND_COLORS.primary}; margin: 15px 0;">${priceDisplay}</div>
+      <p style="margin: 0 0 16px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;"><strong>Billing Interval:</strong> ${packageDetails.billingInterval === 'month' ? 'Monthly' : 'Yearly'}</p>
+      ${quantityDisplay}
+      
+      <h4 style="margin-top: 20px; margin-bottom: 12px; color: ${EMAIL_BRAND_COLORS.text}; font-size: 18px; font-weight: 600;">Package Features:</h4>
+      <ul style="list-style: none; padding: 0; margin: 0;">
+        ${featuresHtml}
+      </ul>
+    </div>
+    
+    <p style="margin: 24px 0 16px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">You'll receive another email once your payment has been successfully processed with instructions on how to access your account.</p>
+    <p style="margin: 0 0 0 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">If you have any questions, please don't hesitate to reach out to our support team.</p>
+  `;
+
+  const defaultHtml = await generateEmailWrapper({ content, organizationId: null, preheader: `Payment confirmation for ${packageName}` });
   const defaultTemplate: EmailTemplate = {
     subject: 'We\'re Excited to Have You! - Payment Confirmation',
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #007bff 0%, #6c757d 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
-          .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 8px 8px; }
-          .package-details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #007bff; }
-          .feature-list { list-style: none; padding: 0; }
-          .feature-list li { padding: 8px 0; border-bottom: 1px solid #eee; }
-          .feature-list li:last-child { border-bottom: none; }
-          .feature-list li:before { content: "✓ "; color: #28a745; font-weight: bold; margin-right: 10px; }
-          .price { font-size: 24px; font-weight: bold; color: #007bff; margin: 15px 0; }
-          .footer { margin-top: 30px; font-size: 12px; color: #666; text-align: center; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>We're Excited to Have You!</h1>
-          </div>
-          <div class="content">
-            <p>Hello {{userName}},</p>
-            <p>Thank you for choosing {{appName}}! We're thrilled that you've selected the <strong>{{packageName}}</strong> plan.</p>
-            <p>We'll confirm your account once your payment has been processed. Here are the details of your selected package:</p>
-            
-            <div class="package-details">
-              <h2 style="margin-top: 0;">{{packageName}}</h2>
-              <div class="price">{{priceDisplay}}</div>
-              <p><strong>Billing Interval:</strong> {{billingInterval}}</p>
-              {{quantityDisplay}}
-              
-              <h3 style="margin-top: 20px;">Package Features:</h3>
-              <ul class="feature-list">
-                {{features}}
-              </ul>
-            </div>
-            
-            <p>You'll receive another email once your payment has been successfully processed with instructions on how to access your account.</p>
-            <p>If you have any questions, please don't hesitate to reach out to our support team.</p>
-            
-            <div class="footer">
-              <p>This is an automated message from {{appName}}.</p>
-            </div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `,
+    html: defaultHtml,
     text: `Hello ${userName},\n\nThank you for choosing ${appName}! We're thrilled that you've selected the ${packageName} plan.\n\nWe'll confirm your account once your payment has been processed. Here are the details of your selected package:\n\n${packageName}\n${priceDisplay}\nBilling Interval: ${packageDetails.billingInterval}\n${packageDetails.quantity > 1 ? `Number of Users: ${packageDetails.quantity}\n` : ''}\nPackage Features:\n${featuresList.map(f => `✓ ${f}`).join('\n')}\n\nYou'll receive another email once your payment has been successfully processed with instructions on how to access your account.\n\nIf you have any questions, please don't hesitate to reach out to our support team.`,
   };
 
   const template = await getTemplate('email_pre_payment_confirmation_template', defaultTemplate);
-  const featuresHtml = featuresList.map(f => `<li>${f}</li>`).join('');
-  const quantityDisplay = packageDetails.quantity > 1 
-    ? `<p><strong>Number of Users:</strong> ${packageDetails.quantity}</p>`
-    : '';
   
   return {
     subject: replaceVariables(template.subject, { appName }),
-    html: replaceVariables(template.html, { 
-      userName, 
-      appName, 
-      packageName,
-      priceDisplay,
-      billingInterval: packageDetails.billingInterval === 'month' ? 'Monthly' : 'Yearly',
-      quantityDisplay,
-      features: featuresHtml,
-    }),
+    html: template.html,
     text: template.text ? replaceVariables(template.text, { 
       userName, 
       appName, 
@@ -588,78 +480,49 @@ export async function getPostPaymentWelcomeTemplate(
   organizationName: string,
   packageName: string,
   loginLink: string,
-  emailConfirmationLink?: string
+  emailConfirmationLink?: string,
+  organizationId?: string | null
 ): Promise<EmailTemplate> {
   const appName = await getAppName();
+  
+  // Build email confirmation section
+  const emailConfirmationSection = emailConfirmationLink
+    ? `<p style="margin: 24px 0 16px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;"><strong>Important:</strong> Please confirm your email address to complete your account setup. Click the button below to verify your email:</p>
+       ${generateButton('Confirm Email Address', emailConfirmationLink, EMAIL_BRAND_COLORS.success)}`
+    : `<p style="margin: 24px 0 16px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;"><strong>Important:</strong> Please check your email inbox for a confirmation email from Supabase. Click the confirmation link in that email to verify your email address and complete your account setup.</p>`;
+
+  const content = `
+    <h2 style="margin-top: 0; color: ${EMAIL_BRAND_COLORS.success}; font-size: 24px; font-weight: 600;">Welcome to ${appName}!</h2>
+    <p style="margin: 8px 0 24px 0; color: ${EMAIL_BRAND_COLORS.textLight}; font-size: 16px; line-height: 1.6;">Your payment has been processed successfully</p>
+    <p style="margin: 0 0 16px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">Hello ${userName},</p>
+    <p style="margin: 0 0 24px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">Great news! Your payment has been successfully processed and your account is now active.</p>
+    
+    <div style="background: ${EMAIL_BRAND_COLORS.white}; padding: 20px; border-radius: 8px; margin: 24px 0; border-left: 4px solid ${EMAIL_BRAND_COLORS.success};">
+      <h3 style="margin-top: 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 18px; font-weight: 600;">Account Details</h3>
+      <p style="margin: 0 0 8px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;"><strong>Organization:</strong> ${organizationName}</p>
+      <p style="margin: 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;"><strong>Plan:</strong> ${packageName}</p>
+    </div>
+    
+    ${emailConfirmationSection}
+    
+    <p style="margin: 24px 0 16px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">Once your email is confirmed, you can sign in and start using ${appName}:</p>
+    ${generateButton('Sign In to Your Account', loginLink)}
+    
+    <p style="margin: 24px 0 0 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">If you have any questions or need assistance getting started, our support team is here to help!</p>
+  `;
+
+  const defaultHtml = await generateEmailWrapper({ content, organizationId, preheader: 'Your account is ready!' });
   const defaultTemplate: EmailTemplate = {
     subject: 'Welcome to {{appName}} - Your Account is Ready!',
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
-          .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 8px 8px; }
-          .button { display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 20px 0; }
-          .info-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745; }
-          .footer { margin-top: 30px; font-size: 12px; color: #666; text-align: center; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>Welcome to {{appName}}!</h1>
-            <p style="margin: 0; font-size: 18px;">Your payment has been processed successfully</p>
-          </div>
-          <div class="content">
-            <p>Hello {{userName}},</p>
-            <p>Great news! Your payment has been successfully processed and your account is now active.</p>
-            
-            <div class="info-box">
-              <h3 style="margin-top: 0;">Account Details</h3>
-              <p><strong>Organization:</strong> {{organizationName}}</p>
-              <p><strong>Plan:</strong> {{packageName}}</p>
-            </div>
-            
-            {{emailConfirmationSection}}
-            
-            <p>Once your email is confirmed, you can sign in and start using {{appName}}:</p>
-            <a href="{{loginLink}}" class="button">Sign In to Your Account</a>
-            
-            <p>If you have any questions or need assistance getting started, our support team is here to help!</p>
-            
-            <div class="footer">
-              <p>This is an automated message from {{appName}}.</p>
-            </div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `,
+    html: defaultHtml,
     text: `Hello ${userName},\n\nGreat news! Your payment has been successfully processed and your account is now active.\n\nAccount Details:\nOrganization: ${organizationName}\nPlan: ${packageName}\n\n${emailConfirmationLink ? `Please confirm your email address to complete your account setup: ${emailConfirmationLink}\n\n` : ''}Once your email is confirmed, you can sign in here: ${loginLink}\n\nIf you have any questions or need assistance getting started, our support team is here to help!`,
   };
 
   const template = await getTemplate('email_post_payment_welcome_template', defaultTemplate);
   
-  // Build email confirmation section (Supabase handles this automatically, so we just mention it)
-  const emailConfirmationSection = emailConfirmationLink
-    ? `<p><strong>Important:</strong> Please confirm your email address to complete your account setup. Click the link below to verify your email:</p>
-       <a href="${emailConfirmationLink}" class="button">Confirm Email Address</a>`
-    : `<p><strong>Important:</strong> Please check your email inbox for a confirmation email from Supabase. Click the confirmation link in that email to verify your email address and complete your account setup.</p>`;
-  
   return {
     subject: replaceVariables(template.subject, { appName }),
-    html: replaceVariables(template.html, { 
-      userName, 
-      appName, 
-      organizationName,
-      packageName,
-      loginLink,
-      emailConfirmationSection,
-    }),
+    html: template.html,
     text: template.text ? replaceVariables(template.text, { 
       userName, 
       appName, 
@@ -679,57 +542,37 @@ export async function getUserInvitationTemplate(
   userName: string,
   organizationName: string,
   invitationLink: string,
-  adminName?: string
+  adminName?: string,
+  organizationId?: string | null
 ): Promise<EmailTemplate> {
   const appName = await getAppName();
+  
+  const invitationText = adminName 
+    ? `${adminName} has invited you to join <strong style="color: ${EMAIL_BRAND_COLORS.primary}; font-weight: 600;">${organizationName}</strong> on ${appName}.`
+    : `You've been invited to join <strong style="color: ${EMAIL_BRAND_COLORS.primary}; font-weight: 600;">${organizationName}</strong> on ${appName}.`;
+
+  const content = `
+    <h2 style="margin-top: 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 24px; font-weight: 600;">You've been invited!</h2>
+    <p style="margin: 8px 0 24px 0; color: ${EMAIL_BRAND_COLORS.textLight}; font-size: 16px; line-height: 1.6;">Join ${organizationName} on ${appName}</p>
+    <p style="margin: 0 0 16px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">Hello ${userName},</p>
+    <p style="margin: 0 0 24px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">${invitationText}</p>
+    
+    <div style="background: ${EMAIL_BRAND_COLORS.white}; padding: 20px; border-radius: 8px; margin: 24px 0; border-left: 4px solid ${EMAIL_BRAND_COLORS.primary};">
+      <h3 style="margin-top: 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 18px; font-weight: 600;">What's next?</h3>
+      <p style="margin: 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">Click the button below to confirm your email address and set up your account password. This will complete your account setup and allow you to sign in.</p>
+    </div>
+    
+    ${generateButton('Confirm Email & Set Password', invitationLink)}
+    
+    <p style="margin: 24px 0 16px 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;"><strong>Important:</strong> This invitation link will expire in 24 hours. If you didn't expect this invitation, you can safely ignore this email.</p>
+    
+    <p style="margin: 0; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6;">If you have any questions, please contact your organization administrator.</p>
+  `;
+
+  const defaultHtml = await generateEmailWrapper({ content, organizationId, preheader: `Join ${organizationName} on ${appName}` });
   const defaultTemplate: EmailTemplate = {
     subject: 'You\'ve been invited to join {{appName}}',
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
-          .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 8px 8px; }
-          .button { display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 20px 0; }
-          .info-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #007bff; }
-          .footer { margin-top: 30px; font-size: 12px; color: #666; text-align: center; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>You've been invited!</h1>
-            <p style="margin: 0; font-size: 18px;">Join {{organizationName}} on {{appName}}</p>
-          </div>
-          <div class="content">
-            <p>Hello ${userName},</p>
-            ${adminName ? `<p><strong>${adminName}</strong> has invited you to join <strong>${organizationName}</strong> on {{appName}}.</p>` : `<p>You've been invited to join <strong>${organizationName}</strong> on {{appName}}.</p>`}
-            
-            <div class="info-box">
-              <h3 style="margin-top: 0;">What's next?</h3>
-              <p>Click the button below to confirm your email address and set up your account password. This will complete your account setup and allow you to sign in.</p>
-            </div>
-            
-            <p style="text-align: center;">
-              <a href="{{invitationLink}}" class="button">Confirm Email & Set Password</a>
-            </p>
-            
-            <p><strong>Important:</strong> This invitation link will expire in 24 hours. If you didn't expect this invitation, you can safely ignore this email.</p>
-            
-            <p>If you have any questions, please contact your organization administrator.</p>
-            
-            <div class="footer">
-              <p>This is an automated message from {{appName}}.</p>
-            </div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `,
+    html: defaultHtml,
     text: `Hello ${userName},\n\n${adminName ? `${adminName} has invited you to join ${organizationName} on ${appName}.` : `You've been invited to join ${organizationName} on ${appName}.`}\n\nClick the link below to confirm your email address and set up your account password:\n\n${invitationLink}\n\nThis invitation link will expire in 24 hours.\n\nIf you didn't expect this invitation, you can safely ignore this email.\n\nIf you have any questions, please contact your organization administrator.`,
   };
 
@@ -737,12 +580,7 @@ export async function getUserInvitationTemplate(
   
   return {
     subject: replaceVariables(template.subject, { appName }),
-    html: replaceVariables(template.html, { 
-      userName, 
-      appName, 
-      organizationName,
-      invitationLink,
-    }),
+    html: template.html,
     text: template.text ? replaceVariables(template.text, { 
       userName, 
       appName, 

@@ -68,10 +68,34 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
     router.push(path);
   };
 
-  const handleSignOut = async () => {
-    handleMenuClose();
-    await supabase.auth.signOut();
-    router.push('/auth/signin');
+  const handleSignOut = (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    
+    console.log('[TopBar] Sign out initiated');
+    
+    // Store success message FIRST before any operations
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('signout_success', 'true');
+      console.log('[TopBar] Success message stored');
+      
+      // Clear all cached data
+      localStorage.clear();
+      console.log('[TopBar] LocalStorage cleared');
+      
+      // Sign out - fire and forget
+      supabase.auth.signOut().catch((error: any) => {
+        console.error('[TopBar] Sign out error:', error);
+      });
+      console.log('[TopBar] Sign out called');
+      
+      // Close menu
+      handleMenuClose();
+      
+      // Immediately redirect - use window.location.replace for immediate redirect
+      console.log('[TopBar] Redirecting to home page...');
+      window.location.replace('/');
+    }
   };
 
   const getUserInitials = () => {

@@ -7,6 +7,7 @@ import sgMail from '@sendgrid/mail';
 import { createAdminSupabaseClient } from './supabaseAdmin';
 import { encryptApiKey, decryptApiKey } from './apiKeys';
 import logger from './utils/logger';
+import { getEmailBranding } from './emailBranding';
 
 let sendGridApiKey: string | null = null;
 let sendGridInitialized = false;
@@ -204,6 +205,57 @@ export async function getSenderEmail(): Promise<string | null> {
 }
 
 /**
+ * Get sender name from database configuration or generate from organization
+ * Format: "{Organization Name} via {App Name}" or just "{App Name}"
+ * @param organizationId - Optional organization ID to generate dynamic sender name
+ */
+export async function getSenderName(organizationId?: string | null): Promise<string> {
+  try {
+    // First, check if there's a configured sender name in database
+    const adminClient = createAdminSupabaseClient();
+    const { data: connection } = await adminClient
+      .from('system_connections')
+      .select('config, is_active')
+      .eq('connection_type', 'email')
+      .single();
+
+    if (connection?.is_active && connection.config) {
+      const senderName = connection.config.sender_name;
+      if (senderName && typeof senderName === 'string') {
+        logger.debug('[Email] Sender name found in config', {
+          senderName,
+        });
+        return senderName;
+      }
+    }
+
+    // If organization ID is provided, generate dynamic sender name
+    if (organizationId) {
+      try {
+        const branding = await getEmailBranding(organizationId);
+        if (branding.organizationName) {
+          const appBranding = await getEmailBranding(null);
+          return `${branding.organizationName} via ${appBranding.appName}`;
+        }
+      } catch (error) {
+        logger.debug('[Email] Error generating dynamic sender name, using app name', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    // Fallback to app name
+    const appBranding = await getEmailBranding(null);
+    return appBranding.appName;
+  } catch (error) {
+    logger.warn('[Email] Error fetching sender name, using default:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    return 'FullStack Method™ App';
+  }
+}
+
+/**
  * Check if email service is configured and active
  */
 export async function isEmailConfigured(): Promise<boolean> {
@@ -218,13 +270,17 @@ export async function isEmailConfigured(): Promise<boolean> {
  * @param html - HTML content
  * @param text - Plain text content (optional)
  * @param from - Sender email address (optional, defaults to system email)
+ * @param fromName - Sender name (optional, will be generated if not provided)
+ * @param organizationId - Organization ID for dynamic sender name (optional)
  */
 export async function sendEmail(
   to: string,
   subject: string,
   html: string,
   text?: string,
-  from?: string
+  from?: string,
+  fromName?: string,
+  organizationId?: string | null
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const initialized = await initializeSendGrid();
@@ -255,18 +311,31 @@ export async function sendEmail(
     }
     
     if (!senderEmail) {
-      senderEmail = 'noreply@fullstackmethod.com';
+      senderEmail = 'email@fsm.life';
       emailSource = 'default';
     }
 
-    logger.debug('[Email] Using sender email', {
+    // Get sender name: prioritize explicit fromName param, then generate from organization, then get from config
+    let senderName = fromName;
+    if (!senderName) {
+      senderName = await getSenderName(organizationId);
+    }
+
+    // Format SendGrid from field: "Name <email@domain.com>" or just "email@domain.com" if no name
+    const fromField = senderName && senderName !== senderEmail
+      ? `${senderName} <${senderEmail}>`
+      : senderEmail;
+
+    logger.debug('[Email] Using sender email and name', {
       senderEmail,
+      senderName,
+      fromField,
       source: emailSource,
     });
     
     const msg = {
       to,
-      from: senderEmail,
+      from: fromField,
       subject,
       text: text || html.replace(/<[^>]*>/g, ''), // Strip HTML if no text provided
       html,
@@ -283,7 +352,7 @@ export async function sendEmail(
     return { success: true };
   } catch (error: any) {
     // Get sender email for error logging
-    const senderEmail = from || await getSenderEmail() || process.env.SENDGRID_FROM_EMAIL || 'noreply@fullstackmethod.com';
+    const senderEmail = from || await getSenderEmail() || process.env.SENDGRID_FROM_EMAIL || 'email@fsm.life';
     
     const errorDetails: any = {
       error: error.message,
@@ -328,6 +397,9 @@ export async function sendEmail(
  * @param subject - Email subject
  * @param html - HTML content
  * @param text - Plain text content (optional)
+ * @param from - Sender email address (optional)
+ * @param fromName - Sender name (optional)
+ * @param organizationId - Organization ID for dynamic sender name (optional)
  * @param maxRetries - Maximum number of retries (default: 2)
  */
 export async function sendEmailWithRetry(
@@ -335,6 +407,9 @@ export async function sendEmailWithRetry(
   subject: string,
   html: string,
   text?: string,
+  from?: string,
+  fromName?: string,
+  organizationId?: string | null,
   maxRetries: number = 2
 ): Promise<{ success: boolean; error?: string }> {
   let lastError: string | undefined;
@@ -345,6 +420,7 @@ export async function sendEmailWithRetry(
     maxRetries,
     hasHtml: !!html,
     hasText: !!text,
+    organizationId,
   });
   
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -361,7 +437,7 @@ export async function sendEmailWithRetry(
       await new Promise(resolve => setTimeout(resolve, delay));
     }
 
-    const result = await sendEmail(to, subject, html, text);
+    const result = await sendEmail(to, subject, html, text, from, fromName, organizationId);
     if (result.success) {
       logger.info('[Email] Email sent successfully after retry', { 
         attempt: attempt + 1,

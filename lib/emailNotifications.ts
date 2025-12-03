@@ -14,6 +14,7 @@ import {
   getCompanyAddedTemplate,
 } from './emailTemplates';
 import logger from './utils/logger';
+import { getUserOrganizationId } from './organizationContext';
 
 /**
  * Check if user has email notifications enabled
@@ -80,23 +81,26 @@ export async function sendTaskAssignedEmail(
       return;
     }
 
-    // Get user name
+    // Get user name and organization ID
     const adminClient = createAdminSupabaseClient();
     const { data: user } = await adminClient
       .from('users')
-      .select('name')
+      .select('name, organization_id')
       .eq('id', assigneeId)
       .single();
+
+    const organizationId = user?.organization_id || null;
 
     const template = await getTaskAssignedTemplate(
       user?.name || 'User',
       taskTitle,
       projectName,
       assignerName,
-      taskLink
+      taskLink,
+      organizationId
     );
 
-    const emailResult = await sendEmailWithRetry(userEmail, template.subject, template.html, template.text);
+    const emailResult = await sendEmailWithRetry(userEmail, template.subject, template.html, template.text, undefined, undefined, organizationId);
     if (!emailResult.success) {
       logger.error('[EmailNotifications] Failed to send task assigned email:', {
         assigneeId,
@@ -150,19 +154,22 @@ export async function sendTaskUpdatedEmail(
     const adminClient = createAdminSupabaseClient();
     const { data: user } = await adminClient
       .from('users')
-      .select('name')
+      .select('name, organization_id')
       .eq('id', userId)
       .single();
+
+    const organizationId = user?.organization_id || null;
 
     const template = await getTaskUpdatedTemplate(
       user?.name || 'User',
       taskTitle,
       projectName,
       updateDetails,
-      taskLink
+      taskLink,
+      organizationId
     );
 
-    const emailResult = await sendEmailWithRetry(userEmail, template.subject, template.html, template.text);
+    const emailResult = await sendEmailWithRetry(userEmail, template.subject, template.html, template.text, undefined, undefined, organizationId);
     if (!emailResult.success) {
       logger.error('[EmailNotifications] Failed to send task updated email:', {
         userId,
@@ -214,18 +221,21 @@ export async function sendProjectCreatedEmail(
     const adminClient = createAdminSupabaseClient();
     const { data: user } = await adminClient
       .from('users')
-      .select('name')
+      .select('name, organization_id')
       .eq('id', recipientId)
       .single();
+
+    const organizationId = user?.organization_id || null;
 
     const template = await getProjectCreatedTemplate(
       user?.name || 'User',
       projectName,
       creatorName,
-      projectLink
+      projectLink,
+      organizationId
     );
 
-    const emailResult = await sendEmailWithRetry(userEmail, template.subject, template.html, template.text);
+    const emailResult = await sendEmailWithRetry(userEmail, template.subject, template.html, template.text, undefined, undefined, organizationId);
     if (!emailResult.success) {
       logger.error('[EmailNotifications] Failed to send project created email:', {
         recipientId,
@@ -276,17 +286,20 @@ export async function sendProjectInitiatedEmail(
     const adminClient = createAdminSupabaseClient();
     const { data: user } = await adminClient
       .from('users')
-      .select('name')
+      .select('name, organization_id')
       .eq('id', recipientId)
       .single();
+
+    const organizationId = user?.organization_id || null;
 
     const template = await getProjectInitiatedTemplate(
       user?.name || 'User',
       projectName,
-      projectLink
+      projectLink,
+      organizationId
     );
 
-    const emailResult = await sendEmailWithRetry(userEmail, template.subject, template.html, template.text);
+    const emailResult = await sendEmailWithRetry(userEmail, template.subject, template.html, template.text, undefined, undefined, organizationId);
     if (!emailResult.success) {
       logger.error('[EmailNotifications] Failed to send project initiated email:', {
         recipientId,
@@ -338,18 +351,21 @@ export async function sendContactAddedEmail(
     const adminClient = createAdminSupabaseClient();
     const { data: user } = await adminClient
       .from('users')
-      .select('name')
+      .select('name, organization_id')
       .eq('id', recipientId)
       .single();
+
+    const organizationId = user?.organization_id || null;
 
     const template = await getContactAddedTemplate(
       user?.name || 'User',
       contactName,
       companyName,
-      contactLink
+      contactLink,
+      organizationId
     );
 
-    const emailResult = await sendEmailWithRetry(userEmail, template.subject, template.html, template.text);
+    const emailResult = await sendEmailWithRetry(userEmail, template.subject, template.html, template.text, undefined, undefined, organizationId);
     if (!emailResult.success) {
       logger.error('[EmailNotifications] Failed to send contact added email:', {
         recipientId,
@@ -400,17 +416,20 @@ export async function sendCompanyAddedEmail(
     const adminClient = createAdminSupabaseClient();
     const { data: user } = await adminClient
       .from('users')
-      .select('name')
+      .select('name, organization_id')
       .eq('id', recipientId)
       .single();
+
+    const organizationId = user?.organization_id || null;
 
     const template = await getCompanyAddedTemplate(
       user?.name || 'User',
       companyName,
-      companyLink
+      companyLink,
+      organizationId
     );
 
-    const emailResult = await sendEmailWithRetry(userEmail, template.subject, template.html, template.text);
+    const emailResult = await sendEmailWithRetry(userEmail, template.subject, template.html, template.text, undefined, undefined, organizationId);
     if (!emailResult.success) {
       logger.error('[EmailNotifications] Failed to send company added email:', {
         recipientId,

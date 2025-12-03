@@ -41,6 +41,7 @@ import { useNotification } from '@/lib/hooks/useNotification';
 import { useOrganization } from '@/components/providers/OrganizationProvider';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { formatPackagePrice } from '@/lib/packagePricing';
+import { clearCachedPackageContext } from '@/lib/cache/clientPackageCache';
 import type { Package as PackageType } from '@/lib/organizationContext';
 
 interface Subscription {
@@ -69,7 +70,7 @@ interface Package {
 export default function AdminSubscriptionTab() {
   const theme = useTheme();
   const { showSuccess, showError } = useNotification();
-  const { organization } = useOrganization();
+  const { organization, refresh: refreshOrganization } = useOrganization();
   const supabase = createSupabaseClient();
 
   const [loading, setLoading] = useState(true);
@@ -236,6 +237,18 @@ export default function AdminSubscriptionTab() {
         throw new Error(errorData.error || 'Failed to change package');
       }
 
+      const responseData = await response.json();
+      
+      // Clear cache if flag is present
+      if (responseData.clearCache) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          clearCachedPackageContext(user.id);
+          // Refresh organization context to get fresh data
+          await refreshOrganization();
+        }
+      }
+
       showSuccess('Package changed successfully');
       setChangePackageDialog(false);
       setSelectedPackageId('');
@@ -262,6 +275,18 @@ export default function AdminSubscriptionTab() {
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to cancel subscription');
+      }
+
+      const responseData = await response.json();
+      
+      // Clear cache if flag is present
+      if (responseData.clearCache) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          clearCachedPackageContext(user.id);
+          // Refresh organization context to get fresh data
+          await refreshOrganization();
+        }
       }
 
       showSuccess('Subscription canceled successfully');

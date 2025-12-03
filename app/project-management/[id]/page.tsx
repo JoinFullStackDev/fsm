@@ -244,6 +244,33 @@ export default function ProjectTaskManagementPage() {
     };
   }, [project, tasks.length, loading, loadTasks]);
 
+  // Listen for bulk operation success and refresh tasks
+  useEffect(() => {
+    const handleRefresh = () => {
+      loadTasks();
+    };
+    
+    const handleSuccess = (e: CustomEvent) => {
+      const { operation, count } = e.detail;
+      showSuccess(`Successfully ${operation === 'delete' ? 'deleted' : 'updated'} ${count} task${count !== 1 ? 's' : ''}`);
+      loadTasks();
+    };
+    
+    const handleError = (e: CustomEvent) => {
+      showError(e.detail.error || 'Failed to perform bulk operation');
+    };
+
+    window.addEventListener('tasks-refresh-needed', handleRefresh);
+    window.addEventListener('task-bulk-operation-success', handleSuccess as EventListener);
+    window.addEventListener('task-bulk-operation-error', handleError as EventListener);
+
+    return () => {
+      window.removeEventListener('tasks-refresh-needed', handleRefresh);
+      window.removeEventListener('task-bulk-operation-success', handleSuccess as EventListener);
+      window.removeEventListener('task-bulk-operation-error', handleError as EventListener);
+    };
+  }, [loadTasks, showSuccess, showError]);
+
   // Check for taskId in URL query params and open task sheet
   // This runs after tasks are loaded and component is ready
   useEffect(() => {
@@ -355,8 +382,8 @@ export default function ProjectTaskManagementPage() {
   };
 
   const handleReAnalyze = async () => {
-    setAnalyzing(true);
     try {
+      setAnalyzing(true);
       const response = await fetch(`/api/projects/${projectId}/analyze`, {
         method: 'POST',
       });
@@ -369,14 +396,18 @@ export default function ProjectTaskManagementPage() {
       // Reload tasks
       const loadedTasks = await loadTasks();
       setTasks(loadedTasks);
+      showSuccess('Project re-analyzed successfully!');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to analyze project');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to analyze project';
+      setError(errorMessage);
+      showError(errorMessage);
     } finally {
       setAnalyzing(false);
     }
   };
 
-  if (loading) {
+  // Early returns must be after all hooks
+  if (loading && !project) {
     return (
       <Container maxWidth="xl" sx={{ py: 4, px: { xs: 0, md: 3 } }}>
         <Box sx={{ py: 4 }}>
@@ -502,6 +533,7 @@ export default function ProjectTaskManagementPage() {
           tasks={previewTasks}
           phaseNames={phaseNames}
           summary={previewSummary}
+          projectId={projectId}
           onInject={async (selectedTasks, merges) => {
             try {
               const response = await fetch(`/api/projects/${projectId}/generate-tasks/inject`, {

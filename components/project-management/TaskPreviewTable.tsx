@@ -21,6 +21,11 @@ import {
   DialogContent,
   DialogActions,
   TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Alert,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -29,6 +34,9 @@ import {
   Merge as MergeIcon,
   List as ListIcon,
   CalendarToday as CalendarIcon,
+  Edit as EditIcon,
+  Warning as WarningIcon,
+  Person as PersonIcon,
 } from '@mui/icons-material';
 import { format, parseISO } from 'date-fns';
 import type { PreviewTask, DuplicateStatus, TaskMerge } from '@/types/taskGenerator';
@@ -44,6 +52,7 @@ interface TaskPreviewTableProps {
   onBack: () => void;
   onTasksUpdate?: (updatedTasks: PreviewTask[]) => void;
   summary?: string;
+  projectId?: string;
 }
 
 const DUPLICATE_STATUS_COLORS: Record<DuplicateStatus, string> = {
@@ -66,6 +75,7 @@ export default function TaskPreviewTable({
   onBack,
   onTasksUpdate,
   summary,
+  projectId: propProjectId,
 }: TaskPreviewTableProps) {
   const theme = useTheme();
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
@@ -80,6 +90,58 @@ export default function TaskPreviewTable({
   const [merges, setMerges] = useState<Map<string, TaskMerge>>(new Map());
   const [injecting, setInjecting] = useState(false);
   const [localTasks, setLocalTasks] = useState<PreviewTask[]>(tasks);
+  const [assigneeEditDialogOpen, setAssigneeEditDialogOpen] = useState(false);
+  const [taskForAssigneeEdit, setTaskForAssigneeEdit] = useState<PreviewTask | null>(null);
+  const [editingAssigneeId, setEditingAssigneeId] = useState('');
+  const [projectMembers, setProjectMembers] = useState<Array<{ user_id: string; user: { name: string | null; email: string } }>>([]);
+  const [assigneeTaskCounts, setAssigneeTaskCounts] = useState<Map<string, number>>(new Map());
+  const [projectId, setProjectId] = useState<string>('');
+
+  // Use projectId from props or extract from URL
+  useEffect(() => {
+    if (propProjectId) {
+      setProjectId(propProjectId);
+    } else if (typeof window !== 'undefined') {
+      const pathParts = window.location.pathname.split('/');
+      const projectIndex = pathParts.indexOf('project-management');
+      if (projectIndex !== -1 && pathParts[projectIndex + 1]) {
+        setProjectId(pathParts[projectIndex + 1]);
+      }
+    }
+  }, [propProjectId]);
+
+  // Load project members when projectId is available
+  useEffect(() => {
+    if (projectId) {
+      loadProjectMembers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
+
+  const loadProjectMembers = async () => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/members`);
+      if (response.ok) {
+        const data = await response.json();
+        setProjectMembers(data.members || []);
+        
+        // Load task counts for assignees
+        const tasksResponse = await fetch(`/api/projects/${projectId}/tasks`);
+        if (tasksResponse.ok) {
+          const tasksData = await tasksResponse.json();
+          const tasks = tasksData.tasks || [];
+          const counts = new Map<string, number>();
+          (data.members || []).forEach((m: any) => {
+            const count = tasks.filter((t: any) => t.assignee_id === m.user_id && t.status !== 'archived').length;
+            counts.set(m.user_id, count);
+          });
+          setAssigneeTaskCounts(counts);
+        }
+      }
+    } catch (error) {
+      console.error('[TaskPreviewTable] Error loading project members:', error);
+    }
+  };
 
   const getPhaseName = (phaseNumber: number | null): string => {
     if (!phaseNumber) return 'Unassigned';
@@ -280,6 +342,8 @@ export default function TaskPreviewTable({
               <TableCell>Description</TableCell>
               <TableCell>Requirements</TableCell>
               <TableCell>Phase</TableCell>
+              <TableCell>Estimated Hours</TableCell>
+              <TableCell>Assignee</TableCell>
               <TableCell>Due Date</TableCell>
               <TableCell>Duplicate Status</TableCell>
               <TableCell>Actions</TableCell>
@@ -355,6 +419,64 @@ export default function TaskPreviewTable({
                       size="small"
                       variant="outlined"
                     />
+                  </TableCell>
+                  <TableCell>
+                    {task.estimated_hours ? (
+                      <Typography variant="body2">
+                        {task.estimated_hours}h
+                      </Typography>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        Not set
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {task.assignee_id ? (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <PersonIcon fontSize="small" color="action" />
+                        <Typography variant="body2">
+                          {(() => {
+                            const member = projectMembers.find(m => m.user_id === task.assignee_id);
+                            return member?.user?.name || member?.user?.email || 'Unknown';
+                          })()}
+                        </Typography>
+                        {(() => {
+                          const taskCount = assigneeTaskCounts.get(task.assignee_id || '') || 0;
+                          return taskCount > 10 ? (
+                            <Tooltip title="This assignee has many tasks">
+                              <WarningIcon fontSize="small" color="warning" />
+                            </Tooltip>
+                          ) : null;
+                        })()}
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            setTaskForAssigneeEdit(task);
+                            setEditingAssigneeId(task.assignee_id || '');
+                            setAssigneeEditDialogOpen(true);
+                          }}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    ) : (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Unassigned
+                        </Typography>
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            setTaskForAssigneeEdit(task);
+                            setEditingAssigneeId('');
+                            setAssigneeEditDialogOpen(true);
+                          }}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>

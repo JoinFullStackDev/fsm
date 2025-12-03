@@ -21,7 +21,6 @@ import {
   Business as BusinessIcon,
   Settings as SettingsIcon,
   AutoAwesome as AIIcon,
-  AccountBalance as StripeIcon,
   Security as SecurityIcon,
   Inventory as InventoryIcon,
   People as PeopleIcon,
@@ -137,7 +136,6 @@ export default function GlobalAdminLayout({ children }: GlobalAdminLayoutProps) 
     { path: '/global/admin/system', label: 'System Settings', icon: SettingsIcon },
     { path: '/global/admin/ai-usage', label: 'AI Usage', icon: AIIcon },
     { path: '/global/admin/kb', label: 'Knowledge Base', icon: MenuBookIcon },
-    { path: '/global/admin/stripe', label: 'Stripe Management', icon: StripeIcon },
     { path: '/global/admin/requests', label: 'Requests', icon: FeedbackIcon },
   ];
 

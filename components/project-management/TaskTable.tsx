@@ -26,6 +26,12 @@ import {
   Select,
   Button,
   CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
+  Alert,
 } from '@mui/material';
 import { useTheme, alpha } from '@mui/material/styles';
 import { format, parseISO } from 'date-fns';
@@ -41,6 +47,9 @@ import {
   ChevronRight as ChevronRightIcon,
   ExpandMore as ChevronDownIcon,
   CheckCircle as CheckCircleIcon,
+  PersonAdd as PersonAddIcon,
+  Assignment as AssignmentIcon,
+  Flag as FlagIcon,
 } from '@mui/icons-material';
 import type { ProjectTask, ProjectTaskExtended, TaskStatus, TaskPriority, User } from '@/types/project';
 import { DEFAULT_PHASE_NAMES, STATUS_COLORS, PRIORITY_COLORS } from '@/lib/constants';
@@ -94,6 +103,15 @@ export default function TaskTable({
   const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set());
   const [subtasksMap, setSubtasksMap] = useState<Map<string, (ProjectTask | ProjectTaskExtended)[]>>(new Map());
   const [addingSubtaskTo, setAddingSubtaskTo] = useState<string | null>(null);
+  
+  // Bulk selection state
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  const [bulkOperationDialog, setBulkOperationDialog] = useState<{
+    open: boolean;
+    operation: 'reassign' | 'status' | 'priority' | 'delete' | null;
+  }>({ open: false, operation: null });
+  const [bulkOperationLoading, setBulkOperationLoading] = useState(false);
+  const [bulkOperationValue, setBulkOperationValue] = useState<string>('');
   
   // Inline editing state
   const [editingField, setEditingField] = useState<{
@@ -404,7 +422,110 @@ export default function TaskTable({
         break;
       }
     }
+    // Also remove from selected if it was selected
+    setSelectedTaskIds(prev => {
+      const next = new Set(prev);
+      next.delete(subtaskId);
+      return next;
+    });
   }, [subtasksMap]);
+
+  // Bulk selection handlers
+  const handleSelectAll = useCallback(() => {
+    // Get all task IDs including subtasks
+    const allIds = new Set<string>();
+    filteredAndSortedTasks.forEach(task => {
+      allIds.add(task.id);
+      const subtasks = subtasksMap.get(task.id) || [];
+      subtasks.forEach(subtask => allIds.add(subtask.id));
+    });
+    
+    if (selectedTaskIds.size === allIds.size && Array.from(allIds).every(id => selectedTaskIds.has(id))) {
+      setSelectedTaskIds(new Set());
+    } else {
+      setSelectedTaskIds(new Set(allIds));
+    }
+  }, [filteredAndSortedTasks, subtasksMap, selectedTaskIds]);
+
+  const handleSelectTask = useCallback((taskId: string) => {
+    setSelectedTaskIds(prev => {
+      const next = new Set(prev);
+      if (next.has(taskId)) {
+        next.delete(taskId);
+      } else {
+        next.add(taskId);
+      }
+      return next;
+    });
+  }, []);
+
+  // Bulk operation handlers
+  const handleBulkOperation = useCallback(async (operation: 'reassign' | 'status' | 'priority' | 'delete', value?: string) => {
+    if (selectedTaskIds.size === 0) return;
+
+    setBulkOperationLoading(true);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/tasks/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          taskIds: Array.from(selectedTaskIds),
+          operation,
+          value,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to perform bulk operation');
+      }
+
+      const result = await response.json();
+      
+      // Clear selection
+      setSelectedTaskIds(new Set());
+      setBulkOperationDialog({ open: false, operation: null });
+      setBulkOperationValue('');
+
+      // Refresh tasks by calling onTaskUpdate for each task (or reload)
+      // For delete, we need to call onTaskDelete
+      if (operation === 'delete') {
+        selectedTaskIds.forEach(taskId => {
+          onTaskDelete?.(taskId);
+        });
+      } else {
+        // For updates, trigger a refresh by dispatching a custom event
+        // The parent component should listen and reload tasks
+        window.dispatchEvent(new CustomEvent('tasks-refresh-needed'));
+      }
+
+      // Show success message
+      window.dispatchEvent(new CustomEvent('task-bulk-operation-success', { 
+        detail: { operation, count: result.count } 
+      }));
+    } catch (error) {
+      console.error('[Bulk Operation] Error:', error);
+      window.dispatchEvent(new CustomEvent('task-bulk-operation-error', { 
+        detail: { error: error instanceof Error ? error.message : 'Unknown error' } 
+      }));
+    } finally {
+      setBulkOperationLoading(false);
+    }
+  }, [selectedTaskIds, projectId, onTaskDelete]);
+
+  // Get all task IDs including subtasks for select all
+  const allTaskIds = useMemo(() => {
+    const ids = new Set<string>();
+    filteredAndSortedTasks.forEach(task => {
+      ids.add(task.id);
+      const subtasks = subtasksMap.get(task.id) || [];
+      subtasks.forEach(subtask => ids.add(subtask.id));
+    });
+    return ids;
+  }, [filteredAndSortedTasks, subtasksMap]);
+
+  const allSelected = allTaskIds.size > 0 && Array.from(allTaskIds).every(id => selectedTaskIds.has(id));
+  const someSelected = selectedTaskIds.size > 0 && selectedTaskIds.size < allTaskIds.size;
 
   if (loading) {
     return (
@@ -416,6 +537,67 @@ export default function TaskTable({
 
   return (
     <Box>
+      {/* Bulk Actions Toolbar */}
+      {selectedTaskIds.size > 0 && (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            p: 2,
+            mb: 2,
+            backgroundColor: theme.palette.action.selected,
+            borderRadius: 2,
+            border: `1px solid ${theme.palette.divider}`,
+          }}
+        >
+          <Typography variant="body2" sx={{ color: theme.palette.text.primary, fontWeight: 500 }}>
+            {selectedTaskIds.size} task{selectedTaskIds.size !== 1 ? 's' : ''} selected
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, flex: 1 }}>
+            <Button
+              size="small"
+              startIcon={<PersonAddIcon />}
+              onClick={() => setBulkOperationDialog({ open: true, operation: 'reassign' })}
+              sx={{ color: theme.palette.text.primary }}
+            >
+              Reassign
+            </Button>
+            <Button
+              size="small"
+              startIcon={<AssignmentIcon />}
+              onClick={() => setBulkOperationDialog({ open: true, operation: 'status' })}
+              sx={{ color: theme.palette.text.primary }}
+            >
+              Change Status
+            </Button>
+            <Button
+              size="small"
+              startIcon={<FlagIcon />}
+              onClick={() => setBulkOperationDialog({ open: true, operation: 'priority' })}
+              sx={{ color: theme.palette.text.primary }}
+            >
+              Change Priority
+            </Button>
+            <Button
+              size="small"
+              startIcon={<DeleteIcon />}
+              onClick={() => setBulkOperationDialog({ open: true, operation: 'delete' })}
+              sx={{ color: theme.palette.error.main }}
+            >
+              Delete
+            </Button>
+          </Box>
+          <Button
+            size="small"
+            onClick={() => setSelectedTaskIds(new Set())}
+            sx={{ color: theme.palette.text.secondary }}
+          >
+            Clear
+          </Button>
+        </Box>
+      )}
+
       {/* Toolbar */}
       <Box
         sx={{
@@ -662,6 +844,20 @@ export default function TaskTable({
         <Table stickyHeader size="small">
           <TableHead sx={{ backgroundColor: theme.palette.background.paper }}>
             <TableRow>
+              <TableCell sx={{ backgroundColor: theme.palette.background.paper, width: 50, borderBottom: `1px solid ${theme.palette.divider}` }}>
+                <Checkbox
+                  checked={allSelected}
+                  indeterminate={someSelected}
+                  onChange={handleSelectAll}
+                  size="small"
+                  sx={{
+                    color: theme.palette.text.primary,
+                    '&.Mui-checked': {
+                      color: theme.palette.primary.main,
+                    },
+                  }}
+                />
+              </TableCell>
               {visibleColumns.status && (
                 <SortableHeader field="status" label="Status" />
               )}
@@ -693,7 +889,7 @@ export default function TaskTable({
           <TableBody>
             {filteredAndSortedTasks.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={Object.values(visibleColumns).filter(Boolean).length + 1} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={Object.values(visibleColumns).filter(Boolean).length + 2} align="center" sx={{ py: 4 }}>
                   {loading ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                       <CircularProgress />
@@ -728,11 +924,28 @@ export default function TaskTable({
                         sx={{
                           cursor: 'pointer',
                           borderBottom: `1px solid ${theme.palette.divider}`,
+                          backgroundColor: selectedTaskIds.has(task.id) ? theme.palette.action.selected : 'transparent',
                           '&:hover': {
-                            backgroundColor: theme.palette.action.hover,
+                            backgroundColor: selectedTaskIds.has(task.id) 
+                              ? theme.palette.action.selected 
+                              : theme.palette.action.hover,
                           },
                         }}
                       >
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={selectedTaskIds.has(task.id)}
+                            onChange={() => handleSelectTask(task.id)}
+                            size="small"
+                            onClick={(e) => e.stopPropagation()}
+                            sx={{
+                              color: theme.palette.text.primary,
+                              '&.Mui-checked': {
+                                color: theme.palette.primary.main,
+                              },
+                            }}
+                          />
+                        </TableCell>
                         {visibleColumns.status && (
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             {editingField?.taskId === task.id && editingField?.field === 'status' ? (
@@ -1113,11 +1326,28 @@ export default function TaskTable({
                       sx={{
                         cursor: 'pointer',
                         bgcolor: alpha(theme.palette.common.black, 0.05),
+                        backgroundColor: selectedTaskIds.has(subtask.id) ? theme.palette.action.selected : alpha(theme.palette.common.black, 0.05),
                         '&:hover': {
-                          bgcolor: alpha(theme.palette.common.black, 0.08),
+                          bgcolor: selectedTaskIds.has(subtask.id) 
+                            ? theme.palette.action.selected 
+                            : alpha(theme.palette.common.black, 0.08),
                         },
                       }}
                     >
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedTaskIds.has(subtask.id)}
+                          onChange={() => handleSelectTask(subtask.id)}
+                          size="small"
+                          onClick={(e) => e.stopPropagation()}
+                          sx={{
+                            color: theme.palette.text.primary,
+                            '&.Mui-checked': {
+                              color: theme.palette.primary.main,
+                            },
+                          }}
+                        />
+                      </TableCell>
                       {visibleColumns.status && (
                         <TableCell>
                           <Chip
@@ -1269,7 +1499,7 @@ export default function TaskTable({
                 {/* Add Subtask Form Row */}
                 {isExpanded && addingSubtaskTo === task.id && (
                   <TableRow>
-                    <TableCell colSpan={Object.values(visibleColumns).filter(Boolean).length + 1} sx={{ p: 0, borderBottom: 'none' }}>
+                    <TableCell colSpan={Object.values(visibleColumns).filter(Boolean).length + 2} sx={{ p: 0, borderBottom: 'none' }}>
                       <SubtaskPanel
                         parentTaskId={task.id}
                         parentTask={task}
@@ -1297,7 +1527,7 @@ export default function TaskTable({
                       bgcolor: alpha(theme.palette.common.black, 0.05),
                     }}
                   >
-                    <TableCell colSpan={Object.values(visibleColumns).filter(Boolean).length + 1} sx={{ pl: 4, py: 0.5 }}>
+                    <TableCell colSpan={Object.values(visibleColumns).filter(Boolean).length + 2} sx={{ pl: 4, py: 0.5 }}>
                       <Tooltip title="Add Subtask" arrow>
                         <IconButton
                           size="small"
@@ -1342,6 +1572,231 @@ export default function TaskTable({
           </Typography>
         </Box>
       </Box>
+
+      {/* Bulk Operation Dialogs */}
+      <Dialog
+        open={bulkOperationDialog.open && bulkOperationDialog.operation === 'reassign'}
+        onClose={() => {
+          if (!bulkOperationLoading) {
+            setBulkOperationDialog({ open: false, operation: null });
+            setBulkOperationValue('');
+          }
+        }}
+        PaperProps={{
+          sx: {
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: theme.palette.text.primary }}>
+          Reassign {selectedTaskIds.size} Task{selectedTaskIds.size !== 1 ? 's' : ''}
+        </DialogTitle>
+        <DialogContent>
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel sx={{ color: theme.palette.text.secondary }}>Assignee</InputLabel>
+            <Select
+              label="Assignee"
+              value={bulkOperationValue}
+              onChange={(e) => setBulkOperationValue(e.target.value)}
+              sx={{
+                color: theme.palette.text.primary,
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.divider,
+                },
+              }}
+            >
+              <MenuItem value="">Unassigned</MenuItem>
+              {projectMembers.map((member) => (
+                <MenuItem key={member.id} value={member.id}>
+                  {member.name || member.email}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setBulkOperationDialog({ open: false, operation: null });
+              setBulkOperationValue('');
+            }}
+            disabled={bulkOperationLoading}
+            sx={{ color: theme.palette.text.secondary }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => handleBulkOperation('reassign', bulkOperationValue)}
+            disabled={bulkOperationLoading}
+            variant="contained"
+            startIcon={bulkOperationLoading ? <CircularProgress size={16} /> : <PersonAddIcon />}
+          >
+            {bulkOperationLoading ? 'Reassigning...' : bulkOperationValue === '' ? 'Unassign' : 'Reassign'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={bulkOperationDialog.open && bulkOperationDialog.operation === 'status'}
+        onClose={() => {
+          if (!bulkOperationLoading) {
+            setBulkOperationDialog({ open: false, operation: null });
+            setBulkOperationValue('');
+          }
+        }}
+        PaperProps={{
+          sx: {
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: theme.palette.text.primary }}>
+          Change Status for {selectedTaskIds.size} Task{selectedTaskIds.size !== 1 ? 's' : ''}
+        </DialogTitle>
+        <DialogContent>
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel sx={{ color: theme.palette.text.secondary }}>Status</InputLabel>
+            <Select
+              label="Status"
+              value={bulkOperationValue}
+              onChange={(e) => setBulkOperationValue(e.target.value)}
+              sx={{
+                color: theme.palette.text.primary,
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.divider,
+                },
+              }}
+            >
+              <MenuItem value="todo">Todo</MenuItem>
+              <MenuItem value="in_progress">In Progress</MenuItem>
+              <MenuItem value="done">Done</MenuItem>
+              <MenuItem value="blocked">Blocked</MenuItem>
+              <MenuItem value="archived">Archived</MenuItem>
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setBulkOperationDialog({ open: false, operation: null });
+              setBulkOperationValue('');
+            }}
+            disabled={bulkOperationLoading}
+            sx={{ color: theme.palette.text.secondary }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => handleBulkOperation('status', bulkOperationValue)}
+            disabled={bulkOperationLoading || !bulkOperationValue}
+            variant="contained"
+            startIcon={bulkOperationLoading ? <CircularProgress size={16} /> : <AssignmentIcon />}
+          >
+            {bulkOperationLoading ? 'Updating...' : 'Update Status'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={bulkOperationDialog.open && bulkOperationDialog.operation === 'priority'}
+        onClose={() => {
+          if (!bulkOperationLoading) {
+            setBulkOperationDialog({ open: false, operation: null });
+            setBulkOperationValue('');
+          }
+        }}
+        PaperProps={{
+          sx: {
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: theme.palette.text.primary }}>
+          Change Priority for {selectedTaskIds.size} Task{selectedTaskIds.size !== 1 ? 's' : ''}
+        </DialogTitle>
+        <DialogContent>
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel sx={{ color: theme.palette.text.secondary }}>Priority</InputLabel>
+            <Select
+              label="Priority"
+              value={bulkOperationValue}
+              onChange={(e) => setBulkOperationValue(e.target.value)}
+              sx={{
+                color: theme.palette.text.primary,
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.divider,
+                },
+              }}
+            >
+              <MenuItem value="low">Low</MenuItem>
+              <MenuItem value="medium">Medium</MenuItem>
+              <MenuItem value="high">High</MenuItem>
+              <MenuItem value="critical">Critical</MenuItem>
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setBulkOperationDialog({ open: false, operation: null });
+              setBulkOperationValue('');
+            }}
+            disabled={bulkOperationLoading}
+            sx={{ color: theme.palette.text.secondary }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => handleBulkOperation('priority', bulkOperationValue)}
+            disabled={bulkOperationLoading || !bulkOperationValue}
+            variant="contained"
+            startIcon={bulkOperationLoading ? <CircularProgress size={16} /> : <FlagIcon />}
+          >
+            {bulkOperationLoading ? 'Updating...' : 'Update Priority'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={bulkOperationDialog.open && bulkOperationDialog.operation === 'delete'}
+        onClose={() => !bulkOperationLoading && setBulkOperationDialog({ open: false, operation: null })}
+        PaperProps={{
+          sx: {
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: theme.palette.text.primary }}>
+          Delete {selectedTaskIds.size} Task{selectedTaskIds.size !== 1 ? 's' : ''}?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: theme.palette.text.secondary }}>
+            Are you sure you want to delete {selectedTaskIds.size} task{selectedTaskIds.size !== 1 ? 's' : ''}? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setBulkOperationDialog({ open: false, operation: null })}
+            disabled={bulkOperationLoading}
+            sx={{ color: theme.palette.text.secondary }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => handleBulkOperation('delete')}
+            disabled={bulkOperationLoading}
+            color="error"
+            variant="contained"
+            startIcon={bulkOperationLoading ? <CircularProgress size={16} /> : <DeleteIcon />}
+          >
+            {bulkOperationLoading ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

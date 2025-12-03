@@ -217,7 +217,7 @@ export async function sendPushNotification(
 
           // Set VAPID details
           webpush.setVapidDetails(
-            `mailto:${process.env.VAPID_EMAIL || 'admin@fullstackmethod.com'}`,
+            `mailto:${process.env.VAPID_EMAIL || 'email@fsm.life'}`,
             vapidPublicKey,
             vapidPrivateKey
           );

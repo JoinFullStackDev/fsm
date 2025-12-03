@@ -41,8 +41,11 @@ import { useNotification } from '@/components/providers/NotificationProvider';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import EmptyState from '@/components/ui/EmptyState';
-import { People as PeopleIcon } from '@mui/icons-material';
-import type { UserRole } from '@/types/project';
+import { People as PeopleIcon, Schedule as ScheduleIcon } from '@mui/icons-material';
+import type { UserRole, ProjectMemberAllocation, UserWorkloadSummary } from '@/types/project';
+import WorkloadIndicator from '@/components/projects/WorkloadIndicator';
+import ResourceAllocationForm from '@/components/projects/ResourceAllocationForm';
+import ResourceAllocationList from '@/components/projects/ResourceAllocationList';
 
 interface ProjectMember {
   id: string;
@@ -82,6 +85,13 @@ export default function ProjectMembersPage() {
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [editingRole, setEditingRole] = useState<UserRole | null>(null);
   const [updatingRole, setUpdatingRole] = useState(false);
+  // Resource allocation state
+  const [allocations, setAllocations] = useState<Array<ProjectMemberAllocation & { user?: any }>>([]);
+  const [workloads, setWorkloads] = useState<Map<string, UserWorkloadSummary>>(new Map());
+  const [loadingAllocations, setLoadingAllocations] = useState(false);
+  const [allocationFormOpen, setAllocationFormOpen] = useState(false);
+  const [editingAllocation, setEditingAllocation] = useState<ProjectMemberAllocation | null>(null);
+  const [showAllocations, setShowAllocations] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -104,8 +114,12 @@ export default function ProjectMembersPage() {
       setProjectName(projectData.name);
     }
 
-    // Load project members via API route to avoid RLS recursion
-    const membersResponse = await fetch(`/api/projects/${projectId}/members`);
+    // Load project members and resource data via combined API route
+    const [membersResponse, resourcesResponse] = await Promise.all([
+      fetch(`/api/projects/${projectId}/members`),
+      fetch(`/api/projects/${projectId}/resources`),
+    ]);
+
     if (!membersResponse.ok) {
       const errorData = await membersResponse.json();
       setError(errorData.error || 'Failed to load project members');
@@ -120,6 +134,21 @@ export default function ProjectMembersPage() {
       setMembers(membersArray as any);
     } else {
       setMembers([]);
+    }
+
+    // Load resource allocations and workloads
+    if (resourcesResponse.ok) {
+      const resourcesData = await resourcesResponse.json();
+      setAllocations(resourcesData.allocations || []);
+      
+      // Create workload map
+      const workloadMap = new Map<string, UserWorkloadSummary>();
+      if (resourcesData.workloads) {
+        resourcesData.workloads.forEach((w: UserWorkloadSummary) => {
+          workloadMap.set(w.user_id, w);
+        });
+      }
+      setWorkloads(workloadMap);
     }
 
     // Get current user's organization_id to filter users
@@ -384,6 +413,75 @@ export default function ProjectMembersPage() {
               </Button>
             </Box>
 
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, alignItems: 'center' }}>
+              <Button
+                variant="outlined"
+                startIcon={<ScheduleIcon />}
+                onClick={() => setShowAllocations(!showAllocations)}
+                sx={{
+                  borderColor: theme.palette.divider,
+                  color: theme.palette.text.primary,
+                  '&:hover': {
+                    borderColor: theme.palette.text.secondary,
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+              >
+                {showAllocations ? 'Hide' : 'Show'} Resource Allocations
+              </Button>
+              {showAllocations && (
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={() => {
+                    setEditingAllocation(null);
+                    setAllocationFormOpen(true);
+                  }}
+                  size="small"
+                  sx={{
+                    backgroundColor: theme.palette.text.primary,
+                    color: theme.palette.background.default,
+                    '&:hover': {
+                      backgroundColor: theme.palette.action.hover,
+                      color: theme.palette.text.primary,
+                    },
+                  }}
+                >
+                  Add Allocation
+                </Button>
+              )}
+            </Box>
+
+            {showAllocations && (
+              <Box sx={{ mb: 3 }}>
+                <ResourceAllocationList
+                  allocations={allocations}
+                  workloads={workloads}
+                  onEdit={(allocation) => {
+                    setEditingAllocation(allocation);
+                    setAllocationFormOpen(true);
+                  }}
+                  onDelete={async (allocationId) => {
+                    try {
+                      const response = await fetch(`/api/projects/${projectId}/resource-allocation/${allocationId}`, {
+                        method: 'DELETE',
+                      });
+                      if (response.ok) {
+                        showSuccess('Allocation deleted successfully');
+                        loadData();
+                      } else {
+                        const error = await response.json();
+                        showError('Failed to delete allocation: ' + (error.error || 'Unknown error'));
+                      }
+                    } catch (error) {
+                      showError('Failed to delete allocation');
+                    }
+                  }}
+                  loading={loadingAllocations}
+                />
+              </Box>
+            )}
+
             <TableContainer
               component={Paper}
               sx={{
@@ -397,13 +495,14 @@ export default function ProjectMembersPage() {
                     <TableCell sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Name</TableCell>
                     <TableCell sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Email</TableCell>
                     <TableCell sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Role</TableCell>
+                    <TableCell sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Workload</TableCell>
                     <TableCell align="right" sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {members.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} sx={{ py: 6 }}>
+                      <TableCell colSpan={5} sx={{ py: 6 }}>
                         <EmptyState
                           icon={<PeopleIcon sx={{ fontSize: 48 }} />}
                           title="No members yet"
@@ -510,6 +609,13 @@ export default function ProjectMembersPage() {
                               }}
                             />
                           )}
+                        </TableCell>
+                        <TableCell sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
+                          <WorkloadIndicator 
+                            workload={workloads.get(member.user_id)} 
+                            size="small" 
+                            showLabel={true}
+                          />
                         </TableCell>
                         <TableCell align="right" sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
                           <IconButton
@@ -704,6 +810,47 @@ export default function ProjectMembersPage() {
           confirmText="Remove"
           cancelText="Cancel"
           severity="warning"
+        />
+
+        <ResourceAllocationForm
+          open={allocationFormOpen}
+          onClose={() => {
+            setAllocationFormOpen(false);
+            setEditingAllocation(null);
+          }}
+          onSubmit={async (data) => {
+            try {
+              const url = editingAllocation
+                ? `/api/projects/${projectId}/resource-allocation/${editingAllocation.id}`
+                : `/api/projects/${projectId}/resource-allocation`;
+              
+              const response = await fetch(url, {
+                method: editingAllocation ? 'PUT' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+              });
+
+              if (!response.ok) {
+                const error = await response.json();
+                showError('Failed to save allocation: ' + (error.error || 'Unknown error'));
+                throw new Error(error.error || 'Failed to save allocation');
+              }
+
+              showSuccess(editingAllocation ? 'Allocation updated successfully' : 'Allocation created successfully');
+              setAllocationFormOpen(false);
+              setEditingAllocation(null);
+              loadData();
+            } catch (error) {
+              throw error;
+            }
+          }}
+          allocation={editingAllocation}
+          projectId={projectId}
+          availableUsers={members.map(m => ({
+            id: m.user_id,
+            name: m.user?.name || null,
+            email: m.user?.email || '',
+          }))}
         />
         </Container>
       </Box>

@@ -2,13 +2,15 @@ import { sendEmail, sendEmailWithRetry } from '@/lib/emailService';
 import { getOrganizationContextById } from '@/lib/organizationContext';
 import logger from '@/lib/utils/logger';
 import type { Invoice, InvoiceWithRelations } from '@/types/ops';
+import { generateEmailWrapper, EMAIL_BRAND_COLORS } from '@/lib/emailTemplateBase';
 
 /**
  * Generate HTML email template for invoice
  */
 export async function generateInvoiceEmailTemplate(
   invoice: InvoiceWithRelations,
-  organizationBranding?: { logo_url?: string | null; icon_url?: string | null; name?: string }
+  organizationBranding?: { logo_url?: string | null; icon_url?: string | null; name?: string },
+  organizationId?: string | null
 ): Promise<{ subject: string; html: string; text: string }> {
   const logoUrl = organizationBranding?.logo_url || organizationBranding?.icon_url;
   const orgName = organizationBranding?.name || 'Your Organization';
@@ -31,98 +33,92 @@ export async function generateInvoiceEmailTemplate(
     ?.map(
       (item) => `
       <tr>
-        <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${item.description}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #e0e0e0; text-align: center;">${item.quantity}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #e0e0e0; text-align: right;">$${item.unit_price.toFixed(2)}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #e0e0e0; text-align: right;">$${item.amount.toFixed(2)}</td>
+        <td style="padding: 12px; border-bottom: 1px solid ${EMAIL_BRAND_COLORS.border}; color: ${EMAIL_BRAND_COLORS.text}; font-size: 14px;">${item.description}</td>
+        <td style="padding: 12px; border-bottom: 1px solid ${EMAIL_BRAND_COLORS.border}; text-align: center; color: ${EMAIL_BRAND_COLORS.text}; font-size: 14px;">${item.quantity}</td>
+        <td style="padding: 12px; border-bottom: 1px solid ${EMAIL_BRAND_COLORS.border}; text-align: right; color: ${EMAIL_BRAND_COLORS.text}; font-size: 14px;">$${item.unit_price.toFixed(2)}</td>
+        <td style="padding: 12px; border-bottom: 1px solid ${EMAIL_BRAND_COLORS.border}; text-align: right; color: ${EMAIL_BRAND_COLORS.text}; font-size: 14px;">$${item.amount.toFixed(2)}</td>
       </tr>
     `
     )
     .join('') || '';
 
-  const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Invoice ${invoice.invoice_number}</title>
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  ${logoUrl ? `<div style="text-align: center; margin-bottom: 30px;"><img src="${logoUrl}" alt="${orgName}" style="max-height: 60px;"></div>` : ''}
-  
-  <h1 style="color: #00E5FF; margin-bottom: 10px;">Invoice ${invoice.invoice_number}</h1>
-  
-  <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
-    <div style="margin-bottom: 15px;">
-      <strong>Bill To:</strong><br>
-      ${invoice.client_name}<br>
-      ${invoice.client_email ? `${invoice.client_email}<br>` : ''}
-      ${invoice.client_address?.street ? `${invoice.client_address.street}<br>` : ''}
-      ${invoice.client_address?.city || invoice.client_address?.state || invoice.client_address?.zip
-        ? `${[invoice.client_address.city, invoice.client_address.state, invoice.client_address.zip].filter(Boolean).join(', ')}<br>`
-        : ''}
-      ${invoice.client_address?.country ? `${invoice.client_address.country}` : ''}
-    </div>
+  const content = `
+    <h1 style="margin-top: 0; color: ${EMAIL_BRAND_COLORS.primary}; font-size: 28px; font-weight: 600; margin-bottom: 24px;">Invoice ${invoice.invoice_number}</h1>
     
-    <div>
-      <strong>Invoice Date:</strong> ${formattedDate}<br>
-      ${invoice.due_date ? `<strong>Due Date:</strong> ${dueDateFormatted}` : ''}
+    <div style="background-color: ${EMAIL_BRAND_COLORS.background}; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
+      <div style="margin-bottom: 16px;">
+        <strong style="color: ${EMAIL_BRAND_COLORS.text}; font-size: 14px;">Bill To:</strong><br>
+        <div style="color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6; margin-top: 4px;">
+          ${invoice.client_name}<br>
+          ${invoice.client_email ? `${invoice.client_email}<br>` : ''}
+          ${invoice.client_address?.street ? `${invoice.client_address.street}<br>` : ''}
+          ${invoice.client_address?.city || invoice.client_address?.state || invoice.client_address?.zip
+            ? `${[invoice.client_address.city, invoice.client_address.state, invoice.client_address.zip].filter(Boolean).join(', ')}<br>`
+            : ''}
+          ${invoice.client_address?.country ? `${invoice.client_address.country}` : ''}
+        </div>
+      </div>
+      
+      <div>
+        <strong style="color: ${EMAIL_BRAND_COLORS.text}; font-size: 14px;">Invoice Date:</strong> <span style="color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px;">${formattedDate}</span><br>
+        ${invoice.due_date ? `<strong style="color: ${EMAIL_BRAND_COLORS.text}; font-size: 14px;">Due Date:</strong> <span style="color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px;">${dueDateFormatted}</span>` : ''}
+      </div>
     </div>
-  </div>
 
-  <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
-    <thead>
-      <tr style="background-color: #00E5FF; color: white;">
-        <th style="padding: 12px; text-align: left;">Description</th>
-        <th style="padding: 12px; text-align: center;">Quantity</th>
-        <th style="padding: 12px; text-align: right;">Unit Price</th>
-        <th style="padding: 12px; text-align: right;">Amount</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${lineItemsHtml}
-    </tbody>
-  </table>
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+      <thead>
+        <tr style="background-color: ${EMAIL_BRAND_COLORS.primary};">
+          <th style="padding: 12px; text-align: left; color: ${EMAIL_BRAND_COLORS.white}; font-weight: 600; font-size: 14px;">Description</th>
+          <th style="padding: 12px; text-align: center; color: ${EMAIL_BRAND_COLORS.white}; font-weight: 600; font-size: 14px;">Quantity</th>
+          <th style="padding: 12px; text-align: right; color: ${EMAIL_BRAND_COLORS.white}; font-weight: 600; font-size: 14px;">Unit Price</th>
+          <th style="padding: 12px; text-align: right; color: ${EMAIL_BRAND_COLORS.white}; font-weight: 600; font-size: 14px;">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${lineItemsHtml}
+      </tbody>
+    </table>
 
-  <div style="text-align: right; margin-bottom: 30px;">
-    <div style="margin-bottom: 10px;">
-      <strong>Subtotal:</strong> $${invoice.subtotal.toFixed(2)}
+    <div style="text-align: right; margin-bottom: 24px;">
+      <div style="margin-bottom: 8px; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px;">
+        <strong>Subtotal:</strong> $${invoice.subtotal.toFixed(2)}
+      </div>
+      ${invoice.tax_rate > 0 ? `
+      <div style="margin-bottom: 8px; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px;">
+        <strong>Tax (${invoice.tax_rate}%):</strong> $${invoice.tax_amount.toFixed(2)}
+      </div>
+      ` : ''}
+      <div style="font-size: 20px; font-weight: bold; color: ${EMAIL_BRAND_COLORS.primary}; padding-top: 12px; border-top: 2px solid ${EMAIL_BRAND_COLORS.primary}; margin-top: 12px;">
+        <strong>Total:</strong> $${invoice.total_amount.toFixed(2)} ${invoice.currency}
+      </div>
     </div>
-    ${invoice.tax_rate > 0 ? `
-    <div style="margin-bottom: 10px;">
-      <strong>Tax (${invoice.tax_rate}%):</strong> $${invoice.tax_amount.toFixed(2)}
+
+    ${invoice.notes ? `
+    <div style="margin-bottom: 20px; padding: 16px; background-color: ${EMAIL_BRAND_COLORS.background}; border-radius: 8px;">
+      <strong style="color: ${EMAIL_BRAND_COLORS.text}; font-size: 14px;">Notes:</strong><br>
+      <div style="white-space: pre-wrap; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6; margin-top: 8px;">${invoice.notes}</div>
     </div>
     ` : ''}
-    <div style="font-size: 18px; font-weight: bold; color: #00E5FF; padding-top: 10px; border-top: 2px solid #00E5FF;">
-      <strong>Total:</strong> $${invoice.total_amount.toFixed(2)} ${invoice.currency}
+
+    ${invoice.terms ? `
+    <div style="margin-bottom: 20px; padding: 16px; background-color: ${EMAIL_BRAND_COLORS.background}; border-radius: 8px;">
+      <strong style="color: ${EMAIL_BRAND_COLORS.text}; font-size: 14px;">Terms:</strong><br>
+      <div style="white-space: pre-wrap; color: ${EMAIL_BRAND_COLORS.text}; font-size: 16px; line-height: 1.6; margin-top: 8px;">${invoice.terms}</div>
     </div>
-  </div>
+    ` : ''}
 
-  ${invoice.notes ? `
-  <div style="margin-bottom: 20px;">
-    <strong>Notes:</strong><br>
-    <div style="white-space: pre-wrap;">${invoice.notes}</div>
-  </div>
-  ` : ''}
+    <div style="text-align: center; margin-top: 32px;">
+      <a href="${invoiceUrl}" style="display: inline-block; background-color: ${EMAIL_BRAND_COLORS.primary}; color: ${EMAIL_BRAND_COLORS.white}; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 16px;">View Invoice Online</a>
+    </div>
+  `;
 
-  ${invoice.terms ? `
-  <div style="margin-bottom: 20px;">
-    <strong>Terms:</strong><br>
-    <div style="white-space: pre-wrap;">${invoice.terms}</div>
-  </div>
-  ` : ''}
-
-  <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
-    <a href="${invoiceUrl}" style="display: inline-block; background-color: #00E5FF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">View Invoice Online</a>
-  </div>
-
-  <div style="text-align: center; margin-top: 20px; color: #666; font-size: 12px;">
-    <p>This invoice was sent by ${orgName}</p>
-  </div>
-</body>
-</html>
-  `.trim();
+  // Pass organizationId to wrapper so it can fetch the logo
+  // The wrapper will prioritize organization logo over app logo
+  const html = await generateEmailWrapper({ 
+    content, 
+    organizationId: organizationId || null,
+    preheader: `Invoice ${invoice.invoice_number} from ${orgName}`
+  });
 
   const text = `
 Invoice ${invoice.invoice_number}
@@ -182,7 +178,7 @@ export async function sendInvoiceEmail(
       : undefined;
 
     // Generate email template
-    const { subject, html, text } = await generateInvoiceEmailTemplate(invoice, organizationBranding);
+    const { subject, html, text } = await generateInvoiceEmailTemplate(invoice, organizationBranding, organizationId);
 
     // Send email with PDF attachment if provided
     if (pdfBuffer) {
@@ -192,7 +188,7 @@ export async function sendInvoiceEmail(
       logger.info('PDF attachment not yet supported, sending email without attachment');
     }
 
-    const result = await sendEmailWithRetry(recipientEmail, subject, html, text);
+    const result = await sendEmailWithRetry(recipientEmail, subject, html, text, undefined, undefined, organizationId);
 
     if (!result.success) {
       logger.error('Failed to send invoice email:', result.error);

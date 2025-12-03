@@ -149,11 +149,13 @@ export async function POST(
       .single();
 
     // Get email template
+    const organizationId = targetUser.organization_id || null;
     const template = await getUserInvitationTemplate(
       targetUser.name || 'User',
       orgData?.name || 'Your Organization',
       invitationLink,
-      currentUser.name || undefined
+      currentUser.name || undefined,
+      organizationId
     );
 
     // Send invitation email
@@ -168,7 +170,10 @@ export async function POST(
       targetUser.email,
       template.subject,
       template.html,
-      template.text
+      template.text,
+      undefined,
+      undefined,
+      organizationId
     );
 
     if (!emailSendResult.success) {

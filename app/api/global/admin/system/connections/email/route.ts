@@ -17,7 +17,7 @@ export async function PUT(request: NextRequest) {
     const adminClient = createAdminSupabaseClient();
     const body = await request.json();
 
-    const { api_key, from_email, is_active } = body;
+    const { api_key, from_email, sender_name, is_active } = body;
 
     // Get existing email connection
     const { data: existing, error: fetchError } = await adminClient
@@ -57,6 +57,16 @@ export async function PUT(request: NextRequest) {
         updatedConfig.from_email = from_email.trim();
         // Also set sender_email for backward compatibility
         updatedConfig.sender_email = from_email.trim();
+      }
+    }
+
+    // Update sender name if provided
+    if (sender_name !== undefined) {
+      if (sender_name === null || sender_name === '') {
+        // Remove sender name if explicitly set to empty
+        delete updatedConfig.sender_name;
+      } else {
+        updatedConfig.sender_name = sender_name.trim();
       }
     }
 

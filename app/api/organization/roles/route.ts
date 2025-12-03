@@ -27,8 +27,9 @@ export async function GET(request: NextRequest) {
   try {
     const { userId, organizationId } = await requireCompanyAdmin(request);
     
-    const supabase = await createServerSupabaseClient();
-    const roles = await getOrganizationRoles(supabase, organizationId);
+    // Use admin client to bypass RLS and avoid stack depth recursion issues
+    const adminClient = createAdminSupabaseClient();
+    const roles = await getOrganizationRoles(adminClient, organizationId);
 
     return NextResponse.json({ roles });
   } catch (error: any) {

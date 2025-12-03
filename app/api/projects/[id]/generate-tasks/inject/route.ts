@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { mergeTaskContent } from '@/lib/ai/taskMerger';
 import logger from '@/lib/utils/logger';
 import { unauthorized, notFound, badRequest, internalError } from '@/lib/utils/apiErrors';
@@ -235,10 +236,68 @@ export async function POST(
     const allTasksToCreate = [...tasksToCreate, ...tasksToKeepBoth];
 
     if (allTasksToCreate.length > 0) {
+      // Get project members for assignee validation
+      const adminClient = createAdminSupabaseClient();
+      const { data: projectMembers } = await adminClient
+        .from('project_members')
+        .select('user_id')
+        .eq('project_id', params.id);
+
+      const projectMemberUserIds = new Set(projectMembers?.map(pm => pm.user_id) || []);
+
+      // Get user names to UUIDs mapping for validation (in case AI returns names instead of UUIDs)
+      const { data: users } = await adminClient
+        .from('users')
+        .select('id, name, email')
+        .in('id', projectMembers?.map(pm => pm.user_id) || []);
+
+      const userNameToIdMap = new Map<string, string>();
+      users?.forEach(u => {
+        if (u.name) userNameToIdMap.set(u.name.toLowerCase(), u.id);
+        if (u.email) userNameToIdMap.set(u.email.toLowerCase(), u.id);
+      });
+
+      // Track auto-assignments for logging
+      const autoAssignments: Array<{ taskTitle: string; assigneeId: string }> = [];
+
       // Transform PreviewTask to ProjectTask by removing preview-only fields
       const tasksToInsert = allTasksToCreate.map((task) => {
         // Extract requirements and userStories from PreviewTask
-        const { duplicateStatus, existingTaskId, requirements, userStories, previewId, ...taskData } = task;
+        const { duplicateStatus, existingTaskId, requirements, userStories, previewId, assignee_id, ...taskData } = task;
+        
+        // Validate assignee if provided
+        let validatedAssigneeId = null;
+        if (assignee_id) {
+          // Check if it's a UUID format
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          
+          let assigneeIdToCheck: string | null = assignee_id;
+          if (!uuidRegex.test(assignee_id)) {
+            // It's not a UUID, try to map from name
+            const userId = userNameToIdMap.get(assignee_id.toLowerCase());
+            if (userId) {
+              assigneeIdToCheck = userId;
+              logger.warn(`[Task Inject] Mapped assignee name "${assignee_id}" to UUID "${userId}"`);
+            } else {
+              logger.warn(`[Task Inject] AI suggested assignee "${assignee_id}" is not a valid UUID or name. Task will be unassigned.`);
+              assigneeIdToCheck = null;
+            }
+          }
+
+          if (assigneeIdToCheck) {
+            // Verify assignee is a project member
+            if (projectMemberUserIds.has(assigneeIdToCheck)) {
+              validatedAssigneeId = assigneeIdToCheck;
+              
+            autoAssignments.push({
+              taskTitle: task.title,
+              assigneeId: assigneeIdToCheck,
+            });
+            } else {
+              logger.warn(`[Task Inject] AI suggested assignee ${assigneeIdToCheck} is not a project member for task: ${task.title}`);
+            }
+          }
+        }
         
         // Build notes JSONB structure if requirements or userStories exist
         let notes = task.notes;
@@ -249,6 +308,7 @@ export async function POST(
             if (userStories && userStories.length > 0) {
               notesObj.userStories = userStories;
             }
+            // Note: assignee_role is not stored - it's only used by AI for assignment decisions
             notes = JSON.stringify(notesObj);
           } catch (e) {
             // If notes isn't valid JSON, create new structure
@@ -262,6 +322,7 @@ export async function POST(
 
         return {
           ...taskData,
+          assignee_id: validatedAssigneeId,
           project_id: params.id,
           ai_generated: true,
           ai_analysis_id: null,
@@ -309,11 +370,20 @@ export async function POST(
               output_tokens: estimatedOutputTokens,
               total_tokens: estimatedInputTokens + estimatedOutputTokens,
               estimated_cost: estimatedCost,
+              auto_assignments: autoAssignments.length > 0 ? autoAssignments : undefined,
             },
           });
         } catch (activityError) {
           logger.warn('[Task Inject] Failed to create activity log:', activityError);
           // Don't fail the request if activity log fails
+        }
+
+        // Log auto-assignments if any
+        if (autoAssignments.length > 0) {
+          logger.info('[Task Inject] Auto-assignments made:', {
+            count: autoAssignments.length,
+            assignments: autoAssignments,
+          });
         }
       }
     }

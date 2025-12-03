@@ -417,7 +417,8 @@ export async function POST(request: NextRequest) {
           }
         );
         
-        const emailResult = await sendEmailWithRetry(email, template.subject, template.html, template.text);
+        // Pre-signup, no organization context yet
+        const emailResult = await sendEmailWithRetry(email, template.subject, template.html, template.text, undefined, undefined, null);
         if (emailResult.success) {
           logger.info('[Stripe] Pre-payment confirmation email sent successfully', { 
             email, 

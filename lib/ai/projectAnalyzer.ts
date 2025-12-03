@@ -12,7 +12,9 @@ export interface PhaseData {
 }
 
 export interface ProjectAnalysisResult {
-  tasks: Omit<ProjectTask, 'id' | 'created_at' | 'updated_at'>[];
+  tasks: Array<Omit<ProjectTask, 'id' | 'created_at' | 'updated_at'> & {
+    assignee_id?: string | null;
+  }>;
   summary: string;
   next_steps: string[];
   blockers: string[];
@@ -42,7 +44,15 @@ export async function analyzeProject(
   phases: PhaseData[],
   existingTasks: ProjectTask[] = [],
   apiKey?: string,
-  isDefaultTemplate: boolean = true
+  isDefaultTemplate: boolean = true,
+  sowMembers?: Array<{
+    user_id: string;
+    name: string;
+    role_name: string;
+    role_description: string | null;
+    current_task_count: number;
+    is_overworked: boolean;
+  }>
 ): Promise<ProjectAnalysisResult> {
   let phase1Timeline = '';
   let phase5Timeline = '';
@@ -348,6 +358,119 @@ Since no timeline is provided, assign dates based on:
 
 EVERY task must have a due_date in YYYY-MM-DD format.`}
 
+${(() => {
+  // Build phase-to-role mapping based on actual phase names
+  const phaseRoleMapping = phases.map(p => {
+    const phaseName = (p.phase_name || `Phase ${p.phase_number}`).toLowerCase();
+    const phaseNum = p.phase_number;
+    
+    // Determine which roles match this phase based on phase name keywords
+    let matchingRoles: string[] = [];
+    
+    // Strategy/Discovery/Concept phases
+    if (phaseName.match(/(concept|discovery|strategy|planning|framing|research|analysis|requirements)/i)) {
+      matchingRoles.push('Product Manager', 'Product Owner', 'Business Analyst', 'Strategist', 'Business Development');
+    }
+    
+    // Design phases
+    if (phaseName.match(/(strategy|design|ui|ux|wireframe|mockup|visual)/i)) {
+      matchingRoles.push('Designer', 'UI/UX Designer');
+    }
+    
+    // Engineering/Build phases
+    if (phaseName.match(/(build|develop|implement|code|engineering|accelerator|prototype|rapid prototype|technical|architecture|api|backend|frontend|database)/i)) {
+      matchingRoles.push('Sofware Engineer', 'Engineer', 'Developer', 'Architect', 'Technical Lead', 'Frontend Engineer', 'Backend Engineer', 'Full-Stack Engineer');
+    }
+    
+    // QA/Testing phases
+    if (phaseName.match(/(qa|quality|test|testing|hardening|verification|assurance|analysis|hardening)/i)) {
+      matchingRoles.push('QA Engineer', 'Tester', 'QA Analyst', 'Quality Assurance', 'Test Engineer', 'SDET');
+    }
+    
+    // Analysis/User Stories phases
+    if (phaseName.match(/(analysis|user stories|stories|specification|requirements gathering)/i)) {
+      matchingRoles.push('Product Manager', 'Product Owner', 'Technical Lead');
+    }
+    
+    return {
+      phase_number: phaseNum,
+      phase_name: p.phase_name || `Phase ${phaseNum}`,
+      matching_roles: [...new Set(matchingRoles)] // Remove duplicates
+    };
+  });
+
+  return sowMembers && sowMembers.length > 0 ? `
+Team Members Available (from Scope of Work or Resource Allocations):
+${sowMembers.map(m =>
+  `- ${m.name} (ID: ${m.user_id}, Role: "${m.role_name}"${m.role_description ? ` - Description: "${m.role_description}"` : ''}): ${m.current_task_count} current tasks${m.is_overworked ? ' [OVERWORKED - avoid assigning]' : ''}`
+).join('\n')}
+
+Project Phases (for reference):
+${phases.map(p => `- Phase ${p.phase_number}: "${p.phase_name || `Phase ${p.phase_number}`}"`).join('\n')}
+
+CRITICAL ASSIGNMENT RULES - MATCH IN THIS EXACT ORDER:
+
+STEP 1: PHASE MATCHING (MANDATORY - Must match first):
+   Check the task's phase_number and look up the corresponding phase name from the "Project Phases" list above.
+   Then analyze what type of work that phase requires and match it to team members:
+   
+   - Find the phase name for the task's phase_number (e.g., if phase_number is 6, find "Phase 6: [phase name]")
+   - Analyze the phase name to understand what work it requires:
+     * If phase name contains "concept", "discovery", "strategy", "planning", "framing", "research", "requirements": Match to roles with "product", "strategy", "business", "analyst", "owner", "manager" in role_name or role_description
+     * If phase name contains "design", "UI", "UX", "wireframe", "mockup", "visual": Match to roles with "design", "UI", "UX", "visual", "creative" in role_name or role_description
+     * If phase name contains "build", "develop", "implement", "code", "engineering", "accelerator", "technical", "architecture", "API", "backend", "frontend", "database": Match to roles with "engineer", "developer", "architect", "technical", "programmer", "coder", "backend", "frontend", "full-stack", "software" in role_name or role_description
+     * If phase name contains "QA", "quality", "test", "testing", "hardening", "verification", "assurance", "analysis" (in testing context): Match to roles with "QA", "test", "quality", "assurance", "tester", "SDET" in role_name or role_description
+     * If phase name contains "analysis", "user stories", "stories", "specification": Match to roles with "product", "analyst", "manager", "owner", "technical" in role_name or role_description
+   
+   IMPORTANT EXAMPLES:
+   - Phase name "Testing & Quality Assurance" → Match to roles containing "QA", "test", "quality", "assurance", "tester", "SDET"
+   - Phase name "Build Accelerator" → Match to roles containing "engineer", "developer", "architect", "technical", "programmer"
+   - Phase name "Product Strategy" → Match to roles containing "product", "strategy", "manager", "owner", "business"
+   
+   CRITICAL: Use semantic matching - if a phase is about "Testing & Quality Assurance" and someone's role_name is "QA Engineer" or role_description mentions "quality assurance", that's a match.
+   - Compare the phase name directly to each team member's role_name and role_description
+   - Use the EXACT role_name and role_description from the team members list above
+   - If the role_name or role_description semantically matches what the phase requires, it's a match
+   - If NO team member's role matches the phase requirements, set assignee_id to null (DO NOT assign)
+
+STEP 2: TITLE MATCHING (Required if phase matches):
+   After filtering by phase, check the task title for keywords. Match against the team member's ACTUAL role_name and role_description:
+   
+   - Title contains "design", "UI", "UX", "wireframe", "mockup", "visual", "designer": Role_name or role_description MUST contain "design", "UI", "UX", "visual", "creative", or similar design-related terms
+   - Title contains "code", "implement", "develop", "build", "API", "backend", "frontend", "database", "engineer", "developer": Role_name or role_description MUST contain "engineer", "developer", "architect", "technical", "programmer", "coder", "backend", "frontend", or similar technical terms
+   - Title contains "test", "QA", "quality", "testing", "verify", "test case": Role_name or role_description MUST contain "QA", "test", "quality", "assurance", "tester", or similar testing-related terms
+   - Title contains "product", "strategy", "requirements", "stakeholder", "roadmap", "product manager": Role_name or role_description MUST contain "product", "strategy", "manager", "owner", "analyst", "business", or similar product/business terms
+   - Title contains "business", "sales", "marketing", "outreach", "partnership": Role_name or role_description MUST contain "business", "sales", "marketing", "development", "partnership", or similar business-related terms
+   
+   IMPORTANT: Match against the ACTUAL role_name and role_description from the team members list, not generic role names.
+   If title keywords don't match the role name/description, set assignee_id to null (DO NOT assign).
+
+STEP 3: DESCRIPTION MATCHING (Required if phase and title match):
+   Check the task description for keywords that confirm the role match. Use the team member's ACTUAL role_name and role_description:
+   
+   - Description mentions coding, APIs, databases, infrastructure, technical: Role_name or role_description MUST contain technical/engineering keywords
+   - Description mentions design, wireframes, mockups, visual, user experience: Role_name or role_description MUST contain design-related keywords
+   - Description mentions testing, test cases, quality assurance, verification: Role_name or role_description MUST contain testing/QA keywords
+   - Description mentions product strategy, requirements gathering, stakeholder management: Role_name or role_description MUST contain product/business/strategy keywords
+   - Description mentions sales, partnerships, business relationships: Role_name or role_description MUST contain business/sales keywords
+   
+   IMPORTANT: Use semantic matching - if the description aligns with what the role_name or role_description indicates the person does, it's a match.
+   If description doesn't confirm the role match, set assignee_id to null (DO NOT assign).
+
+STEP 4: FINAL VALIDATION:
+   - ALL THREE criteria (phase, title, description) MUST match the role based on the ACTUAL role_name and role_description
+   - Use semantic understanding: if a role description says "responsible for frontend development", that person should get frontend tasks
+   - If any criterion doesn't match, set assignee_id to null
+   - Among multiple matching members, prefer those with fewer current tasks
+   - Avoid overworked members (marked [OVERWORKED]) unless they're the only match
+   - If no clear match exists after all checks, set assignee_id to null
+
+CRITICAL: Use the exact user_id UUID (e.g., "${sowMembers[0]?.user_id}") for assignee_id, NOT the name. 
+ONLY assign if ALL THREE criteria (phase, title, description) clearly match the role based on the ACTUAL role_name and role_description provided above. 
+When in doubt, leave unassigned (null).
+` : '';
+})()}
+
 Based on the phase data provided, generate:
 1. A comprehensive task list organized by phase. CRITICAL: You MUST generate tasks for ALL ${phases.length} phases listed above (${phases.map(p => `Phase ${p.phase_number}: ${p.phase_name || `Phase ${p.phase_number}`}`).join(', ')}). Each phase should have multiple tasks (typically 3-8 tasks per phase). Do not limit yourself to only the first few phases. Each task MUST have:
    - title: Clear, actionable task title
@@ -355,9 +478,11 @@ Based on the phase data provided, generate:
    - phase_number: Which phase this task belongs to (must be one of: ${phases.map(p => p.phase_number).join(', ')})
    - priority: 'low', 'medium', 'high', or 'critical'
    - status: 'todo' (for new tasks) or match existing status if task already exists
+   - estimated_hours: Estimated number of hours to complete this task (decimal number, e.g., 2.5, 8.0, 16.0). Consider task complexity, scope, and typical work patterns. Simple tasks: 1-4 hours, Medium: 4-16 hours, Complex: 16-40 hours, Very complex: 40+ hours.
    - tags: Array of relevant tags (e.g., ['frontend', 'backend', 'design', 'testing'])
    - start_date: ISO date string (YYYY-MM-DD) - REQUIRED FOR ALL TASKS. The date when work should begin on this task. Should be before or equal to due_date.
    - due_date: ISO date string (YYYY-MM-DD) - REQUIRED FOR ALL TASKS. Calculate based on timeline, phase order, and current date. Never return null for due_date.
+   ${sowMembers && sowMembers.length > 0 ? '- assignee_id: user_id UUID of the team member to assign this task to (or null if no suitable member). MUST match phase, title, and description to role. Use exact UUID from team members list above, NOT the name.' : ''}
 
 2. A progress summary (2-3 paragraphs) describing:
    - What has been completed
@@ -385,9 +510,10 @@ Return your response as JSON in this exact format:
       "phase_number": 1,
       "priority": "high",
       "status": "todo",
+      "estimated_hours": 8.0,
       "tags": ["tag1", "tag2"],
       "start_date": "2024-02-10",
-      "due_date": "2024-02-15"
+      "due_date": "2024-02-15"${sowMembers && sowMembers.length > 0 ? `,\n      "assignee_id": "${sowMembers[0]?.user_id}" or null (MUST be exact UUID from team members list above, NOT a name)` : ''}
     }
   ],
   "summary": "Progress summary text...",
@@ -665,9 +791,10 @@ REMINDER: Every task must have both start_date and due_date calculated from the 
         description: task.description || null,
         status: (task.status || 'todo') as ProjectTask['status'],
         priority: (task.priority || 'medium') as ProjectTask['priority'],
-        assignee_id: null,
+        assignee_id: task.assignee_id || null, // Use AI-suggested assignee if provided
         start_date: startDate,
         due_date: dueDate,
+        estimated_hours: task.estimated_hours || null,
         tags: task.tags || [],
         notes: null,
         dependencies: [],
@@ -781,6 +908,8 @@ export function mergeTasks(
           // Always use new dates if provided (to sync with timeline), otherwise keep existing
           start_date: newTask.start_date || matching.start_date,
           due_date: newTask.due_date || matching.due_date,
+          // Preserve existing assignee_id - don't overwrite if task already has an assignee
+          assignee_id: matching.assignee_id || newTask.assignee_id || null,
           ai_analysis_id: aiAnalysisId,
           updated_at: new Date().toISOString(),
         });

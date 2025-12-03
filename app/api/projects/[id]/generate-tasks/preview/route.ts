@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { generateTasksFromPrompt } from '@/lib/ai/taskGenerator';
 import { detectDuplicates } from '@/lib/ai/taskSimilarity';
 import logger from '@/lib/utils/logger';
@@ -115,10 +116,166 @@ export async function POST(
       return badRequest('Gemini API key not configured. Please configure it in Admin > API Config.');
     }
 
+    // Load active SOW with project members OR resource allocations (if exists)
+    const adminClient = createAdminSupabaseClient();
+    let sowMembers: Array<{
+      user_id: string;
+      name: string;
+      role_name: string;
+      role_description: string | null;
+      current_task_count: number;
+      is_overworked: boolean;
+    }> = [];
+
+    try {
+      // First try to get SOW members
+      const { data: activeSOW } = await adminClient
+        .from('project_scope_of_work')
+        .select(`
+          id,
+          project_members:sow_project_members(
+            organization_role_id,
+            project_member:project_members!sow_project_members_project_member_id_fkey(
+              user_id,
+              role,
+              user:users!project_members_user_id_fkey(
+                id,
+                name,
+                email
+              )
+            ),
+            organization_role:organization_roles!sow_project_members_organization_role_id_fkey(
+              id,
+              name,
+              description
+            )
+          )
+        `)
+        .eq('project_id', params.id)
+        .eq('status', 'active')
+        .order('version', { ascending: false })
+        .limit(1)
+        .single();
+
+      let memberUserIds: string[] = [];
+      let memberMap = new Map<string, { role_name: string; role_description: string | null }>();
+
+      // If SOW exists, use SOW members
+      if (activeSOW?.project_members && activeSOW.project_members.length > 0) {
+        memberUserIds = activeSOW.project_members
+          .map((pm: any) => pm.project_member?.user_id)
+          .filter(Boolean);
+
+        activeSOW.project_members.forEach((pm: any) => {
+          const userId = pm.project_member?.user_id;
+          if (userId) {
+            const roleName = pm.organization_role?.name || pm.project_member?.role || 'Team Member';
+            const roleDescription = pm.organization_role?.description || null;
+            memberMap.set(userId, { role_name: roleName, role_description: roleDescription });
+          }
+        });
+      } else {
+        // No SOW - try to get resource allocations instead
+        const today = new Date().toISOString().split('T')[0];
+        const { data: allocations } = await adminClient
+          .from('project_member_allocations')
+          .select(`
+            user_id,
+            allocated_hours_per_week,
+            user:users!project_member_allocations_user_id_fkey(
+              id,
+              name,
+              email
+            )
+          `)
+          .eq('project_id', params.id)
+          .or(`start_date.is.null,start_date.lte.${today},end_date.is.null,end_date.gte.${today}`);
+
+        if (allocations && allocations.length > 0) {
+          memberUserIds = allocations.map((a: any) => a.user_id).filter(Boolean);
+          
+          // Get project members to get their roles
+          const { data: projectMembers } = await adminClient
+            .from('project_members')
+            .select('user_id, role')
+            .eq('project_id', params.id)
+            .in('user_id', memberUserIds);
+
+          allocations.forEach((alloc: any) => {
+            const userId = alloc.user_id;
+            const pm = projectMembers?.find((pm: any) => pm.user_id === userId);
+            const roleName = pm?.role || 'Team Member';
+            memberMap.set(userId, { role_name: roleName, role_description: null });
+          });
+        }
+      }
+
+      // Enrich with task counts and workload
+      if (memberUserIds.length > 0) {
+        // Get task counts
+        const { data: tasks } = await adminClient
+          .from('project_tasks')
+          .select('assignee_id, status')
+          .eq('project_id', params.id)
+          .in('assignee_id', memberUserIds)
+          .neq('status', 'archived');
+
+        // Get workload summaries with error handling
+        const workloadPromises = memberUserIds.map(async (userId: string) => {
+          try {
+            const result: any = await adminClient.rpc('get_user_workload_summary', {
+              p_user_id: userId,
+              p_start_date: new Date().toISOString().split('T')[0],
+              p_end_date: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            });
+            return { userId, data: result.data, error: result.error };
+          } catch (error: any) {
+            return { userId, data: null, error };
+          }
+        });
+
+        const workloadResults = await Promise.allSettled(workloadPromises);
+        const workloadsMap = new Map<string, any>();
+
+        workloadResults.forEach((result, index) => {
+          if (result.status === 'fulfilled' && result.value.data) {
+            workloadsMap.set(memberUserIds[index], result.value.data);
+          }
+        });
+
+        // Get user details
+        const { data: users } = await adminClient
+          .from('users')
+          .select('id, name, email')
+          .in('id', memberUserIds);
+
+        // Build sowMembers array for AI
+        sowMembers = memberUserIds.map((userId: string) => {
+          const user = users?.find((u: any) => u.id === userId);
+          const memberInfo = memberMap.get(userId);
+          const taskCount = tasks?.filter((t: any) => t.assignee_id === userId).length || 0;
+          const workload = workloadsMap.get(userId);
+
+          return {
+            user_id: userId,
+            name: user?.name || user?.email || 'Unknown',
+            role_name: memberInfo?.role_name || 'Team Member',
+            role_description: memberInfo?.role_description || null,
+            current_task_count: taskCount,
+            is_overworked: workload?.is_over_allocated || false,
+          };
+        });
+      }
+    } catch (sowError) {
+      // Non-blocking: if loading fails, continue without members
+      logger.warn('[Task Generator Preview] Could not load team members:', sowError);
+    }
+
     // Generate tasks from prompt
     logger.info('[Task Generator Preview] Generating tasks from prompt:', {
       projectId: params.id,
       promptLength: prompt.length,
+      sowMembersCount: sowMembers.length,
     });
 
     const generationResult = await generateTasksFromPrompt(
@@ -133,7 +290,8 @@ export async function POST(
       })),
       (existingTasks || []) as ProjectTask[],
       apiKey,
-      context
+      context,
+      sowMembers.length > 0 ? sowMembers : undefined
     );
 
     // Detect duplicates
