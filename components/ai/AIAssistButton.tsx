@@ -15,6 +15,7 @@ import {
   useTheme,
 } from '@mui/material';
 import { AutoAwesome as AutoAwesomeIcon } from '@mui/icons-material';
+import BuildingOverlay from './BuildingOverlay';
 
 interface AIAssistButtonProps {
   label: string;
@@ -65,6 +66,7 @@ export default function AIAssistButton({
 
   return (
     <>
+      <BuildingOverlay open={loading} message="Building..." />
       <Button
         variant="outlined"
         startIcon={<AutoAwesomeIcon />}

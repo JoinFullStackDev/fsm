@@ -28,6 +28,7 @@ import GenerateReportForm, { type ReportType, type ReportFormat } from '@/compon
 import ReportsList from '@/components/project-management/ReportsList';
 import TaskGeneratorModal from '@/components/project-management/TaskGeneratorModal';
 import TaskPreviewTable from '@/components/project-management/TaskPreviewTable';
+import BuildingOverlay from '@/components/ai/BuildingOverlay';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { useOrganization } from '@/components/providers/OrganizationProvider';
 import type { ProjectTask, ProjectTaskExtended, Project } from '@/types/project';
@@ -428,7 +429,9 @@ export default function ProjectTaskManagementPage() {
   }
 
   return (
-    <Container maxWidth="xl" sx={{ py: 4, px: { xs: 0, md: 3 } }}>
+    <>
+      <BuildingOverlay open={analyzing} message="Re-analyzing project..." />
+      <Container maxWidth="xl" sx={{ py: 4, px: { xs: 0, md: 3 } }}>
       {/* Breadcrumbs */}
       <Breadcrumbs
         separator={<NavigateNextIcon fontSize="small" sx={{ color: theme.palette.text.secondary }} />}
@@ -691,6 +694,7 @@ export default function ProjectTaskManagementPage() {
         projectId={projectId}
       />
     </Container>
+    </>
   );
 }
 

@@ -17,6 +17,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { Close as CloseIcon, AutoAwesome as AutoAwesomeIcon, Warning as WarningIcon } from '@mui/icons-material';
 import type { PreviewTask } from '@/types/taskGenerator';
+import BuildingOverlay from '@/components/ai/BuildingOverlay';
 
 interface TaskGeneratorModalProps {
   open: boolean;
@@ -136,8 +137,10 @@ export default function TaskGeneratorModal({
   };
 
   return (
-    <Dialog
-      open={open}
+    <>
+      <BuildingOverlay open={loading} message="Building tasks..." />
+      <Dialog
+        open={open}
       onClose={handleClose}
       maxWidth="md"
       fullWidth
@@ -253,6 +256,7 @@ export default function TaskGeneratorModal({
         </Button>
       </DialogActions>
     </Dialog>
+    </>
   );
 }
 

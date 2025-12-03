@@ -2,6 +2,8 @@ import { GoogleGenAI } from '@google/genai';
 import logger from '@/lib/utils/logger';
 import { estimateInputTokens, estimateOutputTokens } from './tokenEstimator';
 import { calculateAICost } from './costCalculator';
+import { requestDeduplicator } from '@/lib/utils/requestDeduplication';
+import crypto from 'crypto';
 
 // Fallback to environment variable for backwards compatibility
 const defaultApiKey = process.env.GEMINI_API_KEY || '';
@@ -27,6 +29,23 @@ export interface AIResponseWithMetadata {
     estimated_cost: number;
     error?: string;
   };
+}
+
+/**
+ * Generate cache key for request deduplication
+ */
+function generateRequestKey(
+  prompt: string,
+  options: AIPromptOptions,
+  projectName?: string
+): string {
+  const hash = crypto.createHash('sha256');
+  hash.update(prompt);
+  hash.update(JSON.stringify(options));
+  if (projectName) {
+    hash.update(projectName);
+  }
+  return `ai:${hash.digest('hex')}`;
 }
 
 /**
@@ -86,17 +105,22 @@ export async function generateAIResponse(
   const model = 'gemini-2.5-flash';
   const startTime = Date.now();
 
-  try {
-    // Step 1: Initialize client with better error handling
-    let client;
+  // Generate request key for deduplication
+  const requestKey = generateRequestKey(prompt, options, projectName);
+
+  // Use request deduplication to prevent duplicate concurrent requests
+  return requestDeduplicator.execute(requestKey, async () => {
     try {
-      client = createGeminiClient(key);
-    } catch (initError) {
-      logger.error('[AI Generation] Client initialization failed:', initError);
-      throw new Error(
-        `Failed to initialize Gemini client: ${initError instanceof Error ? initError.message : 'Unknown error'}`
-      );
-    }
+      // Step 1: Initialize client with better error handling
+      let client;
+      try {
+        client = createGeminiClient(key);
+      } catch (initError) {
+        logger.error('[AI Generation] Client initialization failed:', initError);
+        throw new Error(
+          `Failed to initialize Gemini client: ${initError instanceof Error ? initError.message : 'Unknown error'}`
+        );
+      }
 
     // Step 2: Build context-aware prompt
     let fullPrompt = prompt;
@@ -112,15 +136,18 @@ export async function generateAIResponse(
     }
 
     if (options.phaseData) {
-      fullPrompt += `\n\nCurrent phase data: ${JSON.stringify(options.phaseData, null, 2)}`;
+      // Optimized: Use compact JSON (no pretty printing) to reduce token count
+      fullPrompt += `\n\nCurrent phase data: ${JSON.stringify(options.phaseData)}`;
     }
 
     if (options.projectData) {
-      fullPrompt += `\n\nProject information: ${JSON.stringify(options.projectData, null, 2)}`;
+      // Optimized: Use compact JSON (no pretty printing) to reduce token count
+      fullPrompt += `\n\nProject information: ${JSON.stringify(options.projectData)}`;
     }
 
     if (options.previousPhases && options.previousPhases.length > 0) {
-      fullPrompt += `\n\nPrevious phases data: ${JSON.stringify(options.previousPhases, null, 2)}`;
+      // Optimized: Use compact JSON (no pretty printing) to reduce token count
+      fullPrompt += `\n\nPrevious phases data: ${JSON.stringify(options.previousPhases)}`;
     }
 
     const fullPromptLength = fullPrompt.length;
@@ -259,48 +286,49 @@ export async function generateAIResponse(
       };
     }
     
-    return responseText;
-  } catch (error) {
-    const responseTime = Date.now() - startTime;
-    logger.error('[AI Generation] Error:', error);
-    
-    // If metadata requested, return error metadata
-    if (returnMetadata) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      const estimatedInputTokens = estimateInputTokens(
-        prompt,
-        options.context,
-        options.phaseData,
-        options.projectData,
-        options.previousPhases
-      );
+      return responseText;
+    } catch (error) {
+      const responseTime = Date.now() - startTime;
+      logger.error('[AI Generation] Error:', error);
       
-      return {
-        text: '',
-        metadata: {
-          prompt_length: prompt.length,
-          full_prompt_length: prompt.length,
-          response_length: 0,
-          model,
-          response_time_ms: responseTime,
-          input_tokens: estimatedInputTokens,
-          output_tokens: 0,
-          total_tokens: estimatedInputTokens,
-          estimated_cost: calculateAICost(model, estimatedInputTokens, 0, prompt.length, 0),
-          error: errorMessage,
-        },
-      };
+      // If metadata requested, return error metadata
+      if (returnMetadata) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const estimatedInputTokens = estimateInputTokens(
+          prompt,
+          options.context,
+          options.phaseData,
+          options.projectData,
+          options.previousPhases
+        );
+        
+        return {
+          text: '',
+          metadata: {
+            prompt_length: prompt.length,
+            full_prompt_length: prompt.length,
+            response_length: 0,
+            model,
+            response_time_ms: responseTime,
+            input_tokens: estimatedInputTokens,
+            output_tokens: 0,
+            total_tokens: estimatedInputTokens,
+            estimated_cost: calculateAICost(model, estimatedInputTokens, 0, prompt.length, 0),
+            error: errorMessage,
+          },
+        };
+      }
+      
+      // Re-throw if it's already a well-formed error
+      if (error instanceof Error && (error.message.includes('API key') || error.message.includes('Unauthorized'))) {
+        throw error;
+      }
+      
+      throw new Error(
+        error instanceof Error ? error.message : 'Failed to generate AI response'
+      );
     }
-    
-    // Re-throw if it's already a well-formed error
-    if (error instanceof Error && (error.message.includes('API key') || error.message.includes('Unauthorized'))) {
-      throw error;
-    }
-    
-    throw new Error(
-      error instanceof Error ? error.message : 'Failed to generate AI response'
-    );
-  }
+  });
 }
 
 /**

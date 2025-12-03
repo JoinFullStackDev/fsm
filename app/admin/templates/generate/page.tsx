@@ -34,6 +34,7 @@ import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useRole } from '@/lib/hooks/useRole';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { useOrganization } from '@/components/providers/OrganizationProvider';
+import BuildingOverlay from '@/components/ai/BuildingOverlay';
 
 interface GeneratedPhase {
   phase_number: number;
@@ -284,7 +285,9 @@ Please help me craft this description based on my project needs, making sure to 
 
   if (step === 'preview' && generatedTemplate) {
     return (
-      <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', pb: 4 }}>
+      <>
+        <BuildingOverlay open={saving} message="Saving template..." />
+        <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', pb: 4 }}>
         <Container maxWidth="lg" sx={{ pt: 4, pb: 4, px: { xs: 0, md: 3 } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
             <Button
@@ -547,12 +550,15 @@ Please help me craft this description based on my project needs, making sure to 
           </Card>
         </Container>
       </Box>
+      </>
     );
   }
 
   return (
-    <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', pb: 4 }}>
-      <Container maxWidth="md" sx={{ pt: 4, pb: 4, px: { xs: 0, md: 3 } }}>
+    <>
+      <BuildingOverlay open={generating} message="Building template..." />
+      <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', pb: 4 }}>
+        <Container maxWidth="md" sx={{ pt: 4, pb: 4, px: { xs: 0, md: 3 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4 }}>
           <Button
             startIcon={<ArrowBackIcon />}
@@ -845,6 +851,7 @@ Please help me craft this description based on my project needs, making sure to 
         </Card>
       </Container>
     </Box>
+    </>
   );
 }
 
