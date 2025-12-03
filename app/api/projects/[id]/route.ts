@@ -108,23 +108,38 @@ export async function GET(
       }
     }
 
-    // Get phases (ordered by display_order) - Use admin client to avoid RLS recursion
-    const { data: phases, error: phasesError } = await adminClient
-      .from('project_phases')
-      .select('phase_number, phase_name, display_order, completed, updated_at')
-      .eq('project_id', params.id)
-      .eq('is_active', true)
-      .order('display_order', { ascending: true });
+    // Get phases (ordered by display_order) - Use cached query with fallback
+    const { cacheGetOrSet, CACHE_KEYS, CACHE_TTL } = await import('@/lib/cache/unifiedCache');
+    const phasesCacheKey = CACHE_KEYS.projectPhases(params.id);
+    
+    const phases = await cacheGetOrSet(
+      phasesCacheKey,
+      async () => {
+        const { data: phasesData, error: phasesError } = await adminClient
+          .from('project_phases')
+          .select('phase_number, phase_name, display_order, completed, updated_at')
+          .eq('project_id', params.id)
+          .eq('is_active', true)
+          .order('display_order', { ascending: true });
 
-    if (phasesError) {
-      logger.error('Error loading phases:', phasesError);
-      return internalError('Failed to load project phases', { error: phasesError.message });
-    }
+        if (phasesError) {
+          logger.error('Error loading phases:', phasesError);
+          throw new Error(`Failed to load project phases: ${phasesError.message}`);
+        }
 
-    return NextResponse.json({
+        return phasesData || [];
+      },
+      CACHE_TTL.PROJECT_PHASES
+    );
+
+    const response = NextResponse.json({
       ...project,
       phases: phases || [],
     });
+    
+    // Add cache headers
+    response.headers.set('Cache-Control', 'private, max-age=120'); // 2 minutes
+    return response;
   } catch (error) {
     logger.error('Error in GET /api/projects/[id]:', error);
     return internalError('Failed to load project', { error: error instanceof Error ? error.message : 'Unknown error' });

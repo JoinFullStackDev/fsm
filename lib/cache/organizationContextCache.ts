@@ -9,7 +9,7 @@ interface CacheEntry {
 }
 
 const contextCache = new Map<string, CacheEntry>();
-const CACHE_TTL_MS = 30 * 1000; // 30 seconds
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes (increased from 30 seconds for better performance)
 
 export function getCachedContext(userId: string): any | null {
   const cached = contextCache.get(userId);

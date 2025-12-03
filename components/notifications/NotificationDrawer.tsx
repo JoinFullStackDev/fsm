@@ -87,9 +87,22 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
 
       if (!userData) return;
 
-      // Subscribe to notifications table changes
+      // Unsubscribe from existing subscription if any
+      if (subscriptionRef.current) {
+        await subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+      }
+
+      // Use same channel as NotificationBell to share subscription
+      // This reduces the number of realtime connections
+      const channelName = `notifications:${userData.id}`;
       const channel = supabase
-        .channel('notifications-drawer')
+        .channel(channelName, {
+          config: {
+            broadcast: { self: false },
+            presence: { key: userData.id },
+          },
+        })
         .on(
           'postgres_changes',
           {
@@ -118,11 +131,18 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
             }
           }
         )
-        .subscribe();
+        .subscribe((status: string) => {
+          if (status === 'SUBSCRIBED') {
+            // Subscription active
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error('[NotificationDrawer] Realtime subscription error');
+          }
+        });
 
       subscriptionRef.current = channel;
     } catch (error) {
       // Error setting up subscription
+      console.error('[NotificationDrawer] Error setting up subscription:', error);
     }
   }, [supabase]);
 

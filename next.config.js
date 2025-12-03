@@ -121,6 +121,9 @@ const nextConfig = {
       'date-fns',
     ],
   },
+
+  // Enable compression for API routes and static assets
+  compress: true,
 }
 
 // Suppress unhandled rejection warnings for _document/_app check

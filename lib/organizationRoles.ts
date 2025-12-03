@@ -49,16 +49,26 @@ export async function getOrganizationRoles(
       return [];
     }
 
-    // Get permissions for each role and user counts
+    // Get permissions for each role and user counts (with caching)
+    const { cacheGetOrSet, CACHE_KEYS, CACHE_TTL } = await import('@/lib/cache/unifiedCache');
+    
     const rolesWithPermissions: OrganizationRoleWithPermissions[] = await Promise.all(
       roles.map(async (role) => {
-        // Get permissions
-        const { data: permissions } = await supabase
-          .from('role_permissions')
-          .select('permission')
-          .eq('role_id', role.id);
+        // Get permissions (cached)
+        const permissionsCacheKey = CACHE_KEYS.rolePermissions(role.id);
+        const permissions = await cacheGetOrSet(
+          permissionsCacheKey,
+          async () => {
+            const { data: permsData } = await supabase
+              .from('role_permissions')
+              .select('permission')
+              .eq('role_id', role.id);
+            return permsData || [];
+          },
+          CACHE_TTL.ROLE_PERMISSIONS
+        );
 
-        // Get user count
+        // Get user count (not cached - changes frequently)
         const { count } = await supabase
           .from('user_organization_roles')
           .select('*', { count: 'exact', head: true })
@@ -66,7 +76,7 @@ export async function getOrganizationRoles(
 
         return {
           ...role,
-          permissions: (permissions?.map(p => p.permission as Permission) ?? []) as Permission[],
+          permissions: (permissions?.map((p: any) => p.permission as Permission) ?? []) as Permission[],
           user_count: count ?? 0,
         };
       })
