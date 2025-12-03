@@ -22,36 +22,41 @@ export async function POST(
       return unauthorized('You must be logged in to generate tasks');
     }
 
+    // Use admin client to bypass RLS for user and project lookups
+    const adminClient = createAdminSupabaseClient();
+
     // Get user record
-    const { data: userData, error: userError } = await supabase
+    const { data: userData, error: userError } = await adminClient
       .from('users')
       .select('id')
       .eq('auth_id', user.id)
       .single();
 
     if (userError || !userData) {
+      logger.error('[Task Generator Preview] User not found:', { authId: user.id, error: userError });
       return notFound('User');
     }
 
-    // Get project
-    const { data: project, error: projectError } = await supabase
+    // Get project using admin client to bypass RLS
+    const { data: project, error: projectError } = await adminClient
       .from('projects')
       .select('id, name, owner_id')
       .eq('id', params.id)
       .single();
 
     if (projectError || !project) {
+      logger.error('[Task Generator Preview] Project not found:', { projectId: params.id, error: projectError });
       return notFound('Project not found');
     }
 
-    // Verify user has access to this project
+    // Verify user has access to this project using admin client
     const isOwner = project.owner_id === userData.id;
-    const { data: memberData } = await supabase
+    const { data: memberData } = await adminClient
       .from('project_members')
       .select('id')
       .eq('project_id', params.id)
       .eq('user_id', userData.id)
-      .single();
+      .maybeSingle();
 
     if (!isOwner && !memberData) {
       return unauthorized('You do not have access to this project');
@@ -81,8 +86,8 @@ export async function POST(
       return badRequest('Prompt is required');
     }
 
-    // Get project phases
-    const { data: phases, error: phasesError } = await supabase
+    // Get project phases using admin client
+    const { data: phases, error: phasesError } = await adminClient
       .from('project_phases')
       .select('phase_number, phase_name, display_order, data, completed')
       .eq('project_id', params.id)
@@ -98,8 +103,8 @@ export async function POST(
       return badRequest('Project must have at least one phase');
     }
 
-    // Get existing tasks
-    const { data: existingTasks, error: tasksError } = await supabase
+    // Get existing tasks using admin client
+    const { data: existingTasks, error: tasksError } = await adminClient
       .from('project_tasks')
       .select('*')
       .eq('project_id', params.id)
@@ -117,7 +122,7 @@ export async function POST(
     }
 
     // Load active SOW with project members OR resource allocations (if exists)
-    const adminClient = createAdminSupabaseClient();
+    // adminClient already created above
     let sowMembers: Array<{
       user_id: string;
       name: string;

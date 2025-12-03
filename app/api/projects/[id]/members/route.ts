@@ -101,7 +101,8 @@ export async function GET(
     );
 
     const response = NextResponse.json({ members: members || [] });
-    response.headers.set('Cache-Control', 'private, max-age=60'); // 1 minute
+    // Use shorter cache time and allow revalidation to ensure fresh data after mutations
+    response.headers.set('Cache-Control', 'private, max-age=10, must-revalidate'); // 10 seconds, must revalidate
     return response;
   } catch (error) {
     logger.error('[Project Members GET] Unexpected error:', error);
@@ -186,12 +187,18 @@ export async function POST(
     }
 
     // Check if member already exists - use admin client to avoid RLS issues
-    const { data: existingMember } = await adminClient
+    // Use .maybeSingle() instead of .single() to handle no rows gracefully
+    const { data: existingMember, error: existingError } = await adminClient
       .from('project_members')
       .select('id')
       .eq('project_id', params.id)
       .eq('user_id', user_id)
-      .single();
+      .maybeSingle();
+
+    // If there's an error (other than no rows), log it but continue
+    if (existingError && existingError.code !== 'PGRST116') {
+      logger.warn('[Project Member POST] Error checking existing member:', existingError);
+    }
 
     if (existingMember) {
       return badRequest('User is already a member of this project');
@@ -245,10 +252,25 @@ export async function POST(
 
     if (memberError) {
       logger.error('[Project Member] Error adding member:', memberError);
+      // Check if it's a unique constraint violation (duplicate)
+      if (memberError.code === '23505' || memberError.message?.includes('duplicate') || memberError.message?.includes('unique')) {
+        return badRequest('User is already a member of this project');
+      }
       return internalError('Failed to add project member', { error: memberError.message });
     }
 
-    const { data: addedBy } = await supabase
+    // Invalidate cache after adding member
+    try {
+      const { cacheInvalidate, CACHE_KEYS } = await import('@/lib/cache/unifiedCache');
+      const membersCacheKey = CACHE_KEYS.projectMembers(params.id);
+      await cacheInvalidate(membersCacheKey);
+    } catch (cacheError) {
+      logger.warn('[Project Member] Failed to invalidate cache:', cacheError);
+      // Don't fail the request if cache invalidation fails
+    }
+
+    // Get addedBy name using admin client to avoid RLS recursion
+    const { data: addedBy } = await adminClient
       .from('users')
       .select('name')
       .eq('id', userData.id)

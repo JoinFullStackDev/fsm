@@ -192,6 +192,7 @@ export async function getOpportunitiesTable(
   }
 ): Promise<TableWidgetData> {
   try {
+    // First, get opportunities with company info
     let query = supabase
       .from('opportunities')
       .select(`
@@ -200,8 +201,8 @@ export async function getOpportunitiesTable(
         status,
         value,
         probability,
+        company_id,
         company:companies(id, name),
-        contact:contacts(id, name, email),
         created_at
       `)
       .eq('organization_id', organizationId);
@@ -227,15 +228,46 @@ export async function getOpportunitiesTable(
       return { columns: ['Name', 'Status', 'Value', 'Probability', 'Company', 'Contact'], rows: [] };
     }
 
-    const rows = (opportunities || []).map((opp: any) => ({
-      id: opp.id,
-      'Name': opp.name,
-      'Status': opp.status,
-      'Value': opp.value ? `$${opp.value.toLocaleString()}` : '-',
-      'Probability': opp.probability ? `${opp.probability}%` : '-',
-      'Company': opp.company?.name || '-',
-      'Contact': opp.contact?.name || opp.contact?.email || '-',
-    }));
+    // Get contacts for all companies that have opportunities
+    const companyIds = [...new Set((opportunities || [])
+      .map((opp: any) => opp.company_id)
+      .filter(Boolean))];
+
+    let contactsMap = new Map<string, any>();
+    if (companyIds.length > 0) {
+      // Get primary contact (first contact) for each company
+      const { data: contacts } = await supabase
+        .from('company_contacts')
+        .select('id, company_id, first_name, last_name, email')
+        .in('company_id', companyIds)
+        .order('created_at', { ascending: true });
+
+      if (contacts) {
+        // Group by company_id and take the first contact for each company
+        contacts.forEach((contact: any) => {
+          if (!contactsMap.has(contact.company_id)) {
+            contactsMap.set(contact.company_id, contact);
+          }
+        });
+      }
+    }
+
+    const rows = (opportunities || []).map((opp: any) => {
+      const contact = opp.company_id ? contactsMap.get(opp.company_id) : null;
+      const contactName = contact 
+        ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || contact.email
+        : '-';
+      
+      return {
+        id: opp.id,
+        'Name': opp.name,
+        'Status': opp.status,
+        'Value': opp.value ? `$${opp.value.toLocaleString()}` : '-',
+        'Probability': opp.probability ? `${opp.probability}%` : '-',
+        'Company': opp.company?.name || '-',
+        'Contact': contactName,
+      };
+    });
 
     return {
       columns: ['Name', 'Status', 'Value', 'Probability', 'Company', 'Contact'],

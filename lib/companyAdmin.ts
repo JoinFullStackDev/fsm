@@ -53,7 +53,11 @@ export async function requireCompanyAdmin(request: NextRequest): Promise<{
 
   // Check company admin access
   // Company admin = is_company_admin = true (organization admin, not super admin)
-  if (!userData.is_company_admin) {
+  // Fallback: users with role = 'admin' and is_super_admin = false are also company admins
+  const isCompanyAdmin = userData.is_company_admin === true;
+  const isLegacyAdmin = userData.role === 'admin' && userData.is_super_admin === false;
+  
+  if (!isCompanyAdmin && !isLegacyAdmin) {
     throw forbidden('Company admin access required');
   }
 

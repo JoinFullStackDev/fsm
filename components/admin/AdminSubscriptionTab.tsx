@@ -102,28 +102,56 @@ export default function AdminSubscriptionTab() {
     }
 
     // Cancel previous request if still in flight
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
+    // Only abort if it hasn't already been aborted (prevents issues with React Strict Mode)
+    const previousController = abortControllerRef.current;
+    if (previousController && !previousController.signal.aborted) {
+      previousController.abort();
     }
 
     // Create new abort controller for this request
-    abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
+    const newController = new AbortController();
+    abortControllerRef.current = newController;
+    const signal = newController.signal;
 
     loadingSubscriptionRef.current = true;
+    
     try {
       const url = forceSync 
         ? '/api/organization/subscription?force_sync=true'
         : '/api/organization/subscription';
+      
+      // Check if signal was aborted before fetch
+      if (signal.aborted) {
+        return;
+      }
+      
       const response = await fetch(url, { signal });
+      
+      // Check if signal was aborted after fetch but before processing
+      if (signal.aborted) {
+        return;
+      }
+      
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to load subscription');
       }
-      const data = await response.json();
-      console.log('[AdminSubscriptionTab] Subscription data:', data);
+      
+      // Get response text first to handle parsing errors better
+      const responseText = await response.text();
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        throw new Error('Failed to parse subscription response');
+      }
+      
       const sub = data.subscription || null;
-      setSubscription(sub);
+      
+      // Set subscription regardless - if package is missing, we'll handle it in the render
+      // This ensures we show the subscription even if there's a minor data issue
+      setSubscription(sub as Subscription | null);
 
       // Load user count and subscription details
       if (sub && organization?.id) {
@@ -165,16 +193,27 @@ export default function AdminSubscriptionTab() {
             });
           }
         } catch (detailsError) {
-          console.error('[AdminSubscriptionTab] Error loading subscription details:', detailsError);
+          // Silently handle subscription details errors
         }
       }
     } catch (err) {
-      // Don't show error if request was aborted (deduplication)
+      // Don't show error if request was aborted (deduplication or cleanup)
       if (err instanceof Error && err.name === 'AbortError') {
+        // If this was aborted because a new request started, don't reset loading
+        // The new request will handle loading state
+        if (abortControllerRef.current !== newController) {
+          // Don't reset loading state - let the new request handle it
+          loadingSubscriptionRef.current = false;
+          return;
+        }
+        // Otherwise, this was aborted by cleanup/unmount or React Strict Mode
+        // Reset loading state so UI doesn't stay in loading state
         return;
       }
-      console.error('[AdminSubscriptionTab] Error loading subscription:', err);
+      
       showError(err instanceof Error ? err.message : 'Failed to load subscription details');
+      // Set subscription to null on error to show the "no subscription" message
+      setSubscription(null);
     } finally {
       setLoading(false);
       loadingSubscriptionRef.current = false;
@@ -195,9 +234,9 @@ export default function AdminSubscriptionTab() {
       }
       const data = await response.json();
       setPackages(data.packages || []);
-    } catch (err) {
-      console.error('Error loading packages:', err);
-    } finally {
+      } catch (err) {
+        // Silently handle package loading errors
+      } finally {
       loadingPackagesRef.current = false;
     }
   }, []);
@@ -206,11 +245,12 @@ export default function AdminSubscriptionTab() {
     loadSubscription();
     loadPackages();
 
-    // Cleanup: abort any in-flight requests on unmount
+    // Cleanup: Don't abort here - React Strict Mode causes cleanup to run on re-render
+    // which aborts legitimate requests. Instead, we abort previous requests when starting
+    // new ones in loadSubscription. This prevents React Strict Mode from aborting requests.
     return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+      // No-op: Let loadSubscription handle aborting previous requests
+      // This prevents React Strict Mode double-invoke from aborting legitimate requests
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organization?.id]); // Only depend on organization ID to prevent re-render loops
@@ -347,6 +387,7 @@ export default function AdminSubscriptionTab() {
     });
   };
 
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
@@ -355,6 +396,7 @@ export default function AdminSubscriptionTab() {
     );
   }
 
+  // Show subscription even if package is missing (we'll handle that in the UI)
   if (!subscription) {
     return (
       <Box>
@@ -432,6 +474,24 @@ export default function AdminSubscriptionTab() {
             </Card>
           </Grid>
         </Grid>
+      </Box>
+    );
+  }
+
+  // Handle case where subscription exists but package might be missing
+  if (!subscription.package) {
+    // Show error message but still render the subscription
+    return (
+      <Box>
+        <Alert severity="error" sx={{ mb: 3 }}>
+          Subscription found but package information is missing. Please refresh or contact support.
+        </Alert>
+        <Typography variant="body2">
+          Subscription ID: {subscription.id}
+        </Typography>
+        <Typography variant="body2">
+          Status: {subscription.status}
+        </Typography>
       </Box>
     );
   }

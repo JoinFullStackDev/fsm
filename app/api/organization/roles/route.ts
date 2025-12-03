@@ -25,10 +25,51 @@ const VALID_PERMISSIONS: RBACPermission[] = [
 // GET - List all roles for organization
 export async function GET(request: NextRequest) {
   try {
-    const { userId, organizationId } = await requireCompanyAdmin(request);
+    // Allow both company admins and super admins to access roles
+    const supabase = await createServerSupabaseClient();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return unauthorized('You must be logged in');
+    }
+
+    const adminClient = createAdminSupabaseClient();
+    const { data: userData } = await adminClient
+      .from('users')
+      .select('id, role, is_super_admin, is_company_admin, organization_id')
+      .eq('auth_id', user.id)
+      .single();
+
+    if (!userData) {
+      return unauthorized('User not found');
+    }
+
+    // Check if user is company admin, super admin, or has admin role
+    // Allow access if:
+    // 1. is_company_admin = true (explicit company admin)
+    // 2. is_super_admin = true (super admin)
+    // 3. role = 'admin' AND is_super_admin = false (fallback for legacy admin users)
+    const isCompanyAdmin = userData.is_company_admin === true;
+    const isSuperAdmin = userData.is_super_admin === true;
+    const isLegacyAdmin = userData.role === 'admin' && userData.is_super_admin === false;
+
+    if (!isCompanyAdmin && !isSuperAdmin && !isLegacyAdmin) {
+      logger.warn('[Organization Roles] Access denied:', {
+        userId: userData.id,
+        role: userData.role,
+        is_company_admin: userData.is_company_admin,
+        is_super_admin: userData.is_super_admin,
+      });
+      return forbidden('Company admin or super admin access required');
+    }
+
+    if (!userData.organization_id) {
+      return forbidden('User is not assigned to an organization');
+    }
+
+    const organizationId = userData.organization_id;
     
     // Use admin client to bypass RLS and avoid stack depth recursion issues
-    const adminClient = createAdminSupabaseClient();
     const roles = await getOrganizationRoles(adminClient, organizationId);
 
     return NextResponse.json({ roles });

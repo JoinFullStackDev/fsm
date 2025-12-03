@@ -115,6 +115,10 @@ export default function TemplatePreviewPage() {
           case 'select':
             initialDataByPhase[config.phase_number][fieldKey] = '';
             break;
+          case 'erd':
+            // ERD has structured data with entities and relationships
+            initialDataByPhase[config.phase_number][fieldKey] = { entities: [], relationships: [] };
+            break;
           case 'custom':
             // For custom fields, initialize based on field_key
             if (['personas', 'jtbd', 'features', 'scored_features', 'screens', 'flows', 'components', 'entities', 'api_spec', 'user_stories', 'acceptance_criteria', 'test_cases'].includes(fieldKey)) {
@@ -122,6 +126,8 @@ export default function TemplatePreviewPage() {
             } else if (['design_tokens', 'erd', 'rbac', 'navigation'].includes(fieldKey)) {
               initialDataByPhase[config.phase_number][fieldKey] = fieldKey === 'navigation' 
                 ? { primary_nav: [], secondary_nav: [], route_map: {} }
+                : fieldKey === 'erd'
+                ? { entities: [], relationships: [] }
                 : {};
             } else {
               initialDataByPhase[config.phase_number][fieldKey] = {};

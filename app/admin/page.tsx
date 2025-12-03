@@ -95,33 +95,34 @@ export default function AdminPage() {
 
       const orgId = currentUser?.organization_id;
 
-      // Build queries - filter by organization unless super admin
-      let userQuery = supabase.from('users').select('*', { count: 'exact', head: true });
-      let templateQuery = supabase.from('project_templates').select('*', { count: 'exact', head: true });
-      let projectQuery = supabase.from('projects').select('*', { count: 'exact', head: true });
-      let activeUserQuery = supabase.from('users').select('*', { count: 'exact', head: true });
+      // Use API route to get counts (avoids RLS recursion)
+      const [usageResponse, usersResponse] = await Promise.all([
+        fetch('/api/organization/usage'),
+        fetch('/api/admin/users'),
+      ]);
 
-      // Filter by organization unless super admin
-      if (orgId && !(currentUser?.is_super_admin === true)) {
-        userQuery = userQuery.eq('organization_id', orgId);
-        templateQuery = templateQuery.eq('organization_id', orgId);
-        projectQuery = projectQuery.eq('organization_id', orgId);
-        activeUserQuery = activeUserQuery.eq('organization_id', orgId);
+      let userCount = 0;
+      let templateCount = 0;
+      let projectCount = 0;
+      let activeUserCount = 0;
+
+      if (usageResponse.ok) {
+        const usageData = await usageResponse.json();
+        userCount = usageData.users || 0;
+        templateCount = usageData.templates || 0;
+        projectCount = usageData.projects || 0;
       }
 
-      // Get total users
-      const { count: userCount } = await userQuery;
-
-      // Get total templates
-      const { count: templateCount } = await templateQuery;
-
-      // Get total projects
-      const { count: projectCount } = await projectQuery;
-
-      // Get active users (users who have logged in recently - last 30 days)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const { count: activeUserCount } = await activeUserQuery.gte('last_login_at', thirtyDaysAgo.toISOString());
+      // Get active users count (users who have logged in recently - last 30 days)
+      if (usersResponse.ok) {
+        const usersData = await usersResponse.json();
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const activeUsers = (usersData.users || []).filter((u: any) => 
+          u.last_login_at && new Date(u.last_login_at) >= thirtyDaysAgo
+        );
+        activeUserCount = activeUsers.length;
+      }
 
       setStats({
         totalUsers: userCount || 0,

@@ -113,11 +113,27 @@ export async function POST(
       return badRequest('Invalid widget type');
     }
 
+    // Set default height based on widget type if not provided
+    let defaultHeight = 3; // Default for metric and rich_text
+    if (widget_type === 'chart' || widget_type === 'table') {
+      defaultHeight = 8;
+    } else if (widget_type === 'ai_insight') {
+      defaultHeight = 14;
+    }
+
+    // Ensure position has default height if not provided
+    const finalPosition = {
+      x: position?.x ?? 0,
+      y: position?.y ?? 0,
+      w: position?.w ?? 4,
+      h: position?.h ?? defaultHeight,
+    };
+
     const insertData: any = {
       dashboard_id: params.id,
       widget_type,
       dataset: dataset || {},
-      position: position || {},
+      position: finalPosition,
       settings: settings || {},
     };
 

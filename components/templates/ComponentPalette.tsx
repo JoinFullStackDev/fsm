@@ -23,13 +23,14 @@ import {
   CalendarToday as CalendarTodayIcon,
   AttachFile as AttachFileIcon,
   TableChart as TableChartIcon,
+  AccountTree as AccountTreeIcon,
   Code as CodeIcon,
 } from '@mui/icons-material';
 
 export interface ComponentType {
   id: string;
   label: string;
-  type: 'text' | 'textarea' | 'array' | 'object' | 'select' | 'checkbox' | 'slider' | 'date' | 'file' | 'table' | 'custom';
+  type: 'text' | 'textarea' | 'array' | 'object' | 'select' | 'checkbox' | 'slider' | 'date' | 'file' | 'table' | 'erd' | 'custom';
   icon: React.ReactNode;
   description: string;
 }
@@ -104,6 +105,13 @@ const COMPONENT_TYPES: ComponentType[] = [
     type: 'table',
     icon: <TableChartIcon />,
     description: 'Editable table with CSV import/export',
+  },
+  {
+    id: 'erd',
+    label: 'ERD Diagram',
+    type: 'erd',
+    icon: <AccountTreeIcon />,
+    description: 'Entity-relationship diagram editor',
   },
   {
     id: 'custom',

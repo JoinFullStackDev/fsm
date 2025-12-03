@@ -65,6 +65,7 @@ export default function ProjectTaskManagementPage() {
 
   const loadTasks = useCallback(async () => {
     // Load tasks with assignee info and parent task info for subtasks
+    // Using direct query now that RLS policies are fixed
     console.log(`[Task Management] Loading tasks for project: ${projectId}`);
     const { data: tasksData, error: tasksError } = await supabase
       .from('project_tasks')
@@ -174,7 +175,10 @@ export default function ProjectTaskManagementPage() {
       setPhaseNames(phaseNamesMap);
 
       // Load project members via API route to avoid RLS recursion
-      const membersResponse = await fetch(`/api/projects/${projectId}/members`);
+      // Add cache-busting to ensure fresh data
+      const membersResponse = await fetch(`/api/projects/${projectId}/members?t=${Date.now()}`, {
+        cache: 'no-store', // Ensure fresh data
+      });
       if (membersResponse.ok) {
         const membersData = await membersResponse.json();
         if (membersData.members) {

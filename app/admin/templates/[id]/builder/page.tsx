@@ -328,13 +328,16 @@ export default function TemplateBuilderPage() {
       }
 
       // Get existing field configs to determine which to update vs insert
-      const { data: existingFields, error: fetchError } = await supabase
-        .from('template_field_configs')
-        .select('id, field_key, phase_number')
-        .eq('template_id', templateId);
-
-      if (fetchError) {
-        throw new Error(`Failed to fetch existing fields: ${fetchError.message}`);
+      // Use API route to avoid RLS recursion issues
+      const fieldsResponse = await fetch(`/api/admin/templates/${templateId}/field-configs`);
+      let existingFields: any[] = [];
+      if (fieldsResponse.ok) {
+        const fieldsData = await fieldsResponse.json();
+        existingFields = fieldsData.fieldConfigs || [];
+      } else {
+        // If API route fails, throw error with response details
+        const errorData = await fieldsResponse.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(`Failed to fetch existing fields: ${errorData.error || errorData.message || 'API route failed'}`);
       }
 
       const existingFieldsMap = new Map<string, string>();
@@ -413,35 +416,47 @@ export default function TemplateBuilderPage() {
         return !fieldsToKeep.has(key);
       }) || [];
 
-      if (fieldsToDelete.length > 0) {
-        const idsToDelete = fieldsToDelete.map((f: TemplateFieldConfig) => f.id).filter((id: string | undefined): id is string => !!id);
-        const { error: deleteError } = await supabase
-          .from('template_field_configs')
-          .delete()
-          .in('id', idsToDelete);
+      // Prepare IDs to delete
+      const idsToDelete = fieldsToDelete.map((f: TemplateFieldConfig) => f.id).filter((id: string | undefined): id is string => !!id);
 
-        if (deleteError) {
-          // Don't throw - continue with updates/inserts
-        }
+      // Use API route to save all field configs (INSERT, UPDATE, DELETE) to avoid RLS recursion
+      const saveResponse = await fetch(`/api/admin/templates/${templateId}/field-configs`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fieldsToInsert: fieldsToInsert.length > 0 ? fieldsToInsert.map((f: any) => {
+            // Clean insert data - remove id and created_at
+            const cleaned: Record<string, any> = {
+              template_id: f.template_id,
+              phase_number: f.phase_number,
+              field_key: f.field_key,
+              field_type: f.field_type,
+              display_order: f.display_order || 0,
+              layout_config: f.layout_config || {},
+              field_config: f.field_config || { label: f.field_key },
+              conditional_logic: f.conditional_logic || null,
+              group_id: f.group_id || null,
+            };
+            return cleaned;
+          }) : [],
+          fieldsToUpdate: fieldsToUpdate.length > 0 ? fieldsToUpdate.map((f: any) => {
+            const { id, ...updateData } = f;
+            return { id, ...updateData };
+          }) : [],
+          fieldsToDelete: idsToDelete,
+        }),
+      });
+
+      if (!saveResponse.ok) {
+        const errorData = await saveResponse.json();
+        throw new Error(errorData.error || errorData.message || 'Failed to save field configs');
       }
 
-      // Update existing fields
-      if (fieldsToUpdate.length > 0) {
-        for (const field of fieldsToUpdate) {
-          const { id, ...updateData } = field;
-          const { error: updateError } = await supabase
-            .from('template_field_configs')
-            .update(updateData)
-            .eq('id', id);
-
-          if (updateError) {
-            throw new Error(`Failed to update field ${field.field_key}: ${updateError.message}`);
-          }
-        }
-      }
-
-      // Insert new fields
-      if (fieldsToInsert.length > 0) {
+      // Old direct queries removed - now using API route above
+      // Insert new fields (handled by API route above)
+      if (false && fieldsToInsert.length > 0) {
         // Triple-check: Create completely new objects with only allowed fields
         const cleanedInserts = fieldsToInsert.map((f, index) => {
           // Create a completely new object with only the fields we want

@@ -20,36 +20,41 @@ export async function POST(
       return unauthorized('You must be logged in to inject tasks');
     }
 
+    // Use admin client to bypass RLS for user and project lookups
+    const adminClient = createAdminSupabaseClient();
+
     // Get user record
-    const { data: userData, error: userError } = await supabase
+    const { data: userData, error: userError } = await adminClient
       .from('users')
       .select('id')
       .eq('auth_id', user.id)
       .single();
 
     if (userError || !userData) {
+      logger.error('[Task Inject] User not found:', { authId: user.id, error: userError });
       return notFound('User');
     }
 
-    // Get project
-    const { data: project, error: projectError } = await supabase
+    // Get project using admin client to bypass RLS
+    const { data: project, error: projectError } = await adminClient
       .from('projects')
       .select('id, owner_id')
       .eq('id', params.id)
       .single();
 
     if (projectError || !project) {
+      logger.error('[Task Inject] Project not found:', { projectId: params.id, error: projectError });
       return notFound('Project not found');
     }
 
-    // Verify user has access to this project
+    // Verify user has access to this project using admin client
     const isOwner = project.owner_id === userData.id;
-    const { data: memberData } = await supabase
+    const { data: memberData } = await adminClient
       .from('project_members')
       .select('id')
       .eq('project_id', params.id)
       .eq('user_id', userData.id)
-      .single();
+      .maybeSingle();
 
     if (!isOwner && !memberData) {
       return unauthorized('You do not have access to this project');
@@ -174,8 +179,8 @@ export async function POST(
     // Perform merges
     for (const { previewTask, existingTaskId } of tasksToMerge) {
       try {
-        // Get existing task
-        const { data: existingTask, error: fetchError } = await supabase
+        // Get existing task using admin client
+        const { data: existingTask, error: fetchError } = await adminClient
           .from('project_tasks')
           .select('*')
           .eq('id', existingTaskId)
@@ -193,8 +198,8 @@ export async function POST(
           previewTask
         );
 
-        // Update existing task
-        const { error: updateError } = await supabase
+        // Update existing task using admin client
+        const { error: updateError } = await adminClient
           .from('project_tasks')
           .update(updates)
           .eq('id', existingTaskId);
@@ -209,9 +214,9 @@ export async function POST(
             previewTaskTitle: previewTask.title,
           });
 
-          // Create activity log entry for merge
+          // Create activity log entry for merge using admin client
           try {
-            await supabase.from('activity_logs').insert({
+            await adminClient.from('activity_logs').insert({
               user_id: userData.id,
               action_type: 'task_merged',
               resource_type: 'task',
@@ -237,7 +242,7 @@ export async function POST(
 
     if (allTasksToCreate.length > 0) {
       // Get project members for assignee validation
-      const adminClient = createAdminSupabaseClient();
+      // adminClient already created above
       const { data: projectMembers } = await adminClient
         .from('project_members')
         .select('user_id')
@@ -330,7 +335,7 @@ export async function POST(
         };
       });
 
-      const { data: insertedTasks, error: insertError } = await supabase
+      const { data: insertedTasks, error: insertError } = await adminClient
         .from('project_tasks')
         .insert(tasksToInsert)
         .select();
@@ -354,7 +359,7 @@ export async function POST(
           const estimatedOutputTokens = Math.ceil(estimatedResponseLength / 4);
           const estimatedCost = (estimatedInputTokens * 0.075 / 1_000_000) + (estimatedOutputTokens * 0.30 / 1_000_000);
           
-          await supabase.from('activity_logs').insert({
+          await adminClient.from('activity_logs').insert({
             user_id: userData.id,
             action_type: 'tasks_generated',
             resource_type: 'project',

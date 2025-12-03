@@ -25,33 +25,17 @@ export async function GET(
       return badRequest('User is not assigned to an organization');
     }
 
-    // Get user record to check if super admin
-    let currentUser;
-    let adminClient; // Declare once for reuse
-    const { data: regularUserData, error: regularUserError } = await supabase
+    // Get user record using admin client to avoid RLS recursion
+    const adminClient = createAdminSupabaseClient();
+    const { data: currentUser, error: userError } = await adminClient
       .from('users')
       .select('id, role, organization_id, is_super_admin')
       .eq('auth_id', user.id)
       .single();
 
-    if (regularUserError || !regularUserData) {
-      // RLS might be blocking - try admin client
-      adminClient = createAdminSupabaseClient();
-      const { data: adminUserData, error: adminUserError } = await adminClient
-        .from('users')
-        .select('id, role, organization_id, is_super_admin')
-        .eq('auth_id', user.id)
-        .single();
-
-      if (adminUserError || !adminUserData) {
-        return notFound('User not found');
-      }
-
-      currentUser = adminUserData;
-    } else {
-      currentUser = regularUserData;
-      // Create admin client for subsequent queries
-      adminClient = createAdminSupabaseClient();
+    if (userError || !currentUser) {
+      logger.error('[Project Phases GET] User not found:', userError);
+      return notFound('User not found');
     }
 
     // Verify user has access to the project - Use admin client to avoid RLS recursion

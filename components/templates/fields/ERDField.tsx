@@ -278,9 +278,7 @@ export default function ERDField({ field, value, onChange, error, phaseData }: E
 
       <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
-          <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary', mb: 0.5 }}>
-            {config.label}
-          </Typography>
+          {/* Label is rendered by TemplateBasedPhaseForm, only show helpText if present */}
           {config.helpText && (
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
               {config.helpText}

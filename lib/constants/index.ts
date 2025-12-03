@@ -164,6 +164,7 @@ export const FIELD_TYPES = {
   DATE: 'date',
   FILE: 'file',
   TABLE: 'table',
+  ERD: 'erd',
   CUSTOM: 'custom',
 } as const;
 

@@ -33,6 +33,57 @@ import {
   ZoomOut as ZoomOutIcon,
   FitScreen as FitScreenIcon,
 } from '@mui/icons-material';
+// Configure Monaco Editor environment BEFORE importing to prevent worker loading errors
+// This must be set up at module load time, before Monaco tries to initialize
+if (typeof window !== 'undefined' && !(window as any).__MONACO_ENV_SETUP__) {
+  // Set up Monaco environment globally to prevent CDN worker loading
+  (window as any).MonacoEnvironment = {
+    getWorker: function (_workerId: string, _label: string) {
+      // Return a no-op worker to prevent CDN loading attempts and CSP violations
+      // This prevents Monaco from trying to load workers from external URLs
+      const noOpWorker = {
+        postMessage: () => {},
+        terminate: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        onmessage: null,
+        onerror: null,
+      };
+      return noOpWorker as any;
+    },
+  };
+  
+  // Mark as set up to prevent multiple setups
+  (window as any).__MONACO_ENV_SETUP__ = true;
+  
+  // Suppress Monaco initialization errors by catching unhandled promise rejections
+  const originalError = console.error;
+  const errorHandler = function(...args: any[]) {
+    // Filter out Monaco worker loading errors
+    const message = String(args[0] || '');
+    if (message.includes('Monaco initialization') || 
+        (args[0]?.target?.tagName === 'SCRIPT' && message.includes('error'))) {
+      return; // Suppress Monaco worker errors
+    }
+    originalError.apply(console, args);
+  };
+  
+  // Only override if not already overridden
+  if (console.error === originalError) {
+    console.error = errorHandler;
+  }
+  
+  // Also catch unhandled promise rejections from Monaco
+  window.addEventListener('unhandledrejection', (event) => {
+    const message = String(event.reason || '');
+    if (message.includes('Monaco') || message.includes('monaco-editor') || 
+        (event.reason?.target?.tagName === 'SCRIPT')) {
+      event.preventDefault();
+      return;
+    }
+  });
+}
+
 // Dynamically import Monaco Editor to reduce initial bundle size
 const Editor = dynamic(
   () => import('@monaco-editor/react'),
@@ -68,8 +119,19 @@ export default function ERDEditorModal({
   onChange,
   phaseData,
 }: ERDEditorModalProps) {
-  const [jsonValue, setJsonValue] = useState<string>('');
-  const [erdData, setErdData] = useState<ERDData>(value || createEmptyERD());
+  // Initialize jsonValue with proper default to prevent loading state
+  const getInitialData = (): ERDData => {
+    if (value && typeof value === 'object') {
+      if ('entities' in value && 'relationships' in value && Array.isArray(value.entities) && Array.isArray(value.relationships)) {
+        return value as ERDData;
+      }
+    }
+    return createEmptyERD();
+  };
+
+  const initialData = getInitialData();
+  const [jsonValue, setJsonValue] = useState<string>(() => JSON.stringify(initialData, null, 2));
+  const [erdData, setErdData] = useState<ERDData>(initialData);
   const [mermaidSyntax, setMermaidSyntax] = useState<string>('');
   const [isValid, setIsValid] = useState(true);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
@@ -434,7 +496,17 @@ export default function ERDEditorModal({
     });
   }, []);
 
-  // Initialize JSON value when modal opens
+  // Configure Monaco Editor JSON language defaults
+  const handleEditorWillMount = useCallback((monaco: any) => {
+    // Configure JSON language defaults
+    monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
+      validate: true,
+      schemas: [],
+      enableSchemaRequest: false,
+    });
+  }, []);
+
+  // Initialize JSON value when modal opens or value changes
   useEffect(() => {
     if (open) {
       // Handle both new structured format and old Record format
@@ -451,10 +523,13 @@ export default function ERDEditorModal({
       }
 
       setErdData(initialData);
-      setJsonValue(JSON.stringify(initialData, null, 2));
+      const jsonString = JSON.stringify(initialData, null, 2);
+      setJsonValue(jsonString);
       setRenderedSvg(''); // Clear previous SVG
       setZoomLevel(1); // Reset zoom when opening
       setPanPosition({ x: 0, y: 0 }); // Reset pan when opening
+      setIsValid(true); // Reset validation state
+      setValidationErrors([]); // Clear validation errors
     }
   }, [open, value]);
 
@@ -583,7 +658,7 @@ export default function ERDEditorModal({
           backgroundColor: '#000',
         }}
       >
-        <Typography variant="h6" sx={{ color: 'text.primary' }}>
+        <Typography variant="h6" component="span" sx={{ color: 'text.primary' }}>
           ERD Editor
         </Typography>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
@@ -646,15 +721,21 @@ export default function ERDEditorModal({
               Export as JSON
             </MenuItem>
           </Menu>
-          <Button
-            variant="contained"
-            onClick={handleSave}
-            disabled={!isValid || isRendering}
-            size="small"
-            sx={{ backgroundColor: 'primary.main', color: '#000' }}
+          <Tooltip 
+            title={!isValid ? 'Please fix validation errors before saving' : isRendering ? 'Rendering diagram...' : 'Save changes'}
           >
-            Save
-          </Button>
+            <span>
+              <Button
+                variant="contained"
+                onClick={handleSave}
+                disabled={!isValid || isRendering}
+                size="small"
+                sx={{ backgroundColor: 'primary.main', color: '#000' }}
+              >
+                Save
+              </Button>
+            </span>
+          </Tooltip>
           <IconButton onClick={onClose} sx={{ color: 'text.secondary' }}>
             <CloseIcon />
           </IconButton>
@@ -720,12 +801,18 @@ export default function ERDEditorModal({
                 value={jsonValue}
                 onChange={handleJsonChange}
                 theme="vs-dark"
+                beforeMount={handleEditorWillMount}
+                loading={<CircularProgress size={24} />}
                 options={{
                   minimap: { enabled: false },
                   fontSize: 14,
                   lineNumbers: 'on',
                   scrollBeyondLastLine: false,
                   automaticLayout: true,
+                  // Disable features that require workers
+                  quickSuggestions: false,
+                  suggestOnTriggerCharacters: false,
+                  wordBasedSuggestions: 'off',
                 }}
               />
             </Box>

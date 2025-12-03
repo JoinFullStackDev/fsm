@@ -226,50 +226,24 @@ export default function ProjectPage() {
         }
       }
 
-      // Use phases from API response if available, otherwise load separately
-      // The API returns phases array, but we need data field for progress calculation
+      // Load phases via API route to avoid RLS recursion
+      // The phases API route returns all fields including data
       let finalPhasesData: any[] = [];
       
-      if (projectData.phases && Array.isArray(projectData.phases)) {
-        // Phases from API don't include data field, so we need to load it separately
-        // But use the phases structure from API to avoid RLS recursion
-        const phaseNumbers = projectData.phases.map((p: any) => p.phase_number);
-        
-        if (phaseNumbers.length > 0) {
-          // Load phase data separately - this is a simpler query that shouldn't cause recursion
-          const { data: phasesWithData, error: phasesError } = await supabase
-            .from('project_phases')
-            .select('phase_number, phase_name, display_order, completed, updated_at, data')
-            .eq('project_id', projectId)
-            .in('phase_number', phaseNumbers)
-            .eq('is_active', true)
-            .order('display_order', { ascending: true });
-          
-          if (phasesError) {
-            console.error('Error loading phase data:', phasesError);
-            // Use phases without data as fallback
-            finalPhasesData = projectData.phases;
-          } else {
-            finalPhasesData = phasesWithData || projectData.phases;
-          }
+      try {
+        const phasesResponse = await fetch(`/api/projects/${projectId}/phases`);
+        if (phasesResponse.ok) {
+          const phasesData = await phasesResponse.json();
+          finalPhasesData = phasesData.phases || [];
         } else {
-          finalPhasesData = projectData.phases;
+          // Fallback to phases from project API if phases API fails
+          console.error('Error loading phases:', await phasesResponse.json());
+          finalPhasesData = projectData.phases || [];
         }
-      } else {
-        // Fallback: load phases directly if not in API response
-        const { data: phasesData, error: phasesError } = await supabase
-          .from('project_phases')
-          .select('phase_number, phase_name, display_order, completed, updated_at, data')
-          .eq('project_id', projectId)
-          .eq('is_active', true)
-          .order('display_order', { ascending: true });
-        
-        if (phasesError) {
-          console.error('Error loading phases:', phasesError);
-          setError(phasesError.message);
-        } else {
-          finalPhasesData = phasesData || [];
-        }
+      } catch (error) {
+        console.error('Error loading phases:', error);
+        // Fallback to phases from project API
+        finalPhasesData = projectData.phases || [];
       }
       
       setPhases(finalPhasesData);
@@ -382,29 +356,32 @@ export default function ProjectPage() {
       });
       
       if (response.ok || true) {
-        const { data: phasesData } = await supabase
-          .from('project_phases')
-          .select('*')
-          .eq('project_id', projectId)
-          .order('phase_number', { ascending: true });
+        // Load phases via API route to avoid RLS recursion
+        const phasesResponse = await fetch(`/api/projects/${projectId}/phases`);
+        if (phasesResponse.ok) {
+          const phasesData = await phasesResponse.json();
+          const phases = phasesData.phases || [];
 
-        const phaseMap: Record<number, any> = {};
-        phasesData?.forEach((phase: any) => {
-          phaseMap[phase.phase_number] = phase.data;
-        });
+          const phaseMap: Record<number, any> = {};
+          phases.forEach((phase: any) => {
+            phaseMap[phase.phase_number] = phase.data;
+          });
 
-        const prompt = generateCursorMasterPrompt(project!, {
-          phase1: phaseMap[1],
-          phase2: phaseMap[2],
-          phase3: phaseMap[3],
-          phase4: phaseMap[4],
-          phase5: phaseMap[5],
-          phase6: phaseMap[6],
-        });
+          const prompt = generateCursorMasterPrompt(project!, {
+            phase1: phaseMap[1],
+            phase2: phaseMap[2],
+            phase3: phaseMap[3],
+            phase4: phaseMap[4],
+            phase5: phaseMap[5],
+            phase6: phaseMap[6],
+          });
 
-        setCursorPrompt(prompt);
-        setShowCursorDialog(true);
-        showSuccess('Cursor prompt generated!');
+          setCursorPrompt(prompt);
+          setShowCursorDialog(true);
+          showSuccess('Cursor prompt generated!');
+        } else {
+          showError('Failed to load phases for prompt generation');
+        }
       } else {
         const data = await response.json();
         showError('Failed to generate prompt: ' + (data.error || 'Unknown error'));

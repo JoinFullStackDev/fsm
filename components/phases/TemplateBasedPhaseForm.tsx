@@ -16,12 +16,14 @@ import {
   SliderField,
   DateField,
   FileField,
+  ERDField,
 } from '@/components/templates/fields';
 import { evaluateConditionalLogic } from '@/lib/templates/conditionalLogic';
 import FieldGroup from '@/components/templates/FieldGroup';
 import TemplateSyncIndicator from '@/components/phases/TemplateSyncIndicator';
 import HelpTooltip from '@/components/ui/HelpTooltip';
 import logger from '@/lib/utils/logger';
+import type { ERDData } from '@/types/phases';
 
 // Phase data is dynamic JSONB from database, so Record<string, unknown> is appropriate
 type PhaseData = Record<string, unknown>;
@@ -78,6 +80,7 @@ export default function TemplateBasedPhaseForm({
   const [fieldGroups, setFieldGroups] = useState<TemplateFieldGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tableHeaderActions, setTableHeaderActions] = useState<Map<string, React.ReactNode>>(new Map());
   const supabase = useSupabaseClient();
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -269,7 +272,21 @@ export default function TemplateBasedPhaseForm({
           </Box>
         );
         break;
-      case 'table':
+      case 'table': {
+        // For table fields, we need to render header actions in the header
+        // Use a stable callback that won't cause infinite loops
+        const fieldKey = field.field_key;
+        const setHeaderActions = (actions: React.ReactNode) => {
+          setTableHeaderActions(prev => {
+            const newMap = new Map(prev);
+            // Only update if the actions actually changed
+            if (newMap.get(fieldKey) !== actions) {
+              newMap.set(fieldKey, actions);
+              return newMap;
+            }
+            return prev; // Return same reference if unchanged
+          });
+        };
         fieldElement = (
           <Box onBlur={handleBlur}>
             <TableField
@@ -277,10 +294,12 @@ export default function TemplateBasedPhaseForm({
               value={value}
               onChange={handleChange}
               phaseData={data}
+              renderHeaderActions={setHeaderActions}
             />
           </Box>
         );
         break;
+      }
       case 'slider':
         fieldElement = (
           <Box onBlur={handleBlur}>
@@ -313,6 +332,18 @@ export default function TemplateBasedPhaseForm({
             onChange={handleChange}
             phaseData={data}
           />
+        );
+        break;
+      case 'erd':
+        fieldElement = (
+          <Box onBlur={handleBlur}>
+            <ERDField
+              field={field}
+              value={value as ERDData | Record<string, unknown>}
+              onChange={handleChange}
+              phaseData={data}
+            />
+          </Box>
         );
         break;
       case 'custom':
@@ -358,26 +389,34 @@ export default function TemplateBasedPhaseForm({
             flexDirection: 'column',
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-            <Typography
-              variant="h3"
-              component="h3"
-              sx={{
-                fontSize: { xs: '1.125rem', md: '1.25rem' },
-                fontWeight: 600,
-                fontFamily: 'var(--font-rubik), Rubik, sans-serif',
-                color: theme.palette.text.primary,
-              }}
-            >
-              {field.field_config.label}
-              {field.field_config.required && (
-                <Typography component="span" sx={{ color: theme.palette.error.main, fontSize: { xs: '1.125rem', md: '1.25rem' } }}>
-                  {' '}*
-                </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography
+                variant="h3"
+                component="h3"
+                sx={{
+                  fontSize: { xs: '1.125rem', md: '1.25rem' },
+                  fontWeight: 600,
+                  fontFamily: 'var(--font-rubik), Rubik, sans-serif',
+                  color: theme.palette.text.primary,
+                }}
+              >
+                {field.field_config.label}
+                {field.field_config.required && (
+                  <Typography component="span" sx={{ color: theme.palette.error.main, fontSize: { xs: '1.125rem', md: '1.25rem' } }}>
+                    {' '}*
+                  </Typography>
+                )}
+              </Typography>
+              {field.field_config.helpText && (
+                <HelpTooltip title={field.field_config.helpText} />
               )}
-            </Typography>
-            {field.field_config.helpText && (
-              <HelpTooltip title={field.field_config.helpText} />
+            </Box>
+            {/* Render header actions for table fields */}
+            {field.field_type === 'table' && tableHeaderActions.get(field.field_key) && (
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                {tableHeaderActions.get(field.field_key)}
+              </Box>
             )}
           </Box>
           <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%', mb: { xs: 3, md: 2 } }}>
@@ -430,7 +469,7 @@ export default function TemplateBasedPhaseForm({
         </Box>
       </Grid>
     );
-  }, [data, updateField, getFieldValue, onBlur, theme.palette.error.main, theme.palette.text.primary, theme.palette.background.default, theme.palette.text.secondary]);
+  }, [data, updateField, getFieldValue, onBlur, tableHeaderActions, theme.palette.error.main, theme.palette.text.primary, theme.palette.background.default, theme.palette.text.secondary]);
 
   if (loading) {
     return (
@@ -496,15 +535,7 @@ export default function TemplateBasedPhaseForm({
     const ungroupedFields = fieldsByGroup['ungrouped'] || [];
     const groupedFields = Object.entries(fieldsByGroup).filter(([key]) => key !== 'ungrouped');
 
-    logger.debug('[TemplateBasedPhaseForm] Rendering fields:', {
-      totalConfigs: fieldConfigs.length,
-      ungroupedCount: ungroupedFields.length,
-      groupedCount: groupedFields.length,
-      allFieldKeys: fieldConfigs.map(f => f.field_key),
-      ungroupedKeys: ungroupedFields.map(f => f.field_key),
-      groupedKeys: groupedFields.flatMap(([_, fields]) => fields.map(f => f.field_key)),
-      groupsByKey: Object.keys(fieldsByGroup)
-    });
+    // Removed verbose debug log that was causing console clutter on every render
 
     return (
       <>

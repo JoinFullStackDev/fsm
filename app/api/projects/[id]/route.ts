@@ -31,9 +31,9 @@ export async function GET(
     }
 
     const supabase = await createServerSupabaseClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (userError || !user) {
+    if (authError || !user) {
       return unauthorized('You must be logged in to view this project');
     }
 
@@ -43,34 +43,20 @@ export async function GET(
       return badRequest('User is not assigned to an organization');
     }
 
-    // Get user record to check if super admin
-    let userData;
-    const { data: regularUserData, error: regularUserError } = await supabase
+    // Get user record using admin client to avoid RLS recursion
+    const adminClient = createAdminSupabaseClient();
+    const { data: userData, error: userError } = await adminClient
       .from('users')
       .select('id, role, organization_id, is_super_admin')
       .eq('auth_id', user.id)
       .single();
 
-    if (regularUserError || !regularUserData) {
-      // RLS might be blocking - try admin client
-      const adminClient = createAdminSupabaseClient();
-      const { data: adminUserData, error: adminUserError } = await adminClient
-        .from('users')
-        .select('id, role, organization_id, is_super_admin')
-        .eq('auth_id', user.id)
-        .single();
-
-      if (adminUserError || !adminUserData) {
-        return notFound('User not found');
-      }
-
-      userData = adminUserData;
-    } else {
-      userData = regularUserData;
+    if (userError || !userData) {
+      logger.error('[Projects API] User not found:', userError);
+      return notFound('User not found');
     }
 
     // Use admin client to avoid RLS recursion when querying projects and companies
-    const adminClient = createAdminSupabaseClient();
     const { data: project, error: projectError } = await adminClient
       .from('projects')
       .select(`
@@ -166,9 +152,9 @@ export async function PUT(
     }
 
     const supabase = await createServerSupabaseClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (userError || !user) {
+    if (authError || !user) {
       return unauthorized('You must be logged in to update this project');
     }
 
@@ -178,37 +164,25 @@ export async function PUT(
       return badRequest('User is not assigned to an organization');
     }
 
-    // Get user record to check if super admin
-    let userData;
-    const { data: regularUserData, error: regularUserError } = await supabase
+    // Get user record using admin client to avoid RLS recursion
+    const adminClient = createAdminSupabaseClient();
+    const { data: userData, error: userError } = await adminClient
       .from('users')
       .select('id, role, organization_id, is_super_admin')
       .eq('auth_id', user.id)
       .single();
 
-    if (regularUserError || !regularUserData) {
-      // RLS might be blocking - try admin client
-      const adminClient = createAdminSupabaseClient();
-      const { data: adminUserData, error: adminUserError } = await adminClient
-        .from('users')
-        .select('id, role, organization_id, is_super_admin')
-        .eq('auth_id', user.id)
-        .single();
-
-      if (adminUserError || !adminUserData) {
-        return notFound('User not found');
-      }
-
-      userData = adminUserData;
-    } else {
-      userData = regularUserData;
+    if (userError || !userData) {
+      logger.error('[Projects API PUT] User not found:', userError);
+      return notFound('User not found');
     }
 
     const body = await request.json();
     const { name, description, status, primary_tool, template_id, company_id } = body;
 
     // Get current project to check if template_id is changing and validate access
-    const { data: currentProject, error: currentProjectError } = await supabase
+    // Use admin client to avoid RLS recursion
+    const { data: currentProject, error: currentProjectError } = await adminClient
       .from('projects')
       .select('template_id, organization_id')
       .eq('id', params.id)
@@ -245,8 +219,9 @@ export async function PUT(
     // Only update company_id if it's provided
     if (company_id !== undefined) {
       // Verify company exists if company_id is provided
+      // Use admin client to avoid RLS recursion
       if (company_id) {
-        const { data: company, error: companyError } = await supabase
+        const { data: company, error: companyError } = await adminClient
           .from('companies')
           .select('id')
           .eq('id', company_id)
@@ -263,7 +238,8 @@ export async function PUT(
       updateData.company_id = company_id || null;
     }
 
-    const { data: project, error: projectError } = await supabase
+    // Use admin client to avoid RLS recursion
+    const { data: project, error: projectError } = await adminClient
       .from('projects')
       .update(updateData)
       .eq('id', params.id)
@@ -284,8 +260,8 @@ export async function PUT(
       try {
         logger.debug(`Template changed for project ${params.id}: ${oldTemplateId} -> ${newTemplateId}`);
         
-        // Get template phases
-        const { data: templatePhases, error: templatePhasesError } = await supabase
+        // Get template phases using admin client to avoid RLS recursion
+        const { data: templatePhases, error: templatePhasesError } = await adminClient
           .from('template_phases')
           .select('*')
           .eq('template_id', newTemplateId)
@@ -306,7 +282,8 @@ export async function PUT(
 
         // Deactivate all existing phases (soft delete - avoids RLS DELETE policy issues)
         // Then we'll insert new ones, which will replace them due to unique constraint
-        const { data: existingPhases, error: checkExistingError } = await supabase
+        // Use admin client to avoid RLS recursion
+        const { data: existingPhases, error: checkExistingError } = await adminClient
           .from('project_phases')
           .select('phase_number')
           .eq('project_id', params.id)
@@ -318,7 +295,8 @@ export async function PUT(
           logger.debug(`Found ${existingPhases.length} existing active phases to deactivate`);
           
           // Deactivate all existing phases (soft delete - UPDATE is allowed by RLS)
-          const { error: deactivateError } = await supabase
+          // Use admin client to avoid RLS recursion
+          const { error: deactivateError } = await adminClient
             .from('project_phases')
             .update({ is_active: false })
             .eq('project_id', params.id)
@@ -410,8 +388,9 @@ export async function PUT(
 
       // Final check - ensure no active phases exist with these phase_numbers
       // Upsert will handle inactive phases with same phase_numbers
+      // Use admin client to avoid RLS recursion
       const phaseNumbersToInsert = phaseInserts.map(p => p.phase_number);
-      const { data: conflictingPhases, error: conflictCheckError } = await supabase
+      const { data: conflictingPhases, error: conflictCheckError } = await adminClient
         .from('project_phases')
         .select('phase_number, is_active')
         .eq('project_id', params.id)
@@ -423,7 +402,8 @@ export async function PUT(
       } else if (conflictingPhases && conflictingPhases.length > 0) {
         logger.warn('Found active conflicting phases - deactivating them:', conflictingPhases);
         // Deactivate the specific conflicting phases (UPDATE is allowed by RLS)
-        const { error: deactivateConflictsError } = await supabase
+        // Use admin client to avoid RLS recursion
+        const { error: deactivateConflictsError } = await adminClient
           .from('project_phases')
           .update({ is_active: false })
           .eq('project_id', params.id)
@@ -440,7 +420,8 @@ export async function PUT(
       // Use upsert to handle any remaining inactive phases with same phase_numbers
       // This will update existing inactive phases or insert new ones
       // The unique constraint on (project_id, phase_number) means upsert will update existing rows
-      const { data: insertedPhases, error: insertPhasesError } = await supabase
+      // Use admin client to avoid RLS recursion
+      const { data: insertedPhases, error: insertPhasesError } = await adminClient
         .from('project_phases')
         .upsert(phaseInserts, {
           onConflict: 'project_id,phase_number',
@@ -519,9 +500,9 @@ export async function DELETE(
     }
 
     const supabase = await createServerSupabaseClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (userError || !user) {
+    if (authError || !user) {
       return unauthorized('You must be logged in to delete projects');
     }
 
@@ -531,30 +512,17 @@ export async function DELETE(
       return badRequest('User is not assigned to an organization');
     }
 
-    // Get user record to check role and if super admin
-    let userData;
-    const { data: regularUserData, error: regularUserError } = await supabase
+    // Get user record using admin client to avoid RLS recursion
+    const adminClient = createAdminSupabaseClient();
+    const { data: userData, error: userError } = await adminClient
       .from('users')
       .select('id, role, organization_id, is_super_admin')
       .eq('auth_id', user.id)
       .single();
 
-    if (regularUserError || !regularUserData) {
-      // RLS might be blocking - try admin client
-      const adminClient = createAdminSupabaseClient();
-      const { data: adminUserData, error: adminUserError } = await adminClient
-        .from('users')
-        .select('id, role, organization_id, is_super_admin')
-        .eq('auth_id', user.id)
-        .single();
-
-      if (adminUserError || !adminUserData) {
-        return notFound('User not found');
-      }
-
-      userData = adminUserData;
-    } else {
-      userData = regularUserData;
+    if (userError || !userData) {
+      logger.error('[Projects API DELETE] User not found:', userError);
+      return notFound('User not found');
     }
 
     // Only admins can delete projects
@@ -563,7 +531,8 @@ export async function DELETE(
     }
 
     // Get project to validate organization access (super admins can delete all projects)
-    const { data: project, error: projectError } = await supabase
+    // Use admin client to avoid RLS recursion
+    const { data: project, error: projectError } = await adminClient
       .from('projects')
       .select('organization_id')
       .eq('id', params.id)
@@ -583,7 +552,6 @@ export async function DELETE(
     // Delete the project using admin client to bypass RLS
     // This is necessary because cascade operations (like updating invoices when project_id is set to NULL)
     // may trigger other operations that need to bypass RLS
-    const adminClient = createAdminSupabaseClient();
     const { error: deleteError } = await adminClient
       .from('projects')
       .delete()

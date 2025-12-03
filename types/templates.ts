@@ -3,7 +3,7 @@ export interface TemplateFieldConfig {
   template_id: string;
   phase_number: number;
   field_key: string;
-  field_type: 'text' | 'textarea' | 'array' | 'object' | 'select' | 'checkbox' | 'slider' | 'date' | 'file' | 'table' | 'custom';
+  field_type: 'text' | 'textarea' | 'array' | 'object' | 'select' | 'checkbox' | 'slider' | 'date' | 'file' | 'table' | 'erd' | 'custom';
   display_order: number;
   layout_config: {
     columns?: number; // 1-12 for grid
