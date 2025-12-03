@@ -21,6 +21,7 @@ import {
   Select,
   MenuItem,
   Checkbox,
+  FormControlLabel,
   ListItemText,
   Dialog,
   DialogTitle,
@@ -97,6 +98,7 @@ export default function OpportunityDetailPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [generateInvoice, setGenerateInvoice] = useState(false);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const supabase = createSupabaseClient();
@@ -226,6 +228,7 @@ export default function OpportunityDetailPage() {
   const handleConvert = () => {
     setSelectedTemplate('');
     setSelectedMembers([]);
+    setGenerateInvoice(false);
     setConvertDialogOpen(true);
   };
 
@@ -242,6 +245,7 @@ export default function OpportunityDetailPage() {
         body: JSON.stringify({
           template_id: selectedTemplate || null,
           member_ids: selectedMembers || [],
+          generate_invoice: generateInvoice,
         }),
       });
 
@@ -250,10 +254,16 @@ export default function OpportunityDetailPage() {
         throw new Error(errorData.error || 'Failed to convert opportunity');
       }
 
-      const project = await response.json();
+      const result = await response.json();
       showSuccess('Opportunity converted to project successfully');
+      
+      // Show message if invoice was generated
+      if (generateInvoice && result.invoice) {
+        showSuccess(`Project created and invoice ${result.invoice.invoice_number} generated`);
+      }
+      
       setConvertDialogOpen(false);
-      router.push(`/project/${project.id}`);
+      router.push(`/project/${result.project.id}`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to convert opportunity';
       showError(errorMessage);
@@ -963,6 +973,41 @@ export default function OpportunityDetailPage() {
           <Typography sx={{ mb: 3, color: theme.palette.text.secondary }}>
             Convert &quot;{opportunity.name}&quot; to a project. You can optionally select a template and add team members.
           </Typography>
+
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={generateInvoice}
+                onChange={(e) => setGenerateInvoice(e.target.checked)}
+                disabled={converting}
+                sx={{
+                  color: theme.palette.text.secondary,
+                  '&.Mui-checked': {
+                    color: theme.palette.text.primary,
+                  },
+                }}
+              />
+            }
+            label="Generate invoice for this project"
+            sx={{ mb: 2, color: theme.palette.text.primary }}
+          />
+
+          {generateInvoice && opportunity.value && (
+            <Box sx={{ mb: 2, p: 2, backgroundColor: theme.palette.action.hover, borderRadius: 1 }}>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
+                Invoice Preview:
+              </Typography>
+              <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
+                Client: {opportunity.company?.name || opportunity.name}
+              </Typography>
+              <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
+                Amount: ${opportunity.value.toLocaleString()}
+              </Typography>
+              <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                Invoice will be created in draft mode
+              </Typography>
+            </Box>
+          )}
 
           <FormControl fullWidth sx={{ mb: 2 }}>
             <InputLabel sx={{ color: theme.palette.text.secondary }}>Template (Optional)</InputLabel>

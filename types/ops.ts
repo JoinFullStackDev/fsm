@@ -289,3 +289,114 @@ export interface CompanyWithTags extends Company {
   tags?: CompanyTag[];
 }
 
+// ============================================
+// Invoice Types
+// ============================================
+
+export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+export type RecurringFrequency = 'monthly' | 'quarterly' | 'yearly';
+
+export interface InvoiceLineItem {
+  id?: string;
+  invoice_id?: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+  display_order?: number;
+  created_at?: string;
+}
+
+export interface InvoicePayment {
+  id: string;
+  invoice_id: string;
+  amount: number;
+  payment_date: string;
+  payment_method: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  created_user?: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+}
+
+export interface InvoiceHistory {
+  id: string;
+  invoice_id: string;
+  action: string;
+  changes: Record<string, any> | null;
+  changed_by: string | null;
+  changed_at: string;
+  changed_user?: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+}
+
+export interface Invoice {
+  id: string;
+  organization_id: string;
+  project_id: string | null;
+  opportunity_id: string | null;
+  company_id: string | null;
+  invoice_number: string;
+  status: InvoiceStatus;
+  client_name: string;
+  client_email: string | null;
+  client_address: {
+    street?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+    country?: string;
+  } | null;
+  issue_date: string;
+  due_date: string | null;
+  subtotal: number;
+  tax_rate: number;
+  tax_amount: number;
+  total_amount: number;
+  currency: string;
+  notes: string | null;
+  terms: string | null;
+  is_recurring: boolean;
+  recurring_frequency: RecurringFrequency | null;
+  recurring_end_date: string | null;
+  next_invoice_date: string | null;
+  parent_invoice_id: string | null;
+  sent_at: string | null;
+  sent_to_email: string | null;
+  created_by: string | null;
+  updated_by: string | null;
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InvoiceWithRelations extends Invoice {
+  project?: {
+    id: string;
+    name: string;
+  } | null;
+  company?: {
+    id: string;
+    name: string;
+  } | null;
+  opportunity?: {
+    id: string;
+    name: string;
+  } | null;
+  line_items?: InvoiceLineItem[];
+  payments?: InvoicePayment[];
+  history?: InvoiceHistory[];
+  created_user?: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+}
+
