@@ -37,6 +37,7 @@ import { useSearchParams } from 'next/navigation';
 import { useOrganization } from '@/components/providers/OrganizationProvider';
 import { useUser } from '@/components/providers/UserProvider';
 import CreateUserDialog from '@/components/admin/CreateUserDialog';
+import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
 import { Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText } from '@mui/material';
 import type { Project } from '@/types/project';
 import type { ProjectTask } from '@/types/project';
@@ -62,6 +63,7 @@ function DashboardPageContent() {
   const [usersLoaded, setUsersLoaded] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<'admin' | 'pm' | 'designer' | 'engineer' | null>(null);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const loadingProjectsRef = useRef(false); // Prevent duplicate project loads
 
   useEffect(() => {
@@ -255,7 +257,12 @@ function DashboardPageContent() {
   }, [router, organization]); // Include organization so we reload when it's available
 
   const handleCreateProject = () => {
-    router.push('/project/new');
+    setCreateDialogOpen(true);
+  };
+
+  const handleProjectCreated = (project: Project) => {
+    setCreateDialogOpen(false);
+    router.push(`/project/${project.id}`);
   };
 
   const handleViewProjects = () => {
@@ -891,6 +898,11 @@ function DashboardPageContent() {
         onUserCreated={() => {
           // User created - dialog will handle reload
         }}
+      />
+      <CreateProjectDialog
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+        onSuccess={handleProjectCreated}
       />
     </>
   );

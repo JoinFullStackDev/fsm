@@ -215,7 +215,10 @@ export async function PUT(
           });
       }
 
-      return NextResponse.json({ message: 'Package changed successfully' });
+      return NextResponse.json({ 
+        message: 'Package changed successfully',
+        clearCache: true, // Signal client to clear package context cache
+      });
     }
 
     if (action === 'gift_package' && package_id) {
@@ -310,6 +313,7 @@ export async function PUT(
 
       return NextResponse.json({ 
         message: 'Package gifted successfully',
+        clearCache: true, // Signal client to clear package context cache
         package: {
           id: package_id,
           name: packageData.name,
@@ -356,7 +360,10 @@ export async function PUT(
           .eq('id', subscription.id);
       }
 
-      return NextResponse.json({ message: 'Subscription canceled successfully' });
+      return NextResponse.json({ 
+        message: 'Subscription canceled successfully',
+        clearCache: true, // Signal client to clear package context cache
+      });
     }
 
     if (action === 'reactivate' && subscription?.stripe_subscription_id) {
@@ -387,7 +394,10 @@ export async function PUT(
         })
         .eq('id', params.id);
 
-      return NextResponse.json({ message: 'Subscription reactivated successfully' });
+      return NextResponse.json({ 
+        message: 'Subscription reactivated successfully',
+        clearCache: true, // Signal client to clear package context cache
+      });
     }
 
     return badRequest('Invalid action');

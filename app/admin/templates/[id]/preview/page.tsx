@@ -54,51 +54,33 @@ export default function TemplatePreviewPage() {
   const loadTemplate = useCallback(async () => {
     setLoading(true);
     
-    const { data: templateData, error: templateError } = await supabase
-      .from('project_templates')
-      .select('*')
-      .eq('id', templateId)
-      .single();
+    try {
+      // Use API endpoint to avoid RLS recursion issues
+      const response = await fetch(`/api/admin/templates/${templateId}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        setError(errorData.error || 'Template not found');
+        setLoading(false);
+        return;
+      }
 
-    if (templateError || !templateData) {
-      setError(templateError?.message || 'Template not found');
-      setLoading(false);
-      return;
-    }
+      const data = await response.json();
+      const templateData = data.template;
+      const fieldConfigs = data.fieldConfigs || [];
+      const groups = data.fieldGroups || [];
 
-    setTemplate(templateData);
+      setTemplate(templateData);
 
-    const { data: fieldConfigs, error: configsError } = await supabase
-      .from('template_field_configs')
-      .select('*')
-      .eq('template_id', templateId)
-      .order('phase_number', { ascending: true })
-      .order('display_order', { ascending: true });
-
-    if (configsError) {
-      console.error('Error loading field configs:', configsError);
-    }
-
-    const { data: groups, error: groupsError } = await supabase
-      .from('template_field_groups')
-      .select('*')
-      .eq('template_id', templateId)
-      .order('phase_number', { ascending: true })
-      .order('display_order', { ascending: true });
-
-    if (groupsError) {
-      console.error('Error loading field groups:', groupsError);
-    }
-
-    const fieldsByPhase: Record<number, TemplateFieldConfig[]> = {};
-    const groupsByPhase: Record<number, TemplateFieldGroup[]> = {};
-    const initialDataByPhase: Record<number, any> = {};
-    
-    for (let i = 1; i <= 6; i++) {
-      fieldsByPhase[i] = [];
-      groupsByPhase[i] = [];
-      initialDataByPhase[i] = {};
-    }
+      const fieldsByPhase: Record<number, TemplateFieldConfig[]> = {};
+      const groupsByPhase: Record<number, TemplateFieldGroup[]> = {};
+      const initialDataByPhase: Record<number, any> = {};
+      
+      for (let i = 1; i <= 6; i++) {
+        fieldsByPhase[i] = [];
+        groupsByPhase[i] = [];
+        initialDataByPhase[i] = {};
+      }
 
       fieldConfigs?.forEach((config: TemplateFieldConfig) => {
       if (!fieldsByPhase[config.phase_number]) {
@@ -151,18 +133,22 @@ export default function TemplatePreviewPage() {
       }
     });
 
-    groups?.forEach((group: TemplateFieldGroup) => {
-      if (!groupsByPhase[group.phase_number]) {
-        groupsByPhase[group.phase_number] = [];
-      }
-      groupsByPhase[group.phase_number].push(group);
-    });
+      groups?.forEach((group: TemplateFieldGroup) => {
+        if (!groupsByPhase[group.phase_number]) {
+          groupsByPhase[group.phase_number] = [];
+        }
+        groupsByPhase[group.phase_number].push(group);
+      });
 
-    setFields(fieldsByPhase);
-    setFieldGroups(groupsByPhase);
-    setPreviewData(initialDataByPhase);
-    setLoading(false);
-  }, [templateId, supabase]);
+      setFields(fieldsByPhase);
+      setFieldGroups(groupsByPhase);
+      setPreviewData(initialDataByPhase);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load template');
+    } finally {
+      setLoading(false);
+    }
+  }, [templateId]);
 
   useEffect(() => {
     if (roleLoading) {

@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     // Get all enabled subscriptions that are due
     const { data: subscriptions, error: subscriptionsError } = await adminClient
       .from('dashboard_subscriptions')
-      .select('*, dashboard:dashboards(*), user:users(email, name)')
+      .select('*, dashboard:dashboards(*, organization_id), user:users(email, name, organization_id)')
       .eq('enabled', true);
 
     if (subscriptionsError) {
@@ -145,6 +145,9 @@ export async function POST(request: NextRequest) {
         // Convert to base64 for email attachment
         const pdfBase64 = pdfBuffer.toString('base64');
 
+        // Get organization ID from dashboard or user
+        const organizationId = (dashboard as any).organization_id || (user as any).organization_id || null;
+
         // Send email
         const emailHtml = `
           <h2>Dashboard Report: ${dashboard.name}</h2>
@@ -158,7 +161,10 @@ export async function POST(request: NextRequest) {
         const emailResult = await sendEmail(
           subscription.email,
           `Dashboard Report: ${dashboard.name}`,
-          emailHtml
+          emailHtml,
+          undefined,
+          undefined,
+          organizationId
         );
 
         if (!emailResult.success) {

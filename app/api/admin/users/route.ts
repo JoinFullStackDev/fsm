@@ -345,7 +345,8 @@ export async function POST(request: NextRequest) {
               name,
               orgData?.name || 'Your Organization',
               invitationLink,
-              adminData?.name || undefined
+              adminData?.name || undefined,
+              organizationId
             );
 
             // Send invitation email
@@ -353,7 +354,10 @@ export async function POST(request: NextRequest) {
               email,
               template.subject,
               template.html,
-              template.text
+              template.text,
+              undefined,
+              undefined,
+              organizationId
             );
 
             if (!emailSendResult.success) {

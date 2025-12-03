@@ -4,6 +4,12 @@ import { createContext, useContext, useState, useEffect, useCallback, useMemo, u
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import logger from '@/lib/utils/logger';
 import { AVAILABLE_MODULES } from '@/lib/modules';
+import {
+  getCachedPackageContext,
+  setCachedPackageContext,
+  clearCachedPackageContext,
+  isCachedDataStale,
+} from '@/lib/cache/clientPackageCache';
 import type {
   Organization,
   Package,
@@ -65,11 +71,12 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
 
     try {
       loadingRef.current = true;
-      setLoading(true);
       setError(null);
 
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) {
+        // Clear cache on logout
+        clearCachedPackageContext();
         setOrganization(null);
         setSubscription(null);
         setPackage(null);
@@ -78,7 +85,37 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Fetch organization context from API with timeout
+      // Check cache first for instant UI
+      const cachedContext = getCachedPackageContext(authUser.id);
+      const hasCachedData = !!cachedContext;
+      const isStale = hasCachedData && isCachedDataStale(authUser.id);
+
+      if (cachedContext) {
+        // Parse module_overrides if needed
+        if (cachedContext.organization?.module_overrides && typeof cachedContext.organization.module_overrides === 'string') {
+          try {
+            cachedContext.organization.module_overrides = JSON.parse(cachedContext.organization.module_overrides);
+          } catch {
+            cachedContext.organization.module_overrides = null;
+          }
+        }
+
+        // Set cached data immediately for instant UI
+        setOrganization(cachedContext.organization);
+        setSubscription(cachedContext.subscription);
+        setPackage(cachedContext.package);
+        
+        // If cache is fresh, we can set loading to false immediately
+        // Otherwise, keep loading true to show we're refreshing
+        if (!isStale) {
+          setLoading(false);
+        }
+      } else {
+        // No cache - show loading state
+        setLoading(true);
+      }
+
+      // Always fetch fresh data in background (stale-while-revalidate pattern)
       const controller = new AbortController();
       abortControllerRef.current = controller; // Store for potential cancellation
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
@@ -104,20 +141,39 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
           }
         }
 
+        // Update state with fresh data
         setOrganization(context.organization);
         setSubscription(context.subscription);
         setPackage(context.package);
+
+        // Update cache with fresh data
+        setCachedPackageContext(authUser.id, context);
       } catch (fetchErr) {
         clearTimeout(timeoutId);
         if (fetchErr instanceof Error && fetchErr.name === 'AbortError') {
-          // Request was aborted (deduplication or timeout) - don't show error
+          // Request was aborted (deduplication or timeout)
           logger.warn('[OrganizationProvider] Organization context request aborted');
-          // Don't set error - allow app to continue without organization context
+          
+          // If we have cached data, keep using it
+          if (hasCachedData) {
+            setLoading(false);
+            return; // Exit early, keep cached data
+          }
+          
+          // No cache and request aborted - clear state
           setOrganization(null);
           setSubscription(null);
           setPackage(null);
           return; // Exit early, don't throw
         } else {
+          // Fetch failed - if we have cached data, use it as fallback
+          if (hasCachedData) {
+            logger.warn('[OrganizationProvider] Fetch failed, using cached data as fallback');
+            setLoading(false);
+            return; // Use cached data, don't show error
+          }
+          
+          // No cache and fetch failed - show error
           throw fetchErr;
         }
       }
@@ -139,7 +195,19 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     const {
       data: { subscription: authSubscription },
-    } = supabase.auth.onAuthStateChange(() => {
+    } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
+      // Clear cache on sign out or user change
+      if (event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+        // Get current user before clearing
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        if (currentUser) {
+          clearCachedPackageContext(currentUser.id);
+        } else {
+          // No user - clear all caches
+          clearCachedPackageContext();
+        }
+      }
+
       // Debounce auth state changes to prevent rapid-fire requests
       if (debounceTimer) {
         clearTimeout(debounceTimer);

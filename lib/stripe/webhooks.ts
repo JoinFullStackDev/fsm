@@ -619,14 +619,19 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session):
             metadata.signup_name || metadata.signup_email.split('@')[0],
             orgData?.name || metadata.organization_name || 'Your Organization',
             packageName,
-            loginLink
+            loginLink,
+            undefined, // emailConfirmationLink
+            organizationId || null
           );
 
           const emailResult = await sendEmailWithRetry(
             metadata.signup_email,
             template.subject,
             template.html,
-            template.text
+            template.text,
+            undefined,
+            undefined,
+            organizationId || null
           );
 
           if (emailResult.success) {

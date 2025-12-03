@@ -46,6 +46,8 @@ import {
   Work as WorkIcon,
   ExpandMore as ExpandMoreIcon,
   Business as BusinessIcon,
+  Description as DescriptionIcon,
+  Add as AddIcon,
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useNotification } from '@/components/providers/NotificationProvider';
@@ -55,6 +57,10 @@ import type { ProjectTemplate, User } from '@/types/project';
 import CompanyContactsTab from '@/components/ops/CompanyContactsTab';
 import CompanyTasksTab from '@/components/ops/CompanyTasksTab';
 import CompanyActivityTab from '@/components/ops/CompanyActivityTab';
+import SOWList from '@/components/projects/SOWList';
+import SOWForm from '@/components/projects/SOWForm';
+import SOWView from '@/components/projects/SOWView';
+import type { ScopeOfWork } from '@/types/project';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -99,6 +105,36 @@ export default function OpportunityDetailPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [generateInvoice, setGenerateInvoice] = useState(false);
+  // SOW state
+  const [sows, setSows] = useState<ScopeOfWork[]>([]);
+  const [loadingSOWs, setLoadingSOWs] = useState(false);
+  const [sowFormOpen, setSowFormOpen] = useState(false);
+  const [editingSOW, setEditingSOW] = useState<ScopeOfWork | null>(null);
+  const [viewingSOW, setViewingSOW] = useState<ScopeOfWork | null>(null);
+
+  const loadSOWs = useCallback(async () => {
+    if (!opportunityId) return;
+    setLoadingSOWs(true);
+    try {
+      const response = await fetch(`/api/ops/opportunities/${opportunityId}/sow`);
+      if (response.ok) {
+        const data = await response.json();
+        setSows(data.sows || []);
+      } else {
+        console.error('Failed to load SOWs');
+      }
+    } catch (error) {
+      console.error('Error loading SOWs:', error);
+    } finally {
+      setLoadingSOWs(false);
+    }
+  }, [opportunityId]);
+
+  useEffect(() => {
+    if (opportunityId) {
+      loadSOWs();
+    }
+  }, [opportunityId, loadSOWs]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const supabase = createSupabaseClient();
@@ -772,6 +808,7 @@ export default function OpportunityDetailPage() {
               <Tab icon={<ContactsIcon />} iconPosition="start" label="Contacts" />
               <Tab icon={<AssignmentIcon />} iconPosition="start" label="Tasks" />
               <Tab icon={<HistoryIcon />} iconPosition="start" label="Activity" />
+              <Tab icon={<DescriptionIcon />} iconPosition="start" label="Scope of Work" />
               <Tab icon={<NotesIcon />} iconPosition="start" label="Notes" />
             </Tabs>
           </Box>
@@ -790,6 +827,87 @@ export default function OpportunityDetailPage() {
           </TabPanel>
 
           <TabPanel value={activeTab} index={3}>
+            <Paper
+              sx={{
+                p: { xs: 2, md: 3 },
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${theme.palette.divider}`,
+              }}
+            >
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    color: theme.palette.text.primary,
+                    fontWeight: 600,
+                  }}
+                >
+                  Scope of Work
+                </Typography>
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={() => {
+                    setEditingSOW(null);
+                    setSowFormOpen(true);
+                  }}
+                  sx={{
+                    backgroundColor: theme.palette.text.primary,
+                    color: theme.palette.background.default,
+                    fontWeight: 600,
+                    '&:hover': {
+                      backgroundColor: theme.palette.text.secondary,
+                    },
+                  }}
+                >
+                  Create SOW
+                </Button>
+              </Box>
+
+              {viewingSOW ? (
+                <Box>
+                  <Button
+                    variant="outlined"
+                    onClick={() => setViewingSOW(null)}
+                    sx={{ mb: 2 }}
+                  >
+                    Back to List
+                  </Button>
+                  <SOWView sow={viewingSOW} />
+                </Box>
+              ) : (
+                <SOWList
+                  sows={sows}
+                  loading={loadingSOWs}
+                  onView={(sow) => setViewingSOW(sow)}
+                  onEdit={(sow) => {
+                    setEditingSOW(sow);
+                    setSowFormOpen(true);
+                  }}
+                  onDelete={async (sow) => {
+                    if (confirm('Are you sure you want to delete this scope of work? This action cannot be undone.')) {
+                      try {
+                        const response = await fetch(`/api/ops/opportunities/${opportunityId}/sow/${sow.id}`, {
+                          method: 'DELETE',
+                        });
+                        if (response.ok) {
+                          showSuccess('Scope of work deleted successfully');
+                          loadSOWs();
+                        } else {
+                          const error = await response.json();
+                          showError('Failed to delete SOW: ' + (error.error || 'Unknown error'));
+                        }
+                      } catch (error) {
+                        showError('Failed to delete scope of work');
+                      }
+                    }
+                  }}
+                />
+              )}
+            </Paper>
+          </TabPanel>
+
+          <TabPanel value={activeTab} index={4}>
             {companyLoading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                 <CircularProgress />
@@ -880,6 +998,54 @@ export default function OpportunityDetailPage() {
           </TabPanel>
         </>
       )}
+
+      {/* SOW Form Dialog */}
+      <SOWForm
+        open={sowFormOpen}
+        onClose={() => {
+          setSowFormOpen(false);
+          setEditingSOW(null);
+        }}
+        onSubmit={async (data) => {
+          try {
+            if (editingSOW) {
+              // Update existing SOW
+              const response = await fetch(`/api/ops/opportunities/${opportunityId}/sow/${editingSOW.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+              });
+              if (response.ok) {
+                showSuccess('Scope of work updated successfully');
+                loadSOWs();
+              } else {
+                const error = await response.json();
+                showError('Failed to update SOW: ' + (error.error || 'Unknown error'));
+                throw new Error(error.error || 'Failed to update SOW');
+              }
+            } else {
+              // Create new SOW
+              const response = await fetch(`/api/ops/opportunities/${opportunityId}/sow`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+              });
+              if (response.ok) {
+                showSuccess('Scope of work created successfully');
+                loadSOWs();
+              } else {
+                const error = await response.json();
+                showError('Failed to create SOW: ' + (error.error || 'Unknown error'));
+                throw new Error(error.error || 'Failed to create SOW');
+              }
+            }
+          } catch (error) {
+            throw error;
+          }
+        }}
+        sow={editingSOW}
+        opportunityId={opportunityId}
+      />
 
       {/* Delete Confirmation Dialog */}
       {deleteDialogOpen && (

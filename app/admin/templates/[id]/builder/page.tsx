@@ -35,6 +35,7 @@ import {
   DialogTitle,
   DialogContent,
   Skeleton,
+  Chip,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -94,86 +95,69 @@ export default function TemplateBuilderPage() {
   const loadTemplate = useCallback(async () => {
     setLoading(true);
     
-    // Load template metadata
-    const { data: templateData, error: templateError } = await supabase
-      .from('project_templates')
-      .select('*')
-      .eq('id', templateId)
-      .single();
-
-    if (templateError || !templateData) {
-      setError(templateError?.message || 'Template not found');
-      setLoading(false);
-      return;
-    }
-
-    setTemplate(templateData);
-
-    // Ensure phases exist (backward compatibility)
-    const phases = await ensurePhasesExist(templateId, supabase);
-    
-    // Load phases from database (ordered by display_order, only active)
-    const { data: phasesData, error: phasesError } = await supabase
-      .from('template_phases')
-      .select('*')
-      .eq('template_id', templateId)
-      .eq('is_active', true)
-      .order('display_order', { ascending: true });
-
-    if (phasesError) {
-      // Error loading phases
-    }
-
-    const loadedPhases = (phasesData || phases) as TemplatePhase[];
-    setTemplatePhases(loadedPhases);
-
-    // Set active phase to first phase if available
-    if (loadedPhases.length > 0 && !loadedPhases.find(p => p.phase_number === activePhase)) {
-      setActivePhase(loadedPhases[0].phase_number);
-    }
-
-    // Load field configs for all phases
-    const { data: fieldConfigs, error: configsError } = await supabase
-      .from('template_field_configs')
-      .select('*')
-      .eq('template_id', templateId)
-      .order('phase_number', { ascending: true })
-      .order('display_order', { ascending: true });
-
-    if (configsError) {
-      // Error loading field configs
-    }
-
-    // Organize fields by phase - use actual phase numbers from loaded phases
-    const fieldsByPhase: Record<number, TemplateFieldConfig[]> = {};
-    
-    // Initialize with actual phase numbers
-    loadedPhases.forEach((phase) => {
-      fieldsByPhase[phase.phase_number] = [];
-    });
-
-    // If no phases exist yet, check field configs for phase numbers
-    if (loadedPhases.length === 0 && fieldConfigs) {
-      const uniquePhaseNumbers = new Set<number>();
-      fieldConfigs.forEach((config: TemplateFieldConfig) => {
-        if (config.phase_number) {
-          uniquePhaseNumbers.add(config.phase_number);
-        }
-      });
-      uniquePhaseNumbers.forEach((phaseNumber) => {
-        fieldsByPhase[phaseNumber] = [];
-      });
-    }
-
-    fieldConfigs?.forEach((config: TemplateFieldConfig) => {
-      if (!fieldsByPhase[config.phase_number]) {
-        fieldsByPhase[config.phase_number] = [];
+    try {
+      // Use API endpoint to avoid RLS recursion issues
+      const response = await fetch(`/api/admin/templates/${templateId}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        setError(errorData.error || 'Template not found');
+        setLoading(false);
+        return;
       }
-      fieldsByPhase[config.phase_number].push(config);
-    });
 
-    setFields(fieldsByPhase);
-    setLoading(false);
+      const data = await response.json();
+      const templateData = data.template;
+      const phasesData = data.phases || [];
+      const fieldConfigs = data.fieldConfigs || [];
+
+      setTemplate(templateData);
+
+      // Ensure phases exist (backward compatibility)
+      const phases = await ensurePhasesExist(templateId, supabase);
+      
+      const loadedPhases = (phasesData.length > 0 ? phasesData : phases) as TemplatePhase[];
+      setTemplatePhases(loadedPhases);
+
+      // Set active phase to first phase if available
+      if (loadedPhases.length > 0 && !loadedPhases.find(p => p.phase_number === activePhase)) {
+        setActivePhase(loadedPhases[0].phase_number);
+      }
+
+      // Organize fields by phase - use actual phase numbers from loaded phases
+      const fieldsByPhase: Record<number, TemplateFieldConfig[]> = {};
+      
+      // Initialize with actual phase numbers
+      loadedPhases.forEach((phase) => {
+        fieldsByPhase[phase.phase_number] = [];
+      });
+
+      // If no phases exist yet, check field configs for phase numbers
+      if (loadedPhases.length === 0 && fieldConfigs) {
+        const uniquePhaseNumbers = new Set<number>();
+        fieldConfigs.forEach((config: TemplateFieldConfig) => {
+          if (config.phase_number) {
+            uniquePhaseNumbers.add(config.phase_number);
+          }
+        });
+        uniquePhaseNumbers.forEach((phaseNumber) => {
+          fieldsByPhase[phaseNumber] = [];
+        });
+      }
+
+      fieldConfigs?.forEach((config: TemplateFieldConfig) => {
+        if (!fieldsByPhase[config.phase_number]) {
+          fieldsByPhase[config.phase_number] = [];
+        }
+        fieldsByPhase[config.phase_number].push(config);
+      });
+
+      setFields(fieldsByPhase);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load template');
+    } finally {
+      setLoading(false);
+    }
   }, [templateId, supabase, activePhase]);
 
   useEffect(() => {
@@ -181,18 +165,30 @@ export default function TemplateBuilderPage() {
       return; // Wait for role to load
     }
 
+    // Check if template is global and prevent editing
+    if (template?.is_publicly_available) {
+      setError('Cannot edit global templates. Please duplicate the template to create your own copy.');
+      return;
+    }
+
     if (role !== 'admin') {
       router.push('/dashboard');
       return;
     }
     loadTemplate();
-  }, [templateId, role, roleLoading, router, loadTemplate]);
+  }, [templateId, role, roleLoading, router, loadTemplate, template?.is_publicly_available]);
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
+    // Prevent editing global templates
+    if (template?.is_publicly_available) {
+      showError('Cannot edit global templates. Please duplicate the template to create your own copy.');
+      return;
+    }
+
     const { active, over } = event;
     setActiveId(null);
 
@@ -279,6 +275,12 @@ export default function TemplateBuilderPage() {
   };
 
   const handleSave = async () => {
+    // Check if template is global (cannot be edited)
+    if (template?.is_publicly_available) {
+      showError('Cannot edit global templates. Please duplicate the template to create your own copy.');
+      return;
+    }
+
     setSaving(true);
     try {
       // Validate fields before saving
@@ -827,6 +829,11 @@ export default function TemplateBuilderPage() {
       >
         <Container maxWidth="xl" sx={{ pt: 4, px: { xs: 0, md: 3 } }}>
           {/* Header */}
+          {template.is_publicly_available && (
+            <Alert severity="info" sx={{ mb: 3 }}>
+              This is a global template and cannot be edited. Please duplicate the template to create your own copy that you can edit.
+            </Alert>
+          )}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
             <IconButton
               onClick={() => router.push('/admin/templates')}
@@ -840,18 +847,31 @@ export default function TemplateBuilderPage() {
             >
               <ArrowBackIcon />
             </IconButton>
-            <Typography
-              variant="h4"
-              component="h1"
-              sx={{
-                flex: 1,
-                fontSize: '1.5rem',
-                fontWeight: 600,
-                color: theme.palette.text.primary,
-              }}
-            >
-              Template Builder: {template.name}
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
+              <Typography
+                variant="h4"
+                component="h1"
+                sx={{
+                  fontSize: '1.5rem',
+                  fontWeight: 600,
+                  color: theme.palette.text.primary,
+                }}
+              >
+                Template Builder: {template.name}
+              </Typography>
+              {template.is_publicly_available && (
+                <Chip
+                  label="Global Template"
+                  size="small"
+                  sx={{
+                    backgroundColor: theme.palette.info.main,
+                    color: theme.palette.background.default,
+                    fontWeight: 600,
+                  }}
+                  title="This is a global template and cannot be edited. Duplicate it to create your own copy."
+                />
+              )}
+            </Box>
             <Button
               variant="outlined"
               startIcon={<PreviewIcon />}
@@ -888,13 +908,32 @@ export default function TemplateBuilderPage() {
             )}
             <Button
               variant="outlined"
-              onClick={() => setPhaseManagerOpen(true)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (template?.is_publicly_available) {
+                  showError('Cannot edit global templates. Please duplicate the template to create your own copy.');
+                  return;
+                }
+                setPhaseManagerOpen(true);
+              }}
+              disabled={template?.is_publicly_available}
+              onMouseDown={(e) => {
+                if (template?.is_publicly_available) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }
+              }}
               sx={{
                 borderColor: theme.palette.text.primary,
                 color: theme.palette.text.primary,
                 '&:hover': {
                   borderColor: theme.palette.text.primary,
                   backgroundColor: theme.palette.action.hover,
+                },
+                '&.Mui-disabled': {
+                  borderColor: theme.palette.text.disabled,
+                  color: theme.palette.text.disabled,
                 },
               }}
             >
@@ -903,21 +942,36 @@ export default function TemplateBuilderPage() {
             <Button
               variant="outlined"
               startIcon={saving ? <CircularProgress size={16} sx={{ color: theme.palette.text.primary }} /> : <SaveIcon />}
-              onClick={handleSave}
-              disabled={saving}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (template?.is_publicly_available) {
+                  showError('Cannot edit global templates. Please duplicate the template to create your own copy.');
+                  return;
+                }
+                handleSave();
+              }}
+              disabled={saving || template?.is_publicly_available}
+              onMouseDown={(e) => {
+                if (template?.is_publicly_available || saving) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }
+              }}
               sx={{
-                borderColor: theme.palette.text.primary,
-                color: theme.palette.text.primary,
+                borderColor: template?.is_publicly_available ? theme.palette.text.disabled : theme.palette.text.primary,
+                color: template?.is_publicly_available ? theme.palette.text.disabled : theme.palette.text.primary,
                 fontWeight: 600,
                 '&:hover': {
-                  borderColor: theme.palette.text.primary,
-                  backgroundColor: theme.palette.action.hover,
+                  borderColor: template?.is_publicly_available ? theme.palette.text.disabled : theme.palette.text.primary,
+                  backgroundColor: template?.is_publicly_available ? 'transparent' : theme.palette.action.hover,
                 },
                 '&.Mui-disabled': {
                   borderColor: theme.palette.divider,
                   color: theme.palette.text.secondary,
                 },
               }}
+              title={template?.is_publicly_available ? 'Cannot edit global templates. Duplicate to create your own copy.' : 'Save Template'}
             >
               {saving ? 'Saving...' : 'Save'}
             </Button>

@@ -29,6 +29,8 @@ export async function GET(request: NextRequest) {
     if (cached) {
       const response = NextResponse.json(cached);
       response.headers.set('Cache-Control', 'private, max-age=30'); // 30 second browser cache
+      response.headers.set('X-Cache-Version', '1.0'); // Cache version for client coordination
+      response.headers.set('X-Cache-Source', 'server-memory'); // Indicate this came from server cache
       return response;
     }
 
@@ -129,6 +131,8 @@ export async function GET(request: NextRequest) {
 
     const response = NextResponse.json(context);
     response.headers.set('Cache-Control', 'private, max-age=30'); // 30 second browser cache
+    response.headers.set('X-Cache-Version', '1.0'); // Cache version for client coordination
+    response.headers.set('X-Cache-Source', 'database'); // Indicate this came from database
     return response;
   } catch (error) {
     logger.error('Error in GET /api/organization/context:', error);

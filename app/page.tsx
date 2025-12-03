@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useNotification } from '@/components/providers/NotificationProvider';
 import { motion } from 'framer-motion';
 import {
   Box,
@@ -46,6 +47,7 @@ import type { PackageFeatures, Package } from '@/lib/organizationContext';
 export default function HomePage() {
   const theme = useTheme();
   const router = useRouter();
+  const { showSuccess } = useNotification();
   const [packages, setPackages] = useState<Package[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
@@ -53,7 +55,16 @@ export default function HomePage() {
 
   useEffect(() => {
     loadPackages();
-  }, []);
+    
+    // Check for sign-out success message
+    if (typeof window !== 'undefined') {
+      const signoutSuccess = sessionStorage.getItem('signout_success');
+      if (signoutSuccess === 'true') {
+        sessionStorage.removeItem('signout_success');
+        showSuccess('You have been signed out successfully');
+      }
+    }
+  }, [showSuccess]);
 
   const loadPackages = async () => {
     try {

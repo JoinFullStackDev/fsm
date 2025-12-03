@@ -89,8 +89,26 @@ export default function LandingHeader() {
 
   const handleSignOut = async () => {
     handleMenuClose();
-    await supabase.auth.signOut();
-    router.push('/auth/signin');
+    try {
+      // Sign out and wait for completion
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Sign out error:', error);
+      }
+      
+      // Clear all cached data
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+        sessionStorage.clear();
+      }
+      
+      // Force full page reload to ensure session is cleared
+      window.location.href = '/';
+    } catch (err) {
+      console.error('Error during sign out:', err);
+      // Still redirect even if there's an error
+      window.location.href = '/';
+    }
   };
 
   const getUserInitials = () => {

@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Box,
   Typography,
@@ -20,7 +20,7 @@ import {
   Pagination,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { Add as AddIcon, Search as SearchIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { Add as AddIcon, Search as SearchIcon, Delete as DeleteIcon, OpenInNew as OpenInNewIcon } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import LoadingSkeleton from '@/components/ui/LoadingSkeleton';
 import EmptyState from '@/components/ui/EmptyState';
@@ -38,10 +38,12 @@ import {
   IconButton,
 } from '@mui/material';
 import SortableTable from '@/components/dashboard/SortableTable';
+import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
 
-export default function ProjectsPage() {
+function ProjectsPageContent() {
   const theme = useTheme();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createSupabaseClient();
   const { role, loading: roleLoading } = useRole();
   const { showSuccess, showError } = useNotification();
@@ -56,6 +58,9 @@ export default function ProjectsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [initialCompanyId, setInitialCompanyId] = useState<string | undefined>();
+  const [initialTemplateId, setInitialTemplateId] = useState<string | undefined>();
 
   const loadProjects = useCallback(async () => {
     setLoading(true);
@@ -137,8 +142,32 @@ export default function ProjectsPage() {
     setPage(1);
   }, [searchTerm, statusFilter]);
 
+  // Check for query parameters to open modal with initial values
+  useEffect(() => {
+    const companyId = searchParams.get('company_id');
+    const templateId = searchParams.get('template_id');
+    const create = searchParams.get('create');
+
+    if (create === 'true' || companyId || templateId) {
+      if (companyId) {
+        setInitialCompanyId(companyId);
+      }
+      if (templateId) {
+        setInitialTemplateId(templateId);
+      }
+      setCreateDialogOpen(true);
+    }
+  }, [searchParams]);
+
   const handleCreateProject = () => {
-    router.push('/project/new');
+    setCreateDialogOpen(true);
+  };
+
+  const handleProjectCreated = (project: Project) => {
+    setCreateDialogOpen(false);
+    setInitialCompanyId(undefined);
+    setInitialTemplateId(undefined);
+    router.push(`/project/${project.id}`);
   };
 
   const handleDeleteClick = (project: Project) => {
@@ -450,6 +479,22 @@ export default function ProjectsPage() {
               align: 'right',
               render: (_, project) => (
                 <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/project/${project.id}`);
+                    }}
+                    sx={{
+                      color: theme.palette.text.primary,
+                      '&:hover': {
+                        backgroundColor: theme.palette.action.hover,
+                      },
+                    }}
+                    title="Open project"
+                  >
+                    <OpenInNewIcon fontSize="small" />
+                  </IconButton>
                   {role === 'admin' && (
                     <IconButton
                       size="small"
@@ -468,24 +513,6 @@ export default function ProjectsPage() {
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   )}
-                  <Button
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      router.push(`/project/${project.id}`);
-                    }}
-                    variant="outlined"
-                    sx={{
-                      borderColor: theme.palette.text.primary,
-                      color: theme.palette.text.primary,
-                      '&:hover': {
-                        borderColor: theme.palette.text.primary,
-                        backgroundColor: theme.palette.action.hover,
-                      },
-                    }}
-                  >
-                    Open
-                  </Button>
                 </Box>
               ),
             },
@@ -622,7 +649,36 @@ export default function ProjectsPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Create Project Dialog */}
+      <CreateProjectDialog
+        open={createDialogOpen}
+        onClose={() => {
+          setCreateDialogOpen(false);
+          setInitialCompanyId(undefined);
+          setInitialTemplateId(undefined);
+        }}
+        onSuccess={handleProjectCreated}
+        initialCompanyId={initialCompanyId}
+        initialTemplateId={initialTemplateId}
+      />
     </Box>
+  );
+}
+
+export default function ProjectsPage() {
+  return (
+    <Suspense fallback={
+      <Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+          <Skeleton variant="text" width="200px" height={48} />
+          <Skeleton variant="rectangular" width={150} height={40} sx={{ borderRadius: 1 }} />
+        </Box>
+        <LoadingSkeleton variant="dashboard" count={6} />
+      </Box>
+    }>
+      <ProjectsPageContent />
+    </Suspense>
   );
 }
 

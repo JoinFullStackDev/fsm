@@ -21,13 +21,16 @@ import {
   Divider,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { ArrowBack as ArrowBackIcon, Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { ArrowBack as ArrowBackIcon, Add as AddIcon, Delete as DeleteIcon, Description as DescriptionIcon } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { getCsrfHeaders } from '@/lib/utils/csrfClient';
-import type { Project, ProjectStatus, PrimaryTool, ProjectTemplate, UserRole } from '@/types/project';
+import type { Project, ProjectStatus, PrimaryTool, ProjectTemplate, UserRole, ScopeOfWork } from '@/types/project';
+import SOWList from '@/components/projects/SOWList';
+import SOWForm from '@/components/projects/SOWForm';
+import SOWView from '@/components/projects/SOWView';
 
 interface ProjectMember {
   id: string;
@@ -76,6 +79,12 @@ export default function ProjectSettingsPage() {
   const [selectedRole, setSelectedRole] = useState<UserRole>('engineer');
   const [memberToRemove, setMemberToRemove] = useState<string | null>(null);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  // SOW state
+  const [sows, setSows] = useState<ScopeOfWork[]>([]);
+  const [loadingSOWs, setLoadingSOWs] = useState(false);
+  const [sowFormOpen, setSowFormOpen] = useState(false);
+  const [editingSOW, setEditingSOW] = useState<ScopeOfWork | null>(null);
+  const [viewingSOW, setViewingSOW] = useState<ScopeOfWork | null>(null);
 
   useEffect(() => {
     const loadTemplates = async () => {
@@ -164,6 +173,22 @@ export default function ProjectSettingsPage() {
     }
   }, [projectId, supabase]);
 
+  const loadSOWs = useCallback(async () => {
+    if (!projectId) return;
+    setLoadingSOWs(true);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/sow`);
+      if (response.ok) {
+        const data = await response.json();
+        setSows(data.sows || []);
+      }
+    } catch (error) {
+      console.error('Error loading SOWs:', error);
+    } finally {
+      setLoadingSOWs(false);
+    }
+  }, [projectId]);
+
   useEffect(() => {
     const loadProject = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -200,8 +225,9 @@ export default function ProjectSettingsPage() {
 
     if (projectId) {
       loadProject();
+      loadSOWs();
     }
-  }, [projectId, router, supabase, loadMembers]);
+  }, [projectId, router, supabase, loadMembers, loadSOWs]);
 
   const handleSave = async () => {
     // Check if template changed
@@ -701,9 +727,134 @@ export default function ProjectSettingsPage() {
                 </Grid>
               </Paper>
             </Grid>
+
+            {/* Scope of Work Section */}
+            <Grid item xs={12}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 4,
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: 3,
+                  backgroundColor: theme.palette.background.paper,
+                }}
+              >
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 600,
+                      fontFamily: 'var(--font-rubik), Rubik, sans-serif',
+                      color: theme.palette.text.primary,
+                    }}
+                  >
+                    Scope of Work
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={() => {
+                      setEditingSOW(null);
+                      setSowFormOpen(true);
+                    }}
+                    sx={{
+                      backgroundColor: theme.palette.text.primary,
+                      color: theme.palette.background.default,
+                      fontWeight: 600,
+                      '&:hover': {
+                        backgroundColor: theme.palette.text.secondary,
+                      },
+                    }}
+                  >
+                    Create SOW
+                  </Button>
+                </Box>
+
+                {viewingSOW ? (
+                  <Box>
+                    <Button
+                      variant="outlined"
+                      onClick={() => setViewingSOW(null)}
+                      sx={{ mb: 2 }}
+                    >
+                      Back to List
+                    </Button>
+                    <SOWView sow={viewingSOW} />
+                  </Box>
+                ) : (
+                  <SOWList
+                    sows={sows}
+                    loading={loadingSOWs}
+                    onAdd={() => {
+                      setEditingSOW(null);
+                      setSowFormOpen(true);
+                    }}
+                    onView={(sow) => setViewingSOW(sow)}
+                    onEdit={(sow) => {
+                      setEditingSOW(sow);
+                      setSowFormOpen(true);
+                    }}
+                    onDelete={async (sow) => {
+                      if (confirm('Are you sure you want to delete this scope of work? This action cannot be undone.')) {
+                        try {
+                          const response = await fetch(`/api/projects/${projectId}/sow/${sow.id}`, {
+                            method: 'DELETE',
+                          });
+                          if (response.ok) {
+                            showSuccess('Scope of work deleted successfully');
+                            loadSOWs();
+                          } else {
+                            const error = await response.json();
+                            showError('Failed to delete SOW: ' + (error.error || 'Unknown error'));
+                          }
+                        } catch (error) {
+                          showError('Failed to delete scope of work');
+                        }
+                      }
+                    }}
+                  />
+                )}
+              </Paper>
+            </Grid>
           </Grid>
         </Box>
       </Box>
+
+      <SOWForm
+        open={sowFormOpen}
+        projectId={projectId}
+        onClose={() => {
+          setSowFormOpen(false);
+          setEditingSOW(null);
+        }}
+        onSubmit={async (data) => {
+          try {
+            const url = editingSOW
+              ? `/api/projects/${projectId}/sow/${editingSOW.id}`
+              : `/api/projects/${projectId}/sow`;
+            
+            const response = await fetch(url, {
+              method: editingSOW ? 'PUT' : 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data),
+            });
+
+            if (!response.ok) {
+              const error = await response.json();
+              showError('Failed to save SOW: ' + (error.error || 'Unknown error'));
+              throw new Error(error.error || 'Failed to save SOW');
+            }
+
+            showSuccess(editingSOW ? 'SOW updated successfully' : 'SOW created successfully');
+            setSowFormOpen(false);
+            setEditingSOW(null);
+            loadSOWs();
+          } catch (error) {
+            throw error;
+          }
+        }}
+        sow={editingSOW}
+      />
       <ConfirmModal
         open={showTemplateConfirm}
         onClose={() => setShowTemplateConfirm(false)}

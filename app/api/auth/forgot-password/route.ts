@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     // Find user by email
     const { data: user, error: userError } = await adminClient
       .from('users')
-      .select('id, email, name, auth_id')
+      .select('id, email, name, auth_id, organization_id')
       .eq('email', email.trim().toLowerCase())
       .single();
 
@@ -98,9 +98,11 @@ export async function POST(request: NextRequest) {
     const resetLink = `${baseUrl}/auth/reset-password?token=${token}`;
 
     // Get email template
+    const organizationId = user.organization_id || null;
     const template = await getPasswordResetTemplate(
       user.name || 'User',
-      resetLink
+      resetLink,
+      organizationId
     );
 
     // Send email
@@ -108,7 +110,10 @@ export async function POST(request: NextRequest) {
       user.email,
       template.subject,
       template.html,
-      template.text
+      template.text,
+      undefined,
+      undefined,
+      organizationId
     );
 
     if (!emailSendResult.success) {

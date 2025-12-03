@@ -184,6 +184,40 @@ export async function POST(
       return badRequest('User is already a member of this project');
     }
 
+    // Optional: Check user capacity before adding (non-blocking warning)
+    let capacityWarning = null;
+    try {
+      const { data: userCapacity } = await adminClient
+        .from('user_capacity')
+        .select('max_hours_per_week, default_hours_per_week')
+        .eq('user_id', user_id)
+        .eq('is_active', true)
+        .single();
+
+      if (userCapacity) {
+        // Get current allocation
+        const { data: currentAllocations } = await adminClient
+          .from('project_member_allocations')
+          .select('allocated_hours_per_week')
+          .eq('user_id', user_id)
+          .gte('end_date', new Date().toISOString().split('T')[0]);
+
+        const totalAllocated = currentAllocations?.reduce((sum, alloc) => sum + parseFloat(alloc.allocated_hours_per_week.toString()), 0) || 0;
+        const utilization = (totalAllocated / userCapacity.max_hours_per_week) * 100;
+
+        if (utilization >= 80) {
+          capacityWarning = {
+            message: `User is ${utilization.toFixed(1)}% utilized (${totalAllocated.toFixed(1)}/${userCapacity.max_hours_per_week} hours/week)`,
+            utilization_percentage: utilization,
+            is_over_allocated: totalAllocated > userCapacity.max_hours_per_week,
+          };
+        }
+      }
+    } catch (capacityError) {
+      // Non-blocking - just log if capacity check fails
+      logger.warn('[Project Member] Could not check user capacity:', capacityError);
+    }
+
     // Use admin client to bypass RLS for inserting members
     // This ensures the insert works even if RLS policies have issues
     const { data: member, error: memberError } = await adminClient
@@ -220,7 +254,10 @@ export async function POST(
       });
     }
 
-    return NextResponse.json({ member }, { status: 201 });
+    return NextResponse.json({ 
+      member,
+      capacity_warning: capacityWarning, // Include warning in response (non-blocking)
+    }, { status: 201 });
   } catch (error) {
     logger.error('[Project Member] Unexpected error:', error);
     return internalError('Failed to add project member', { error: error instanceof Error ? error.message : 'Unknown error' });

@@ -14,11 +14,48 @@ import {
   Alert,
   InputAdornment,
   IconButton,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { CheckCircle as CheckCircleIcon, Error as ErrorIcon, Visibility, VisibilityOff, Save as SaveIcon, Refresh as RefreshIcon, PlayArrow as PlayArrowIcon } from '@mui/icons-material';
+import { 
+  CheckCircle as CheckCircleIcon, 
+  Error as ErrorIcon, 
+  Visibility, 
+  VisibilityOff, 
+  Save as SaveIcon, 
+  Refresh as RefreshIcon, 
+  PlayArrow as PlayArrowIcon,
+  Payment as PaymentIcon,
+  Email as EmailIcon,
+  Assessment as AssessmentIcon,
+  SmartToy as SmartToyIcon,
+  Storage as StorageIcon,
+} from '@mui/icons-material';
 import { useNotification } from '@/lib/hooks/useNotification';
 import CronStatusSection from '@/components/global-admin/CronStatusSection';
+
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props;
+
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`system-settings-tabpanel-${index}`}
+      aria-labelledby={`system-settings-tab-${index}`}
+      {...other}
+    >
+      {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
+    </div>
+  );
+}
 
 export default function SystemSettingsPage() {
   const theme = useTheme();
@@ -27,6 +64,7 @@ export default function SystemSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState<Record<string, boolean>>({});
   const [connections, setConnections] = useState<Record<string, any>>({});
+  const [activeTab, setActiveTab] = useState(0);
   
   // Stripe key states
   const [testSecretKey, setTestSecretKey] = useState('');
@@ -42,6 +80,7 @@ export default function SystemSettingsPage() {
   const [sendGridApiKey, setSendGridApiKey] = useState('');
   const [showSendGridApiKey, setShowSendGridApiKey] = useState(false);
   const [senderEmail, setSenderEmail] = useState('');
+  const [senderName, setSenderName] = useState('');
 
   const loadConnections = useCallback(async () => {
     try {
@@ -73,6 +112,12 @@ export default function SystemSettingsPage() {
         setSenderEmail(emailConnection.config.from_email);
       } else {
         setSenderEmail('');
+      }
+      // Load sender name from config
+      if (emailConnection?.config?.sender_name) {
+        setSenderName(emailConnection.config.sender_name);
+      } else {
+        setSenderName('');
       }
     } catch (err) {
       showError('Failed to load system connections');
@@ -162,6 +207,8 @@ export default function SystemSettingsPage() {
       
       // Always include sender email (even if empty, to allow clearing it)
       body.from_email = senderEmail?.trim() || null;
+      // Include sender name (even if empty, to allow clearing it)
+      body.sender_name = senderName?.trim() || null;
 
       const response = await fetch('/api/global/admin/system/connections/email', {
         method: 'PUT',
@@ -245,7 +292,53 @@ export default function SystemSettingsPage() {
         System Settings
       </Typography>
 
-      <Grid container spacing={{ xs: 2, md: 3 }}>
+      {/* Tabs */}
+      <Box sx={{ borderBottom: 1, borderColor: theme.palette.divider, mb: 3 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, newValue) => setActiveTab(newValue)}
+          variant="scrollable"
+          scrollButtons={true}
+          allowScrollButtonsMobile
+          sx={{
+            '& .MuiTab-root': {
+              color: theme.palette.text.secondary,
+              minHeight: { xs: 64, md: 72 },
+              fontSize: { xs: '0.75rem', md: '0.875rem' },
+              padding: { xs: '12px 16px', md: '12px 24px' },
+              '&.Mui-selected': {
+                color: theme.palette.text.primary,
+              },
+            },
+            '& .MuiTabs-indicator': {
+              backgroundColor: theme.palette.text.primary,
+            },
+            '& .MuiTabs-scrollButtons': {
+              display: { xs: 'flex', md: 'flex' },
+              width: { xs: 40, md: 48 },
+              flexShrink: 0,
+              zIndex: 1,
+              position: 'relative',
+              '&.Mui-disabled': {
+                opacity: 0.3,
+              },
+              '&:not(.Mui-disabled)': {
+                opacity: 1,
+              },
+            },
+          }}
+        >
+          <Tab icon={<PaymentIcon />} iconPosition="start" label="Payments" />
+          <Tab icon={<EmailIcon />} iconPosition="start" label="Email" />
+          <Tab icon={<AssessmentIcon />} iconPosition="start" label="Reports" />
+          <Tab icon={<SmartToyIcon />} iconPosition="start" label="AI Services" />
+          <Tab icon={<StorageIcon />} iconPosition="start" label="Storage" />
+        </Tabs>
+      </Box>
+
+      {/* Tab Panels */}
+      <TabPanel value={activeTab} index={0}>
+        <Grid container spacing={{ xs: 2, md: 3 }}>
         <Grid item xs={12}>
           <Paper sx={{ p: { xs: 1.5, md: 3 } }}>
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 2, gap: { xs: 1, md: 0 } }}>
@@ -418,6 +511,25 @@ export default function SystemSettingsPage() {
 
         <Grid item xs={12}>
           <Paper sx={{ p: { xs: 1.5, md: 3 } }}>
+            <Typography variant="h6" gutterBottom>
+              Webhook Configuration
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+              Webhook endpoint: {typeof window !== 'undefined' ? window.location.origin : ''}/api/webhooks/stripe
+            </Typography>
+            <Alert severity="info" sx={{ mt: 2 }}>
+              Configure this webhook endpoint in your Stripe Dashboard under Settings → Webhooks. 
+              This endpoint handles subscription events, payment confirmations, and other Stripe webhooks.
+            </Alert>
+          </Paper>
+        </Grid>
+        </Grid>
+      </TabPanel>
+
+      <TabPanel value={activeTab} index={1}>
+        <Grid container spacing={{ xs: 2, md: 3 }}>
+        <Grid item xs={12}>
+          <Paper sx={{ p: { xs: 1.5, md: 3 } }}>
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 2, gap: { xs: 1, md: 0 } }}>
               <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
                 Email Configuration (SendGrid)
@@ -477,9 +589,20 @@ export default function SystemSettingsPage() {
                   type="email"
                   value={senderEmail}
                   onChange={(e) => setSenderEmail(e.target.value)}
-                  placeholder="noreply@yourdomain.com"
+                  placeholder="email@fsm.life"
                   helperText="This email address must be verified in your SendGrid account as a Sender Identity. This is the 'from' address used for all system emails."
                   required
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Sender Name"
+                  type="text"
+                  value={senderName}
+                  onChange={(e) => setSenderName(e.target.value)}
+                  placeholder="FullStack Method™ App"
+                  helperText="The friendly name displayed as the sender in email clients (e.g., 'Acme Corp via FullStack Method™ App'). If left empty, will use organization name + app name format when available."
                 />
               </Grid>
 
@@ -519,7 +642,11 @@ export default function SystemSettingsPage() {
             </Grid>
           </Paper>
         </Grid>
+        </Grid>
+      </TabPanel>
 
+      <TabPanel value={activeTab} index={2}>
+        <Grid container spacing={{ xs: 2, md: 3 }}>
         <Grid item xs={12}>
           <Paper sx={{ p: { xs: 1.5, md: 3 } }}>
             <Typography variant="h6" gutterBottom>
@@ -533,7 +660,11 @@ export default function SystemSettingsPage() {
             <CronStatusSection />
           </Paper>
         </Grid>
+        </Grid>
+      </TabPanel>
 
+      <TabPanel value={activeTab} index={3}>
+        <Grid container spacing={{ xs: 2, md: 3 }}>
         <Grid item xs={12}>
           <Paper sx={{ p: { xs: 1.5, md: 3 } }}>
             <Typography variant="h6" gutterBottom>
@@ -544,7 +675,11 @@ export default function SystemSettingsPage() {
             </Typography>
           </Paper>
         </Grid>
+        </Grid>
+      </TabPanel>
 
+      <TabPanel value={activeTab} index={4}>
+        <Grid container spacing={{ xs: 2, md: 3 }}>
         <Grid item xs={12}>
           <Paper sx={{ p: { xs: 1.5, md: 3 } }}>
             <Typography variant="h6" gutterBottom>
@@ -555,7 +690,8 @@ export default function SystemSettingsPage() {
             </Typography>
           </Paper>
         </Grid>
-      </Grid>
+        </Grid>
+      </TabPanel>
     </Box>
   );
 }
