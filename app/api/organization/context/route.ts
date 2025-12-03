@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { getOrganizationContextById } from '@/lib/organizationContext';
 import { getCachedContext, setCachedContext } from '@/lib/cache/organizationContextCache';
+import { cacheGet, cacheSet, CACHE_KEYS, CACHE_TTL } from '@/lib/cache/unifiedCache';
 import logger from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
@@ -24,13 +25,27 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Check cache first
-    const cached = getCachedContext(user.id);
+    // Check unified cache first (Redis -> In-Memory)
+    const cacheKey = CACHE_KEYS.organizationContext(user.id);
+    
+    // Try unified cache first
+    const cached = await cacheGet(cacheKey);
+    
     if (cached) {
       const response = NextResponse.json(cached);
-      response.headers.set('Cache-Control', 'private, max-age=30'); // 30 second browser cache
-      response.headers.set('X-Cache-Version', '1.0'); // Cache version for client coordination
-      response.headers.set('X-Cache-Source', 'server-memory'); // Indicate this came from server cache
+      response.headers.set('Cache-Control', 'private, max-age=300'); // 5 minute browser cache
+      response.headers.set('X-Cache-Version', '1.0');
+      response.headers.set('X-Cache-Source', 'unified-cache');
+      return response;
+    }
+    
+    // Also check in-memory cache as fallback
+    const inMemoryCached = getCachedContext(user.id);
+    if (inMemoryCached) {
+      const response = NextResponse.json(inMemoryCached);
+      response.headers.set('Cache-Control', 'private, max-age=300');
+      response.headers.set('X-Cache-Version', '1.0');
+      response.headers.set('X-Cache-Source', 'server-memory');
       return response;
     }
 
@@ -126,13 +141,14 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Cache the result
-    setCachedContext(user.id, context);
+    // Cache the result in unified cache and in-memory cache
+    await cacheSet(cacheKey, context, CACHE_TTL.ORGANIZATION_CONTEXT);
+    setCachedContext(user.id, context); // Also set in-memory for backward compatibility
 
     const response = NextResponse.json(context);
-    response.headers.set('Cache-Control', 'private, max-age=30'); // 30 second browser cache
-    response.headers.set('X-Cache-Version', '1.0'); // Cache version for client coordination
-    response.headers.set('X-Cache-Source', 'database'); // Indicate this came from database
+    response.headers.set('Cache-Control', 'private, max-age=300'); // 5 minute browser cache
+    response.headers.set('X-Cache-Version', '1.0');
+    response.headers.set('X-Cache-Source', 'database');
     return response;
   } catch (error) {
     logger.error('Error in GET /api/organization/context:', error);

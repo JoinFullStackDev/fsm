@@ -83,16 +83,29 @@ export default function NotificationBell({ onOpenDrawer }: NotificationBellProps
     try {
       if (!user?.id) return;
 
-      // Subscribe to notifications table changes
+      // Unsubscribe from existing subscription if any
+      if (subscriptionRef.current) {
+        await subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+      }
+
+      // Subscribe to notifications table changes with optimized filter
+      // Use a more specific channel name to avoid conflicts
+      const channelName = `notifications:${user.id}`;
       const channel = supabase
-        .channel('notifications')
+        .channel(channelName, {
+          config: {
+            broadcast: { self: false }, // Don't receive own broadcasts
+            presence: { key: user.id }, // Use presence for connection tracking
+          },
+        })
         .on(
           'postgres_changes',
           {
             event: '*',
             schema: 'public',
             table: 'notifications',
-            filter: `user_id=eq.${user.id}`,
+            filter: `user_id=eq.${user.id}`, // Specific filter to reduce overhead
           },
           (payload: any) => {
             if (payload.eventType === 'INSERT') {
@@ -114,7 +127,13 @@ export default function NotificationBell({ onOpenDrawer }: NotificationBellProps
             }
           }
         )
-        .subscribe();
+        .subscribe((status: string) => {
+          if (status === 'SUBSCRIBED') {
+            logger.debug('[NotificationBell] Realtime subscription active');
+          } else if (status === 'CHANNEL_ERROR') {
+            logger.error('[NotificationBell] Realtime subscription error');
+          }
+        });
 
       subscriptionRef.current = channel;
     } catch (error) {

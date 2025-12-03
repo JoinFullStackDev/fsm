@@ -67,29 +67,42 @@ export async function GET(
       }
     }
 
-    // Get all project members using admin client
-    const { data: members, error: membersError } = await adminClient
-      .from('project_members')
-      .select(`
-        id,
-        user_id,
-        role,
-        user:users!project_members_user_id_fkey (
-          id,
-          name,
-          email,
-          avatar_url
-        )
-      `)
-      .eq('project_id', params.id)
-      .order('created_at', { ascending: true });
+    // Get all project members using admin client (with caching)
+    const { cacheGetOrSet, CACHE_KEYS, CACHE_TTL } = await import('@/lib/cache/unifiedCache');
+    const membersCacheKey = CACHE_KEYS.projectMembers(params.id);
+    
+    const members = await cacheGetOrSet(
+      membersCacheKey,
+      async () => {
+        const { data: membersData, error: membersError } = await adminClient
+          .from('project_members')
+          .select(`
+            id,
+            user_id,
+            role,
+            user:users!project_members_user_id_fkey (
+              id,
+              name,
+              email,
+              avatar_url
+            )
+          `)
+          .eq('project_id', params.id)
+          .order('created_at', { ascending: true });
 
-    if (membersError) {
-      logger.error('[Project Members GET] Error loading members:', membersError);
-      return internalError('Failed to load project members', { error: membersError.message });
-    }
+        if (membersError) {
+          logger.error('[Project Members GET] Error loading members:', membersError);
+          throw new Error(`Failed to load project members: ${membersError.message}`);
+        }
 
-    return NextResponse.json({ members: members || [] });
+        return membersData || [];
+      },
+      CACHE_TTL.PROJECT_MEMBERS
+    );
+
+    const response = NextResponse.json({ members: members || [] });
+    response.headers.set('Cache-Control', 'private, max-age=60'); // 1 minute
+    return response;
   } catch (error) {
     logger.error('[Project Members GET] Unexpected error:', error);
     return internalError('Failed to load project members', { error: error instanceof Error ? error.message : 'Unknown error' });
