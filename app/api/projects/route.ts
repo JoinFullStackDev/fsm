@@ -453,8 +453,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify company exists if company_id is provided (and belongs to organization)
+    // Use admin client to bypass RLS and avoid recursion
     if (company_id) {
-      const { data: company, error: companyError } = await supabase
+      const { data: company, error: companyError } = await adminClientForUser
         .from('companies')
         .select('id, organization_id')
         .eq('id', company_id)

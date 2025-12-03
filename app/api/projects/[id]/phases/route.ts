@@ -100,6 +100,9 @@ export async function POST(
       return unauthorized('You must be logged in to create project phases');
     }
 
+    // Use admin client to bypass RLS for all database operations
+    const adminClient = createAdminSupabaseClient();
+
     // Get user's organization
     const organizationId = await getUserOrganizationId(supabase, user.id);
     if (!organizationId) {
@@ -107,33 +110,18 @@ export async function POST(
     }
 
     // Get current user
-    let currentUser;
-    const { data: regularUserData, error: regularUserError } = await supabase
+    const { data: currentUser, error: userError } = await adminClient
       .from('users')
       .select('id, role, organization_id, is_super_admin')
       .eq('auth_id', user.id)
       .single();
 
-    if (regularUserError || !regularUserData) {
-      // RLS might be blocking - try admin client
-      const adminClient = createAdminSupabaseClient();
-      const { data: adminUserData, error: adminUserError } = await adminClient
-        .from('users')
-        .select('id, role, organization_id, is_super_admin')
-        .eq('auth_id', user.id)
-        .single();
-
-      if (adminUserError || !adminUserData) {
-        return notFound('User not found');
-      }
-
-      currentUser = adminUserData;
-    } else {
-      currentUser = regularUserData;
+    if (userError || !currentUser) {
+      return notFound('User not found');
     }
 
     // Verify user is project owner, member, or admin
-    const { data: project, error: projectError } = await supabase
+    const { data: project, error: projectError } = await adminClient
       .from('projects')
       .select('owner_id, organization_id')
       .eq('id', params.id)
@@ -154,12 +142,12 @@ export async function POST(
     const isAdmin = currentUser.role === 'admin';
 
     // Check if user is a project member
-    const { data: projectMember } = await supabase
+    const { data: projectMember } = await adminClient
       .from('project_members')
       .select('id')
       .eq('project_id', params.id)
       .eq('user_id', currentUser.id)
-      .single();
+      .maybeSingle();
 
     const isProjectMember = isOwner || !!projectMember || isAdmin;
 
@@ -175,7 +163,7 @@ export async function POST(
     }
 
     // Get the highest phase_number and display_order for this project
-    const { data: existingPhases, error: existingError } = await supabase
+    const { data: existingPhases, error: existingError } = await adminClient
       .from('project_phases')
       .select('phase_number, display_order')
       .eq('project_id', params.id)
@@ -198,8 +186,8 @@ export async function POST(
           ? existingPhases[0].display_order + 1
           : 1);
 
-    // Create the new phase
-    const { data: newPhase, error: createError } = await supabase
+    // Create the new phase using admin client to bypass RLS
+    const { data: newPhase, error: createError } = await adminClient
       .from('project_phases')
       .insert({
         project_id: params.id,

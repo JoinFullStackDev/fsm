@@ -311,12 +311,19 @@ export default function CreateProjectDialog({
         }
       }
 
-      const { error: phasesError } = await supabase
-        .from('project_phases')
-        .insert(phaseInserts);
+      // Use API route to create phases (bypasses RLS)
+      const phasesResponse = await fetch(`/api/projects/${projectData.id}/phases/bulk`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(await getCsrfHeaders()),
+        },
+        body: JSON.stringify({ phases: phaseInserts }),
+      });
 
-      if (phasesError) {
-        setError(phasesError.message);
+      if (!phasesResponse.ok) {
+        const errorData = await phasesResponse.json().catch(() => ({ error: 'Failed to create phases' }));
+        setError(errorData.error || 'Failed to create phases');
         setLoading(false);
         return;
       }
