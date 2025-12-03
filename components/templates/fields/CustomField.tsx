@@ -40,16 +40,10 @@ function CustomField({
   const config = field.field_config;
 
   // If a custom renderer is provided, use it
+  // Note: Label is rendered by TemplateBasedPhaseForm, so we don't render it here
   if (renderCustomComponent) {
     return (
       <Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-          <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
-            {config.label}
-            {config.required && <span style={{ color: 'red' }}> *</span>}
-          </Typography>
-          {config.helpText && <HelpTooltip title={config.helpText} />}
-        </Box>
         {error && (
           <Typography variant="caption" color="error" sx={{ mb: 1, display: 'block' }}>
             {error}
@@ -74,15 +68,9 @@ function CustomField({
   }
 
   // Default: show a message that this field type needs custom rendering
+  // Note: Label is rendered by TemplateBasedPhaseForm, so we don't render it here
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-        <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
-          {config.label}
-          {config.required && <span style={{ color: 'red' }}> *</span>}
-        </Typography>
-        {config.helpText && <HelpTooltip title={config.helpText} />}
-      </Box>
       {error && (
         <Typography variant="caption" color="error" sx={{ mb: 1, display: 'block' }}>
           {error}

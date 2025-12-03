@@ -31,23 +31,42 @@ export async function GET(request: NextRequest) {
     // First, try to get active or trialing subscription
     let { data: subscription, error: subError } = await adminClient
       .from('subscriptions')
-      .select('id, status, current_period_start, current_period_end, cancel_at_period_end, stripe_subscription_id, stripe_price_id, package_id, updated_at')
+      .select('id, status, current_period_start, current_period_end, cancel_at_period_end, stripe_subscription_id, stripe_price_id, package_id, billing_interval, updated_at')
       .eq('organization_id', organizationId)
       .in('status', ['active', 'trialing'])
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    // If no active/trialing subscription, get the most recent subscription regardless of status
-    if (!subscription && subError?.code === 'PGRST116') {
+    logger.info('[Subscription API] Initial query result:', {
+      organizationId,
+      foundSubscription: !!subscription,
+      subscriptionId: subscription?.id,
+      subscriptionStatus: subscription?.status,
+      error: subError?.message,
+      errorCode: subError?.code,
+    });
+
+    // If no active/trialing subscription found, get the most recent subscription regardless of status
+    // This handles cases where subscription exists but status might be different (e.g., canceled but still valid)
+    if (!subscription) {
       logger.info('[Subscription API] No active/trialing subscription found, checking for any subscription');
       const { data: anySubscription, error: anySubError } = await adminClient
         .from('subscriptions')
-        .select('id, status, current_period_start, current_period_end, cancel_at_period_end, stripe_subscription_id, stripe_price_id, package_id, updated_at')
+        .select('id, status, current_period_start, current_period_end, cancel_at_period_end, stripe_subscription_id, stripe_price_id, package_id, billing_interval, updated_at')
         .eq('organization_id', organizationId)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
+
+      logger.info('[Subscription API] Fallback query result:', {
+        organizationId,
+        foundSubscription: !!anySubscription,
+        subscriptionId: anySubscription?.id,
+        subscriptionStatus: anySubscription?.status,
+        error: anySubError?.message,
+        errorCode: anySubError?.code,
+      });
 
       if (anySubscription) {
         subscription = anySubscription;
@@ -56,6 +75,8 @@ export async function GET(request: NextRequest) {
       } else if (anySubError && anySubError.code !== 'PGRST116') {
         logger.error('[Subscription API] Error loading any subscription:', anySubError);
         subError = anySubError;
+      } else {
+        logger.info('[Subscription API] No subscription record found for organization:', organizationId);
       }
     }
 
@@ -186,6 +207,11 @@ export async function GET(request: NextRequest) {
 
     // Get package details if subscription exists
     if (subscription && subscription.package_id) {
+      logger.info('[Subscription API] Loading package for subscription:', {
+        subscriptionId: subscription.id,
+        packageId: subscription.package_id,
+      });
+
       const { data: packageData, error: pkgError } = await adminClient
         .from('packages')
         .select('id, name, pricing_model, base_price_monthly, base_price_yearly, price_per_user_monthly, price_per_user_yearly, stripe_price_id_monthly, stripe_price_id_yearly, features')
@@ -194,13 +220,28 @@ export async function GET(request: NextRequest) {
 
       if (packageData) {
         (subscription as any).package = packageData;
+        logger.info('[Subscription API] Package loaded successfully:', {
+          packageId: packageData.id,
+          packageName: packageData.name,
+        });
       } else if (pkgError) {
-        logger.warn('[Subscription API] Package not found for subscription:', {
+        logger.error('[Subscription API] Package not found for subscription:', {
           subscriptionId: subscription.id,
           packageId: subscription.package_id,
-          error: pkgError.message
+          error: pkgError.message,
+          errorCode: pkgError.code,
+        });
+      } else {
+        logger.warn('[Subscription API] Package query returned no data:', {
+          subscriptionId: subscription.id,
+          packageId: subscription.package_id,
         });
       }
+    } else if (subscription && !subscription.package_id) {
+      logger.warn('[Subscription API] Subscription exists but has no package_id:', {
+        subscriptionId: subscription.id,
+        subscriptionStatus: subscription.status,
+      });
     }
 
     // Log if there's an error (but don't fail if it's just "not found")
@@ -209,13 +250,77 @@ export async function GET(request: NextRequest) {
       return internalError('Failed to load subscription', { error: subError.message });
     }
 
+    // If no subscription found but organization has active status, log warning
+    if (!subscription) {
+      const { data: orgData } = await adminClient
+        .from('organizations')
+        .select('subscription_status, stripe_customer_id')
+        .eq('id', organizationId)
+        .single();
+      
+      if (orgData && (orgData.subscription_status === 'active' || orgData.stripe_customer_id)) {
+        logger.warn('[Subscription API] Organization has active status or Stripe customer ID but no subscription record:', {
+          organizationId,
+          subscriptionStatus: orgData.subscription_status,
+          hasStripeCustomerId: !!orgData.stripe_customer_id,
+        });
+      }
+    }
+
+    // Ensure subscription object has package field if package_id exists
+    // This is critical for the frontend component to recognize the subscription
+    if (subscription && subscription.package_id && !(subscription as any).package) {
+      logger.warn('[Subscription API] Subscription missing package object, attempting to load:', {
+        subscriptionId: subscription.id,
+        packageId: subscription.package_id,
+      });
+      
+      // Try to load package one more time
+      const { data: packageData } = await adminClient
+        .from('packages')
+        .select('id, name, pricing_model, base_price_monthly, base_price_yearly, price_per_user_monthly, price_per_user_yearly, stripe_price_id_monthly, stripe_price_id_yearly, features')
+        .eq('id', subscription.package_id)
+        .single();
+      
+      if (packageData) {
+        (subscription as any).package = packageData;
+        logger.info('[Subscription API] Package loaded in final check');
+      } else {
+        logger.error('[Subscription API] Failed to load package in final check');
+      }
+    }
+
+    // Log detailed information about what we're returning
+    const responseData = { subscription: subscription || null };
+    
+    // Verify package is actually in the response object
+    const subscriptionInResponse = responseData.subscription as any;
+    const hasPackageInResponse = !!(subscriptionInResponse?.package);
+    
     logger.info('[Subscription API] Returning subscription data', {
       organizationId,
       hasSubscription: !!subscription,
-      status: subscription?.status || 'none'
+      status: subscription?.status || 'none',
+      subscriptionId: subscription?.id || null,
+      hasPackage: !!(subscription as any)?.package,
+      hasPackageInResponse,
+      packageId: subscription?.package_id || null,
+      packageName: (subscription as any)?.package?.name || null,
+      stripeSubscriptionId: subscription?.stripe_subscription_id || null,
+      responseDataKeys: Object.keys(responseData),
+      subscriptionKeys: subscription ? Object.keys(subscription) : [],
+      packageKeys: (subscription as any)?.package ? Object.keys((subscription as any).package) : [],
     });
 
-    return NextResponse.json({ subscription: subscription || null });
+    // Log the actual JSON that will be sent (first 500 chars to avoid huge logs)
+    const jsonString = JSON.stringify(responseData);
+    logger.info('[Subscription API] JSON response preview:', {
+      jsonLength: jsonString.length,
+      jsonPreview: jsonString.substring(0, 500),
+      containsPackage: jsonString.includes('"package"'),
+    });
+
+    return NextResponse.json(responseData);
   } catch (error) {
     logger.error('Error in GET /api/organization/subscription:', error);
     return internalError('Failed to load subscription', {

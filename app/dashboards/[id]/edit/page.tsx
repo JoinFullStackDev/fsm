@@ -214,13 +214,21 @@ export default function DashboardEditorPage() {
         defaultDataset = { content: '' };
       }
 
+      // Set default height based on widget type
+      let defaultHeight = 3; // Default for metric and rich_text
+      if (widgetType === 'chart' || widgetType === 'table') {
+        defaultHeight = 8;
+      } else if (widgetType === 'ai_insight') {
+        defaultHeight = 14;
+      }
+
       // Optimistically update local state
       const tempId = `temp-${Date.now()}`;
       const newWidget = {
         id: tempId,
         widget_type: widgetType,
         dataset: defaultDataset,
-        position: { x: gridX, y: gridY, w: 4, h: 3 },
+        position: { x: gridX, y: gridY, w: 4, h: defaultHeight },
         settings: {},
       };
 
@@ -235,7 +243,7 @@ export default function DashboardEditorPage() {
         body: JSON.stringify({
           widget_type: widgetType,
           dataset: defaultDataset,
-          position: { x: gridX, y: gridY, w: 4, h: 3 },
+          position: { x: gridX, y: gridY, w: 4, h: defaultHeight },
           settings: {},
         }),
       });
@@ -446,10 +454,21 @@ export default function DashboardEditorPage() {
       for (let i = 0; i < template.widgets.length; i++) {
         const widgetTemplate = template.widgets[i];
         try {
+          // Set default height based on widget type (overrides template height)
+          let defaultHeight = widgetTemplate.position?.h || 3; // Use template height as fallback
+          if (widgetTemplate.widget_type === 'chart' || widgetTemplate.widget_type === 'table') {
+            defaultHeight = 8;
+          } else if (widgetTemplate.widget_type === 'ai_insight') {
+            defaultHeight = 14;
+          }
+          
           const widgetBody = {
             widget_type: widgetTemplate.widget_type,
             dataset: widgetTemplate.dataset || {},
-            position: widgetTemplate.position || { x: 0, y: 0, w: 4, h: 3 },
+            position: {
+              ...(widgetTemplate.position || { x: 0, y: 0, w: 4, h: 3 }),
+              h: defaultHeight, // Override height with default
+            },
             settings: widgetTemplate.settings || {},
           };
 

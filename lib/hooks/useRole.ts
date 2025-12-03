@@ -27,11 +27,19 @@ import type { UserRole } from '@/types/project';
 export function useRole() {
   const { user, loading } = useUser();
 
-  return useMemo(() => ({
-    role: (user?.role as UserRole) || null,
-    isSuperAdmin: user?.is_super_admin || false,
-    isCompanyAdmin: user?.is_company_admin || false,
-    loading,
-  }), [user, loading]);
+  return useMemo(() => {
+    const isSuperAdmin = user?.is_super_admin || false;
+    const isCompanyAdmin = user?.is_company_admin || false;
+    // Fallback: users with role = 'admin' and is_super_admin = false are also company admins
+    const isLegacyAdmin = user?.role === 'admin' && !isSuperAdmin;
+    const effectiveCompanyAdmin = isCompanyAdmin || isLegacyAdmin;
+
+    return {
+      role: (user?.role as UserRole) || null,
+      isSuperAdmin,
+      isCompanyAdmin: effectiveCompanyAdmin,
+      loading,
+    };
+  }, [user, loading]);
 }
 

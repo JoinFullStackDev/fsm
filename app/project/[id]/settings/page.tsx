@@ -89,89 +89,62 @@ export default function ProjectSettingsPage() {
   useEffect(() => {
     const loadTemplates = async () => {
       setLoadingTemplates(true);
-      const { data, error: fetchError } = await supabase
-        .from('project_templates')
-        .select('*')
-        .order('name', { ascending: true });
-
-      if (!fetchError && data) {
-        setTemplates(data);
+      try {
+        const response = await fetch('/api/admin/templates');
+        if (response.ok) {
+          const data = await response.json();
+          setTemplates(data.data || []);
+        } else {
+          console.error('Error loading templates:', await response.json());
+          setTemplates([]);
+        }
+      } catch (error) {
+        console.error('Error loading templates:', error);
+        setTemplates([]);
+      } finally {
+        setLoadingTemplates(false);
       }
-      setLoadingTemplates(false);
     };
 
     loadTemplates();
-  }, [supabase]);
+  }, []);
 
   const loadMembers = useCallback(async () => {
     setLoadingMembers(true);
     try {
-      // Load project members
-      const { data: membersData, error: membersError } = await supabase
-        .from('project_members')
-        .select(`
-          id,
-          user_id,
-          role,
-          user:users!project_members_user_id_fkey (
-            id,
-            name,
-            email
-          )
-        `)
-        .eq('project_id', projectId);
-
-      if (membersError) {
-        console.error('Error loading members:', membersError);
-        return;
+      // Load project members via API route to avoid RLS recursion
+      // Add cache-busting timestamp to ensure fresh data after adding/removing members
+      const membersResponse = await fetch(`/api/projects/${projectId}/members?t=${Date.now()}`, {
+        cache: 'no-store', // Ensure we always get fresh data
+      });
+      let membersData: any[] = [];
+      if (membersResponse.ok) {
+        const responseData = await membersResponse.json();
+        membersData = responseData.members || [];
+        setMembers(membersData as any);
+      } else {
+        console.error('Error loading members:', await membersResponse.json());
+        setMembers([]);
       }
 
-      setMembers((membersData || []) as any);
-
-      // Get current user's organization_id to filter users
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setLoadingMembers(false);
-        return;
-      }
-
-      const { data: currentUser } = await supabase
-        .from('users')
-        .select('organization_id, role, is_super_admin')
-        .eq('auth_id', session.user.id)
-        .single();
-
-      // Load users from the same organization (or all users if super admin)
-      let usersQuery = supabase
-        .from('users')
-        .select('id, name, email, role')
-        .order('name');
-
-      // Filter by organization unless user is super admin
-      if (currentUser && !(currentUser.role === 'admin' && currentUser.is_super_admin === true)) {
-        if (currentUser.organization_id) {
-          usersQuery = usersQuery.eq('organization_id', currentUser.organization_id);
-        } else {
-          // User has no organization, show no users
-          setAvailableUsers([]);
-          setLoadingMembers(false);
-          return;
-        }
-      }
-
-      const { data: usersData } = await usersQuery;
-
-      if (usersData) {
+      // Load available users via API route to avoid RLS recursion
+      const usersResponse = await fetch('/api/users');
+      if (usersResponse.ok) {
+        const allUsers = await usersResponse.json();
+        
         // Filter out users who are already members
-        const memberUserIds = new Set(membersData?.map((m: any) => m.user_id) || []);
-        setAvailableUsers(usersData.filter((u: any) => !memberUserIds.has(u.id)) as User[]);
+        const memberUserIds = new Set(membersData.map((m: any) => m.user_id));
+        setAvailableUsers(allUsers.filter((u: any) => !memberUserIds.has(u.id)) as User[]);
+      } else {
+        console.error('Error loading users:', await usersResponse.json());
+        setAvailableUsers([]);
       }
     } catch (err) {
       console.error('Error loading members:', err);
     } finally {
       setLoadingMembers(false);
     }
-  }, [projectId, supabase]);
+  }, [projectId]);
 
   const loadSOWs = useCallback(async () => {
     if (!projectId) return;
@@ -197,30 +170,33 @@ export default function ProjectSettingsPage() {
         return;
       }
 
-      const { data: projectData, error: projectError } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', projectId)
-        .single();
+      try {
+        const response = await fetch(`/api/projects/${projectId}`);
+        if (!response.ok) {
+          const errorData = await response.json();
+          setError(errorData.error || 'Project not found');
+          setLoading(false);
+          return;
+        }
 
-      if (projectError || !projectData) {
-        setError(projectError?.message || 'Project not found');
+        const projectData = await response.json();
+        setProject(projectData);
+        setName(projectData.name);
+        setDescription(projectData.description || '');
+        setStatus(projectData.status);
+        setPrimaryTool(projectData.primary_tool || 'cursor');
+        const currentTemplateId = projectData.template_id || '';
+        setTemplateId(currentTemplateId);
+        setOriginalTemplateId(currentTemplateId);
         setLoading(false);
-        return;
+        
+        // Load members after project loads
+        loadMembers();
+      } catch (error) {
+        console.error('Error loading project:', error);
+        setError('Failed to load project');
+        setLoading(false);
       }
-
-      setProject(projectData);
-      setName(projectData.name);
-      setDescription(projectData.description || '');
-      setStatus(projectData.status);
-      setPrimaryTool(projectData.primary_tool || 'cursor');
-      const currentTemplateId = (projectData as any).template_id || '';
-      setTemplateId(currentTemplateId);
-      setOriginalTemplateId(currentTemplateId);
-      setLoading(false);
-      
-      // Load members after project loads
-      loadMembers();
     };
 
     if (projectId) {
@@ -321,23 +297,30 @@ export default function ProjectSettingsPage() {
   const handleRemoveMember = async () => {
     if (!memberToRemove) return;
 
-    const { error: removeError } = await supabase
-      .from('project_members')
-      .delete()
-      .eq('id', memberToRemove);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/members/${memberToRemove}`, {
+        method: 'DELETE',
+        headers: getCsrfHeaders(),
+      });
 
-    if (removeError) {
-      showError('Failed to remove member: ' + removeError.message);
+      if (!response.ok) {
+        const error = await response.json();
+        showError('Failed to remove member: ' + (error.error || 'Unknown error'));
+        setShowRemoveConfirm(false);
+        setMemberToRemove(null);
+        return;
+      }
+
+      showSuccess('Member removed successfully');
       setShowRemoveConfirm(false);
       setMemberToRemove(null);
-      return;
+      // Reload members
+      loadMembers();
+    } catch (error) {
+      showError('Failed to remove member: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      setShowRemoveConfirm(false);
+      setMemberToRemove(null);
     }
-
-    showSuccess('Member removed successfully');
-    setShowRemoveConfirm(false);
-    setMemberToRemove(null);
-    // Reload members
-    loadMembers();
   };
 
   if (loading) {

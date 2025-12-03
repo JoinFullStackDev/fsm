@@ -144,10 +144,8 @@ export default function RoleDialog({ open, onClose, onSave, role }: RoleDialogPr
         },
       }}
     >
-      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h6" sx={{ fontWeight: 600 }}>
-          {isEditing ? 'Edit Role' : 'Create Role'}
-        </Typography>
+      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 600 }}>
+        {isEditing ? 'Edit Role' : 'Create Role'}
         <IconButton onClick={onClose} size="small">
           <CloseIcon />
         </IconButton>

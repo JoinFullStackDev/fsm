@@ -115,8 +115,11 @@ export default function ProjectMembersPage() {
     }
 
     // Load project members and resource data via combined API route
+    // Add cache-busting to ensure fresh data
     const [membersResponse, resourcesResponse] = await Promise.all([
-      fetch(`/api/projects/${projectId}/members`),
+      fetch(`/api/projects/${projectId}/members?t=${Date.now()}`, {
+        cache: 'no-store', // Ensure fresh data
+      }),
       fetch(`/api/projects/${projectId}/resources`),
     ]);
 
@@ -151,37 +154,16 @@ export default function ProjectMembersPage() {
       setWorkloads(workloadMap);
     }
 
-    // Get current user's organization_id to filter users
-    const { data: currentUser } = await supabase
-      .from('users')
-      .select('organization_id, role, is_super_admin')
-      .eq('auth_id', session.user.id)
-      .single();
-
-    // Load users from the same organization (or all users if super admin)
-    let usersQuery = supabase
-      .from('users')
-      .select('id, name, email, role')
-      .order('name');
-
-    // Filter by organization unless user is super admin
-    if (currentUser && !(currentUser.role === 'admin' && currentUser.is_super_admin === true)) {
-      if (currentUser.organization_id) {
-        usersQuery = usersQuery.eq('organization_id', currentUser.organization_id);
-      } else {
-        // User has no organization, show no users
-        setAvailableUsers([]);
-        setLoading(false);
-        return;
-      }
-    }
-
-    const { data: usersData } = await usersQuery;
-
-    if (usersData) {
+    // Load available users via API route to avoid RLS recursion
+    const usersResponse = await fetch('/api/users');
+    if (usersResponse.ok) {
+      const allUsers = await usersResponse.json();
       // Filter out users who are already members
       const memberUserIds = new Set(membersArray.map((m: any) => m.user_id));
-      setAvailableUsers(usersData.filter((u: any) => !memberUserIds.has(u.id)) as User[]);
+      setAvailableUsers(allUsers.filter((u: any) => !memberUserIds.has(u.id)) as User[]);
+    } else {
+      console.error('Error loading users:', await usersResponse.json());
+      setAvailableUsers([]);
     }
 
     setLoading(false);

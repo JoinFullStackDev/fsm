@@ -280,15 +280,17 @@ export default function AdminRolesTab() {
                                 <EditIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
-                            <Tooltip title="Delete role">
-                              <IconButton
-                                size="small"
-                                onClick={() => handleDeleteRole(role)}
-                                disabled={!!role.user_count && role.user_count > 0}
-                                sx={{ color: theme.palette.error.main }}
-                              >
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
+                            <Tooltip title={!!role.user_count && role.user_count > 0 ? 'Cannot delete role with assigned users' : 'Delete role'}>
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleDeleteRole(role)}
+                                  disabled={!!role.user_count && role.user_count > 0}
+                                  sx={{ color: theme.palette.error.main }}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </span>
                             </Tooltip>
                           </Box>
                         </TableCell>

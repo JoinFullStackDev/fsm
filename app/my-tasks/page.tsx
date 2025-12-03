@@ -58,30 +58,23 @@ export default function MyTasksPage() {
         return;
       }
 
-      // Get all projects user is a member of
-      const { data: ownedProjects } = await supabase
-        .from('projects')
-        .select('id, name')
-        .eq('owner_id', userData.id);
+      // Use API route to get projects (avoids RLS recursion)
+      const projectsResponse = await fetch('/api/projects?limit=1000');
+      if (!projectsResponse.ok) {
+        setError('Failed to load projects');
+        setLoading(false);
+        return;
+      }
 
-      const { data: memberProjects } = await supabase
-        .from('project_members')
-        .select('project_id, projects(id, name)')
-        .eq('user_id', userData.id);
-
+      const projectsData = await projectsResponse.json();
+      const projectsList = projectsData.projects || [];
+      
       const allProjectIds = new Set<string>();
       const projectMap = new Map<string, { id: string; name: string }>();
 
-      (ownedProjects || []).forEach((p: { id: string; name: string }) => {
+      projectsList.forEach((p: { id: string; name: string }) => {
         allProjectIds.add(p.id);
         projectMap.set(p.id, p);
-      });
-
-      (memberProjects || []).forEach((mp: any) => {
-        if (mp.projects) {
-          allProjectIds.add(mp.projects.id);
-          projectMap.set(mp.projects.id, mp.projects);
-        }
       });
 
       setProjects(Array.from(projectMap.values()));

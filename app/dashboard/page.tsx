@@ -202,34 +202,8 @@ function DashboardPageContent() {
         // This reduces unnecessary API calls on page load
         // Users will be loaded when showInvitePrompt becomes true
 
-        // Load project members
-        if (projectIds.length > 0) {
-          const { data: membersData, error: membersError } = await supabase
-            .from('project_members')
-            .select('project_id, user_id, role, users(*)')
-            .in('project_id', projectIds);
-
-          if (!membersError && membersData) {
-            const members = membersData.map((m: any) => ({
-              project_id: m.project_id,
-              user_id: m.user_id,
-              role: m.role,
-              user: m.users,
-            }));
-            setProjectMembers(members);
-
-            // Merge project member users with existing org users (don't overwrite)
-            const projectMemberUsers = Array.from(
-              new Map(members.map((m: any) => [m.user.id, m.user])).values()
-            ) as User[];
-            // Merge with existing users, keeping org users as base
-            setUsers((prevUsers) => {
-              const allUsersMap = new Map(prevUsers.map(u => [u.id, u]));
-              projectMemberUsers.forEach(u => allUsersMap.set(u.id, u));
-              return Array.from(allUsersMap.values());
-            });
-          }
-        }
+        // Project members are loaded via the projects API route, no need for separate query
+        // This avoids RLS recursion issues
         } catch (fetchError) {
           logger.error('[Dashboard] Error fetching projects:', fetchError);
           setError(fetchError instanceof Error ? fetchError.message : 'Failed to load projects');

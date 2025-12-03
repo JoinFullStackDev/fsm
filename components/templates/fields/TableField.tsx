@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -66,6 +66,7 @@ interface TableFieldProps {
   onChange: (value: any) => void;
   error?: string;
   phaseData?: any;
+  renderHeaderActions?: (actions: React.ReactNode) => void;
 }
 
 interface TableColumn {
@@ -173,7 +174,7 @@ function SortableColumnHeader({
   );
 }
 
-function TableField({ field, value, onChange, error, phaseData }: TableFieldProps) {
+function TableField({ field, value, onChange, error, phaseData, renderHeaderActions }: TableFieldProps) {
   const theme = useTheme();
   const [tableData, setTableData] = useState<TableData>(() => {
     if (value && typeof value === 'object' && value.columns && value.rows) {
@@ -434,7 +435,7 @@ function TableField({ field, value, onChange, error, phaseData }: TableFieldProp
     });
   };
 
-  const handleCSVImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCSVImport = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -498,9 +499,9 @@ function TableField({ field, value, onChange, error, phaseData }: TableFieldProp
     reader.readAsText(file);
     event.target.value = '';
     setCsvMenuAnchor(null);
-  };
+  }, [handleTableDataChange]);
 
-  const handleCSVExport = () => {
+  const handleCSVExport = useCallback(() => {
     if (tableData.rows.length === 0) {
       alert('No data to export');
       return;
@@ -532,7 +533,7 @@ function TableField({ field, value, onChange, error, phaseData }: TableFieldProp
     link.click();
     document.body.removeChild(link);
     setCsvMenuAnchor(null);
-  };
+  }, [tableData, field.field_config.label]);
 
   const handleDragStart = (event: DragStartEvent) => {
     // Only allow dragging column headers, not table cells
@@ -862,6 +863,68 @@ function TableField({ field, value, onChange, error, phaseData }: TableFieldProp
       </DndContext>
   );
 
+  // Render header actions (buttons that go in the header)
+  // Memoize to prevent infinite loops
+  const headerActionButtons = useMemo(() => (
+    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+      <input
+        accept=".csv"
+        style={{ display: 'none' }}
+        id={`csv-upload-preview-${field.field_key}`}
+        type="file"
+        onChange={handleCSVImport}
+      />
+      <Button
+        component="label"
+        htmlFor={`csv-upload-preview-${field.field_key}`}
+        startIcon={<FileUploadIcon />}
+        size="small"
+        sx={{ color: 'text.secondary' }}
+      >
+        Import CSV
+      </Button>
+      <Button
+        onClick={handleCSVExport}
+        disabled={tableData.rows.length === 0}
+        startIcon={<FileDownloadIcon />}
+        size="small"
+        sx={{ color: 'text.secondary' }}
+      >
+        Export CSV
+      </Button>
+      <Button
+        variant="contained"
+        onClick={() => setIsFullscreen(true)}
+        startIcon={<FullscreenIcon />}
+        size="small"
+        sx={{
+          backgroundColor: 'primary.main',
+          color: '#000',
+        }}
+      >
+        Open Editor
+      </Button>
+    </Box>
+  ), [field.field_key, tableData.rows.length, handleCSVImport, handleCSVExport]);
+
+  // Use useEffect to pass header actions to parent if callback provided
+  // Only update when the buttons actually change (track by key dependencies)
+  const prevRowsLengthRef = useRef<number | undefined>(undefined);
+  const hasSetActionsRef = useRef(false);
+  
+  useEffect(() => {
+    if (renderHeaderActions) {
+      const rowsLengthChanged = prevRowsLengthRef.current !== tableData.rows.length;
+      
+      // Only update if rows length changed (which affects button disabled state) or first render
+      if (rowsLengthChanged || !hasSetActionsRef.current) {
+        prevRowsLengthRef.current = tableData.rows.length;
+        hasSetActionsRef.current = true;
+        renderHeaderActions(headerActionButtons);
+      }
+    }
+  }, [renderHeaderActions, headerActionButtons, tableData.rows.length]);
+
   // Render preview table (read-only, limited rows)
   const renderPreview = () => {
     const previewRows = tableData.rows.slice(0, 10);
@@ -870,57 +933,6 @@ function TableField({ field, value, onChange, error, phaseData }: TableFieldProp
 
     return (
       <Box>
-        {/* Action Buttons */}
-        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 2, gap: { xs: 2, md: 0 } }}>
-          <Typography variant="h6" sx={{ color: 'text.primary' }}>
-            {field.field_config.label || 'Table'}
-            {field.field_config.required && (
-              <Box component="span" sx={{ color: 'error.main', fontSize: '1.2em', lineHeight: 1, ml: 0.5 }}>
-                *
-              </Box>
-            )}
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', width: { xs: '100%', md: 'auto' } }}>
-            <input
-              accept=".csv"
-              style={{ display: 'none' }}
-              id={`csv-upload-preview-${field.field_key}`}
-              type="file"
-              onChange={handleCSVImport}
-            />
-            <Button
-              component="label"
-              htmlFor={`csv-upload-preview-${field.field_key}`}
-              startIcon={<FileUploadIcon />}
-              size="small"
-              sx={{ color: 'text.secondary', flex: { xs: 1, md: '0 0 auto' } }}
-            >
-              Import CSV
-            </Button>
-            <Button
-              onClick={handleCSVExport}
-              disabled={tableData.rows.length === 0}
-              startIcon={<FileDownloadIcon />}
-              size="small"
-              sx={{ color: 'text.secondary', flex: { xs: 1, md: '0 0 auto' } }}
-            >
-              Export CSV
-            </Button>
-            <Button
-              variant="contained"
-              onClick={() => setIsFullscreen(true)}
-              startIcon={<FullscreenIcon />}
-              size="small"
-              sx={{
-                backgroundColor: 'primary.main',
-                color: '#000',
-                flex: { xs: 1, md: '0 0 auto' },
-              }}
-            >
-              Open Editor
-            </Button>
-          </Box>
-        </Box>
 
         {/* Preview Table */}
         {tableData.rows.length === 0 ? (
@@ -1240,9 +1252,7 @@ function TableField({ field, value, onChange, error, phaseData }: TableFieldProp
               backgroundColor: '#000',
             }}
           >
-            <Typography variant="h6" sx={{ color: 'primary.main' }}>
-              {field.field_config.label || 'Table'}
-            </Typography>
+            {/* Label is rendered by TemplateBasedPhaseForm, so we don't render it here */}
             <IconButton
               onClick={() => setIsFullscreen(false)}
               sx={{ color: 'primary.main' }}

@@ -57,6 +57,15 @@ export function generateZodSchema(fields: TemplateFieldConfig[]): z.ZodObject<an
         }
         break;
 
+      case 'erd':
+        // ERD has structured data (entities and relationships)
+        // Use z.any() to allow flexible ERD data structure
+        fieldSchema = z.any();
+        if (!config.required) {
+          fieldSchema = fieldSchema.optional();
+        }
+        break;
+
       case 'custom':
       case 'object':
         // For custom types, use z.any() or z.unknown() as a fallback

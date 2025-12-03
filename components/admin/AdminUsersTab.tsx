@@ -585,33 +585,37 @@ export default function AdminUsersTab() {
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
           <Tooltip
             title={
-              subscriptionInfo?.pricingModel === 'per_user' && costDisplay
+              userLimit !== null && !userLimit.allowed
+                ? 'User limit reached'
+                : subscriptionInfo?.pricingModel === 'per_user' && costDisplay
                 ? `Adding a user will increase your subscription by ${costDisplay}`
                 : ''
             }
             arrow
           >
-            <Button
-              variant="outlined"
-              startIcon={<AddIcon />}
-              onClick={() => setCreateUserDialogOpen(true)}
-              disabled={userLimit !== null && !userLimit.allowed}
-              sx={{
-                borderColor: theme.palette.text.primary,
-                color: theme.palette.text.primary,
-                fontWeight: 600,
-                '&:hover': {
+            <span>
+              <Button
+                variant="outlined"
+                startIcon={<AddIcon />}
+                onClick={() => setCreateUserDialogOpen(true)}
+                disabled={userLimit !== null && !userLimit.allowed}
+                sx={{
                   borderColor: theme.palette.text.primary,
-                  backgroundColor: theme.palette.action.hover,
-                },
-                '&.Mui-disabled': {
-                  borderColor: theme.palette.divider,
-                  color: theme.palette.text.secondary,
-                },
-              }}
-            >
-              Add User
-            </Button>
+                  color: theme.palette.text.primary,
+                  fontWeight: 600,
+                  '&:hover': {
+                    borderColor: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                  '&.Mui-disabled': {
+                    borderColor: theme.palette.divider,
+                    color: theme.palette.text.secondary,
+                  },
+                }}
+              >
+                Add User
+              </Button>
+            </span>
           </Tooltip>
           {selectedUsers.size > 0 && (
             <Box sx={{ display: 'flex', gap: 1 }}>

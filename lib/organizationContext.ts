@@ -96,10 +96,13 @@ export async function getUserOrganizationId(
       return orgId;
     }
 
-    // Fallback: Direct query (RLS should allow reading own user record)
+    // Fallback: Use admin client to avoid RLS recursion
+    // Direct query to users table causes recursion in RLS policies
     if (rpcError) {
-      logger.warn('[OrganizationContext] RPC user_organization_id failed, using direct query:', rpcError);
-      const { data: user, error } = await supabase
+      logger.warn('[OrganizationContext] RPC user_organization_id failed, using admin client:', rpcError);
+      const { createAdminSupabaseClient } = await import('@/lib/supabaseAdmin');
+      const adminClient = createAdminSupabaseClient();
+      const { data: user, error } = await adminClient
         .from('users')
         .select('organization_id')
         .eq('auth_id', authUserId)
@@ -383,16 +386,27 @@ export async function hasFeatureAccess(
   feature: keyof PackageFeatures
 ): Promise<boolean> {
   try {
-    // Use regular client - RLS should allow reading own organization
+    // Use admin client to bypass RLS and avoid recursion issues
+    // This is safe because we're filtering by organization_id which is application-level security
+    const adminClient = createAdminSupabaseClient();
+    
     // First check organization module_overrides
-    const { data: organization, error: orgError } = await supabase
+    // Use maybeSingle() to handle case where organization doesn't exist
+    const { data: organization, error: orgError } = await adminClient
       .from('organizations')
       .select('module_overrides')
       .eq('id', organizationId)
-      .single();
+      .maybeSingle();
 
-    if (orgError) {
+    if (orgError && orgError.code !== 'PGRST116') {
+      // Only log non-"not found" errors
       logger.warn('[hasFeatureAccess] Error fetching organization:', { organizationId, error: orgError });
+    }
+    
+    // If organization doesn't exist, return false
+    if (!organization) {
+      logger.debug('[hasFeatureAccess] Organization not found:', { organizationId });
+      return false;
     }
 
     if (organization?.module_overrides) {
@@ -442,16 +456,20 @@ export async function getOrganizationUsage(
   templates: number;
 }> {
   try {
+    // Use admin client to avoid RLS recursion issues
+    const { createAdminSupabaseClient } = await import('@/lib/supabaseAdmin');
+    const adminClient = createAdminSupabaseClient();
+    
     const [projectsResult, usersResult, templatesResult] = await Promise.all([
-      supabase
+      adminClient
         .from('projects')
         .select('id', { count: 'exact', head: true })
         .eq('organization_id', organizationId),
-      supabase
+      adminClient
         .from('users')
         .select('id', { count: 'exact', head: true })
         .eq('organization_id', organizationId),
-      supabase
+      adminClient
         .from('project_templates')
         .select('id', { count: 'exact', head: true })
         .eq('organization_id', organizationId),

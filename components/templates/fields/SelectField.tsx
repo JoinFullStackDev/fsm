@@ -80,11 +80,17 @@ function SelectField({ field, value, onChange, error, phaseData }: SelectFieldPr
         </FormHelperText>
       )}
       {config.helpText && !error && (
-        <FormHelperText sx={{ color: theme.palette.text.secondary }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <span>{config.helpText}</span>
-            <HelpTooltip title={config.helpText} />
-          </Box>
+        <FormHelperText 
+          sx={{ 
+            color: theme.palette.text.secondary,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+          }}
+          component="div"
+        >
+          <span>{config.helpText}</span>
+          <HelpTooltip title={config.helpText} />
         </FormHelperText>
       )}
     </FormControl>
