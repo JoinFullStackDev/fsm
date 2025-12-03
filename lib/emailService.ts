@@ -13,9 +13,20 @@ let sendGridApiKey: string | null = null;
 let sendGridInitialized = false;
 
 /**
- * Get SendGrid API key from database (decrypted)
+ * Get SendGrid API key with priority: database (decrypted) > environment variable
  */
 export async function getSendGridApiKey(): Promise<string | null> {
+  // Priority 1: Check environment variable (for quick setup/deployment)
+  const envApiKey = process.env.SENDGRID_API_KEY || process.env.SG_API_KEY || '';
+  if (envApiKey && envApiKey.trim()) {
+    logger.info('[Email] Using SendGrid API key from environment variable', {
+      keyLength: envApiKey.length,
+      keyPrefix: envApiKey.substring(0, 3),
+    });
+    return envApiKey.trim();
+  }
+
+  // Priority 2: Check database (encrypted)
   try {
     const adminClient = createAdminSupabaseClient();
     
@@ -31,7 +42,7 @@ export async function getSendGridApiKey(): Promise<string | null> {
 
     if (error) {
       if (error.code === 'PGRST116') {
-        logger.warn('[Email] Email connection not found in database (connection_type=email)', {
+        logger.warn('[Email] Email connection not found in database (connection_type=email), falling back to env var', {
           errorCode: error.code,
           errorMessage: error.message,
         });
@@ -97,7 +108,7 @@ export async function getSendGridApiKey(): Promise<string | null> {
       
       const decryptedKey = decryptApiKey(encryptedApiKey);
       
-      logger.info('[Email] SendGrid API key successfully retrieved and decrypted', {
+      logger.info('[Email] SendGrid API key successfully retrieved and decrypted from database', {
         connectionId: connection.id,
         decryptedKeyLength: decryptedKey.length,
         keyPrefix: decryptedKey.substring(0, 3), // Log first 3 chars for verification (SG.)
@@ -132,10 +143,10 @@ async function initializeSendGrid(): Promise<boolean> {
     return true;
   }
 
-  logger.info('[Email] Initializing SendGrid - fetching API key from database');
+  logger.info('[Email] Initializing SendGrid - fetching API key (database or env var)');
   const apiKey = await getSendGridApiKey();
   if (!apiKey) {
-    logger.error('[Email] Failed to initialize SendGrid - API key not available from database');
+    logger.error('[Email] Failed to initialize SendGrid - API key not available from database or environment variables');
     return false;
   }
 
