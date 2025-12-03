@@ -8,6 +8,7 @@ import {
 } from '@mui/material';
 import { Lightbulb as LightbulbIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
+import BuildingOverlay from '@/components/ai/BuildingOverlay';
 
 interface AIInsightWidgetProps {
   widgetId: string;
@@ -93,7 +94,9 @@ export default function AIInsightWidget({ widgetId, dashboardId, dataset, settin
   };
 
   return (
-    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <>
+      <BuildingOverlay open={loading} message="Building insights..." />
+      <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <CardContent sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: 2, '&:last-child': { pb: 2 } }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexShrink: 0 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -145,6 +148,7 @@ export default function AIInsightWidget({ widgetId, dashboardId, dataset, settin
         </Box>
       </CardContent>
     </Card>
+    </>
   );
 }
 
