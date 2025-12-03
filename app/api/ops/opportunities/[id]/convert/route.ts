@@ -71,9 +71,9 @@ export async function POST(
       return badRequest('User is not assigned to an organization');
     }
 
-    // Get request body for template_id and member_ids
+    // Get request body for template_id, member_ids, and generate_invoice
     const body = await request.json().catch(() => ({}));
-    const { template_id, member_ids } = body;
+    const { template_id, member_ids, generate_invoice } = body;
 
     // Convert opportunity to project using admin client
     const project = await convertOpportunityToProject(
@@ -91,7 +91,54 @@ export async function POST(
       .update({ status: 'converted' })
       .eq('id', opportunityId);
 
-    return NextResponse.json(project, { status: 201 });
+    // Generate invoice if requested
+    let invoice = null;
+    if (generate_invoice) {
+      try {
+        const { createInvoice } = await import('@/lib/ops/invoices');
+        
+        // Get company details for invoice
+        const { data: company } = await adminClient
+          .from('companies')
+          .select('name')
+          .eq('id', opportunity.company_id)
+          .single();
+
+        // Get primary contact email
+        const { data: contacts } = await adminClient
+          .from('company_contacts')
+          .select('email')
+          .eq('company_id', opportunity.company_id)
+          .limit(1);
+
+        const clientEmail = contacts && contacts.length > 0 ? contacts[0].email : null;
+        const clientName = company?.name || opportunity.name;
+
+        // Create invoice
+        invoice = await createInvoice(supabase, {
+          organization_id: organizationId,
+          project_id: project.id,
+          opportunity_id: opportunity.id,
+          company_id: opportunity.company_id,
+          client_name: clientName,
+          client_email: clientEmail,
+          line_items: [{
+            description: `Project: ${opportunity.name}`,
+            quantity: 1,
+            unit_price: opportunity.value || 0,
+            amount: opportunity.value || 0,
+          }],
+          issue_date: new Date().toISOString().split('T')[0],
+          status: 'draft',
+          created_by: userData.id,
+        });
+      } catch (invoiceError) {
+        logger.error('Error generating invoice during conversion:', invoiceError);
+        // Don't fail conversion if invoice generation fails
+      }
+    }
+
+    return NextResponse.json({ project, invoice }, { status: 201 });
   } catch (error) {
     logger.error('Error in POST /api/ops/opportunities/[id]/convert:', error);
     return internalError('Failed to convert opportunity', { error: error instanceof Error ? error.message : 'Unknown error' });

@@ -30,6 +30,7 @@ import {
   LocationOn as LocationIcon,
   Notes as NotesIcon,
   Work as WorkIcon,
+  Receipt as ReceiptIcon,
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useNotification } from '@/components/providers/NotificationProvider';
@@ -39,6 +40,7 @@ import CompanyProjectsTab from '@/components/ops/CompanyProjectsTab';
 import CompanyOpportunitiesTab from '@/components/ops/CompanyOpportunitiesTab';
 import CompanyContactsTab from '@/components/ops/CompanyContactsTab';
 import CompanyTasksTab from '@/components/ops/CompanyTasksTab';
+import CompanyInvoicesTab from '@/components/ops/CompanyInvoicesTab';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -298,7 +300,8 @@ export default function CompanyDetailPage() {
     { label: 'Opportunities', icon: <TrendingUpIcon />, index: 2 },
     { label: 'Contacts', icon: <ContactsIcon />, index: 3 },
     { label: 'Tasks', icon: <AssignmentIcon />, index: 4 },
-    { label: 'Notes', icon: <NotesIcon />, index: 5 },
+    { label: 'Invoices', icon: <ReceiptIcon />, index: 5 },
+    { label: 'Notes', icon: <NotesIcon />, index: 6 },
   ];
 
   return (
@@ -718,6 +721,10 @@ export default function CompanyDetailPage() {
       </TabPanel>
 
       <TabPanel value={activeTab} index={5}>
+        <CompanyInvoicesTab companyId={companyId} />
+      </TabPanel>
+
+      <TabPanel value={activeTab} index={6}>
         <Paper
           sx={{
             p: 3,
