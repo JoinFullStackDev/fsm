@@ -53,6 +53,7 @@ import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import { generateCursorMasterPrompt } from '@/lib/exportHandlers/cursorBundle';
 import { calculatePhaseProgress } from '@/lib/phases/calculatePhaseProgress';
 import { useRole } from '@/lib/hooks/useRole';
+import BuildingOverlay from '@/components/ai/BuildingOverlay';
 import type { Project, PhaseSummary } from '@/types/project';
 
 const PHASE_NAMES = [
@@ -549,6 +550,7 @@ export default function ProjectPage() {
 
   return (
     <ErrorBoundary>
+      <BuildingOverlay open={initiating} message="Initiating Project Management..." />
       <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', pb: 6 }}>
         <Container maxWidth="xl" sx={{ pt: { xs: 2, md: 4 }, pb: 4, px: { xs: 0, md: 3 } }}>
           <Box sx={{ px: { xs: 2, md: 0 }, mb: { xs: 2, md: 0 } }}>
