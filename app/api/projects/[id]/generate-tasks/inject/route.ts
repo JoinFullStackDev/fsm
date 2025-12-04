@@ -23,41 +23,46 @@ export async function POST(
     // Use admin client to bypass RLS for user and project lookups
     const adminClient = createAdminSupabaseClient();
 
-    // Get user record
-    const { data: userData, error: userError } = await adminClient
-      .from('users')
-      .select('id')
-      .eq('auth_id', user.id)
-      .single();
+    // OPTIMIZATION: Parallelize user and project lookups
+    const [userResult, projectResult] = await Promise.all([
+      adminClient
+        .from('users')
+        .select('id')
+        .eq('auth_id', user.id)
+        .single(),
+      adminClient
+        .from('projects')
+        .select('id, owner_id')
+        .eq('id', params.id)
+        .single(),
+    ]);
+
+    const { data: userData, error: userError } = userResult;
+    const { data: project, error: projectError } = projectResult;
 
     if (userError || !userData) {
       logger.error('[Task Inject] User not found:', { authId: user.id, error: userError });
       return notFound('User');
     }
 
-    // Get project using admin client to bypass RLS
-    const { data: project, error: projectError } = await adminClient
-      .from('projects')
-      .select('id, owner_id')
-      .eq('id', params.id)
-      .single();
-
     if (projectError || !project) {
       logger.error('[Task Inject] Project not found:', { projectId: params.id, error: projectError });
       return notFound('Project not found');
     }
 
-    // Verify user has access to this project using admin client
+    // Check membership only if not owner (conditional query)
     const isOwner = project.owner_id === userData.id;
-    const { data: memberData } = await adminClient
-      .from('project_members')
-      .select('id')
-      .eq('project_id', params.id)
-      .eq('user_id', userData.id)
-      .maybeSingle();
+    if (!isOwner) {
+      const { data: memberData } = await adminClient
+        .from('project_members')
+        .select('id')
+        .eq('project_id', params.id)
+        .eq('user_id', userData.id)
+        .maybeSingle();
 
-    if (!isOwner && !memberData) {
-      return unauthorized('You do not have access to this project');
+      if (!memberData) {
+        return unauthorized('You do not have access to this project');
+      }
     }
 
     // Check if organization has access to AI Task Generator
@@ -77,21 +82,36 @@ export async function POST(
     }
 
     // Parse request body
-    const body: TaskInjectionRequest = await request.json();
-    const { tasks, merges } = body;
+    const body: TaskInjectionRequest & { analysis_id?: string } = await request.json();
+    const { tasks, merges, analysis_id } = body;
+
+    logger.info('[Task Inject] Received request:', {
+      projectId: params.id,
+      tasksCount: tasks?.length,
+      mergesCount: merges?.length,
+      analysisId: analysis_id,
+    });
 
     if (!tasks || !Array.isArray(tasks)) {
+      logger.error('[Task Inject] Tasks array is missing or not an array:', typeof tasks);
       return badRequest('Tasks array is required');
     }
 
     if (!merges || !Array.isArray(merges)) {
+      logger.error('[Task Inject] Merges array is missing or not an array:', typeof merges);
       return badRequest('Merges array is required');
     }
 
     // Filter to only selected tasks
     const selectedTasks = tasks.filter((t) => t.selected);
     
+    logger.info('[Task Inject] Selected tasks:', {
+      selectedCount: selectedTasks.length,
+      firstTaskTitle: selectedTasks[0]?.task?.title,
+    });
+    
     if (selectedTasks.length === 0) {
+      logger.warn('[Task Inject] No tasks were selected for injection');
       return badRequest('At least one task must be selected');
     }
 
@@ -330,7 +350,7 @@ export async function POST(
           assignee_id: validatedAssigneeId,
           project_id: params.id,
           ai_generated: true,
-          ai_analysis_id: null,
+          ai_analysis_id: analysis_id || null,
           notes: notes || null,
         };
       });

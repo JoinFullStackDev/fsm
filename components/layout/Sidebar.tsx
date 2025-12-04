@@ -111,8 +111,9 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
         }
 
         // Use API route to avoid RLS recursion issues
-        const response = await fetch('/api/projects?limit=1000', {
-          cache: 'default',
+        // Add cache-busting to ensure fresh data
+        const response = await fetch(`/api/projects?limit=1000&t=${Date.now()}`, {
+          cache: 'no-store',
         });
 
         if (!response.ok) {
@@ -121,7 +122,8 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
         }
 
         const data = await response.json();
-        const projectsList = data.projects || [];
+        // API returns { data: [...] } not { projects: [...] }
+        const projectsList = data.data || data.projects || [];
         
         setProjects(projectsList as Project[]);
       } catch (error) {
@@ -132,6 +134,10 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
     };
 
     loadProjects();
+    
+    // Refresh projects every 30 seconds to catch new projects
+    const interval = setInterval(loadProjects, 30000);
+    return () => clearInterval(interval);
   }, [supabase]);
 
   // Load phase progress for each project
@@ -221,50 +227,20 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
         }
 
         const projectsData = await projectsResponse.json();
-        const projectsList = projectsData.projects || [];
+        // API returns { data: [...] } not { projects: [...] }
+        const projectsList = projectsData.data || projectsData.projects || [];
         
         if (projectsList.length === 0) {
           setMyTasksCount(0);
           return;
         }
 
-        // Calculate date range: today to 14 days from today
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const twoWeeksFromNow = new Date(today);
-        twoWeeksFromNow.setDate(twoWeeksFromNow.getDate() + 14);
-
-        // Get user ID from projects data (all projects belong to user's org)
-        // We need to get the user's ID to filter tasks
-        const { data: userData } = await supabase
-          .from('users')
-          .select('id')
-          .eq('auth_id', session.user.id)
-          .single();
-
-        if (!userData) {
-          setMyTasksCount(0);
-          return;
-        }
-
-        // Get tasks assigned to user with due dates in the next 2 weeks
-        // Use API route if available, otherwise direct query (tasks RLS should be fixed)
-        const { data: tasksData } = await supabase
-          .from('project_tasks')
-          .select('due_date')
-          .in('project_id', projectsList.map((p: any) => p.id))
-          .eq('assignee_id', userData.id)
-          .in('status', ['todo', 'in_progress'])
-          .not('due_date', 'is', null);
-
-        if (tasksData) {
-          const filteredTasks = tasksData.filter((task: any) => {
-            if (!task.due_date) return false;
-            const dueDate = new Date(task.due_date);
-            dueDate.setHours(0, 0, 0, 0);
-            return dueDate >= today && dueDate <= twoWeeksFromNow;
-          });
-          setMyTasksCount(filteredTasks.length);
+        // Use dedicated my-tasks API for efficient task count
+        // Filters: status=todo,in_progress, due_date_filter=next_2_weeks
+        const tasksResponse = await fetch('/api/my-tasks?status=todo,in_progress&due_date_filter=next_2_weeks');
+        if (tasksResponse.ok) {
+          const tasksData = await tasksResponse.json();
+          setMyTasksCount(tasksData.count || 0);
         } else {
           setMyTasksCount(0);
         }

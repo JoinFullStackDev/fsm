@@ -61,7 +61,8 @@ export async function GET(
       .from('projects')
       .select(`
         *,
-        company:companies(id, name)
+        company:companies(id, name),
+        owner:users!projects_owner_id_fkey(id, name, email, avatar_url)
       `)
       .eq('id', params.id)
       .single();

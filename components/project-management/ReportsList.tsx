@@ -15,10 +15,17 @@ import {
   Chip,
   CircularProgress,
   Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Button,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
   Visibility as VisibilityIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import ReportDetailModal from './ReportDetailModal';
@@ -50,6 +57,9 @@ export default function ReportsList({ projectId, refreshTrigger }: ReportsListPr
   const [error, setError] = useState<string | null>(null);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [reportToDelete, setReportToDelete] = useState<Report | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadReports = useCallback(async () => {
     setLoading(true);
@@ -85,6 +95,41 @@ export default function ReportsList({ projectId, refreshTrigger }: ReportsListPr
   const handleCloseModal = () => {
     setModalOpen(false);
     setSelectedReport(null);
+  };
+
+  const handleDeleteClick = (report: Report) => {
+    setReportToDelete(report);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!reportToDelete) return;
+
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/reports?reportId=${reportToDelete.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete report');
+      }
+
+      // Refresh the reports list
+      await loadReports();
+      setDeleteDialogOpen(false);
+      setReportToDelete(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete report');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setReportToDelete(null);
   };
 
   const getReportTypeLabel = (type: string) => {
@@ -252,17 +297,32 @@ export default function ReportsList({ projectId, refreshTrigger }: ReportsListPr
                     {report.user?.name || report.user?.email || 'Unknown'}
                   </TableCell>
                   <TableCell sx={{ textAlign: 'right' }}>
-                    <IconButton
-                      onClick={() => handleViewReport(report)}
-                      sx={{
-                        color: theme.palette.text.primary,
-                        '&:hover': {
-                          backgroundColor: theme.palette.action.hover,
-                        },
-                      }}
-                    >
-                      <VisibilityIcon />
-                    </IconButton>
+                    <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
+                      <IconButton
+                        onClick={() => handleViewReport(report)}
+                        sx={{
+                          color: theme.palette.text.primary,
+                          '&:hover': {
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        }}
+                        title="View Report"
+                      >
+                        <VisibilityIcon />
+                      </IconButton>
+                      <IconButton
+                        onClick={() => handleDeleteClick(report)}
+                        sx={{
+                          color: theme.palette.error.main,
+                          '&:hover': {
+                            backgroundColor: theme.palette.error.main + '20',
+                          },
+                        }}
+                        title="Delete Report"
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Box>
                   </TableCell>
                 </TableRow>
               ))}
@@ -280,6 +340,74 @@ export default function ReportsList({ projectId, refreshTrigger }: ReportsListPr
           onClose={handleCloseModal}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+        PaperProps={{
+          sx: {
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: theme.palette.text.primary }}>
+          Delete Report
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: theme.palette.text.secondary }}>
+            Are you sure you want to delete this report? This action cannot be undone.
+            {reportToDelete && (
+              <>
+                <br />
+                <br />
+                <strong>
+                  {getReportTypeLabel(reportToDelete.report_type)}
+                  {reportToDelete.report_type === 'forecast' && reportToDelete.forecast_days
+                    ? ` (${reportToDelete.forecast_days} days)`
+                    : ''}
+                </strong>
+                {' - '}
+                {reportToDelete.date_range}
+              </>
+            )}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
+          <Button
+            onClick={handleDeleteCancel}
+            disabled={deleting}
+            sx={{
+              color: theme.palette.text.secondary,
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+              },
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            disabled={deleting}
+            variant="contained"
+            color="error"
+            sx={{
+              backgroundColor: theme.palette.error.main,
+              color: theme.palette.error.contrastText,
+              '&:hover': {
+                backgroundColor: theme.palette.error.dark,
+              },
+              '&.Mui-disabled': {
+                backgroundColor: theme.palette.action.disabledBackground,
+                color: theme.palette.action.disabled,
+              },
+            }}
+          >
+            {deleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

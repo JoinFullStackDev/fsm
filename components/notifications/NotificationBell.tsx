@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   IconButton,
@@ -18,9 +18,7 @@ import {
   Notifications as NotificationsIcon,
   NotificationsNone as NotificationsNoneIcon,
 } from '@mui/icons-material';
-import { createSupabaseClient } from '@/lib/supabaseClient';
-import { useUser } from '@/components/providers/UserProvider';
-import logger from '@/lib/utils/logger';
+import { useNotification } from '@/components/providers/NotificationProvider';
 import type { Notification } from '@/types/project';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -31,126 +29,11 @@ interface NotificationBellProps {
 export default function NotificationBell({ onOpenDrawer }: NotificationBellProps) {
   const router = useRouter();
   const theme = useTheme();
-  const supabase = createSupabaseClient();
-  const { user } = useUser();
+  const { notifications, unreadCount, loading, markAsRead } = useNotification();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const subscriptionRef = useRef<any>(null);
-  const loadingNotificationsRef = useRef(false); // Prevent duplicate notification loads
 
-  const loadNotifications = useCallback(async () => {
-    // Prevent duplicate calls
-    if (loadingNotificationsRef.current) {
-      logger.debug('[NotificationBell] Notifications already loading, skipping duplicate call');
-      return;
-    }
-
-    try {
-      if (!user?.id) {
-        logger.debug('[NotificationBell] No user found');
-        setLoading(false);
-        loadingNotificationsRef.current = false;
-        return;
-      }
-
-      loadingNotificationsRef.current = true;
-
-      // Fetch recent notifications
-      const response = await fetch(`/api/notifications?limit=10&read=false`, {
-        cache: 'default', // Use browser cache
-      });
-      if (!response.ok) {
-        logger.error('[NotificationBell] Failed to fetch notifications:', response.status, response.statusText);
-        setLoading(false);
-        loadingNotificationsRef.current = false;
-        return;
-      }
-
-      const data = await response.json();
-      setNotifications(data.notifications || []);
-      setUnreadCount(data.unreadCount || 0);
-    } catch (error) {
-      logger.error('[NotificationBell] Error loading notifications:', error);
-    } finally {
-      setLoading(false);
-      loadingNotificationsRef.current = false; // Reset loading flag
-    }
-  }, [user]);
-
-  const setupRealtimeSubscription = useCallback(async () => {
-    try {
-      if (!user?.id) return;
-
-      // Unsubscribe from existing subscription if any
-      if (subscriptionRef.current) {
-        await subscriptionRef.current.unsubscribe();
-        subscriptionRef.current = null;
-      }
-
-      // Subscribe to notifications table changes with optimized filter
-      // Use a more specific channel name to avoid conflicts
-      const channelName = `notifications:${user.id}`;
-      const channel = supabase
-        .channel(channelName, {
-          config: {
-            broadcast: { self: false }, // Don't receive own broadcasts
-            presence: { key: user.id }, // Use presence for connection tracking
-          },
-        })
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'notifications',
-            filter: `user_id=eq.${user.id}`, // Specific filter to reduce overhead
-          },
-          (payload: any) => {
-            if (payload.eventType === 'INSERT') {
-              // New notification
-              const newNotification = payload.new as Notification;
-              setNotifications((prev) => [newNotification, ...prev].slice(0, 10));
-              setUnreadCount((prev) => prev + 1);
-            } else if (payload.eventType === 'UPDATE') {
-              // Notification updated (e.g., marked as read)
-              const updatedNotification = payload.new as Notification;
-              setNotifications((prev) =>
-                prev.map((n) => (n.id === updatedNotification.id ? updatedNotification : n))
-              );
-              if (updatedNotification.read) {
-                setUnreadCount((prev) => Math.max(0, prev - 1));
-              } else {
-                setUnreadCount((prev) => prev + 1);
-              }
-            }
-          }
-        )
-        .subscribe((status: string) => {
-          if (status === 'SUBSCRIBED') {
-            logger.debug('[NotificationBell] Realtime subscription active');
-          } else if (status === 'CHANNEL_ERROR') {
-            logger.error('[NotificationBell] Realtime subscription error');
-          }
-        });
-
-      subscriptionRef.current = channel;
-    } catch (error) {
-      logger.error('[NotificationBell] Error setting up subscription:', error);
-    }
-  }, [supabase, user]);
-
-  useEffect(() => {
-    loadNotifications();
-    setupRealtimeSubscription();
-
-    return () => {
-      if (subscriptionRef.current) {
-        subscriptionRef.current.unsubscribe();
-      }
-    };
-  }, [loadNotifications, setupRealtimeSubscription, user]);
+  // Get only unread notifications for the dropdown (limit to 10)
+  const unreadNotifications = notifications.filter(n => !n.read).slice(0, 10);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -163,19 +46,7 @@ export default function NotificationBell({ onOpenDrawer }: NotificationBellProps
   const handleNotificationClick = async (notification: Notification) => {
     // Mark as read
     if (!notification.read) {
-      try {
-        await fetch(`/api/notifications/${notification.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ read: true }),
-        });
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === notification.id ? { ...n, read: true } : n))
-        );
-        setUnreadCount((prev) => Math.max(0, prev - 1));
-      } catch (error) {
-        logger.error('[NotificationBell] Error marking as read:', error);
-      }
+      await markAsRead(notification.id);
     }
 
     // Navigate based on notification type
@@ -266,7 +137,7 @@ export default function NotificationBell({ onOpenDrawer }: NotificationBellProps
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
             <CircularProgress size={24} />
           </Box>
-        ) : notifications.length === 0 ? (
+        ) : unreadNotifications.length === 0 ? (
           <Box sx={{ px: 2, py: 3, textAlign: 'center' }}>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               No new notifications
@@ -274,7 +145,7 @@ export default function NotificationBell({ onOpenDrawer }: NotificationBellProps
           </Box>
         ) : (
           <>
-            {notifications.map((notification) => (
+            {unreadNotifications.map((notification) => (
               <MenuItem
                 key={notification.id}
                 onClick={() => handleNotificationClick(notification)}

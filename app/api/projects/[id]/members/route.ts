@@ -259,11 +259,11 @@ export async function POST(
       return internalError('Failed to add project member', { error: memberError.message });
     }
 
-    // Invalidate cache after adding member
+    // Invalidate cache after adding member - use cacheDel to clear both Redis and in-memory
     try {
-      const { cacheInvalidate, CACHE_KEYS } = await import('@/lib/cache/unifiedCache');
+      const { cacheDel, CACHE_KEYS } = await import('@/lib/cache/unifiedCache');
       const membersCacheKey = CACHE_KEYS.projectMembers(params.id);
-      await cacheInvalidate(membersCacheKey);
+      await cacheDel(membersCacheKey);
     } catch (cacheError) {
       logger.warn('[Project Member] Failed to invalidate cache:', cacheError);
       // Don't fail the request if cache invalidation fails

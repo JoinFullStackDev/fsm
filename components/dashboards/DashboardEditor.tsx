@@ -35,6 +35,8 @@ interface DashboardEditorProps {
   isResizing?: boolean;
   onDragStateChange?: (isDragging: boolean) => void;
   onResizeStateChange?: (isResizing: boolean) => void;
+  freeFormMode?: boolean;
+  onFreeFormModeChange?: (enabled: boolean) => void;
 }
 
 function DroppableCanvas({ children }: { children: React.ReactNode }) {
@@ -72,11 +74,17 @@ export default function DashboardEditor({
   isResizing: externalIsResizing,
   onDragStateChange,
   onResizeStateChange,
+  freeFormMode: externalFreeFormMode,
+  onFreeFormModeChange,
 }: DashboardEditorProps) {
   const theme = useTheme();
   const [containerWidth, setContainerWidth] = useState(1200);
   const [internalIsDragging, setInternalIsDragging] = useState(false);
   const [internalIsResizing, setInternalIsResizing] = useState(false);
+  const [internalFreeFormMode, setInternalFreeFormMode] = useState(false);
+  
+  // Use external free-form state if provided, otherwise use internal state
+  const freeFormMode = externalFreeFormMode !== undefined ? externalFreeFormMode : internalFreeFormMode;
   
   // Use external state if provided, otherwise use internal state
   const isDragging = externalIsDragging !== undefined ? externalIsDragging : internalIsDragging;
@@ -267,10 +275,10 @@ export default function DashboardEditor({
           isResizable={true}
           draggableHandle=".drag-handle"
           resizeHandles={['se', 'sw', 'ne', 'nw', 'e', 'w', 'n', 's']}
-          compactType={null}
-          preventCollision={false}
-          allowOverlap={true}
-          verticalCompact={false}
+          compactType={freeFormMode ? null : "vertical"}
+          preventCollision={!freeFormMode}
+          allowOverlap={freeFormMode}
+          verticalCompact={!freeFormMode}
           margin={[10, 10]}
           style={{
             backgroundColor: theme.palette.background.default,

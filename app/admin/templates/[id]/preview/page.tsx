@@ -253,7 +253,7 @@ export default function TemplatePreviewPage() {
             }}
           >
             {PHASE_NAMES.map((name, index) => (
-              <Tab key={index + 1} label={`Phase ${index + 1}: ${name}`} />
+              <Tab key={index + 1} label={name} />
             ))}
           </Tabs>
         </Paper>

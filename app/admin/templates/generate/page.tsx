@@ -21,6 +21,10 @@ import {
   IconButton,
   Tooltip,
   useTheme,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -84,6 +88,7 @@ export default function GenerateTemplatePage() {
   const [templateName, setTemplateName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
+  const [methodology, setMethodology] = useState<'fsm' | 'waterfall' | 'agile_scrum' | 'lean' | 'design_thinking' | 'custom'>('fsm');
   const [isPublic, setIsPublic] = useState(false); // Visible to all organization members
   const [isPubliclyAvailable, setIsPubliclyAvailable] = useState(false); // Available to public
   const [generating, setGenerating] = useState(false);
@@ -196,6 +201,7 @@ Please help me craft this description based on my project needs, making sure to 
           name: templateName.trim(),
           description: description.trim(),
           category: category.trim() || null,
+          methodology: methodology,
           is_public: isPublic,
           is_publicly_available: isPubliclyAvailable,
         }),
@@ -657,6 +663,47 @@ Please help me craft this description based on my project needs, making sure to 
                   },
                 }}
               />
+
+              <FormControl fullWidth>
+                <InputLabel
+                  sx={{
+                    color: theme.palette.text.secondary,
+                    '&.Mui-focused': {
+                      color: theme.palette.text.primary,
+                    },
+                  }}
+                >
+                  Methodology
+                </InputLabel>
+                <Select
+                  value={methodology}
+                  onChange={(e) => setMethodology(e.target.value as typeof methodology)}
+                  label="Methodology"
+                  sx={{
+                    backgroundColor: theme.palette.background.paper,
+                    color: theme.palette.text.primary,
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: theme.palette.divider,
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: theme.palette.text.secondary,
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: theme.palette.text.primary,
+                    },
+                    '& .MuiSvgIcon-root': {
+                      color: theme.palette.text.primary,
+                    },
+                  }}
+                >
+                  <MenuItem value="fsm">FullStack Method™ (6-Phase Product Development)</MenuItem>
+                  <MenuItem value="waterfall">Waterfall (Sequential Phases)</MenuItem>
+                  <MenuItem value="agile_scrum">Agile/Scrum (Iterative Sprints)</MenuItem>
+                  <MenuItem value="lean">Lean Startup (MVP-Focused)</MenuItem>
+                  <MenuItem value="design_thinking">Design Thinking (Human-Centered)</MenuItem>
+                  <MenuItem value="custom">Custom (Describe in Requirements)</MenuItem>
+                </Select>
+              </FormControl>
 
               <Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>

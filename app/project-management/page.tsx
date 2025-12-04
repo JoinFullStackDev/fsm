@@ -113,32 +113,38 @@ export default function ProjectManagementPage() {
   useEffect(() => {
     const loadProgress = async () => {
       const progressMap: Record<string, number> = {};
-      for (const project of projects) {
-        if (project.initiated_at) {
-          try {
-            const { data: tasks } = await supabase
-              .from('project_tasks')
-              .select('status')
-              .eq('project_id', project.id);
-
+      
+      // Load progress for all initiated projects via API (in parallel)
+      const initiatedProjects = projects.filter((p) => p.initiated_at);
+      
+      const progressPromises = initiatedProjects.map(async (project) => {
+        try {
+          const response = await fetch(`/api/projects/${project.id}/tasks`);
+          if (response.ok) {
+            const tasks = await response.json();
             if (tasks && tasks.length > 0) {
               const completed = tasks.filter((t: any) => t.status === 'done').length;
-              progressMap[project.id] = Math.round((completed / tasks.length) * 100);
-            } else {
-              progressMap[project.id] = 0;
+              return { projectId: project.id, progress: Math.round((completed / tasks.length) * 100) };
             }
-          } catch {
-            progressMap[project.id] = 0;
           }
+          return { projectId: project.id, progress: 0 };
+        } catch {
+          return { projectId: project.id, progress: 0 };
         }
-      }
+      });
+
+      const results = await Promise.all(progressPromises);
+      results.forEach(({ projectId, progress }) => {
+        progressMap[projectId] = progress;
+      });
+      
       setProjectProgress(progressMap);
     };
 
     if (projects.length > 0) {
       loadProgress();
     }
-  }, [projects, supabase]);
+  }, [projects]);
 
   if (loading) {
     return (

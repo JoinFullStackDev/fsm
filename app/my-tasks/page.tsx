@@ -38,72 +38,33 @@ export default function MyTasksPage() {
       setLoading(true);
       setError(null);
 
-      // Get current user
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setError('You must be logged in to view your tasks');
+      // Use my-tasks API to get tasks (bypasses RLS issues)
+      const tasksResponse = await fetch('/api/my-tasks?status=todo,in_progress&due_date_filter=next_2_weeks');
+      if (!tasksResponse.ok) {
+        const errorData = await tasksResponse.json();
+        setError(errorData.error || 'Failed to load tasks');
         setLoading(false);
         return;
       }
 
-      const { data: userData } = await supabase
-        .from('users')
-        .select('id')
-        .eq('auth_id', session.user.id)
-        .single();
-
-      if (!userData) {
-        setError('User not found');
-        setLoading(false);
-        return;
-      }
-
-      // Use API route to get projects (avoids RLS recursion)
-      const projectsResponse = await fetch('/api/projects?limit=1000');
-      if (!projectsResponse.ok) {
-        setError('Failed to load projects');
-        setLoading(false);
-        return;
-      }
-
-      const projectsData = await projectsResponse.json();
-      const projectsList = projectsData.projects || [];
+      const tasksData = await tasksResponse.json();
+      const tasksList = tasksData.tasks || [];
       
-      const allProjectIds = new Set<string>();
+      // Extract unique projects from tasks
       const projectMap = new Map<string, { id: string; name: string }>();
-
-      projectsList.forEach((p: { id: string; name: string }) => {
-        allProjectIds.add(p.id);
-        projectMap.set(p.id, p);
+      tasksList.forEach((task: any) => {
+        if (task.project && !projectMap.has(task.project.id)) {
+          projectMap.set(task.project.id, {
+            id: task.project.id,
+            name: task.project.name,
+          });
+        }
       });
-
       setProjects(Array.from(projectMap.values()));
 
-      if (allProjectIds.size === 0) {
-        setTasks([]);
-        setLoading(false);
-        return;
-      }
-
-      // Get tasks assigned to user with due dates in the next 2 weeks
-      const { data: tasksData, error: tasksError } = await supabase
-        .from('project_tasks')
-        .select('*')
-        .in('project_id', Array.from(allProjectIds))
-        .eq('assignee_id', userData.id)
-        .in('status', ['todo', 'in_progress'])
-        .not('due_date', 'is', null)
-        .order('due_date', { ascending: true })
-        .order('priority', { ascending: false });
-
-      if (tasksError) {
-        setError(tasksError.message);
-        setLoading(false);
-        return;
-      }
-
       // Filter tasks to only include those with due dates in the next 2 weeks
-      const filteredTasks = (tasksData || []).filter((task: ProjectTask) => {
+      // (API already filters, but we do client-side filtering for date precision)
+      const filteredTasks = tasksList.filter((task: ProjectTask) => {
         if (!task.due_date) return false;
         const dueDate = startOfDay(parseISO(task.due_date));
         return (
@@ -118,7 +79,7 @@ export default function MyTasksPage() {
     } finally {
       setLoading(false);
     }
-  }, [supabase, dateRange]);
+  }, [dateRange]);
 
   useEffect(() => {
     loadTasks();

@@ -91,14 +91,9 @@ function DashboardPageContent() {
       }
     }
 
-    // Check if user has seen the welcome tour (show first 3 times)
-    const tourViewCount = parseInt(localStorage.getItem('welcomeTourViewCount') || '0', 10);
-    if (tourViewCount < 3) {
-      // Show tour after a short delay to let the page load
-      setTimeout(() => {
-        setShowWelcomeTour(true);
-      }, 1000);
-    }
+    // Track login count for rocket icon flicker (handled in TopBar)
+    const loginCount = parseInt(localStorage.getItem('loginCount') || '0', 10);
+    localStorage.setItem('loginCount', String(loginCount + 1));
 
     const loadProjects = async () => {
       // Prevent duplicate calls
@@ -178,22 +173,20 @@ function DashboardPageContent() {
         
         setProjects(uniqueProjects);
 
-        // Load all tasks for user's projects
+        // Load all tasks for user's projects via API to avoid RLS recursion
         const projectIds = uniqueProjects.map((p) => p.id);
         if (projectIds.length > 0) {
-          // Use API route or filter by project IDs - tasks inherit org through projects
-          const { data: tasksData, error: tasksError } = await supabase
-            .from('project_tasks')
-            .select('*')
-            .in('project_id', projectIds);
-
-          if (tasksError) {
-            logger.error('[Dashboard] Error loading tasks:', tasksError);
-            setTasks([]);
-          } else {
-            setTasks((tasksData || []) as ProjectTask[]);
-            logger.debug('[Dashboard] Loaded tasks:', { count: tasksData?.length || 0 });
-          }
+          // Fetch tasks from each project via API (in parallel for performance)
+          const taskPromises = projectIds.map((projectId) =>
+            fetch(`/api/projects/${projectId}/tasks`).then((res) =>
+              res.ok ? res.json() : []
+            ).catch(() => [])
+          );
+          
+          const tasksArrays = await Promise.all(taskPromises);
+          const allTasks = tasksArrays.flat();
+          setTasks(allTasks as ProjectTask[]);
+          logger.debug('[Dashboard] Loaded tasks:', { count: allTasks.length });
         } else {
           setTasks([]);
         }

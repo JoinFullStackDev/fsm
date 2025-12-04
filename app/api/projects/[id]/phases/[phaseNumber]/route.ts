@@ -1,220 +1,236 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
-import { getUserOrganizationId } from '@/lib/organizationContext';
-import { unauthorized, notFound, internalError, forbidden, badRequest } from '@/lib/utils/apiErrors';
+import { unauthorized, badRequest, internalError, forbidden, notFound } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
+import { isValidUUID } from '@/lib/utils/inputSanitization';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * GET - Fetch a specific phase's data
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string; phaseNumber: string } }
 ) {
   try {
+    const projectId = params.id;
+    const phaseNumber = parseInt(params.phaseNumber, 10);
+
+    if (!isValidUUID(projectId)) {
+      return badRequest('Invalid project ID format');
+    }
+
+    if (isNaN(phaseNumber) || phaseNumber < 1) {
+      return badRequest('Invalid phase number');
+    }
+
     const supabase = await createServerSupabaseClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return unauthorized('You must be logged in to view project phases');
+      return unauthorized('You must be logged in to view this phase');
     }
 
-    // Get user's organization
-    const organizationId = await getUserOrganizationId(supabase, user.id);
-    if (!organizationId) {
-      return badRequest('User is not assigned to an organization');
-    }
-
-    const phaseNumber = parseInt(params.phaseNumber, 10);
-    if (phaseNumber < 1) {
-      return badRequest('Invalid phase number');
-    }
-
-    // Get user record using admin client to avoid RLS recursion
     const adminClient = createAdminSupabaseClient();
+
+    // Get user info
     const { data: userData, error: userError } = await adminClient
       .from('users')
-      .select('id, role, organization_id, is_super_admin')
+      .select('id, organization_id, role, is_super_admin')
       .eq('auth_id', user.id)
       .single();
 
     if (userError || !userData) {
-      logger.error('[Phase GET] User not found:', userError);
-      return notFound('User not found');
+      return unauthorized('User not found');
     }
 
-    // Verify user has access to the project - Use admin client to avoid RLS recursion
+    // Get project to verify access
     const { data: project, error: projectError } = await adminClient
       .from('projects')
-      .select('owner_id, organization_id')
-      .eq('id', params.id)
+      .select('id, owner_id, organization_id')
+      .eq('id', projectId)
       .single();
 
     if (projectError || !project) {
       return notFound('Project not found');
     }
 
-    // Validate organization access (super admins can see all projects)
-    const isSuperAdmin = userData.role === 'admin' && userData.is_super_admin === true;
-    if (!isSuperAdmin && project.organization_id !== organizationId) {
-      // Check if user is a project member
-      const { data: member } = await adminClient
+    // Check access
+    const isOwner = project.owner_id === userData.id;
+    const isSuperAdmin = userData.is_super_admin === true;
+    const isOrgMember = project.organization_id === userData.organization_id;
+
+    if (!isOwner && !isSuperAdmin && !isOrgMember) {
+      // Check if member
+      const { data: membership } = await adminClient
         .from('project_members')
         .select('id')
-        .eq('project_id', params.id)
+        .eq('project_id', projectId)
         .eq('user_id', userData.id)
         .single();
 
-      if (!member) {
+      if (!membership) {
         return forbidden('You do not have access to this project');
       }
     }
 
-    // Fetch the phase - Use admin client and filter by is_active to avoid multiple results
+    // Get phase data
     const { data: phase, error: phaseError } = await adminClient
       .from('project_phases')
       .select('*')
-      .eq('project_id', params.id)
+      .eq('project_id', projectId)
       .eq('phase_number', phaseNumber)
-      .eq('is_active', true)
       .single();
 
-    if (phaseError) {
-      if (phaseError.code === 'PGRST116') {
-        return notFound('Phase not found');
-      }
-      logger.error('[Phase GET] Error loading phase:', phaseError);
-      return internalError('Failed to load phase', { error: phaseError.message });
-    }
-
-    if (!phase) {
+    if (phaseError || !phase) {
       return notFound('Phase not found');
     }
 
     return NextResponse.json(phase);
   } catch (error) {
-    logger.error('Error in GET /api/projects/[id]/phases/[phaseNumber]:', error);
-    return internalError('Failed to load phase', {
+    logger.error('[Phase API GET] Unexpected error:', error);
+    return internalError('Failed to fetch phase', {
       error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 }
 
+/**
+ * PUT - Update a specific phase's data
+ */
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string; phaseNumber: string } }
 ) {
   try {
+    const projectId = params.id;
+    const phaseNumber = parseInt(params.phaseNumber, 10);
+
+    if (!isValidUUID(projectId)) {
+      return badRequest('Invalid project ID format');
+    }
+
+    if (isNaN(phaseNumber) || phaseNumber < 1) {
+      return badRequest('Invalid phase number');
+    }
+
     const supabase = await createServerSupabaseClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return unauthorized('You must be logged in to update project phases');
+      return unauthorized('You must be logged in to update this phase');
     }
 
-    // Get user's organization
-    const organizationId = await getUserOrganizationId(supabase, user.id);
-    if (!organizationId) {
-      return badRequest('User is not assigned to an organization');
+    const body = await request.json();
+    const { data: phaseData, completed } = body;
+
+    if (phaseData === undefined) {
+      return badRequest('Phase data is required');
     }
 
-    const phaseNumber = parseInt(params.phaseNumber, 10);
-    if (phaseNumber < 1) {
-      return badRequest('Invalid phase number');
-    }
-
-    // Get user record using admin client to avoid RLS recursion
     const adminClient = createAdminSupabaseClient();
+
+    // Get user info
     const { data: userData, error: userError } = await adminClient
       .from('users')
-      .select('id, role, organization_id, is_super_admin')
+      .select('id, organization_id, role, is_super_admin')
       .eq('auth_id', user.id)
       .single();
 
     if (userError || !userData) {
-      logger.error('[Phase PUT] User not found:', userError);
-      return notFound('User not found');
+      return unauthorized('User not found');
     }
 
-    // Verify user has access to the project - Use admin client to avoid RLS recursion
+    // Get project to verify access
     const { data: project, error: projectError } = await adminClient
       .from('projects')
-      .select('owner_id, organization_id')
-      .eq('id', params.id)
+      .select('id, owner_id, organization_id')
+      .eq('id', projectId)
       .single();
 
     if (projectError || !project) {
       return notFound('Project not found');
     }
 
-    // Validate organization access (super admins can access all projects)
-    const isSuperAdmin = userData.role === 'admin' && userData.is_super_admin === true;
-    if (!isSuperAdmin && project.organization_id !== organizationId) {
-      // Check if user is a project member
-      const { data: member } = await adminClient
+    // Check write access (owner, super admin, or project member with edit role)
+    const isOwner = project.owner_id === userData.id;
+    const isSuperAdmin = userData.is_super_admin === true;
+    const isAdmin = userData.role === 'admin';
+
+    let hasWriteAccess = isOwner || isSuperAdmin || isAdmin;
+
+    if (!hasWriteAccess) {
+      // Check if member with edit permissions
+      const { data: membership } = await adminClient
         .from('project_members')
-        .select('id')
-        .eq('project_id', params.id)
+        .select('id, role')
+        .eq('project_id', projectId)
         .eq('user_id', userData.id)
         .single();
 
-      if (!member) {
-        return forbidden('You do not have access to this project');
+      if (membership) {
+        // Project members can edit phases (you can make this more granular if needed)
+        hasWriteAccess = true;
       }
     }
 
-    const isOwner = project.owner_id === userData.id;
-    const isAdmin = userData.role === 'admin';
-
-    // Check if user is a project member
-    const { data: projectMember } = await adminClient
-      .from('project_members')
-      .select('id')
-      .eq('project_id', params.id)
-      .eq('user_id', userData.id)
-      .single();
-
-    const isProjectMember = isOwner || !!projectMember || isAdmin;
-
-    if (!isProjectMember) {
-      return forbidden('You must be a project member to edit phases');
+    if (!hasWriteAccess) {
+      return forbidden('You do not have permission to update this phase');
     }
 
-    const body = await request.json();
-    const { data: phaseData, completed } = body;
-
-    // Update the phase - Use admin client and filter by is_active
-    const { data: phase, error: phaseError } = await adminClient
+    // Verify phase exists
+    const { data: existingPhase, error: phaseCheckError } = await adminClient
       .from('project_phases')
-      .update({
-        data: phaseData,
-        completed: completed || false,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('project_id', params.id)
+      .select('id')
+      .eq('project_id', projectId)
       .eq('phase_number', phaseNumber)
-      .eq('is_active', true)
-      .select()
       .single();
 
-    if (phaseError) {
-      if (phaseError.code === 'PGRST116') {
-        return notFound('Phase not found');
-      }
-      logger.error('[Phase PUT] Error updating phase:', phaseError);
-      return internalError('Failed to update phase', { error: phaseError.message });
-    }
-
-    if (!phase) {
+    if (phaseCheckError || !existingPhase) {
       return notFound('Phase not found');
     }
 
-    return NextResponse.json(phase);
+    // Update the phase
+    const updatePayload: Record<string, unknown> = {
+      data: phaseData,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (completed !== undefined) {
+      updatePayload.completed = completed;
+    }
+
+    logger.debug('[Phase API PUT] Updating phase:', {
+      projectId,
+      phaseNumber,
+      dataKeys: Object.keys(phaseData || {}),
+      completed,
+    });
+
+    const { data: updatedPhase, error: updateError } = await adminClient
+      .from('project_phases')
+      .update(updatePayload)
+      .eq('project_id', projectId)
+      .eq('phase_number', phaseNumber)
+      .select()
+      .single();
+
+    if (updateError) {
+      logger.error('[Phase API PUT] Update error:', updateError);
+      return internalError('Failed to update phase', {
+        error: updateError.message,
+      });
+    }
+
+    logger.debug('[Phase API PUT] Phase updated successfully');
+
+    return NextResponse.json(updatedPhase);
   } catch (error) {
-    logger.error('Error in PUT /api/projects/[id]/phases/[phaseNumber]:', error);
+    logger.error('[Phase API PUT] Unexpected error:', error);
     return internalError('Failed to update phase', {
       error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 }
-

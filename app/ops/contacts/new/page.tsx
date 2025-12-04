@@ -54,8 +54,8 @@ export default function NewContactPage() {
       setLoadingCompanies(true);
       const response = await fetch('/api/ops/companies');
       if (response.ok) {
-        const data = await response.json();
-        setCompanies(data);
+        const result = await response.json();
+        setCompanies(Array.isArray(result) ? result : (result.data || []));
       }
     } catch (err) {
       // Ignore errors, just show form

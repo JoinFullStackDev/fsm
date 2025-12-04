@@ -83,16 +83,11 @@ export default function AdminPage() {
 
   const loadStats = useCallback(async () => {
     try {
-      // Get current user's organization
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser) return;
-
-      const { data: currentUser } = await supabase
-        .from('users')
-        .select('organization_id, is_super_admin')
-        .eq('auth_id', authUser.id)
-        .single();
-
+      // Get current user's organization via API to avoid RLS recursion
+      const userResponse = await fetch('/api/users/me');
+      if (!userResponse.ok) return;
+      
+      const currentUser = await userResponse.json();
       const orgId = currentUser?.organization_id;
 
       // Use API route to get counts (avoids RLS recursion)
@@ -135,7 +130,7 @@ export default function AdminPage() {
       console.error('Error loading admin stats:', error);
       setLoadingStats(false);
     }
-  }, [supabase]);
+  }, []);
 
   
 

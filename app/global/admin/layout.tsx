@@ -67,11 +67,9 @@ export default function GlobalAdminLayout({ children }: GlobalAdminLayoutProps) 
           return;
         }
 
-        const { data: userData } = await supabase
-          .from('users')
-          .select('preferences')
-          .eq('auth_id', user.id)
-          .single();
+        // Use API to get user data to avoid RLS recursion issues
+        const userResponse = await fetch('/api/users/me');
+        const userData = userResponse.ok ? await userResponse.json() : null;
 
         if (userData?.preferences && typeof userData.preferences === 'object') {
           const preferences = userData.preferences as UserPreferences;

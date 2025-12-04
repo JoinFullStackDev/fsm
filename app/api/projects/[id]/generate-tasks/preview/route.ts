@@ -25,45 +25,68 @@ export async function POST(
     // Use admin client to bypass RLS for user and project lookups
     const adminClient = createAdminSupabaseClient();
 
-    // Get user record
-    const { data: userData, error: userError } = await adminClient
-      .from('users')
-      .select('id')
-      .eq('auth_id', user.id)
-      .single();
+    // OPTIMIZATION: Parallelize all initial data fetching
+    const [userResult, projectResult, phasesResult, tasksResult, orgContextResult] = await Promise.all([
+      // Get user record
+      adminClient
+        .from('users')
+        .select('id')
+        .eq('auth_id', user.id)
+        .single(),
+      // Get project
+      adminClient
+        .from('projects')
+        .select('id, name, owner_id')
+        .eq('id', params.id)
+        .single(),
+      // Get phases
+      adminClient
+        .from('project_phases')
+        .select('phase_number, phase_name, display_order, data, completed')
+        .eq('project_id', params.id)
+        .eq('is_active', true)
+        .order('display_order', { ascending: true }),
+      // Get existing tasks
+      adminClient
+        .from('project_tasks')
+        .select('*')
+        .eq('project_id', params.id)
+        .neq('status', 'archived'),
+      // Get organization context
+      getOrganizationContext(supabase, user.id),
+    ]);
+
+    const { data: userData, error: userError } = userResult;
+    const { data: project, error: projectError } = projectResult;
+    const { data: phases, error: phasesError } = phasesResult;
+    const { data: existingTasks, error: tasksError } = tasksResult;
+    const orgContext = orgContextResult;
 
     if (userError || !userData) {
       logger.error('[Task Generator Preview] User not found:', { authId: user.id, error: userError });
       return notFound('User');
     }
 
-    // Get project using admin client to bypass RLS
-    const { data: project, error: projectError } = await adminClient
-      .from('projects')
-      .select('id, name, owner_id')
-      .eq('id', params.id)
-      .single();
-
     if (projectError || !project) {
       logger.error('[Task Generator Preview] Project not found:', { projectId: params.id, error: projectError });
       return notFound('Project not found');
     }
 
-    // Verify user has access to this project using admin client
+    // Check membership only if not owner
     const isOwner = project.owner_id === userData.id;
-    const { data: memberData } = await adminClient
-      .from('project_members')
-      .select('id')
-      .eq('project_id', params.id)
-      .eq('user_id', userData.id)
-      .maybeSingle();
+    if (!isOwner) {
+      const { data: memberData } = await adminClient
+        .from('project_members')
+        .select('id')
+        .eq('project_id', params.id)
+        .eq('user_id', userData.id)
+        .maybeSingle();
 
-    if (!isOwner && !memberData) {
-      return unauthorized('You do not have access to this project');
+      if (!memberData) {
+        return unauthorized('You do not have access to this project');
+      }
     }
 
-    // Check if organization has access to AI Task Generator
-    const orgContext = await getOrganizationContext(supabase, user.id);
     if (!orgContext) {
       return unauthorized('Organization not found');
     }
@@ -86,14 +109,6 @@ export async function POST(
       return badRequest('Prompt is required');
     }
 
-    // Get project phases using admin client
-    const { data: phases, error: phasesError } = await adminClient
-      .from('project_phases')
-      .select('phase_number, phase_name, display_order, data, completed')
-      .eq('project_id', params.id)
-      .eq('is_active', true)
-      .order('display_order', { ascending: true });
-
     if (phasesError) {
       logger.error('[Task Generator Preview] Error loading phases:', phasesError);
       return internalError('Failed to load project phases', { error: phasesError.message });
@@ -102,13 +117,6 @@ export async function POST(
     if (!phases || phases.length === 0) {
       return badRequest('Project must have at least one phase');
     }
-
-    // Get existing tasks using admin client
-    const { data: existingTasks, error: tasksError } = await adminClient
-      .from('project_tasks')
-      .select('*')
-      .eq('project_id', params.id)
-      .neq('status', 'archived'); // Exclude archived tasks from duplicate detection
 
     if (tasksError) {
       logger.error('[Task Generator Preview] Error loading tasks:', tasksError);
@@ -215,44 +223,45 @@ export async function POST(
         }
       }
 
-      // Enrich with task counts and workload
+      // OPTIMIZATION: Enrich with task counts, workload, and user details in parallel
       if (memberUserIds.length > 0) {
-        // Get task counts
-        const { data: tasks } = await adminClient
-          .from('project_tasks')
-          .select('assignee_id, status')
-          .eq('project_id', params.id)
-          .in('assignee_id', memberUserIds)
-          .neq('status', 'archived');
+        const today = new Date().toISOString().split('T')[0];
+        const futureDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-        // Get workload summaries with error handling
-        const workloadPromises = memberUserIds.map(async (userId: string) => {
-          try {
-            const result: any = await adminClient.rpc('get_user_workload_summary', {
+        // Run all enrichment queries in parallel
+        const [tasksResult, usersResult, ...workloadResults] = await Promise.all([
+          // Get task counts
+          adminClient
+            .from('project_tasks')
+            .select('assignee_id, status')
+            .eq('project_id', params.id)
+            .in('assignee_id', memberUserIds)
+            .neq('status', 'archived'),
+          // Get user details
+          adminClient
+            .from('users')
+            .select('id, name, email')
+            .in('id', memberUserIds),
+          // Get workload summaries for all members
+          ...memberUserIds.map((userId: string) =>
+            Promise.resolve(adminClient.rpc('get_user_workload_summary', {
               p_user_id: userId,
-              p_start_date: new Date().toISOString().split('T')[0],
-              p_end_date: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            });
-            return { userId, data: result.data, error: result.error };
-          } catch (error: any) {
-            return { userId, data: null, error };
-          }
-        });
+              p_start_date: today,
+              p_end_date: futureDate,
+            })).then((result: any) => ({ userId, data: result.data, error: result.error }))
+              .catch((error: any) => ({ userId, data: null, error }))
+          ),
+        ]);
 
-        const workloadResults = await Promise.allSettled(workloadPromises);
+        const tasks = tasksResult.data;
+        const users = usersResult.data;
         const workloadsMap = new Map<string, any>();
 
-        workloadResults.forEach((result, index) => {
-          if (result.status === 'fulfilled' && result.value.data) {
-            workloadsMap.set(memberUserIds[index], result.value.data);
+        workloadResults.forEach((result: any) => {
+          if (result?.data) {
+            workloadsMap.set(result.userId, result.data);
           }
         });
-
-        // Get user details
-        const { data: users } = await adminClient
-          .from('users')
-          .select('id, name, email')
-          .in('id', memberUserIds);
 
         // Build sowMembers array for AI
         sowMembers = memberUserIds.map((userId: string) => {

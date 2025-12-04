@@ -24,6 +24,7 @@ import {
   IconButton,
   Fab,
   Tooltip,
+  TextField,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -46,6 +47,7 @@ import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import { useKeyboardShortcuts } from '@/lib/hooks/useKeyboardShortcuts';
 import KeyboardShortcutsDialog from '@/components/ui/KeyboardShortcutsDialog';
 import logger from '@/lib/utils/logger';
+import type { TemplateFieldConfig } from '@/types/templates';
 import Phase1Form from '@/components/phases/Phase1Form';
 import Phase2Form from '@/components/phases/Phase2Form';
 import Phase3Form from '@/components/phases/Phase3Form';
@@ -102,7 +104,7 @@ export default function PhasePage() {
   const [totalPhases, setTotalPhases] = useState<number>(6);
   const [actualPhaseNumber, setActualPhaseNumber] = useState<number>(phaseNumber);
   const [phases, setPhases] = useState<Array<{ phase_number: number; phase_name: string }>>([]);
-  const [fieldConfigs, setFieldConfigs] = useState<Array<{ field_key: string }>>([]);
+  const [fieldConfigs, setFieldConfigs] = useState<TemplateFieldConfig[]>([]);
   const [hasInitialLoadCompleted, setHasInitialLoadCompleted] = useState(false);
   const [hasUserMadeChanges, setHasUserMadeChanges] = useState(false);
 
@@ -182,72 +184,37 @@ export default function PhasePage() {
         return;
       }
 
-      // Load project via API route to avoid RLS recursion
-      const projectResponse = await fetch(`/api/projects/${projectId}`);
-      if (!projectResponse.ok) {
-        const errorData = await projectResponse.json();
-        setError(errorData.error || 'Project not found');
+      // OPTIMIZATION: Use combined endpoint that returns ALL data in ONE call
+      const response = await fetch(`/api/projects/${projectId}/phase-page-data?phase_number=${phaseNumber}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to load phase data');
         setLoading(false);
         return;
       }
 
-      const projectData = await projectResponse.json();
+      const { user: userData, project: projectData, phases: allPhases, currentPhase: currentPhaseData, fieldConfigs: loadedFieldConfigs, meta } = await response.json();
       
-      // Get user's database ID (users.id) from API route, not auth.uid()
-      // The project_members.user_id references users.id, not users.auth_id
-      let userDatabaseId: string | null = null;
-      try {
-        const userResponse = await fetch('/api/users/me');
-        if (userResponse.ok) {
-          const userData = await userResponse.json();
-          userDatabaseId = userData.id;
-        }
-      } catch (err) {
-        logger.warn('[PhasePage] Failed to fetch user ID:', err);
-      }
-      
-      // Fallback: if API fails, we'll check membership differently
+      logger.debug('[PhasePage] Combined data loaded in', meta?.responseTime, 'ms');
+
+      const userDatabaseId = userData?.id;
       const userId = userDatabaseId || session.user.id;
-      
+
       if (projectData) {
         setProjectName(projectData.name);
-        
         logger.debug('[PhasePage] Project template_id:', projectData.template_id);
         logger.debug('[PhasePage] Phase number:', phaseNumber);
         logger.debug('[PhasePage] User database ID:', userDatabaseId);
-        
-        // Template detection will happen after we load the phase data
-        // to ensure we use the correct phase_number from the database
       }
       
       // Determine which template to use for field configs (will be set after phase load)
       let templateToUse: string | null = null;
 
-      // Load the current phase via API route to avoid RLS recursion
-      const phaseResponse = await fetch(`/api/projects/${projectId}/phases/${phaseNumber}`);
-      if (!phaseResponse.ok) {
-        const errorData = await phaseResponse.json();
-        setError(errorData.error || 'Phase not found');
-        setLoading(false);
-        return;
-      }
-
-      const currentPhaseData = await phaseResponse.json();
-
       // Use the actual phase_number from the database (in case URL doesn't match)
       const actualPhaseNumberFromDB = currentPhaseData.phase_number;
       setActualPhaseNumber(actualPhaseNumberFromDB);
       logger.debug('[PhasePage] URL phase_number:', phaseNumber, 'DB phase_number:', actualPhaseNumberFromDB);
-
-      // Load all phase statuses via API route to check dependencies
-      const phasesResponse = await fetch(`/api/projects/${projectId}/phases`);
-      let allPhases: any[] = [];
-      if (phasesResponse.ok) {
-        const phasesData = await phasesResponse.json();
-        allPhases = phasesData.phases || [];
-      } else {
-        logger.error('Error loading phase statuses:', await phasesResponse.json());
-      }
 
       const statuses: PhaseStatus[] = allPhases.map((p: any) => ({
         phase_number: p.phase_number,
@@ -299,63 +266,32 @@ export default function PhasePage() {
         completed: data.completed
       });
 
-      // NOW check for template field configs using the actual phase_number from database
-      // ALWAYS use the project's template_id if it exists - don't try to detect
-      if (projectData && projectData.template_id) {
-        // Load field configs via API route to avoid RLS recursion
-        // If this fails, continue without field configs (will use hardcoded forms)
-        let fieldConfigs: any[] = [];
-        try {
-          const configsResponse = await fetch(`/api/admin/templates/${projectData.template_id}/field-configs?phase_number=${actualPhaseNumberFromDB}`);
-          if (configsResponse.ok) {
-            const configsData = await configsResponse.json();
-            fieldConfigs = configsData.fieldConfigs || [];
-          } else {
-            // Silently fail - don't show error to user, just log it
-            try {
-              const errorData = await configsResponse.json();
-              logger.warn('[PhasePage] Failed to load field configs (will use hardcoded forms):', errorData.error || 'Unknown error');
-            } catch {
-              logger.warn('[PhasePage] Failed to load field configs (will use hardcoded forms)');
-            }
-            // Continue without field configs - page will use hardcoded phase forms
-          }
-        } catch (fetchError) {
-          // Network error or other fetch issue - silently continue
-          logger.warn('[PhasePage] Error fetching field configs (will use hardcoded forms):', fetchError);
-          // Continue without field configs
-        }
-
-        logger.debug('[PhasePage] Template field configs check (project has template_id):', {
+      // Field configs are already loaded from the combined endpoint
+      // Use them if available
+      if (projectData && projectData.template_id && loadedFieldConfigs && loadedFieldConfigs.length > 0) {
+        logger.debug('[PhasePage] Template field configs from combined endpoint:', {
           projectTemplateId: projectData.template_id,
           actualPhaseNumber: actualPhaseNumberFromDB,
           phaseName: phaseName,
-          found: fieldConfigs?.length || 0,
-          fieldKeys: fieldConfigs?.map((f: any) => f.field_key)
+          found: loadedFieldConfigs.length,
+          fieldKeys: loadedFieldConfigs.map((f: any) => f.field_key)
         });
 
-        if (fieldConfigs && fieldConfigs.length > 0) {
-          templateToUse = projectData.template_id;
-          setFieldConfigs(fieldConfigs);
-          logger.debug('[PhasePage] Using project template_id:', templateToUse, 'for phase', actualPhaseNumberFromDB);
-        } else {
-          logger.warn('[PhasePage] Project has template_id but no field configs found for phase', {
-            templateId: projectData.template_id,
-            phaseNumber: actualPhaseNumberFromDB,
-            phaseName: phaseName
-          });
-        }
+        templateToUse = projectData.template_id;
+        setFieldConfigs(loadedFieldConfigs);
+        logger.debug('[PhasePage] Using project template_id:', templateToUse, 'for phase', actualPhaseNumberFromDB);
+      } else if (projectData && projectData.template_id && (!loadedFieldConfigs || loadedFieldConfigs.length === 0)) {
+        logger.warn('[PhasePage] Project has template_id but no field configs found for phase', {
+          templateId: projectData.template_id,
+          phaseNumber: actualPhaseNumberFromDB,
+          phaseName: phaseName
+        });
       } else if (projectData && !projectData.template_id) {
         // Project has no template_id - try to find the correct template by matching template_phases
         logger.debug('[PhasePage] Project has no template_id, attempting to detect template from phases');
         
-        // Get all phases for this project via API route
-        const projectPhasesResponse = await fetch(`/api/projects/${projectId}/phases`);
-        let projectPhases: any[] = [];
-        if (projectPhasesResponse.ok) {
-          const phasesData = await projectPhasesResponse.json();
-          projectPhases = phasesData.phases || [];
-        }
+        // Use already-loaded allPhases instead of making another API call
+        const projectPhases = allPhases;
         
         if (projectPhases && projectPhases.length > 0) {
           const projectPhaseNumbers = projectPhases.map((p: any) => p.phase_number).sort();
@@ -640,25 +576,32 @@ export default function PhasePage() {
     setSaving(true);
     setError(null);
 
-    const { error: updateError } = await supabase
-      .from('project_phases')
-      .update({
-        data: phaseData,
-        completed,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('project_id', projectId)
-      .eq('phase_number', phaseNumber);
+    try {
+      // Use API endpoint instead of direct Supabase to bypass RLS issues
+      const response = await fetch(`/api/projects/${projectId}/phases/${actualPhaseNumber}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data: phaseData,
+          completed,
+        }),
+      });
 
-    if (updateError) {
-      setError(updateError.message);
-      showError('Failed to save: ' + updateError.message);
-      setSaving(false);
-    } else {
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save phase');
+      }
+
       showSuccess('Phase saved successfully!');
+      setHasUserMadeChanges(false);
       setTimeout(() => {
         setSaving(false);
       }, 1000);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(errorMessage);
+      showError('Failed to save: ' + errorMessage);
+      setSaving(false);
     }
   };
 
@@ -729,27 +672,80 @@ export default function PhasePage() {
           ? `Project: ${projectName}\n\n${promptWithData}`
           : promptWithData;
       } else {
-        // Use default prompt to generate client-ready document
-        const phaseDataJson = JSON.stringify(phaseData, null, 2);
-        const documentType = getDocumentTypeForPhase(phaseNumber);
+        // Build a structured view of fields and their values for the AI
+        const fieldsWithValues: Array<{ label: string; value: any; type: string }> = [];
         
-        finalPrompt = `You are creating a professional, client-ready ${documentType} document.
+        if (fieldConfigs.length > 0) {
+          // Template-based form: use field configs for labels
+          fieldConfigs.forEach(config => {
+            const fieldKey = config.field_key;
+            const value = (phaseData as any)?.[fieldKey];
+            const label = config.field_config?.label || fieldKey.replace(/-/g, ' ').replace(/_/g, ' ');
+            const fieldType = config.field_type || 'text';
+            
+            if (checkValue(value)) {
+              fieldsWithValues.push({ label, value, type: fieldType });
+            }
+          });
+        } else {
+          // Non-template form: extract from phaseData directly
+          Object.entries(phaseData || {}).forEach(([key, value]) => {
+            // Skip internal fields
+            if (key.startsWith('_') || key === 'generated_document' || key === 'document_generated_at' || key === 'master_prompt') {
+              return;
+            }
+            const label = key.replace(/-/g, ' ').replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim();
+            if (checkValue(value)) {
+              fieldsWithValues.push({ label, value, type: typeof value === 'object' ? 'object' : 'text' });
+            }
+          });
+        }
+        
+        // Format field values for the prompt
+        const formattedFields = fieldsWithValues.map(({ label, value, type }) => {
+          let formattedValue = '';
+          if (Array.isArray(value)) {
+            formattedValue = value.map(item => {
+              if (typeof item === 'object' && item !== null) {
+                return JSON.stringify(item);
+              }
+              return String(item);
+            }).join(', ');
+          } else if (typeof value === 'object' && value !== null) {
+            formattedValue = JSON.stringify(value, null, 2);
+          } else {
+            formattedValue = String(value);
+          }
+          return `**${label}**: ${formattedValue}`;
+        }).join('\n\n');
+        
+        finalPrompt = `You are creating a professional phase overview document.
 
-Project Name: ${projectName || 'Unnamed Project'}
+## Project Information
+- **Project Name:** ${projectName || 'Unnamed Project'}
+- **Phase:** ${currentPhaseName || `Phase ${actualPhaseNumber}`}
+- **Fields Completed:** ${fieldsWithValues.length}
 
-Phase Data:
-${phaseDataJson}
+## Field Data
+${formattedFields || 'No data entered yet.'}
 
-Instructions:
-- Create a comprehensive, professional ${documentType} document
-- Format it as a polished business document suitable for client presentation
-- Include all relevant information from the phase data
-- Use clear headings, sections, and professional language
-- Make it ready to share with stakeholders and clients
-- Structure it logically with executive summary, detailed sections, and conclusions
-- Ensure it's well-formatted and easy to read
+## Instructions
+Create a clear, concise overview document for this phase that:
 
-Generate the complete ${documentType} document now:`;
+1. **Executive Summary** - Start with a brief 2-3 sentence overview of what this phase covers
+2. **Key Information** - Present the most important data points as bullet points, grouped logically by topic
+3. **Details** - Expand on any complex fields (arrays, tables, or long text) with proper formatting
+4. **Status** - Note any fields that appear incomplete or need attention
+
+Formatting Guidelines:
+- Use markdown formatting with headers, bullet points, and bold text
+- Keep it scannable and easy to read
+- Group related information together
+- Use bullet points (•) for lists
+- Keep language professional but accessible
+- Don't invent information not present in the data
+
+Generate the phase overview now:`;
       }
 
       const response = await fetch('/api/ai/generate', {
@@ -758,7 +754,7 @@ Generate the complete ${documentType} document now:`;
         body: JSON.stringify({
           prompt: finalPrompt,
           options: {
-            context: `Generate client-ready document for Phase ${phaseNumber}: ${currentPhaseName || `Phase ${phaseNumber}`}`,
+            context: `Generate phase overview for: ${currentPhaseName || `Phase ${actualPhaseNumber}`}`,
             phaseData: phaseData,
           },
           structured: false,
@@ -780,22 +776,23 @@ Generate the complete ${documentType} document now:`;
         document_generated_at: new Date().toISOString(),
       };
       
-      // Update phase data in database
-      const { error: saveError } = await supabase
-        .from('project_phases')
-        .update({
+      // Update phase data in database via API to bypass RLS
+      const saveResponse = await fetch(`/api/projects/${projectId}/phases/${actualPhaseNumber}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           data: updatedPhaseData,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('project_id', projectId)
-        .eq('phase_number', phaseNumber);
+          completed,
+        }),
+      });
 
-      if (saveError) {
-        logger.error('Error saving document:', saveError);
+      if (!saveResponse.ok) {
+        const saveErrorData = await saveResponse.json();
+        logger.error('Error saving document:', saveErrorData);
         showError('Document generated but failed to save. Please try again.');
       } else {
         setPhaseData(updatedPhaseData as any);
-        showSuccess('Client-ready document generated and saved!');
+        showSuccess('Phase overview generated and saved!');
       }
       
       setShowSummary(true);
@@ -807,29 +804,17 @@ Generate the complete ${documentType} document now:`;
     }
   };
 
-  const getDocumentTypeForPhase = (phaseNum: number): string => {
-    switch (phaseNum) {
-      case 1:
-        return 'Concept Framing Document';
-      case 2:
-        return 'Product Strategy Document';
-      case 3:
-        return 'Rapid Prototype Definition Document';
-      case 4:
-        return 'Analysis & User Stories Document';
-      case 5:
-        return 'Build Accelerator Document';
-      case 6:
-        return 'QA & Hardening Document';
-      default:
-        return 'Phase Document';
-    }
+  const getDocumentTypeForPhase = (): string => {
+    // Dynamic document title based on actual phase name
+    return currentPhaseName 
+      ? `${currentPhaseName} Overview`
+      : `Phase ${actualPhaseNumber} Overview`;
   };
 
   const handleDownloadDocument = () => {
     if (!summary) return;
     
-    const documentType = getDocumentTypeForPhase(phaseNumber);
+    const documentType = getDocumentTypeForPhase();
     const sanitizedProjectName = projectName.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'project';
     const filename = `${sanitizedProjectName}_${documentType.replace(/\s+/g, '_').toLowerCase()}.md`;
     
@@ -848,30 +833,54 @@ Generate the complete ${documentType} document now:`;
 
   // Auto-save function (called on blur or manual save)
   const handleAutoSave = useCallback(async () => {
-    if (!phaseData || !canEdit || saving || !hasInitialLoadCompleted || !hasUserMadeChanges) return;
+    if (!phaseData || !canEdit || saving || !hasInitialLoadCompleted || !hasUserMadeChanges) {
+      logger.debug('[PhasePage] Auto-save skipped:', {
+        hasPhaseData: !!phaseData,
+        canEdit,
+        saving,
+        hasInitialLoadCompleted,
+        hasUserMadeChanges
+      });
+      return;
+    }
 
     setSaving(true);
     setError(null);
+    
+    logger.debug('[PhasePage] Auto-saving phase data:', {
+      projectId,
+      actualPhaseNumber,
+      phaseDataKeys: Object.keys(phaseData || {}),
+      phaseDataValues: phaseData
+    });
 
-    const { error: updateError } = await supabase
-      .from('project_phases')
-      .update({
-        data: phaseData,
-        completed,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('project_id', projectId)
-      .eq('phase_number', phaseNumber);
+    try {
+      // Use API endpoint instead of direct Supabase to bypass RLS issues
+      const response = await fetch(`/api/projects/${projectId}/phases/${actualPhaseNumber}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data: phaseData,
+          completed,
+        }),
+      });
 
-    if (updateError) {
-      setError(updateError.message);
-      showError('Failed to save: ' + updateError.message);
-    } else {
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save phase');
+      }
+
       showSuccess('Changes saved automatically');
-      setHasUserMadeChanges(false); // Reset after successful save
+      setHasUserMadeChanges(false);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(errorMessage);
+      showError('Failed to save: ' + errorMessage);
+      logger.error('[PhasePage] Auto-save error:', err);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-  }, [phaseData, completed, canEdit, saving, hasInitialLoadCompleted, hasUserMadeChanges, projectId, phaseNumber, supabase, showError, showSuccess]);
+  }, [phaseData, completed, canEdit, saving, hasInitialLoadCompleted, hasUserMadeChanges, projectId, actualPhaseNumber, showError, showSuccess]);
 
   // Track when user makes changes (after initial load)
   useEffect(() => {
@@ -903,6 +912,7 @@ Generate the complete ${documentType} document now:`;
             data={(phaseData as unknown as Record<string, unknown>) || {}}
             onChange={(data) => setPhaseData(data as unknown as typeof phaseData)}
             onBlur={handleAutoSave}
+            preloadedFieldConfigs={fieldConfigs.length > 0 ? fieldConfigs : undefined}
           />
         </ErrorBoundary>
       );
@@ -1337,7 +1347,7 @@ Generate the complete ${documentType} document now:`;
                 color: theme.palette.text.secondary,
               },
             }}
-            title="Generate Client Document"
+            title="Generate Phase Overview"
           >
             {generatingSummary ? <CircularProgress size={24} sx={{ color: theme.palette.background.default }} /> : <DescriptionIcon />}
           </Fab>
@@ -1386,7 +1396,7 @@ Generate the complete ${documentType} document now:`;
             }}
           >
             <Box>
-              {getDocumentTypeForPhase(phaseNumber)}
+              {getDocumentTypeForPhase()}
               {phaseData && (phaseData as any).document_generated_at && (
                 <Typography variant="caption" sx={{ display: 'block', color: theme.palette.text.secondary, fontWeight: 400, mt: 0.5 }}>
                   Generated: {new Date((phaseData as any).document_generated_at).toLocaleString()}
@@ -1395,69 +1405,129 @@ Generate the complete ${documentType} document now:`;
             </Box>
           </DialogTitle>
           <DialogContent sx={{ mt: 2 }}>
-            <Box
-              component="pre"
+            <TextField
+              multiline
+              fullWidth
+              value={summary || ''}
+              onChange={(e) => setSummary(e.target.value)}
+              minRows={15}
+              maxRows={25}
               sx={{
-                whiteSpace: 'pre-wrap',
-                fontSize: '0.9375rem',
-                lineHeight: 1.8,
-                maxHeight: '60vh',
-                overflow: 'auto',
-                p: 3,
-                backgroundColor: theme.palette.background.default,
-                borderRadius: 2,
-                border: `1px solid ${theme.palette.divider}`,
-                color: theme.palette.text.primary,
-                fontFamily: 'inherit',
-                margin: 0,
-              }}
-            >
-              {summary}
-            </Box>
-          </DialogContent>
-          <DialogActions sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
-            <Button
-              onClick={handleDownloadDocument}
-              startIcon={<FileDownloadIcon />}
-              sx={{
-                color: theme.palette.text.primary,
-                '&:hover': {
-                  backgroundColor: theme.palette.action.hover,
+                '& .MuiInputBase-root': {
+                  fontSize: '0.9375rem',
+                  lineHeight: 1.8,
+                  backgroundColor: theme.palette.background.default,
+                  color: theme.palette.text.primary,
+                  fontFamily: 'inherit',
                 },
-              }}
-            >
-              Download
-            </Button>
-            <Button
-              onClick={() => {
-                if (summary) {
-                  navigator.clipboard.writeText(summary);
-                  showSuccess('Document copied to clipboard!');
-                }
-              }}
-              sx={{
-                color: theme.palette.text.primary,
-                '&:hover': {
-                  backgroundColor: theme.palette.action.hover,
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.divider,
                 },
-              }}
-            >
-              Copy
-            </Button>
-            <Button
-              onClick={() => setShowSummary(false)}
-              variant="outlined"
-              sx={{
-                borderColor: theme.palette.text.primary,
-                color: theme.palette.text.primary,
-                '&:hover': {
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.text.secondary,
+                },
+                '& .Mui-focused .MuiOutlinedInput-notchedOutline': {
                   borderColor: theme.palette.text.primary,
-                  backgroundColor: theme.palette.action.hover,
                 },
               }}
-            >
-              Close
-            </Button>
+            />
+          </DialogContent>
+          <DialogActions sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}`, justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                onClick={handleDownloadDocument}
+                startIcon={<FileDownloadIcon />}
+                sx={{
+                  color: theme.palette.text.primary,
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+              >
+                Download
+              </Button>
+              <Button
+                onClick={() => {
+                  if (summary) {
+                    navigator.clipboard.writeText(summary);
+                    showSuccess('Document copied to clipboard!');
+                  }
+                }}
+                sx={{
+                  color: theme.palette.text.primary,
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+              >
+                Copy
+              </Button>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                onClick={async () => {
+                  if (summary && phaseData) {
+                    try {
+                      setSaving(true);
+                      const updatedPhaseData = {
+                        ...phaseData,
+                        generated_document: summary,
+                        document_generated_at: (phaseData as any).document_generated_at || new Date().toISOString(),
+                      };
+                      setPhaseData(updatedPhaseData);
+                      
+                      // Save to database via API to bypass RLS
+                      const response = await fetch(`/api/projects/${projectId}/phases/${actualPhaseNumber}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          data: updatedPhaseData,
+                          completed,
+                        }),
+                      });
+                      
+                      if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Failed to save document');
+                      }
+                      
+                      showSuccess('Document saved successfully!');
+                    } catch (err) {
+                      showError('Failed to save document');
+                      logger.error('[PhasePage] Error saving document:', err);
+                    } finally {
+                      setSaving(false);
+                    }
+                  }
+                }}
+                variant="contained"
+                disabled={saving}
+                startIcon={saving ? <CircularProgress size={16} /> : <SaveIcon />}
+                sx={{
+                  backgroundColor: '#4CAF50',
+                  color: '#fff',
+                  '&:hover': {
+                    backgroundColor: '#45a049',
+                  },
+                }}
+              >
+                Save Changes
+              </Button>
+              <Button
+                onClick={() => setShowSummary(false)}
+                variant="outlined"
+                sx={{
+                  borderColor: theme.palette.text.primary,
+                  color: theme.palette.text.primary,
+                  '&:hover': {
+                    borderColor: theme.palette.text.primary,
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+              >
+                Close
+              </Button>
+            </Box>
           </DialogActions>
         </Dialog>
       </Box>

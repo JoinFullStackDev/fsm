@@ -30,15 +30,10 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
           return;
         }
 
-        // Verify user exists in database
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('id')
-          .eq('auth_id', session.user.id)
-          .maybeSingle();
-
-        if (userError || !userData) {
-          // User doesn't exist in database - redirect to signin
+        // Verify user exists in database via API to avoid RLS recursion
+        const userResponse = await fetch('/api/users/me');
+        if (!userResponse.ok) {
+          // User doesn't exist in database or error - redirect to signin
           router.push('/auth/signin');
           return;
         }
