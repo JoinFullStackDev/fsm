@@ -43,13 +43,10 @@ export default function LandingHeader() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('auth_id', session.user.id)
-        .single();
-
-      if (!error && data) {
+      // Use API to get user data to avoid RLS recursion issues
+      const response = await fetch('/api/users/me');
+      if (response.ok) {
+        const data = await response.json();
         setUser(data as User);
       }
     } catch (error) {

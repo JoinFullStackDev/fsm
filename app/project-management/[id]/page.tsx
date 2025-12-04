@@ -28,6 +28,7 @@ import GenerateReportForm, { type ReportType, type ReportFormat } from '@/compon
 import ReportsList from '@/components/project-management/ReportsList';
 import TaskGeneratorModal from '@/components/project-management/TaskGeneratorModal';
 import TaskPreviewTable from '@/components/project-management/TaskPreviewTable';
+import ProjectDashboard from '@/components/project-management/ProjectDashboard';
 import BuildingOverlay from '@/components/ai/BuildingOverlay';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { useOrganization } from '@/components/providers/OrganizationProvider';
@@ -62,39 +63,39 @@ export default function ProjectTaskManagementPage() {
   const [previewTasks, setPreviewTasks] = useState<PreviewTask[]>([]);
   const [previewSummary, setPreviewSummary] = useState<string | undefined>();
   const [showPreview, setShowPreview] = useState(false);
+  const [previewAnalysisId, setPreviewAnalysisId] = useState<string | null>(null);
+  const hasPolledRef = useRef(false); // Track if we've already polled for tasks
 
   const loadTasks = useCallback(async () => {
-    // Load tasks with assignee info and parent task info for subtasks
-    // Using direct query now that RLS policies are fixed
+    // Load tasks via API route to avoid RLS recursion issues
     console.log(`[Task Management] Loading tasks for project: ${projectId}`);
-    const { data: tasksData, error: tasksError } = await supabase
-      .from('project_tasks')
-      .select(`
-        *,
-        assignee:users!project_tasks_assignee_id_fkey(id, name, email, avatar_url)
-      `)
-      .eq('project_id', projectId)
-      .order('created_at', { ascending: false });
-
-    if (tasksError) {
-      console.error('[Task Management] Error loading tasks:', tasksError);
-      setError(tasksError.message);
-      return [];
-    } else {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/tasks?t=${Date.now()}`, {
+        cache: 'no-store', // Ensure fresh data
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('[Task Management] Error loading tasks:', errorData);
+        setError(errorData.error || 'Failed to load tasks');
+        return [];
+      }
+      
+      const tasksData = await response.json();
       console.log(`[Task Management] Loaded ${tasksData?.length || 0} tasks for project ${projectId}`);
       
-      // Create a map of all tasks by ID for parent task lookup
+      // The API already returns transformed tasks with assignee info
+      // Just need to add parent task info
       const taskMap = new Map<string, any>();
       (tasksData || []).forEach((task: any) => {
         taskMap.set(task.id, task);
       });
 
-      // Transform tasks to include assignee and parent task info
+      // Transform tasks to include parent task info
       const transformedTasks = (tasksData || []).map((task: any) => {
         const parentTask = task.parent_task_id ? taskMap.get(task.parent_task_id) : null;
         return {
           ...task,
-          assignee: task.assignee || null,
           parent_task: parentTask ? {
             id: parentTask.id,
             title: parentTask.title,
@@ -103,12 +104,18 @@ export default function ProjectTaskManagementPage() {
         };
       });
       return transformedTasks as (ProjectTask | ProjectTaskExtended)[];
+    } catch (error) {
+      console.error('[Task Management] Error loading tasks:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load tasks');
+      return [];
     }
-  }, [projectId, supabase]);
+  }, [projectId]);
 
   const loadData = useCallback(async () => {
       setLoading(true);
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      // Create supabase client fresh to avoid dependency issues
+      const supabaseClient = createSupabaseClient();
+      const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
 
       if (sessionError || !session) {
         setError('Session not found. Please try signing in again.');
@@ -153,26 +160,58 @@ export default function ProjectTaskManagementPage() {
 
       setProject(projectData as Project);
 
-      // Load tasks
-      const loadedTasks = await loadTasks();
-      setTasks(loadedTasks);
-
-      // Load project phases for phase names
-      const { data: phasesData, error: phasesError } = await supabase
-        .from('project_phases')
-        .select('phase_number, phase_name')
-        .eq('project_id', projectId)
-        .eq('is_active', true)
-        .order('display_order', { ascending: true });
-
-      // Create phase names map
-      const phaseNamesMap: Record<number, string> = {};
-      if (!phasesError && phasesData) {
-        phasesData.forEach((phase: { phase_number: number; phase_name: string }) => {
-          phaseNamesMap[phase.phase_number] = phase.phase_name;
+      // Load tasks directly to avoid dependency issues
+      try {
+        const tasksResponse = await fetch(`/api/projects/${projectId}/tasks?t=${Date.now()}`, {
+          cache: 'no-store',
         });
+        if (tasksResponse.ok) {
+          const tasksData = await tasksResponse.json();
+          const taskMap = new Map<string, any>();
+          (tasksData || []).forEach((task: any) => {
+            taskMap.set(task.id, task);
+          });
+          const transformedTasks = (tasksData || []).map((task: any) => {
+            const parentTask = task.parent_task_id ? taskMap.get(task.parent_task_id) : null;
+            return {
+              ...task,
+              parent_task: parentTask ? {
+                id: parentTask.id,
+                title: parentTask.title,
+                assignee_id: parentTask.assignee_id,
+              } : null,
+            };
+          });
+          setTasks(transformedTasks as (ProjectTask | ProjectTaskExtended)[]);
+        }
+      } catch (error) {
+        console.error('[Task Management] Error loading tasks in loadData:', error);
       }
-      setPhaseNames(phaseNamesMap);
+
+      // Load project phases for phase names via API to avoid RLS issues
+      try {
+        const phasesResponse = await fetch(`/api/projects/${projectId}/phases?t=${Date.now()}`, {
+          cache: 'no-store',
+        });
+        if (phasesResponse.ok) {
+          const phasesResult = await phasesResponse.json();
+          const phasesData = phasesResult.phases || phasesResult; // Handle both { phases: [...] } and [...] formats
+          const phaseNamesMap: Record<number, string> = {};
+          if (Array.isArray(phasesData)) {
+            phasesData.forEach((phase: { phase_number: number; phase_name: string }) => {
+              if (phase.phase_number && phase.phase_name) {
+                phaseNamesMap[phase.phase_number] = phase.phase_name;
+              }
+            });
+          }
+          console.log('[Task Management] Loaded phase names:', phaseNamesMap);
+          setPhaseNames(phaseNamesMap);
+        } else {
+          console.error('[Task Management] Failed to load phases via API');
+        }
+      } catch (error) {
+        console.error('[Task Management] Error loading phases:', error);
+      }
 
       // Load project members via API route to avoid RLS recursion
       // Add cache-busting to ensure fresh data
@@ -204,64 +243,226 @@ export default function ProjectTaskManagementPage() {
       }
 
       setLoading(false);
-    }, [projectId, supabase, loadTasks]);
+    }, [projectId]); // Removed supabase and loadTasks - create client fresh inside function
 
   useEffect(() => {
     if (projectId) {
       loadData();
     }
-  }, [projectId, loadData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]); // Only depend on projectId - loadData is stable
+
+  // Check for preview mode from analyze endpoint
+  useEffect(() => {
+    const previewParam = searchParams.get('preview');
+    const analysisId = searchParams.get('analysis_id');
+    
+    // Only load if we have preview param, analysis ID, and haven't loaded preview yet
+    if (previewParam === 'true' && analysisId && !showPreview && previewTasks.length === 0) {
+      let isCancelled = false;
+      
+      // Load preview tasks from analyze endpoint
+      const loadPreviewTasks = async () => {
+        if (isCancelled) return;
+        
+        try {
+          const response = await fetch(`/api/projects/${projectId}/analyze?preview=true`, {
+            method: 'POST',
+          });
+          
+          if (isCancelled) return;
+          
+          if (response.ok) {
+            const result = await response.json();
+            if (isCancelled) return;
+            
+            if (result.preview && result.tasks) {
+              // Transform tasks to PreviewTask format
+              const previewTasksData: PreviewTask[] = result.tasks.map((task: any, index: number) => ({
+                // PreviewTask-specific fields
+                previewId: task.previewId || `preview-${Date.now()}-${index}`,
+                duplicateStatus: task.isUpdate ? 'possible-duplicate' : 'unique',
+                existingTaskId: task.isUpdate ? task.id : null,
+                requirements: task.requirements || [],
+                userStories: task.userStories,
+                // ProjectTask fields (required for database insertion)
+                title: task.title,
+                description: task.description || null,
+                phase_number: task.phase_number,
+                priority: task.priority || 'medium',
+                status: task.status || 'todo',
+                estimated_hours: task.estimated_hours || null,
+                tags: task.tags || [],
+                start_date: task.start_date || null,
+                due_date: task.due_date || null,
+                assignee_id: task.assignee_id || null,
+                notes: task.notes || null,
+                dependencies: task.dependencies || [],
+                ai_generated: true,
+                ai_analysis_id: result.analysis_id || null,
+                parent_task_id: task.parent_task_id || null,
+              }));
+              
+              if (!isCancelled) {
+                console.log('[Preview Mode] Preview tasks loaded:', previewTasksData.length, 'tasks');
+                setPreviewTasks(previewTasksData);
+                setPreviewSummary(result.summary);
+                setPreviewAnalysisId(result.analysis_id);
+                setShowPreview(true);
+              }
+            }
+          }
+        } catch (err) {
+          if (!isCancelled) {
+            console.error('Failed to load preview tasks:', err);
+          }
+        }
+      };
+      
+      loadPreviewTasks();
+      
+      return () => {
+        isCancelled = true;
+      };
+    }
+  }, [searchParams, projectId, showPreview, previewTasks.length]); // Added previewTasks.length to prevent re-running
 
   // Poll for tasks if project is initiated but no tasks are loaded yet
   // This handles the case where tasks are being created asynchronously
   useEffect(() => {
-    if (!project || !project.initiated_at || tasks.length > 0 || loading) {
+    // Reset polling flag when projectId changes
+    if (projectId) {
+      hasPolledRef.current = false;
+    }
+    
+    // Only poll if: project exists, is initiated, has no tasks, not loading, and we haven't polled yet
+    if (!project || !project.initiated_at || tasks.length > 0 || loading || hasPolledRef.current) {
       return;
     }
 
+    // Mark that we're starting to poll
+    hasPolledRef.current = true;
+    
+    let isCancelled = false;
+    let timeoutId: NodeJS.Timeout | null = null;
+    let maxTimeoutId: NodeJS.Timeout | null = null;
+    let pollCount = 0;
+    const MAX_POLLS = 5; // Maximum 5 polls (10 seconds total)
+
     // If project is initiated but no tasks, wait a bit and check again
     const checkForTasks = async () => {
-      const loadedTasks = await loadTasks();
-      if (loadedTasks.length > 0) {
-        setTasks(loadedTasks);
-      } else {
-        // Retry after 2 seconds if still no tasks
-        setTimeout(checkForTasks, 2000);
+      if (isCancelled || pollCount >= MAX_POLLS) {
+        return;
+      }
+      
+      pollCount++;
+      
+      try {
+        const response = await fetch(`/api/projects/${projectId}/tasks?t=${Date.now()}`, {
+          cache: 'no-store',
+        });
+        
+        if (isCancelled) return;
+        
+        if (response.ok) {
+          const tasksData = await response.json();
+          if (isCancelled) return;
+          
+          if (tasksData && tasksData.length > 0) {
+            const taskMap = new Map<string, any>();
+            tasksData.forEach((task: any) => {
+              taskMap.set(task.id, task);
+            });
+            const transformedTasks = tasksData.map((task: any) => {
+              const parentTask = task.parent_task_id ? taskMap.get(task.parent_task_id) : null;
+              return {
+                ...task,
+                parent_task: parentTask ? {
+                  id: parentTask.id,
+                  title: parentTask.title,
+                  assignee_id: parentTask.assignee_id,
+                } : null,
+              };
+            });
+            setTasks(transformedTasks as (ProjectTask | ProjectTaskExtended)[]);
+            // Stop polling once we have tasks
+            return;
+          } else if (!isCancelled && pollCount < MAX_POLLS) {
+            // Retry after 2 seconds if still no tasks and we haven't exceeded max polls
+            timeoutId = setTimeout(checkForTasks, 2000);
+          }
+        }
+      } catch (error) {
+        console.error('[Task Management] Error polling for tasks:', error);
+        if (!isCancelled && pollCount < MAX_POLLS) {
+          timeoutId = setTimeout(checkForTasks, 2000);
+        }
       }
     };
 
     // Initial delay to allow tasks to be inserted
-    const timeoutId = setTimeout(checkForTasks, 2000);
+    timeoutId = setTimeout(checkForTasks, 2000);
     
-    // Stop polling after 10 seconds
-    const maxTimeoutId = setTimeout(() => {
-      // Final check
-      loadTasks().then(loadedTasks => {
-        if (loadedTasks.length > 0) {
-          setTasks(loadedTasks);
-        }
-      });
+    // Stop polling after 10 seconds (5 polls * 2 seconds)
+    maxTimeoutId = setTimeout(() => {
+      if (!isCancelled) {
+        checkForTasks();
+      }
     }, 10000);
 
     return () => {
-      clearTimeout(timeoutId);
-      clearTimeout(maxTimeoutId);
+      isCancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+      if (maxTimeoutId) clearTimeout(maxTimeoutId);
     };
-  }, [project, tasks.length, loading, loadTasks]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.id, project?.initiated_at, tasks.length, loading, projectId]); // Use project.id instead of project object
 
   // Listen for bulk operation success and refresh tasks
   useEffect(() => {
-    const handleRefresh = () => {
-      loadTasks();
+    let isMounted = true;
+    
+    const handleRefresh = async () => {
+      if (!isMounted) return;
+      try {
+        const response = await fetch(`/api/projects/${projectId}/tasks?t=${Date.now()}`, {
+          cache: 'no-store',
+        });
+        if (isMounted && response.ok) {
+          const tasksData = await response.json();
+          const taskMap = new Map<string, any>();
+          (tasksData || []).forEach((task: any) => {
+            taskMap.set(task.id, task);
+          });
+          const transformedTasks = (tasksData || []).map((task: any) => {
+            const parentTask = task.parent_task_id ? taskMap.get(task.parent_task_id) : null;
+            return {
+              ...task,
+              parent_task: parentTask ? {
+                id: parentTask.id,
+                title: parentTask.title,
+                assignee_id: parentTask.assignee_id,
+              } : null,
+            };
+          });
+          if (isMounted) {
+            setTasks(transformedTasks as (ProjectTask | ProjectTaskExtended)[]);
+          }
+        }
+      } catch (error) {
+        console.error('[Task Management] Error refreshing tasks:', error);
+      }
     };
     
     const handleSuccess = (e: CustomEvent) => {
+      if (!isMounted) return;
       const { operation, count } = e.detail;
       showSuccess(`Successfully ${operation === 'delete' ? 'deleted' : 'updated'} ${count} task${count !== 1 ? 's' : ''}`);
-      loadTasks();
+      handleRefresh();
     };
     
     const handleError = (e: CustomEvent) => {
+      if (!isMounted) return;
       showError(e.detail.error || 'Failed to perform bulk operation');
     };
 
@@ -270,11 +471,12 @@ export default function ProjectTaskManagementPage() {
     window.addEventListener('task-bulk-operation-error', handleError as EventListener);
 
     return () => {
+      isMounted = false;
       window.removeEventListener('tasks-refresh-needed', handleRefresh);
       window.removeEventListener('task-bulk-operation-success', handleSuccess as EventListener);
       window.removeEventListener('task-bulk-operation-error', handleError as EventListener);
     };
-  }, [loadTasks, showSuccess, showError]);
+  }, [projectId, showSuccess, showError]); // Removed loadTasks dependency - inline the fetch logic
 
   // Check for taskId in URL query params and open task sheet
   // This runs after tasks are loaded and component is ready
@@ -389,7 +591,8 @@ export default function ProjectTaskManagementPage() {
   const handleReAnalyze = async () => {
     try {
       setAnalyzing(true);
-      const response = await fetch(`/api/projects/${projectId}/analyze`, {
+      // Use preview mode to show merge sheet
+      const response = await fetch(`/api/projects/${projectId}/analyze?preview=true`, {
         method: 'POST',
       });
 
@@ -398,10 +601,46 @@ export default function ProjectTaskManagementPage() {
         throw new Error(error.error || 'Failed to analyze project');
       }
 
-      // Reload tasks
-      const loadedTasks = await loadTasks();
-      setTasks(loadedTasks);
-      showSuccess('Project re-analyzed successfully!');
+      const result = await response.json();
+      
+      if (result.preview && result.tasks) {
+        // Transform tasks to PreviewTask format
+        const previewTasksData: PreviewTask[] = result.tasks.map((task: any, index: number) => ({
+          // PreviewTask-specific fields
+          previewId: task.previewId || `preview-${Date.now()}-${index}`,
+          duplicateStatus: task.isUpdate ? 'possible-duplicate' : 'unique',
+          existingTaskId: task.isUpdate ? task.id : null,
+          requirements: task.requirements || [],
+          userStories: task.userStories,
+          // ProjectTask fields (required for database insertion)
+          title: task.title,
+          description: task.description || null,
+          phase_number: task.phase_number,
+          priority: task.priority || 'medium',
+          status: task.status || 'todo',
+          estimated_hours: task.estimated_hours || null,
+          tags: task.tags || [],
+          start_date: task.start_date || null,
+          due_date: task.due_date || null,
+          assignee_id: task.assignee_id || null,
+          notes: task.notes || null,
+          dependencies: task.dependencies || [],
+          ai_generated: true,
+          ai_analysis_id: result.analysis_id || null,
+          parent_task_id: task.parent_task_id || null,
+        }));
+        
+        console.log('[Re-Analyze] Preview tasks:', previewTasksData.length, 'tasks');
+        setPreviewTasks(previewTasksData);
+        setPreviewSummary(result.summary);
+        setPreviewAnalysisId(result.analysis_id);
+        setShowPreview(true);
+      } else {
+        // Fallback: direct insertion (shouldn't happen with preview=true)
+        const loadedTasks = await loadTasks();
+        setTasks(loadedTasks);
+        showSuccess('Project re-analyzed successfully!');
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to analyze project';
       setError(errorMessage);
@@ -543,24 +782,40 @@ export default function ProjectTaskManagementPage() {
           projectId={projectId}
           onInject={async (selectedTasks, merges) => {
             try {
+              console.log('[Task Inject] Starting injection...', {
+                taskCount: selectedTasks.length,
+                mergeCount: merges.length,
+                analysisId: previewAnalysisId,
+              });
+              console.log('[Task Inject] First task sample:', selectedTasks[0]);
+
+              const requestBody = {
+                tasks: selectedTasks.map((t) => ({
+                  task: t,
+                  selected: true,
+                })),
+                merges,
+                analysis_id: previewAnalysisId, // Link tasks to analysis if from analyze endpoint
+              };
+              
+              console.log('[Task Inject] Request body:', JSON.stringify(requestBody).substring(0, 500));
+
               const response = await fetch(`/api/projects/${projectId}/generate-tasks/inject`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  tasks: selectedTasks.map((t) => ({
-                    task: t,
-                    selected: true,
-                  })),
-                  merges,
-                }),
+                body: JSON.stringify(requestBody),
               });
+
+              console.log('[Task Inject] Response status:', response.status);
 
               if (!response.ok) {
                 const error = await response.json();
+                console.error('[Task Inject] Error response:', error);
                 throw new Error(error.error || 'Failed to inject tasks');
               }
 
               const result = await response.json();
+              console.log('[Task Inject] Success:', result);
               showSuccess(`Successfully created ${result.created} tasks and merged ${result.merged} tasks!`);
 
               // Reload tasks
@@ -571,7 +826,9 @@ export default function ProjectTaskManagementPage() {
               setShowPreview(false);
               setPreviewTasks([]);
               setPreviewSummary(undefined);
+              setPreviewAnalysisId(null);
             } catch (err) {
+              console.error('[Task Inject] Error:', err);
               showError(err instanceof Error ? err.message : 'Failed to inject tasks');
             }
           }}
@@ -583,6 +840,7 @@ export default function ProjectTaskManagementPage() {
             setShowPreview(false);
             setPreviewTasks([]);
             setPreviewSummary(undefined);
+            setPreviewAnalysisId(null);
           }}
         />
       ) : (
@@ -615,6 +873,9 @@ export default function ProjectTaskManagementPage() {
           onTaskClick={handleTaskClick}
           projectMembers={projectMembers}
         />
+      )}
+      {view === 'dashboard' && (
+        <ProjectDashboard projectId={projectId} projectName={project?.name || 'Project'} />
       )}
       {view === 'reports' && (
         <ReportsList projectId={projectId} refreshTrigger={reportsRefreshTrigger} />

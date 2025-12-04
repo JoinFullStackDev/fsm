@@ -14,10 +14,14 @@ import {
   IconButton,
   Toolbar,
   Paper,
+  ToggleButton,
+  Tooltip,
 } from '@mui/material';
 import {
   Save as SaveIcon,
   ArrowBack as ArrowBackIcon,
+  GridOn as GridOnIcon,
+  GridOff as GridOffIcon,
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useOrganization } from '@/components/providers/OrganizationProvider';
@@ -72,6 +76,7 @@ export default function DashboardEditorPage() {
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  const [freeFormMode, setFreeFormMode] = useState(false);
 
   useEffect(() => {
     if (features && features.custom_dashboards_enabled !== true) {
@@ -620,17 +625,55 @@ export default function DashboardEditorPage() {
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 2, gap: { xs: 2, md: 0 } }}>
               <Typography variant="h6" sx={{ fontSize: { xs: '1rem', md: '1.25rem' } }}>Widgets</Typography>
               {params.id !== 'new' && (
-                <Button
-                  variant="outlined"
-                  startIcon={<AddIcon />}
-                  onClick={() => setWidgetLibraryOpen(true)}
-                  fullWidth={false}
-                  sx={{
-                    width: { xs: '100%', md: 'auto' },
-                  }}
-                >
-                  Add Widget
-                </Button>
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', width: { xs: '100%', md: 'auto' } }}>
+                  <Tooltip title={freeFormMode ? "Free-form mode: Widgets can overlap. Click to lock layout." : "Locked mode: Widgets auto-stack. Click for free-form placement."}>
+                    <ToggleButton
+                      value="freeform"
+                      selected={freeFormMode}
+                      onChange={() => setFreeFormMode(!freeFormMode)}
+                      size="small"
+                      sx={{
+                        backgroundColor: freeFormMode 
+                          ? theme.palette.warning.main 
+                          : theme.palette.background.paper,
+                        color: freeFormMode 
+                          ? theme.palette.warning.contrastText 
+                          : theme.palette.text.primary,
+                        '&:hover': {
+                          backgroundColor: freeFormMode 
+                            ? theme.palette.warning.dark 
+                            : theme.palette.action.hover,
+                        },
+                        '&.Mui-selected': {
+                          backgroundColor: theme.palette.warning.main,
+                          color: theme.palette.warning.contrastText,
+                          '&:hover': {
+                            backgroundColor: theme.palette.warning.dark,
+                          },
+                        },
+                        border: `1px solid ${theme.palette.divider}`,
+                        px: 1.5,
+                        height: 36,
+                      }}
+                    >
+                      {freeFormMode ? <GridOffIcon sx={{ mr: 0.5, fontSize: 18 }} /> : <GridOnIcon sx={{ mr: 0.5, fontSize: 18 }} />}
+                      <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                        {freeFormMode ? 'Free-form' : 'Locked'}
+                      </Typography>
+                    </ToggleButton>
+                  </Tooltip>
+                  <Button
+                    variant="outlined"
+                    startIcon={<AddIcon />}
+                    onClick={() => setWidgetLibraryOpen(true)}
+                    fullWidth={false}
+                    sx={{
+                      width: { xs: '100%', md: 'auto' },
+                    }}
+                  >
+                    Add Widget
+                  </Button>
+                </Box>
               )}
             </Box>
 
@@ -645,6 +688,8 @@ export default function DashboardEditorPage() {
                 isResizing={isResizing}
                 onDragStateChange={setIsDragging}
                 onResizeStateChange={setIsResizing}
+                freeFormMode={freeFormMode}
+                onFreeFormModeChange={setFreeFormMode}
               />
             ) : (
               <Typography variant="body2" color="text.secondary">

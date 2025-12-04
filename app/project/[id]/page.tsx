@@ -56,15 +56,6 @@ import { useRole } from '@/lib/hooks/useRole';
 import BuildingOverlay from '@/components/ai/BuildingOverlay';
 import type { Project, PhaseSummary } from '@/types/project';
 
-const PHASE_NAMES = [
-  'Concept Framing',
-  'Product Strategy',
-  'Rapid Prototype Definition',
-  'Analysis & User Stories',
-  'Build Accelerator',
-  'QA & Hardening',
-];
-
 // Helper function to check if a value has content
 const checkValue = (value: any): boolean => {
   if (value === null || value === undefined) return false;
@@ -210,21 +201,13 @@ export default function ProjectPage() {
         setCompanyName(null);
       }
 
-      // Load creator information
-      if (projectData.owner_id) {
-        const { data: creatorData } = await supabase
-          .from('users')
-          .select('id, name, email, avatar_url')
-          .eq('id', projectData.owner_id)
-          .single();
-        
-        if (creatorData) {
-          setCreator({
-            name: creatorData.name,
-            email: creatorData.email,
-            avatar_url: creatorData.avatar_url,
-          });
-        }
+      // Use owner info from API response (already joined in the query)
+      if (projectData.owner) {
+        setCreator({
+          name: projectData.owner.name,
+          email: projectData.owner.email,
+          avatar_url: projectData.owner.avatar_url,
+        });
       }
 
       // Load phases via API route to avoid RLS recursion
@@ -469,7 +452,8 @@ export default function ProjectPage() {
 
     setInitiating(true);
     try {
-      const response = await fetch(`/api/projects/${projectId}/analyze`, {
+      // Call analyze with preview=true to show merge sheet
+      const response = await fetch(`/api/projects/${projectId}/analyze?preview=true`, {
         method: 'POST',
       });
 
@@ -479,21 +463,28 @@ export default function ProjectPage() {
       }
 
       const result = await response.json();
-      showSuccess('Project initiated successfully! Generating tasks...');
       
-      const { data: updatedProject, error: projectError } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', projectId)
-        .single();
-      
-      if (!projectError && updatedProject) {
-        setProject(updatedProject);
+      if (result.preview) {
+        // Navigate to project-management page with preview tasks
+        // The project-management page will handle showing the preview table
+        router.push(`/project-management/${projectId}?preview=true&analysis_id=${result.analysis_id}`);
+      } else {
+        // Fallback: direct insertion (shouldn't happen with preview=true)
+        showSuccess('Project initiated successfully! Generating tasks...');
+        const { data: updatedProject, error: projectError } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('id', projectId)
+          .single();
+        
+        if (!projectError && updatedProject) {
+          setProject(updatedProject);
+        }
+        
+        setTimeout(() => {
+          router.push(`/project-management/${projectId}`);
+        }, 1000);
       }
-      
-      setTimeout(() => {
-        router.push(`/project-management/${projectId}`);
-      }, 1000);
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to initiate project');
     } finally {

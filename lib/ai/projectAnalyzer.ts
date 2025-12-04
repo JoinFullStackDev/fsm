@@ -28,14 +28,6 @@ export interface ProjectAnalysisResult {
   };
 }
 
-const PHASE_NAMES: Record<number, string> = {
-  1: 'Concept Framing',
-  2: 'Product Strategy',
-  3: 'Rapid Prototype Definition',
-  4: 'Analysis & User Stories',
-  5: 'Build Accelerator',
-  6: 'QA & Hardening',
-};
 
 /**
  * Analyze a project and generate tasks, summary, blockers, and estimates
@@ -203,8 +195,10 @@ If no timeline found, return empty strings.`;
     
     // Fallback: Look for phase-specific durations and sum them
     // Example: "Phase 1: 2 weeks, Phase 2: 1 month" -> sum all durations
+    // Use actual phase numbers from the project (dynamic, not hardcoded 1-6)
     let totalDays = 0;
-    for (let phaseNum = 1; phaseNum <= 6; phaseNum++) {
+    const phaseNumbers = phases.map(p => p.phase_number).sort((a, b) => a - b);
+    for (const phaseNum of phaseNumbers) {
       const phaseMatch = timelineText.match(new RegExp(`[Pp]hase\\s*${phaseNum}[\\s:]+(\\d+)\\s*(week|day|month)`, 'i'));
       if (phaseMatch) {
         const duration = parseInt(phaseMatch[1]);
@@ -252,10 +246,21 @@ If no timeline found, return empty strings.`;
   
   // Build comprehensive prompt (optimized: summarize phase data instead of full JSON)
   const phaseSummaries = phases.map((phase) => ({
-    phase: phase.phase_name || PHASE_NAMES[phase.phase_number] || `Phase ${phase.phase_number}`,
+    phase: phase.phase_name || `Phase ${phase.phase_number}`,
     phase_number: phase.phase_number,
     completed: phase.completed,
-    field_count: Object.keys(phase.data || {}).length, // Include field count instead of full data
+    // Include key fields from phase data
+    key_data: Object.entries(phase.data || {})
+      .filter(([key]) => !key.startsWith('_') && key !== 'master_prompt' && key !== 'generated_document' && key !== 'document_generated_at')
+      .slice(0, 20) // Limit to prevent token overflow
+      .map(([key, value]) => ({ 
+        field: key, 
+        value: typeof value === 'string' ? value.substring(0, 500) : value 
+      })),
+    // Include generated document if available
+    generated_document: (phase.data as any)?.generated_document 
+      ? String((phase.data as any).generated_document).substring(0, 2000) 
+      : null,
   }));
 
   const existingTasksSummary = existingTasks.map((task) => ({
@@ -269,41 +274,76 @@ If no timeline found, return empty strings.`;
 
   // Build dynamic phase list from actual phases
   const phaseList = phases
-    .map((p) => `${p.phase_number}. ${p.phase_name || PHASE_NAMES[p.phase_number] || `Phase ${p.phase_number}`}`)
+    .map((p) => `${p.phase_number}. ${p.phase_name || `Phase ${p.phase_number}`}`)
     .join('\n');
 
-  const prompt = `You are analyzing a project called "${projectName}" that uses The FullStack Method™ framework.
+  const prompt = `You are analyzing a project called "${projectName}"${isDefaultTemplate ? ' that uses The FullStack Method™ framework' : ''}.
 
-The project has ${phases.length} phase${phases.length !== 1 ? 's' : ''}:
+The project has ${phases.length} phase${phases.length !== 1 ? 's' : ''} with the following structure:
 ${phaseList}
+
+IMPORTANT: The phase names above are the EXACT phase names used by this project. When generating tasks, you MUST use these exact phase names in your output. Do NOT use generic phase names like "Concept", "Strategy", "Prototype" unless those are the actual phase names listed above.
 
 Current Phase Status:
 ${JSON.stringify(phaseSummaries, null, 2)}
+
+${(() => {
+  // Build a section highlighting generated phase documents
+  const phasesWithDocs = phaseSummaries.filter(p => p.generated_document);
+  if (phasesWithDocs.length > 0) {
+    return `\n\n=== PHASE OVERVIEW DOCUMENTS ===
+The following phases have generated overview documents that contain detailed information about requirements, scope, and deliverables. Use these documents to create accurate, context-aware tasks:
+
+${phasesWithDocs.map(p => `
+Phase ${p.phase_number} (${p.phase}):
+${p.generated_document}
+`).join('\n---\n')}
+
+CRITICAL: When generating tasks for phases with overview documents, ensure tasks align with the information, requirements, and scope outlined in those documents.`;
+  }
+  return '';
+})()}
 
 ${existingTasks.length > 0 ? `Existing Tasks:\n${JSON.stringify(existingTasksSummary, null, 2)}` : 'No existing tasks.'}
 
 ${combinedTimeline ? `\n\n=== CRITICAL: TIMELINE-BASED DATE ASSIGNMENT ===
 Timeline Information:
-${phase1Timeline ? `Phase 1 (Planning Phases 1-4) Timeline: ${phase1Timeline}` : 'No Phase 1 timeline provided.'}
-${phase5Timeline ? `Phase 5 (Build Phases 5-6) Timeline: ${phase5Timeline}` : 'No Phase 5 build timeline provided.'}
-${phase5NeedsMinimum && !phase5Days ? 'Note: Phase 5 (Build Accelerator) will use minimum 90 days for full scale build.' : ''}
+${phase1Timeline ? `Planning Timeline (from ${phases.find(p => p.phase_number === 1)?.phase_name || 'Phase 1'}): ${phase1Timeline}` : 'No planning timeline provided.'}
+${phase5Timeline ? `Build Timeline (from ${phases.find(p => p.phase_number >= 5)?.phase_name || 'build phase'}): ${phase5Timeline}` : 'No build timeline provided.'}
+${phase5NeedsMinimum && !phase5Days ? `Note: Build phases will use minimum 90 days for full scale build.` : ''}
 
 Current date (TODAY): ${new Date().toISOString().split('T')[0]}
 ${totalProjectDays ? `Total Project Duration: ${totalProjectDays} days (approximately ${Math.round(totalProjectDays / 30)} months)
-  - Planning Phases (1-4): ${phase1Days || 0} days
-  - Build Phases (5-6): ${effectivePhase5Days} days (minimum 90 days for full scale build)` : 'Could not parse total project duration from timelines.'}
-${highestCompletedPhase > 0 ? `Project Status: Phases 1-${highestCompletedPhase} are COMPLETED. Currently working on Phase ${currentPhase?.phase_number || highestCompletedPhase + 1}.` : 'Project Status: Just starting - Phase 1 is the first phase.'}
+  - Planning phases: ${phase1Days || 0} days
+  - Build phases: ${effectivePhase5Days} days (minimum 90 days for full scale build)` : 'Could not parse total project duration from timelines.'}
+${highestCompletedPhase > 0 ? `Project Status: ${phases.filter(p => p.completed).map(p => p.phase_name || `Phase ${p.phase_number}`).join(', ')} are COMPLETED. Currently working on ${currentPhase?.phase_name || `Phase ${currentPhase?.phase_number || highestCompletedPhase + 1}`}.` : `Project Status: Just starting - ${phases[0]?.phase_name || 'Phase 1'} is the first phase.`}
 
 YOU MUST ASSIGN A due_date (YYYY-MM-DD format) TO EVERY SINGLE TASK. NO EXCEPTIONS. THIS IS MANDATORY.
 
 Date Assignment Rules:
-1. TOTAL project duration = Phase 1 timeline + Phase 5 timeline:
-   - Phase 1 timeline covers early planning phases
-   - Phase 5 timeline covers build/development phases
-   - Phase 5 (Build Accelerator) should be at least 90 days for full scale builds
-   - If Phase 5 timeline is less than 90 days, use 90 days minimum
-   - If Phase 5 timeline doesn't exist but Phase 5 has tasks/data, default to 90 days
-   - IMPORTANT: This project has ${phases.length} phases total. You MUST generate tasks for ALL ${phases.length} phases: ${phases.map(p => `Phase ${p.phase_number} (${p.phase_name || `Phase ${p.phase_number}`})`).join(', ')}.
+1. TOTAL project duration = Planning timeline + Build timeline:
+   - Planning timeline covers early phases: ${phases.filter(p => {
+     const buildPhaseStart = phases.findIndex(p => 
+       p.phase_name?.toLowerCase().includes('build') || 
+       p.phase_name?.toLowerCase().includes('development') ||
+       p.phase_number >= 5
+     );
+     return buildPhaseStart === -1 || p.phase_number < (buildPhaseStart >= 0 ? phases[buildPhaseStart].phase_number : phases.length);
+   }).map(p => p.phase_name || `Phase ${p.phase_number}`).join(', ')}
+   - Build timeline covers build/development phases: ${phases.filter(p => {
+     const buildPhaseStart = phases.findIndex(p => 
+       p.phase_name?.toLowerCase().includes('build') || 
+       p.phase_name?.toLowerCase().includes('development') ||
+       p.phase_number >= 5
+     );
+     if (buildPhaseStart >= 0) {
+       return p.phase_number >= phases[buildPhaseStart].phase_number;
+     }
+     return p.phase_number > Math.ceil(phases.length / 2);
+   }).map(p => p.phase_name || `Phase ${p.phase_number}`).join(', ')}
+   - Build phases should be at least 90 days for full scale builds
+   - If build timeline is less than 90 days, use 90 days minimum
+   - IMPORTANT: This project has ${phases.length} phases total: ${phases.map(p => `${p.phase_number}. ${p.phase_name || `Phase ${p.phase_number}`}`).join(', ')}. You MUST generate tasks for ALL ${phases.length} phases.
 
 2. Calculate dates based on:
    - Start date: ${new Date().toISOString().split('T')[0]} (TODAY - this is when work begins)
@@ -311,11 +351,11 @@ Date Assignment Rules:
    - Total duration: ${totalProjectDays || 'Parse from timeline'} days
    - Planning phases: ${phase1Days || 0} days
    - Build phases: ${effectivePhase5Days} days
-   - Project status: ${highestCompletedPhase > 0 ? `Phases 1-${highestCompletedPhase} are done` : 'Starting fresh'}
+   - Project status: ${highestCompletedPhase > 0 ? `${phases.filter(p => p.completed).map(p => p.phase_name || `Phase ${p.phase_number}`).join(', ')} are done` : 'Starting fresh'}
 
 3. DISTRIBUTE TASKS across the timeline for ALL ${phases.length} phases:
-   - Early phases (typically 1-4): Distribute across Phase 1 timeline duration (${phase1Days || 'parse from Phase 1 timeline'} days)
-   - Build phases (typically 5+): Distribute across Phase 5 timeline duration (${effectivePhase5Days} days minimum)
+   - Planning phases: Distribute across planning timeline duration (${phase1Days || 'parse from planning timeline'} days)
+   - Build phases: Distribute across build timeline duration (${effectivePhase5Days} days minimum)
    - Each phase should have multiple tasks (typically 3-8 tasks per phase depending on complexity)
    - Build phase tasks should start AFTER planning phases completion
    - Space tasks evenly across each phase's portion of the timeline
@@ -323,13 +363,13 @@ Date Assignment Rules:
    - CRITICAL: Generate tasks for phases ${phases.map(p => p.phase_number).join(', ')} - DO NOT skip any phases
 
 4. Phase distribution example:
-   - Planning timeline: ${phase1Days || 90} days (covers early phases)
+   - Planning timeline: ${phase1Days || 90} days (covers planning phases)
    - Build timeline: ${effectivePhase5Days} days (covers build phases, minimum 90 days)
    - Total: ${totalProjectDays} days
-   - Early phase tasks: Days 1-${phase1Days || 90}
+   - Planning phase tasks: Days 1-${phase1Days || 90}
    - Build phase tasks: Days ${(phase1Days || 90) + 1}-${totalProjectDays}
 
-5. ${highestCompletedPhase > 0 ? `IMPORTANT: Since phases 1-${highestCompletedPhase} are completed, calculate where we are in the timeline and assign dates accordingly. Completed phase tasks should have dates in the past or very near future.` : 'All phases are upcoming - assign dates starting from today forward.'}
+5. ${highestCompletedPhase > 0 ? `IMPORTANT: Since ${phases.filter(p => p.completed).map(p => p.phase_name || `Phase ${p.phase_number}`).join(', ')} are completed, calculate where we are in the timeline and assign dates accordingly. Completed phase tasks should have dates in the past or very near future.` : 'All phases are upcoming - assign dates starting from today forward.'}
 
 6. EVERY task in your response MUST include: "due_date": "YYYY-MM-DD"
    - Never return null
@@ -338,7 +378,7 @@ Date Assignment Rules:
    - Calculate based on TODAY + appropriate offset based on phase and timeline
    - Build phase tasks must account for the build timeline (minimum 90 days)
    
-7. CRITICAL REQUIREMENT: Generate tasks for ALL ${phases.length} phases listed above. Do not limit yourself to only phases 1-6. This project has phases: ${phases.map(p => `${p.phase_number}. ${p.phase_name || `Phase ${p.phase_number}`}`).join(', ')}. Each phase should have multiple relevant tasks.
+7. CRITICAL REQUIREMENT: Generate tasks for ALL ${phases.length} phases listed above. Do not limit yourself to any specific number. This project has phases: ${phases.map(p => `${p.phase_number}. ${p.phase_name || `Phase ${p.phase_number}`}`).join(', ')}. Each phase should have multiple relevant tasks.
 
 Return due_date for EVERY task in the format "YYYY-MM-DD".` : `\n\nCurrent date: ${new Date().toISOString().split('T')[0]}
 ${highestCompletedPhase > 0 ? `Project Status: Phases 1-${highestCompletedPhase} are COMPLETED.` : 'Project Status: Just starting.'}
@@ -374,7 +414,14 @@ Based on the phase data provided, generate:
    - tags: Array of relevant tags (e.g., ['frontend', 'backend', 'design', 'testing'])
    - start_date: ISO date string (YYYY-MM-DD) - REQUIRED FOR ALL TASKS. The date when work should begin on this task. Should be before or equal to due_date.
    - due_date: ISO date string (YYYY-MM-DD) - REQUIRED FOR ALL TASKS. Calculate based on timeline, phase order, and current date. Never return null for due_date.
-   ${sowMembers && sowMembers.length > 0 ? '- assignee_id: user_id UUID of the team member to assign this task to (or null if no suitable member). MUST match phase, title, and description to role. Use exact UUID from team members list above, NOT the name.' : ''}
+   ${sowMembers && sowMembers.length > 0 ? `- assignee_id: user_id UUID of the team member to assign this task to. THIS IS MANDATORY - you MUST assign tasks to team members when there is a clear match. Follow these rules:
+     * FIRST: Check the phase name for the task's phase_number. Match it to team members whose role_name or role_description aligns with that phase's work type.
+     * SECOND: Check the task title for keywords (design, code, test, product, etc.) and match to roles containing those keywords.
+     * THIRD: Check the task description to confirm the role match.
+     * ONLY assign if ALL THREE criteria match. If no clear match exists, set to null.
+     * Use the EXACT UUID from the team members list above, NOT the name.
+     * Prefer members with fewer current tasks, avoid overworked members unless they're the only match.
+     * IMPORTANT: Most tasks should have an assignee_id - only leave null if there's truly no suitable team member.` : ''}
 
 2. A progress summary (2-3 paragraphs) describing:
    - What has been completed
@@ -450,80 +497,121 @@ REMINDER: Every task must have both start_date and due_date calculated from the 
     const phaseDurations: Record<number, number> = {};
     let totalDaysFromPhases = 0;
     
-    // Parse Phase 1 timeline for phases 1-4
-    if (phase1Timeline) {
-      for (let phaseNum = 1; phaseNum <= 4; phaseNum++) {
-        const phaseMatch = phase1Timeline.match(new RegExp(`[Pp]hase\\s*${phaseNum}[\\s:]+(\\d+)\\s*(week|day|month)`, 'i'));
+    // Parse Phase 1 timeline for early phases (planning phases)
+    // Find phases that should use the planning timeline (typically phases before build phases)
+    const planningPhases = phases.filter(p => {
+      // If we have a phase5Timeline, planning phases are those before the first build phase
+      // Otherwise, assume first half of phases are planning
+      if (phase5Timeline) {
+        // Find the first phase that might be a build phase (check phase name or number)
+        const buildPhaseStart = phases.findIndex(p => 
+          p.phase_name?.toLowerCase().includes('build') || 
+          p.phase_name?.toLowerCase().includes('development') ||
+          p.phase_number >= 5
+        );
+        return buildPhaseStart === -1 || p.phase_number < (buildPhaseStart >= 0 ? phases[buildPhaseStart].phase_number : phases.length);
+      }
+      // No build timeline - assume first half are planning
+      return p.phase_number <= Math.ceil(phases.length / 2);
+    });
+    
+    if (phase1Timeline && planningPhases.length > 0) {
+      for (const phase of planningPhases) {
+        const phaseMatch = phase1Timeline.match(new RegExp(`[Pp]hase\\s*${phase.phase_number}[\\s:]+(\\d+)\\s*(week|day|month)`, 'i'));
         if (phaseMatch) {
           const duration = parseInt(phaseMatch[1]);
           const unit = phaseMatch[2].toLowerCase();
           if (unit === 'week') {
-            phaseDurations[phaseNum] = duration * 7;
+            phaseDurations[phase.phase_number] = duration * 7;
             totalDaysFromPhases += duration * 7;
           } else if (unit === 'day') {
-            phaseDurations[phaseNum] = duration;
+            phaseDurations[phase.phase_number] = duration;
             totalDaysFromPhases += duration;
           } else if (unit === 'month') {
-            phaseDurations[phaseNum] = duration * 30;
+            phaseDurations[phase.phase_number] = duration * 30;
             totalDaysFromPhases += duration * 30;
           }
         } else {
-          // Default: distribute Phase 1 timeline evenly across phases 1-4
-          phaseDurations[phaseNum] = (phase1Days || 90) / 4;
-          totalDaysFromPhases += (phase1Days || 90) / 4;
+          // Default: distribute Phase 1 timeline evenly across planning phases
+          phaseDurations[phase.phase_number] = (phase1Days || 90) / planningPhases.length;
+          totalDaysFromPhases += (phase1Days || 90) / planningPhases.length;
         }
       }
-    } else {
+    } else if (planningPhases.length > 0) {
       // No Phase 1 timeline - use defaults
-      for (let phaseNum = 1; phaseNum <= 4; phaseNum++) {
-        phaseDurations[phaseNum] = 14; // Default 2 weeks per phase
+      for (const phase of planningPhases) {
+        phaseDurations[phase.phase_number] = 14; // Default 2 weeks per phase
         totalDaysFromPhases += 14;
       }
     }
     
-    // Parse Phase 5 timeline for phases 5-6
-    if (phase5Timeline) {
-      // Try to parse Phase 5 and Phase 6 separately, or use combined
-      const phase5Match = phase5Timeline.match(new RegExp(`[Pp]hase\\s*5[\\s:]+(\\d+)\\s*(week|day|month)`, 'i'));
-      const phase6Match = phase5Timeline.match(new RegExp(`[Pp]hase\\s*6[\\s:]+(\\d+)\\s*(week|day|month)`, 'i'));
-      
-      if (phase5Match) {
-        const duration = parseInt(phase5Match[1]);
-        const unit = phase5Match[2].toLowerCase();
-        if (unit === 'week') {
-          phaseDurations[5] = Math.max(duration * 7, 90); // Enforce 90 day minimum
-        } else if (unit === 'day') {
-          phaseDurations[5] = Math.max(duration, 90);
-        } else if (unit === 'month') {
-          phaseDurations[5] = Math.max(duration * 30, 90);
+    // Parse Phase 5 timeline for build phases (later phases)
+    // Find phases that should use the build timeline
+    const buildPhases = phases.filter(p => {
+      // Build phases are those after planning phases
+      const buildPhaseStart = phases.findIndex(p => 
+        p.phase_name?.toLowerCase().includes('build') || 
+        p.phase_name?.toLowerCase().includes('development') ||
+        p.phase_number >= 5
+      );
+      if (buildPhaseStart >= 0) {
+        return p.phase_number >= phases[buildPhaseStart].phase_number;
+      }
+      // No clear build phase indicator - assume second half are build
+      return p.phase_number > Math.ceil(phases.length / 2);
+    });
+    
+    if (phase5Timeline && buildPhases.length > 0) {
+      // Try to parse specific phase durations from timeline
+      const parsedPhases = new Set<number>();
+      for (const phase of buildPhases) {
+        const phaseMatch = phase5Timeline.match(new RegExp(`[Pp]hase\\s*${phase.phase_number}[\\s:]+(\\d+)\\s*(week|day|month)`, 'i'));
+        if (phaseMatch) {
+          const duration = parseInt(phaseMatch[1]);
+          const unit = phaseMatch[2].toLowerCase();
+          let days = 0;
+          if (unit === 'week') {
+            days = duration * 7;
+          } else if (unit === 'day') {
+            days = duration;
+          } else if (unit === 'month') {
+            days = duration * 30;
+          }
+          // Enforce 90 day minimum for first build phase
+          if (phase.phase_number === buildPhases[0].phase_number) {
+            days = Math.max(days, 90);
+          }
+          phaseDurations[phase.phase_number] = days;
+          totalDaysFromPhases += days;
+          parsedPhases.add(phase.phase_number);
         }
-      } else {
-        // No specific Phase 5 duration, use effective Phase 5 days (distribute between Phase 5 and 6)
-        phaseDurations[5] = Math.floor(effectivePhase5Days * 0.7); // 70% to Phase 5
       }
       
-      if (phase6Match) {
-        const duration = parseInt(phase6Match[1]);
-        const unit = phase6Match[2].toLowerCase();
-        if (unit === 'week') {
-          phaseDurations[6] = duration * 7;
-        } else if (unit === 'day') {
-          phaseDurations[6] = duration;
-        } else if (unit === 'month') {
-          phaseDurations[6] = duration * 30;
+      // Distribute remaining timeline across phases that weren't specifically parsed
+      const unparsedPhases = buildPhases.filter(p => !parsedPhases.has(p.phase_number));
+      if (unparsedPhases.length > 0) {
+        const remainingDays = effectivePhase5Days - Array.from(parsedPhases).reduce((sum, pn) => sum + (phaseDurations[pn] || 0), 0);
+        const daysPerPhase = Math.floor(remainingDays / unparsedPhases.length);
+        for (const phase of unparsedPhases) {
+          phaseDurations[phase.phase_number] = daysPerPhase;
+          totalDaysFromPhases += daysPerPhase;
         }
-      } else {
-        // No specific Phase 6 duration, use remaining from Phase 5 timeline
-        phaseDurations[6] = effectivePhase5Days - phaseDurations[5];
+      } else if (parsedPhases.size === 0) {
+        // No specific durations found - distribute evenly
+        const daysPerPhase = Math.floor(effectivePhase5Days / buildPhases.length);
+        for (const phase of buildPhases) {
+          phaseDurations[phase.phase_number] = daysPerPhase;
+          totalDaysFromPhases += daysPerPhase;
+        }
       }
-      
-      totalDaysFromPhases += effectivePhase5Days;
-    } else if (phase5NeedsMinimum) {
-      // Phase 5 needs timeline but doesn't have one - use 90 day minimum
-      phaseDurations[5] = 63; // 70% of 90 days
-      phaseDurations[6] = 27; // 30% of 90 days
-      totalDaysFromPhases += 90;
-    } else {
+    } else if (phase5NeedsMinimum && buildPhases.length > 0) {
+      // Build phases need timeline but don't have one - use 90 day minimum distributed
+      const daysPerPhase = Math.floor(90 / buildPhases.length);
+      for (const phase of buildPhases) {
+        phaseDurations[phase.phase_number] = daysPerPhase;
+        totalDaysFromPhases += daysPerPhase;
+      }
+    } else if (buildPhases.length > 0) {
       // No Phase 5 timeline and no Phase 5 tasks - use defaults
       phaseDurations[5] = 14;
       phaseDurations[6] = 14;
@@ -791,6 +879,17 @@ export function mergeTasks(
       // Only update AI-generated fields if task was AI-generated
       // Always update due_date if new task has one (to sync with timeline)
       if (matching.ai_generated) {
+        // For re-analyze: append new insights to notes if description changed
+        const existingNotes = matching.notes || '';
+        const timestamp = new Date().toISOString().split('T')[0];
+        let updatedNotes = existingNotes;
+        
+        // If description changed, append update to notes
+        if (newTask.description !== matching.description) {
+          const newNote = `\n\n---\n[${timestamp}] Re-analysis update: ${newTask.description}`;
+          updatedNotes = existingNotes + newNote;
+        }
+        
         toUpdate.push({
           ...matching,
           title: newTask.title,
@@ -803,6 +902,8 @@ export function mergeTasks(
           due_date: newTask.due_date || matching.due_date,
           // Preserve existing assignee_id - don't overwrite if task already has an assignee
           assignee_id: matching.assignee_id || newTask.assignee_id || null,
+          // Append to notes field for re-analysis tracking
+          notes: updatedNotes,
           ai_analysis_id: aiAnalysisId,
           updated_at: new Date().toISOString(),
         });

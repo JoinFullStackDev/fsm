@@ -110,16 +110,25 @@ export default function PricingPage() {
             <CircularProgress />
           </Box>
         ) : (
-          <Grid container spacing={3} sx={{ mb: 10 }}>
+          <Grid container spacing={4} sx={{ mb: 10 }}>
             {packages.map((pkg, index) => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={pkg.id}>
-                <PricingCard
-                  pkg={pkg}
-                  isPopular={index === 1}
-                  delay={index * 0.1}
-                  index={index}
-                  onSelect={handlePackageSelect}
-                />
+              <Grid 
+                item 
+                xs={12} 
+                sm={6} 
+                md={4} 
+                key={pkg.id}
+                sx={{ display: 'flex' }}
+              >
+                <Box sx={{ width: '100%' }}>
+                  <PricingCard
+                    pkg={pkg}
+                    isPopular={index === 1}
+                    delay={index * 0.1}
+                    index={index}
+                    onSelect={handlePackageSelect}
+                  />
+                </Box>
               </Grid>
             ))}
           </Grid>

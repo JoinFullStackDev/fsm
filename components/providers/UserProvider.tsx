@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode, useMemo } from 'react';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import logger from '@/lib/utils/logger';
 import type { User } from '@/types/project';
@@ -143,12 +143,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
     };
   }, [loadUser, supabase]);
 
-  const value = {
+  const value = useMemo(() => ({
     user,
     loading,
     error,
     refresh,
-  };
+  }), [user, loading, error, refresh]);
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 }

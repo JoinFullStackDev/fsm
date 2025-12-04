@@ -106,44 +106,46 @@ export async function GET(request: NextRequest) {
     // in the regular project-management area. Use /global/admin for cross-organization access.
     // ALL users (including super admins) MUST filter by organization_id in this endpoint
     // Regular users: MUST filter by organization_id to prevent cross-organization access
-    // Fetch owned projects and member projects separately, both filtered by organization_id
+    // OPTIMIZATION: Fetch owned projects and member projects in PARALLEL
     {
       
-      // 1. Get owned projects (always filtered by organization_id)
-      // Use admin client to ensure filter is enforced
-      const ownedProjectsQuery = adminClient
+      // Build owned projects query
+      let ownedProjectsQuery = adminClient
         .from('projects')
         .select('id')
         .eq('organization_id', organizationId)
         .eq('owner_id', userData.id);
       
       if (companyId) {
-        ownedProjectsQuery.eq('company_id', companyId);
+        ownedProjectsQuery = ownedProjectsQuery.eq('company_id', companyId);
       }
       
-      const { data: ownedProjects, error: ownedError } = await ownedProjectsQuery;
+      // OPTIMIZATION: Run owned and member queries in parallel
+      const [ownedResult, memberResult] = await Promise.all([
+        ownedProjectsQuery,
+        adminClient
+          .from('project_members')
+          .select(`
+            project_id,
+            project:projects!project_members_project_id_fkey(id, organization_id)
+          `)
+          .eq('user_id', userData.id),
+      ]);
+
+      const { data: ownedProjects, error: ownedError } = ownedResult;
+      const { data: memberProjects, error: memberError } = memberResult;
       
       if (ownedError) {
         logger.error('Error loading owned projects:', ownedError);
         return internalError('Failed to load owned projects', { error: ownedError.message });
       }
       
-      const ownedProjectIds = (ownedProjects || []).map((p: any) => p.id);
-      
-      // 2. Get member projects, but ONLY for projects in user's organization
-      // Use admin client and join query to ensure organization filtering
-      const { data: memberProjects, error: memberError } = await adminClient
-        .from('project_members')
-        .select(`
-          project_id,
-          project:projects!project_members_project_id_fkey(id, organization_id)
-        `)
-        .eq('user_id', userData.id);
-
       if (memberError) {
         logger.error('Error loading project members:', memberError);
         return internalError('Failed to load project members', { error: memberError.message });
       }
+      
+      const ownedProjectIds = (ownedProjects || []).map((p: any) => p.id);
 
       // Filter member projects to ONLY include those in the user's organization
       const memberProjectIds = (memberProjects || [])
@@ -544,8 +546,8 @@ export async function POST(request: NextRequest) {
 
     // Try using the database function first (runs with SECURITY DEFINER, bypasses RLS completely)
     // If that fails, fall back to direct insert with admin client
-    let project;
-    let projectError;
+    let project: any = null;
+    let projectError: any = null;
     
     // Log the exact values being passed to RPC
     logger.info('[Projects API POST] Calling RPC function with:', {
@@ -685,6 +687,16 @@ export async function POST(request: NextRequest) {
         logger.error('[Project] Error sending email notification:', err);
       });
     }
+
+    // Invalidate caches to ensure fresh data in sidebar and other components
+    // Run in background (non-blocking) to not delay the response
+    import('@/lib/cache/cacheInvalidation').then(({ invalidateProjectCache }) => {
+      invalidateProjectCache(project.id, organizationId).catch((cacheError) => {
+        logger.warn('[Projects API POST] Failed to invalidate cache:', cacheError);
+      });
+    }).catch((importError) => {
+      logger.warn('[Projects API POST] Failed to import cache module:', importError);
+    });
 
     return NextResponse.json(project, { status: 201 });
   } catch (error) {

@@ -308,24 +308,29 @@ export default function OpportunityDetailPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusStyles = (status: string) => {
     switch (status) {
       case 'new':
-        return 'default';
+        return { backgroundColor: '#00BCD4', color: '#fff' }; // Cyan
+      case 'working':
+        return { backgroundColor: '#2196F3', color: '#fff' }; // Blue
       case 'qualified':
-        return 'info';
+        return { backgroundColor: '#3F51B5', color: '#fff' }; // Indigo
       case 'proposal':
-        return 'warning';
+        return { backgroundColor: '#FF9800', color: '#fff' }; // Orange
       case 'negotiation':
-        return 'primary';
+        return { backgroundColor: '#9C27B0', color: '#fff' }; // Purple
+      case 'pending':
+        return { backgroundColor: '#673AB7', color: '#fff' }; // Deep Purple
       case 'won':
-        return 'success';
+      case 'converted':
+        return { backgroundColor: '#4CAF50', color: '#fff' }; // Green
       case 'lost':
-        return 'error';
+        return { backgroundColor: '#F44336', color: '#fff' }; // Red
       case 'archived':
-        return 'default';
+        return { backgroundColor: '#607D8B', color: '#fff' }; // Blue Grey
       default:
-        return 'default';
+        return { backgroundColor: '#757575', color: '#fff' }; // Grey
     }
   };
 
@@ -700,8 +705,11 @@ export default function OpportunityDetailPage() {
             </Typography>
             <Chip
               label={opportunity.status.charAt(0).toUpperCase() + opportunity.status.slice(1)}
-              color={getStatusColor(opportunity.status) as any}
               size="small"
+              sx={{
+                ...getStatusStyles(opportunity.status),
+                fontWeight: 500,
+              }}
             />
           </Paper>
         </Grid>

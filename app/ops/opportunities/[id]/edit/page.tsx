@@ -17,6 +17,7 @@ import {
   Alert,
   IconButton,
   CircularProgress,
+  Chip,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
@@ -265,6 +266,20 @@ export default function EditOpportunityPage() {
                 label="Status"
                 onChange={(e) => setStatus(e.target.value as OpportunityStatus)}
                 disabled={loading}
+                renderValue={(selected) => {
+                  const styles: Record<string, { bg: string; label: string }> = {
+                    new: { bg: '#00BCD4', label: 'New' },
+                    working: { bg: '#2196F3', label: 'Working' },
+                    negotiation: { bg: '#FF9800', label: 'Negotiation' },
+                    pending: { bg: '#9C27B0', label: 'Pending' },
+                    converted: { bg: '#4CAF50', label: 'Converted' },
+                    lost: { bg: '#F44336', label: 'Lost' },
+                  };
+                  const style = styles[selected];
+                  return style ? (
+                    <Chip label={style.label} size="small" sx={{ backgroundColor: style.bg, color: '#fff', fontWeight: 500 }} />
+                  ) : selected;
+                }}
                 MenuProps={{
                   PaperProps: {
                     sx: {
@@ -302,13 +317,24 @@ export default function EditOpportunityPage() {
                   },
                 }}
               >
-                <MenuItem value="new">New</MenuItem>
-                <MenuItem value="qualified">Qualified</MenuItem>
-                <MenuItem value="proposal">Proposal</MenuItem>
-                <MenuItem value="negotiation">Negotiation</MenuItem>
-                <MenuItem value="won">Won</MenuItem>
-                <MenuItem value="lost">Lost</MenuItem>
-                <MenuItem value="archived">Archived</MenuItem>
+                <MenuItem value="new">
+                  <Chip label="New" size="small" sx={{ backgroundColor: '#00BCD4', color: '#fff', fontWeight: 500 }} />
+                </MenuItem>
+                <MenuItem value="working">
+                  <Chip label="Working" size="small" sx={{ backgroundColor: '#2196F3', color: '#fff', fontWeight: 500 }} />
+                </MenuItem>
+                <MenuItem value="negotiation">
+                  <Chip label="Negotiation" size="small" sx={{ backgroundColor: '#FF9800', color: '#fff', fontWeight: 500 }} />
+                </MenuItem>
+                <MenuItem value="pending">
+                  <Chip label="Pending" size="small" sx={{ backgroundColor: '#9C27B0', color: '#fff', fontWeight: 500 }} />
+                </MenuItem>
+                <MenuItem value="converted">
+                  <Chip label="Converted" size="small" sx={{ backgroundColor: '#4CAF50', color: '#fff', fontWeight: 500 }} />
+                </MenuItem>
+                <MenuItem value="lost">
+                  <Chip label="Lost" size="small" sx={{ backgroundColor: '#F44336', color: '#fff', fontWeight: 500 }} />
+                </MenuItem>
               </Select>
             </FormControl>
             <FormControl fullWidth margin="normal">

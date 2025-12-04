@@ -104,12 +104,20 @@ export async function cacheGetOrSet<T>(
 }
 
 /**
- * Invalidate cache entries matching a pattern
+ * Invalidate cache entries matching a pattern or exact key
+ * For exact key invalidation, prefer cacheDel() which is more explicit
  */
 export async function cacheInvalidate(pattern: string): Promise<void> {
-  // Invalidate in Redis (if pattern-based deletion is supported)
-  // Note: Redis pattern deletion is expensive, so we'll invalidate specific keys
-  // For now, we'll rely on TTL and manual invalidation
+  // For exact key matches (no wildcards), also delete from Redis
+  if (!pattern.includes('*')) {
+    if (await isRedisEnabled()) {
+      try {
+        await redisDel(pattern);
+      } catch (error) {
+        logger.warn('[UnifiedCache] Redis invalidate failed:', error);
+      }
+    }
+  }
   
   // Invalidate in-memory cache
   queryCache.invalidate(pattern);

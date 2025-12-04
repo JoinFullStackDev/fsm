@@ -10,13 +10,9 @@ import {
   Alert,
   IconButton,
   Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, CheckCircle as CheckCircleIcon, Visibility as VisibilityIcon } from '@mui/icons-material';
+import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Visibility as VisibilityIcon } from '@mui/icons-material';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import type { Opportunity } from '@/types/ops';
 import SortableTable from '@/components/dashboard/SortableTable';
@@ -32,9 +28,6 @@ export default function CompanyOpportunitiesTab({ companyId }: CompanyOpportunit
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [convertDialogOpen, setConvertDialogOpen] = useState(false);
-  const [opportunityToConvert, setOpportunityToConvert] = useState<Opportunity | null>(null);
-  const [converting, setConverting] = useState(false);
 
   const loadOpportunities = useCallback(async () => {
     try {
@@ -100,57 +93,22 @@ export default function CompanyOpportunitiesTab({ companyId }: CompanyOpportunit
     }
   };
 
-  const handleConvertOpportunity = (opportunity: Opportunity, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setOpportunityToConvert(opportunity);
-    setConvertDialogOpen(true);
-  };
-
-  const confirmConvert = async () => {
-    if (!opportunityToConvert) return;
-
-    try {
-      setConverting(true);
-      const response = await fetch(`/api/ops/opportunities/${opportunityToConvert.id}/convert`, {
-        method: 'POST',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to convert opportunity');
-      }
-
-      const project = await response.json();
-      showSuccess('Opportunity converted to project successfully');
-      setConvertDialogOpen(false);
-      setOpportunityToConvert(null);
-      loadOpportunities();
-      // Navigate to the new project
-      router.push(`/project/${project.id}`);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to convert opportunity';
-      showError(errorMessage);
-    } finally {
-      setConverting(false);
-    }
-  };
-
-  const getStatusColor = (status: string) => {
+  const getStatusStyles = (status: string) => {
     switch (status) {
       case 'new':
-        return 'default';
+        return { backgroundColor: '#00BCD4', color: '#fff' }; // Cyan
       case 'working':
-        return 'info';
+        return { backgroundColor: '#2196F3', color: '#fff' }; // Blue
       case 'negotiation':
-        return 'warning';
+        return { backgroundColor: '#FF9800', color: '#fff' }; // Orange
       case 'pending':
-        return 'primary';
+        return { backgroundColor: '#9C27B0', color: '#fff' }; // Purple
       case 'converted':
-        return 'success';
+        return { backgroundColor: '#4CAF50', color: '#fff' }; // Green
       case 'lost':
-        return 'error';
+        return { backgroundColor: '#F44336', color: '#fff' }; // Red
       default:
-        return 'default';
+        return { backgroundColor: '#757575', color: '#fff' }; // Grey
     }
   };
 
@@ -173,8 +131,11 @@ export default function CompanyOpportunitiesTab({ companyId }: CompanyOpportunit
       render: (value: string) => (
         <Chip
           label={value.charAt(0).toUpperCase() + value.slice(1)}
-          color={getStatusColor(value) as any}
           size="small"
+          sx={{
+            ...getStatusStyles(value),
+            fontWeight: 500,
+          }}
         />
       ),
     },
@@ -205,16 +166,6 @@ export default function CompanyOpportunitiesTab({ companyId }: CompanyOpportunit
           >
             <VisibilityIcon fontSize="small" />
           </IconButton>
-          {row.status !== 'converted' && (
-            <IconButton
-              size="small"
-              onClick={(e) => handleConvertOpportunity(row, e)}
-              sx={{ color: theme.palette.text.primary }}
-              title="Convert to Project"
-            >
-              <CheckCircleIcon fontSize="small" />
-            </IconButton>
-          )}
           <IconButton
             size="small"
             onClick={(e) => handleEditOpportunity(row, e)}
@@ -294,28 +245,6 @@ export default function CompanyOpportunitiesTab({ companyId }: CompanyOpportunit
         />
       )}
 
-      {/* Convert Confirmation Dialog */}
-      <Dialog open={convertDialogOpen} onClose={() => setConvertDialogOpen(false)}>
-        <DialogTitle>Convert Opportunity to Project</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to convert &quot;{opportunityToConvert?.name}&quot; to a project? This will create a new project and mark the opportunity as converted.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConvertDialogOpen(false)} disabled={converting}>
-            Cancel
-          </Button>
-          <Button
-            onClick={confirmConvert}
-            color="primary"
-            variant="contained"
-            disabled={converting}
-          >
-            {converting ? 'Converting...' : 'Convert'}
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }

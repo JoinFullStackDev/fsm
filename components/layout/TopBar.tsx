@@ -54,6 +54,15 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
   const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
   const [welcomeTourOpen, setWelcomeTourOpen] = useState(false);
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
+  const [shouldFlickerRocket, setShouldFlickerRocket] = useState(false);
+
+  // Check if rocket icon should flicker (first 2 logins)
+  useEffect(() => {
+    const loginCount = parseInt(localStorage.getItem('loginCount') || '0', 10);
+    if (loginCount <= 2) {
+      setShouldFlickerRocket(true);
+    }
+  }, []);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -146,12 +155,30 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
           {!userLoading && (
             <>
               <IconButton
-                onClick={() => setWelcomeTourOpen(true)}
+                onClick={() => {
+                  setWelcomeTourOpen(true);
+                  setShouldFlickerRocket(false); // Stop flickering once clicked
+                }}
                 sx={{
-                  color: theme.palette.text.primary,
+                  color: shouldFlickerRocket ? theme.palette.primary.main : theme.palette.text.primary,
                   '&:hover': {
                     backgroundColor: theme.palette.action.hover,
                   },
+                  ...(shouldFlickerRocket && {
+                    animation: 'rocketFlicker 1.5s ease-in-out infinite',
+                    '@keyframes rocketFlicker': {
+                      '0%, 100%': {
+                        opacity: 1,
+                        transform: 'scale(1)',
+                        color: theme.palette.primary.main,
+                      },
+                      '50%': {
+                        opacity: 0.5,
+                        transform: 'scale(1.15)',
+                        color: theme.palette.warning.main,
+                      },
+                    },
+                  }),
                 }}
                 title="Welcome Tour"
               >

@@ -1026,7 +1026,7 @@ export default function TemplateBuilderPage() {
                   templatePhases.map((phase) => (
                     <Tab 
                       key={phase.id} 
-                      label={`Phase ${phase.phase_number}: ${phase.phase_name}`} 
+                      label={phase.phase_name} 
                     />
                   ))
                 ) : (

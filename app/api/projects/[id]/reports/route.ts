@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
-import { unauthorized, badRequest, internalError } from '@/lib/utils/apiErrors';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
+import { unauthorized, badRequest, internalError, forbidden, notFound } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 import { getWeeklyTasks, getMonthlyTasks, getForecastTasks } from '@/lib/reports/dataAggregator';
 import {
@@ -228,6 +229,96 @@ export async function GET(
   } catch (error) {
     logger.error('Error fetching reports:', error);
     return internalError('Failed to fetch reports', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+}
+
+/**
+ * DELETE - Delete a report
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return unauthorized('You must be logged in to delete reports');
+    }
+
+    // Get report ID from query params
+    const { searchParams } = new URL(request.url);
+    const reportId = searchParams.get('reportId');
+
+    if (!reportId) {
+      return badRequest('reportId is required');
+    }
+
+    // Get user record
+    const adminClient = createAdminSupabaseClient();
+    const { data: userData, error: userError } = await adminClient
+      .from('users')
+      .select('id, role, is_super_admin')
+      .eq('auth_id', user.id)
+      .single();
+
+    if (userError || !userData) {
+      logger.error('[Reports DELETE] User not found:', userError);
+      return unauthorized('User record not found');
+    }
+
+    // Get report to check ownership and project access
+    const { data: report, error: reportError } = await adminClient
+      .from('reports')
+      .select('id, project_id, user_id')
+      .eq('id', reportId)
+      .single();
+
+    if (reportError || !report) {
+      logger.error('[Reports DELETE] Report not found:', reportError);
+      return notFound('Report not found');
+    }
+
+    // Verify project access
+    const { data: project, error: projectError } = await adminClient
+      .from('projects')
+      .select('id, owner_id, organization_id')
+      .eq('id', params.id)
+      .single();
+
+    if (projectError || !project) {
+      logger.error('[Reports DELETE] Project not found:', projectError);
+      return notFound('Project not found');
+    }
+
+    // Check permissions: user must be report owner, project owner, admin, or super admin
+    const isSuperAdmin = userData.role === 'admin' && userData.is_super_admin === true;
+    const isProjectOwner = project.owner_id === userData.id;
+    const isReportOwner = report.user_id === userData.id;
+    const isAdmin = userData.role === 'admin';
+
+    if (!isSuperAdmin && !isProjectOwner && !isReportOwner && !isAdmin) {
+      return forbidden('You do not have permission to delete this report');
+    }
+
+    // Delete the report
+    const { error: deleteError } = await adminClient
+      .from('reports')
+      .delete()
+      .eq('id', reportId);
+
+    if (deleteError) {
+      logger.error('[Reports DELETE] Error deleting report:', deleteError);
+      return internalError('Failed to delete report', { error: deleteError.message });
+    }
+
+    return NextResponse.json({ message: 'Report deleted successfully' });
+  } catch (error) {
+    logger.error('[Reports DELETE] Unexpected error:', error);
+    return internalError('Failed to delete report', {
       error: error instanceof Error ? error.message : 'Unknown error',
     });
   }

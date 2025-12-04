@@ -83,41 +83,33 @@ function ProjectsPageContent() {
       // CRITICAL SECURITY CHECK: Verify all projects belong to user's organization
       // This is a client-side defense-in-depth check
       const projects = data.data || [];
-      const supabase = createSupabaseClient();
-      const currentUser = await supabase.auth.getUser();
       
-      if (currentUser.data?.user) {
-        const { data: userData } = await supabase
-          .from('users')
-          .select('organization_id')
-          .eq('auth_id', currentUser.data.user.id)
-          .single();
-        
-        if (userData?.organization_id) {
-          const filteredProjects = projects.filter((project: any) => {
-            if (project.organization_id !== userData.organization_id) {
-              console.error('[Projects Page] SECURITY ISSUE: Project from wrong organization detected:', {
-                projectId: project.id,
-                projectName: project.name,
-                projectOrgId: project.organization_id,
-                userOrgId: userData.organization_id,
-              });
-              return false;
-            }
-            return true;
-          });
-          
-          if (filteredProjects.length !== projects.length) {
-            console.error('[Projects Page] CRITICAL: Filtered out projects from other organizations!', {
-              originalCount: projects.length,
-              filteredCount: filteredProjects.length,
+      // Use API to get user data to avoid RLS recursion
+      const userResponse = await fetch('/api/users/me');
+      const userData = userResponse.ok ? await userResponse.json() : null;
+      
+      if (userData?.organization_id) {
+        const filteredProjects = projects.filter((project: any) => {
+          if (project.organization_id !== userData.organization_id) {
+            console.error('[Projects Page] SECURITY ISSUE: Project from wrong organization detected:', {
+              projectId: project.id,
+              projectName: project.name,
+              projectOrgId: project.organization_id,
+              userOrgId: userData.organization_id,
             });
+            return false;
           }
-          
-          setProjects(filteredProjects);
-        } else {
-          setProjects(projects);
+          return true;
+        });
+        
+        if (filteredProjects.length !== projects.length) {
+          console.error('[Projects Page] CRITICAL: Filtered out projects from other organizations!', {
+            originalCount: projects.length,
+            filteredCount: filteredProjects.length,
+          });
         }
+        
+        setProjects(filteredProjects);
       } else {
         setProjects(projects);
       }

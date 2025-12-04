@@ -148,8 +148,11 @@ export async function PUT(
     const body = await request.json();
     const { name, value, status, source } = body;
 
+    // Use admin client to bypass RLS for opportunity operations
+    const adminClient = createAdminSupabaseClient();
+
     // Get existing opportunity to check company_id, organization_id, and previous status
-    const { data: existingOpportunity, error: existingError } = await supabase
+    const { data: existingOpportunity, error: existingError } = await adminClient
       .from('opportunities')
       .select('company_id, organization_id, status, name')
       .eq('id', id)
@@ -182,8 +185,8 @@ export async function PUT(
     if (status !== undefined) updateData.status = status;
     if (source !== undefined) updateData.source = source;
 
-    // Update opportunity
-    const { data: opportunity, error: opportunityError } = await supabase
+    // Update opportunity using admin client
+    const { data: opportunity, error: opportunityError } = await adminClient
       .from('opportunities')
       .update(updateData)
       .eq('id', id)
@@ -216,6 +219,14 @@ export async function PUT(
     logger.error('Error in PUT /api/ops/opportunities/[id]:', error);
     return internalError('Failed to update opportunity', { error: error instanceof Error ? error.message : 'Unknown error' });
   }
+}
+
+// PATCH is an alias for PUT - supports partial updates
+export async function PATCH(
+  request: NextRequest,
+  context: { params: { id: string } }
+) {
+  return PUT(request, context);
 }
 
 export async function DELETE(

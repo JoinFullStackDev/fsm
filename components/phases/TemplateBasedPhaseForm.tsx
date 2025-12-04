@@ -42,6 +42,8 @@ interface TemplateBasedPhaseFormProps {
   onChange: (data: PhaseData) => void;
   /** Callback when a field loses focus (for auto-save) */
   onBlur?: () => void;
+  /** Pre-loaded field configs (bypasses RLS issues when passed from parent) */
+  preloadedFieldConfigs?: TemplateFieldConfig[];
 }
 
 /**
@@ -74,6 +76,7 @@ export default function TemplateBasedPhaseForm({
   data,
   onChange,
   onBlur,
+  preloadedFieldConfigs,
 }: TemplateBasedPhaseFormProps) {
   const theme = useTheme();
   const [fieldConfigs, setFieldConfigs] = useState<TemplateFieldConfig[]>([]);
@@ -91,10 +94,39 @@ export default function TemplateBasedPhaseForm({
       return;
     }
     
+    // If preloaded configs are provided, use them directly (bypasses RLS)
+    if (preloadedFieldConfigs && preloadedFieldConfigs.length > 0) {
+      logger.debug('[TemplateBasedPhaseForm] Using preloaded field configs', { 
+        count: preloadedFieldConfigs.length,
+        fieldKeys: preloadedFieldConfigs.map(f => f.field_key)
+      });
+      setFieldConfigs(preloadedFieldConfigs);
+      setLoading(false);
+      // Still load field groups from database (they typically have fewer RLS issues)
+      loadFieldGroups();
+      return;
+    }
+    
     logger.debug('[TemplateBasedPhaseForm] useEffect triggered, loading field configs', { templateId, phaseNumber });
     loadFieldConfigs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [templateId, phaseNumber]);
+  }, [templateId, phaseNumber, preloadedFieldConfigs]);
+
+  // Load only field groups (used when preloaded configs are provided)
+  const loadFieldGroups = async () => {
+    const { data: groupsData, error: groupsError } = await supabase
+      .from('template_field_groups')
+      .select('*')
+      .eq('template_id', templateId)
+      .eq('phase_number', phaseNumber)
+      .order('display_order', { ascending: true });
+
+    if (groupsError) {
+      logger.warn('[TemplateBasedPhaseForm] Error loading groups:', groupsError);
+    } else {
+      setFieldGroups((groupsData || []) as TemplateFieldGroup[]);
+    }
+  };
 
   const loadFieldConfigs = async () => {
     setLoading(true);

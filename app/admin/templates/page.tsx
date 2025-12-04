@@ -83,15 +83,11 @@ export default function TemplatesPage() {
     setError(null);
     
     try {
-      // Get current user ID
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (authUser) {
-        const { data: userData } = await supabase
-          .from('users')
-          .select('id')
-          .eq('auth_id', authUser.id)
-          .single();
-        if (userData) {
+      // Get current user ID via API to avoid RLS recursion
+      const userResponse = await fetch('/api/users/me');
+      if (userResponse.ok) {
+        const userData = await userResponse.json();
+        if (userData?.id) {
           setCurrentUserId(userData.id);
         }
       }
@@ -118,7 +114,7 @@ export default function TemplatesPage() {
     } finally {
       setLoading(false);
     }
-  }, [supabase, showError, page, pageSize]);
+  }, [showError, page, pageSize]);
 
   useEffect(() => {
     logger.debug('[TemplatesPage] Access check:', { role, roleLoading, orgLoading, features });

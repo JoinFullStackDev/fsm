@@ -20,46 +20,66 @@ export async function POST(
       return unauthorized('You must be logged in to analyze projects');
     }
 
+    // Check if this is a preview request
+    const searchParams = request.nextUrl.searchParams;
+    const isPreview = searchParams.get('preview') === 'true';
+
     // Use admin client to bypass RLS and avoid stack depth recursion issues
     const adminClient = createAdminSupabaseClient();
 
-    // Get user record using admin client
-    const { data: userData, error: userError } = await adminClient
-      .from('users')
-      .select('id')
-      .eq('auth_id', user.id)
-      .single();
+    // OPTIMIZATION: Parallelize all initial data fetching
+    const [userResult, projectResult, phasesResult, tasksResult] = await Promise.all([
+      // Get user record
+      adminClient
+        .from('users')
+        .select('id')
+        .eq('auth_id', user.id)
+        .single(),
+      // Get project
+      adminClient
+        .from('projects')
+        .select('*')
+        .eq('id', params.id)
+        .single(),
+      // Get phases
+      adminClient
+        .from('project_phases')
+        .select('phase_number, phase_name, display_order, data, completed')
+        .eq('project_id', params.id)
+        .eq('is_active', true)
+        .order('display_order', { ascending: true }),
+      // Get existing tasks
+      adminClient
+        .from('project_tasks')
+        .select('*')
+        .eq('project_id', params.id),
+    ]);
+
+    const { data: userData, error: userError } = userResult;
+    const { data: project, error: projectError } = projectResult;
+    const { data: phases, error: phasesError } = phasesResult;
+    const { data: existingTasks, error: tasksError } = tasksResult;
 
     if (userError || !userData) {
       return notFound('User');
     }
 
-    // Get project using admin client
-    const { data: project, error: projectError } = await adminClient
-      .from('projects')
-      .select('*')
-      .eq('id', params.id)
-      .single();
-
     if (projectError || !project) {
       return notFound('Project');
     }
-
-    // Get all active phases with data (ordered by display_order) using admin client
-    const { data: phases, error: phasesError } = await adminClient
-      .from('project_phases')
-      .select('phase_number, phase_name, display_order, data, completed')
-      .eq('project_id', params.id)
-      .eq('is_active', true)
-      .order('display_order', { ascending: true });
 
     if (phasesError) {
       logger.error('Error loading phases:', phasesError);
       return internalError('Failed to load project phases', { error: phasesError.message });
     }
 
-    // Check if project is using default template using admin client
-    let isDefaultTemplate = false;
+    if (tasksError) {
+      logger.error('Error loading tasks:', tasksError);
+      return internalError('Failed to load existing tasks', { error: tasksError.message });
+    }
+
+    // Check if project is using default template (separate query since it depends on project.template_id)
+    let isDefaultTemplate = true; // Default
     if (project.template_id) {
       const { data: template } = await adminClient
         .from('project_templates')
@@ -68,20 +88,6 @@ export async function POST(
         .single();
       
       isDefaultTemplate = template?.name === 'FullStack Method Default';
-    } else {
-      // If no template_id, assume it's using default (backward compatibility)
-      isDefaultTemplate = true;
-    }
-
-    // Get existing tasks using admin client
-    const { data: existingTasks, error: tasksError } = await adminClient
-      .from('project_tasks')
-      .select('*')
-      .eq('project_id', params.id);
-
-    if (tasksError) {
-      logger.error('Error loading tasks:', tasksError);
-      return internalError('Failed to load existing tasks', { error: tasksError.message });
     }
 
     // Get Gemini API key (prioritizes environment variable - super admin's credentials)
@@ -189,44 +195,45 @@ export async function POST(
         }
       }
 
-      // Enrich with task counts and workload
+      // OPTIMIZATION: Enrich with task counts, workload, and user details in parallel
       if (memberUserIds.length > 0) {
-        // Get task counts
-        const { data: tasks } = await adminClient
-          .from('project_tasks')
-          .select('assignee_id, status')
-          .eq('project_id', params.id)
-          .in('assignee_id', memberUserIds)
-          .neq('status', 'archived');
+        const today = new Date().toISOString().split('T')[0];
+        const futureDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-        // Get workload summaries with error handling
-        const workloadPromises = memberUserIds.map(async (userId: string) => {
-          try {
-            const result: any = await adminClient.rpc('get_user_workload_summary', {
+        // Run all enrichment queries in parallel
+        const [tasksResult, usersResult, ...workloadResults] = await Promise.all([
+          // Get task counts
+          adminClient
+            .from('project_tasks')
+            .select('assignee_id, status')
+            .eq('project_id', params.id)
+            .in('assignee_id', memberUserIds)
+            .neq('status', 'archived'),
+          // Get user details
+          adminClient
+            .from('users')
+            .select('id, name, email')
+            .in('id', memberUserIds),
+          // Get workload summaries for all members
+          ...memberUserIds.map((userId: string) =>
+            Promise.resolve(adminClient.rpc('get_user_workload_summary', {
               p_user_id: userId,
-              p_start_date: new Date().toISOString().split('T')[0],
-              p_end_date: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            });
-            return { userId, data: result.data, error: result.error };
-          } catch (error: any) {
-            return { userId, data: null, error };
-          }
-        });
+              p_start_date: today,
+              p_end_date: futureDate,
+            })).then((result: any) => ({ userId, data: result.data, error: result.error }))
+              .catch((error: any) => ({ userId, data: null, error }))
+          ),
+        ]);
 
-        const workloadResults = await Promise.allSettled(workloadPromises);
+        const tasks = tasksResult.data;
+        const users = usersResult.data;
         const workloadsMap = new Map<string, any>();
 
-        workloadResults.forEach((result, index) => {
-          if (result.status === 'fulfilled' && result.value.data) {
-            workloadsMap.set(memberUserIds[index], result.value.data);
+        workloadResults.forEach((result: any) => {
+          if (result?.data) {
+            workloadsMap.set(result.userId, result.data);
           }
         });
-
-        // Get user details
-        const { data: users } = await adminClient
-          .from('users')
-          .select('id, name, email')
-          .in('id', memberUserIds);
 
         // Build sowMembers array for AI
         sowMembers = memberUserIds.map((userId: string) => {
@@ -371,49 +378,63 @@ export async function POST(
       analysis.id
     );
 
+    // If preview mode, return tasks without inserting
+    if (isPreview) {
+      return NextResponse.json({
+        preview: true,
+        tasks: [...toInsert, ...toUpdate.map(t => ({ ...t, isUpdate: true }))],
+        summary: analysisResult.summary,
+        next_steps: analysisResult.next_steps,
+        blockers: analysisResult.blockers,
+        estimates: analysisResult.estimates,
+        analysis_id: analysis.id,
+      });
+    }
+
     // Update project if this is initial analysis using admin client
     if (isInitial) {
-      await adminClient
-        .from('projects')
-        .update({
-          initiated_at: new Date().toISOString(),
-          initiated_by: userData.id,
-        })
-        .eq('id', params.id);
+      // OPTIMIZATION: Update project and get members in parallel
+      const [, membersResult] = await Promise.all([
+        adminClient
+          .from('projects')
+          .update({
+            initiated_at: new Date().toISOString(),
+            initiated_by: userData.id,
+          })
+          .eq('id', params.id),
+        adminClient
+          .from('project_members')
+          .select('user_id')
+          .eq('project_id', params.id),
+      ]);
 
-      // Send email notifications to project owner and members
+      // OPTIMIZATION: Send all email notifications in parallel (non-blocking)
       const projectLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/project/${params.id}`;
+      const emailPromises: Promise<void>[] = [];
       
       // Notify project owner
       if (project.owner_id) {
-        sendProjectInitiatedEmail(
-          project.owner_id,
-          project.name,
-          projectLink
-        ).catch((err) => {
-          logger.error('[Project Analysis] Error sending email to owner:', err);
+        emailPromises.push(
+          sendProjectInitiatedEmail(project.owner_id, project.name, projectLink)
+            .catch((err) => logger.error('[Project Analysis] Error sending email to owner:', err))
+        );
+      }
+
+      // Notify project members
+      const members = membersResult.data;
+      if (members) {
+        members.forEach((member) => {
+          if (member.user_id !== project.owner_id) {
+            emailPromises.push(
+              sendProjectInitiatedEmail(member.user_id, project.name, projectLink)
+                .catch((err) => logger.error('[Project Analysis] Error sending email to member:', err))
+            );
+          }
         });
       }
 
-      // Notify project members using admin client
-      const { data: members } = await adminClient
-        .from('project_members')
-        .select('user_id')
-        .eq('project_id', params.id);
-
-      if (members) {
-        for (const member of members) {
-          if (member.user_id !== project.owner_id) {
-            sendProjectInitiatedEmail(
-              member.user_id,
-              project.name,
-              projectLink
-            ).catch((err) => {
-              logger.error('[Project Analysis] Error sending email to member:', err);
-            });
-          }
-        }
-      }
+      // Fire and forget - don't await email sending
+      Promise.all(emailPromises).catch(() => {});
     }
 
     // Perform task operations in transaction-like manner
@@ -427,58 +448,51 @@ export async function POST(
       });
     }
 
-    // Update existing tasks
-    for (const task of toUpdate) {
-      const updateData: Partial<ProjectTask> = {
-        updated_at: task.updated_at,
-      };
+    // OPTIMIZATION: Batch update existing tasks instead of one-by-one
+    if (toUpdate.length > 0) {
+      const updatePromises = toUpdate.map(async (task) => {
+        const updateData: Partial<ProjectTask> = {
+          updated_at: task.updated_at,
+        };
 
-      // Only update fields that are present in the task object
-      // This allows partial updates (e.g., just dates for non-AI tasks)
-      // IMPORTANT: Preserve existing assignee_id - don't overwrite if task already has an assignee
-      // The mergeTasks function already preserves assignee_id, so we just use what it provides
-      if (task.title !== undefined) updateData.title = task.title;
-      if (task.description !== undefined) updateData.description = task.description;
-      if (task.phase_number !== undefined) updateData.phase_number = task.phase_number;
-      if (task.priority !== undefined) updateData.priority = task.priority;
-      if (task.tags !== undefined) updateData.tags = task.tags;
-      if (task.ai_analysis_id !== undefined) updateData.ai_analysis_id = task.ai_analysis_id;
-      if (task.start_date !== undefined) updateData.start_date = task.start_date; // CRITICAL: Include start_date
-      if (task.due_date !== undefined) updateData.due_date = task.due_date; // CRITICAL: Include due_date
-      
-      // Validate and fix assignee_id if it's a name instead of UUID
-      if (task.assignee_id !== undefined) {
-        let validatedAssigneeId = task.assignee_id;
-        if (task.assignee_id && typeof task.assignee_id === 'string') {
-          // Check if it's a UUID format
-          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-          if (!uuidRegex.test(task.assignee_id)) {
-            // It's not a UUID, try to map from name
-            const userId = userNameToIdMap.get(task.assignee_id.toLowerCase());
-            if (userId) {
-              validatedAssigneeId = userId;
-              logger.warn(`[Project Analysis] Mapped assignee name "${task.assignee_id}" to UUID "${userId}" for task ${task.id}`);
-            } else {
-              logger.warn(`[Project Analysis] Could not map assignee name "${task.assignee_id}" to UUID for task ${task.id}, setting to null`);
-              validatedAssigneeId = null;
+        // Only update fields that are present in the task object
+        if (task.title !== undefined) updateData.title = task.title;
+        if (task.description !== undefined) updateData.description = task.description;
+        if (task.phase_number !== undefined) updateData.phase_number = task.phase_number;
+        if (task.priority !== undefined) updateData.priority = task.priority;
+        if (task.tags !== undefined) updateData.tags = task.tags;
+        if (task.ai_analysis_id !== undefined) updateData.ai_analysis_id = task.ai_analysis_id;
+        if (task.start_date !== undefined) updateData.start_date = task.start_date;
+        if (task.due_date !== undefined) updateData.due_date = task.due_date;
+        
+        // Validate and fix assignee_id if it's a name instead of UUID
+        if (task.assignee_id !== undefined) {
+          let validatedAssigneeId = task.assignee_id;
+          if (task.assignee_id && typeof task.assignee_id === 'string') {
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (!uuidRegex.test(task.assignee_id)) {
+              const userId = userNameToIdMap.get(task.assignee_id.toLowerCase());
+              validatedAssigneeId = userId || null;
             }
           }
+          updateData.assignee_id = validatedAssigneeId;
         }
-        updateData.assignee_id = validatedAssigneeId;
-      }
 
-      const { error } = await adminClient
-        .from('project_tasks')
-        .update(updateData)
-        .eq('id', task.id);
+        return adminClient
+          .from('project_tasks')
+          .update(updateData)
+          .eq('id', task.id)
+          .then(({ error }) => {
+            if (error) {
+              errors.push(`Failed to update task ${task.id}: ${error.message}`);
+            }
+            return { taskId: task.id, error };
+          });
+      });
 
-      if (error) {
-        errors.push(`Failed to update task ${task.id}: ${error.message}`);
-        logger.error(`[Project Analysis] Update error for task ${task.id}:`, error);
-        logger.error(`[Project Analysis] Update data:`, updateData);
-      } else {
-        logger.debug(`[Project Analysis] Updated task ${task.id} with start_date: ${task.start_date || 'null'}, due_date: ${task.due_date || 'null'}`);
-      }
+      // Run all updates in parallel
+      await Promise.all(updatePromises);
+      logger.debug(`[Project Analysis] Batch updated ${toUpdate.length} tasks`);
     }
 
     // Insert new tasks
@@ -544,18 +558,21 @@ export async function POST(
       }
     }
 
-    // Archive old tasks using admin client
-    for (const task of toArchive) {
-      const { error } = await adminClient
+    // OPTIMIZATION: Batch archive old tasks in a single query
+    if (toArchive.length > 0) {
+      const archiveIds = toArchive.map(t => t.id);
+      const { error: archiveError } = await adminClient
         .from('project_tasks')
         .update({
           status: 'archived',
-          updated_at: task.updated_at,
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', task.id);
+        .in('id', archiveIds);
 
-      if (error) {
-        errors.push(`Failed to archive task ${task.id}: ${error.message}`);
+      if (archiveError) {
+        errors.push(`Failed to archive ${toArchive.length} tasks: ${archiveError.message}`);
+      } else {
+        logger.debug(`[Project Analysis] Batch archived ${toArchive.length} tasks`);
       }
     }
 
