@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { generateTasksFromPrompt } from '@/lib/ai/taskGenerator';
 import { detectDuplicates } from '@/lib/ai/taskSimilarity';
+import { logAIUsage } from '@/lib/ai/aiUsageLogger';
 import logger from '@/lib/utils/logger';
 import { unauthorized, notFound, badRequest, internalError } from '@/lib/utils/apiErrors';
 import { getGeminiApiKey } from '@/lib/utils/geminiConfig';
@@ -314,21 +315,35 @@ export async function POST(
       existingTasksCount: (existingTasks || []).length,
     });
 
-    const tasksWithDuplicates = await detectDuplicates(
+    const duplicateResult = await detectDuplicates(
       generationResult.tasks,
       (existingTasks || []) as ProjectTask[],
       apiKey
     );
 
+    // Log AI usage for task similarity (non-blocking)
+    if (duplicateResult.metadata && userData?.id) {
+      logAIUsage(
+        adminClient,
+        userData.id,
+        'task_similarity',
+        duplicateResult.metadata,
+        'project',
+        params.id
+      ).catch((err) => {
+        logger.error('[Task Generator Preview] Error logging task similarity usage:', err);
+      });
+    }
+
     const response: PreviewGenerationResponse = {
-      tasks: tasksWithDuplicates,
+      tasks: duplicateResult.tasks,
       summary: generationResult.summary,
     };
 
     logger.info('[Task Generator Preview] Preview generated successfully:', {
       projectId: params.id,
-      tasksCount: tasksWithDuplicates.length,
-      duplicatesCount: tasksWithDuplicates.filter(
+      tasksCount: duplicateResult.tasks.length,
+      duplicatesCount: duplicateResult.tasks.filter(
         (t) => t.duplicateStatus !== 'unique'
       ).length,
     });

@@ -5,6 +5,7 @@ import { unauthorized, notFound, internalError, forbidden, badRequest } from '@/
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { hasCustomDashboards, hasAIFeatures } from '@/lib/packageLimits';
 import { generateAIResponse } from '@/lib/ai/geminiClient';
+import { logAIUsage } from '@/lib/ai/aiUsageLogger';
 import { getGeminiConfig } from '@/lib/utils/geminiConfig';
 import * as metricQueries from '@/lib/dashboards/widgetData/metricQueries';
 import * as chartQueries from '@/lib/dashboards/widgetData/chartQueries';
@@ -247,17 +248,42 @@ Format the response as clear, actionable markdown with:
 3. Recommendations (actionable steps based on the data)
 4. Next steps (prioritized actions)`;
 
-    // Generate AI response
+    // Generate AI response with metadata tracking
     const aiResponse = await generateAIResponse(
       prompt,
       {
         context: `Dashboard: ${dashboard.name}, Insight Type: ${insight_type || 'project_health'}`,
       },
       geminiConfig.apiKey,
-      dashboard.name
+      dashboard.name,
+      true, // returnMetadata
+      'gemini-2.5-flash' // Use Flash for complex dashboard insights
     );
 
-    const insights = typeof aiResponse === 'string' ? aiResponse : (aiResponse as any).text || '';
+    // Extract insights and metadata
+    let insights: string;
+    let metadata: any = null;
+    
+    if (typeof aiResponse === 'object' && 'metadata' in aiResponse) {
+      insights = (aiResponse as any).text || '';
+      metadata = (aiResponse as any).metadata;
+    } else {
+      insights = typeof aiResponse === 'string' ? aiResponse : '';
+    }
+
+    // Log AI usage (non-blocking)
+    if (metadata && userData?.id) {
+      logAIUsage(
+        adminClient,
+        userData.id,
+        'dashboard_insights',
+        metadata,
+        'dashboard',
+        dashboard_id
+      ).catch((err) => {
+        logger.error('[AI Dashboard] Error logging AI usage:', err);
+      });
+    }
 
     return NextResponse.json({
       insights,

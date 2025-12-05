@@ -142,7 +142,15 @@ export async function POST(
           });
         } else if (mergeInfo.action === 'keep-both') {
           // Add duplicate warning note
-          const notesData = previewTask.notes ? JSON.parse(previewTask.notes) : {};
+          let notesData: Record<string, any> = {};
+          if (previewTask.notes) {
+            try {
+              notesData = JSON.parse(previewTask.notes);
+            } catch {
+              // Notes is plain text, not JSON - wrap it
+              notesData = { text: previewTask.notes };
+            }
+          }
           notesData.duplicateWarning = `This task may be a duplicate of task ${mergeInfo.existingTaskId}`;
           
           // Ensure requirements and userStories are in notes
@@ -167,7 +175,15 @@ export async function POST(
         let notes = previewTask.notes;
         if (previewTask.requirements && previewTask.requirements.length > 0) {
           try {
-            const notesObj = notes ? JSON.parse(notes) : {};
+            let notesObj: Record<string, any> = {};
+            if (notes) {
+              try {
+                notesObj = JSON.parse(notes);
+              } catch {
+                // Notes is plain text, not JSON - wrap it
+                notesObj = { text: notes };
+              }
+            }
             notesObj.requirements = previewTask.requirements;
             if (previewTask.userStories && previewTask.userStories.length > 0) {
               notesObj.userStories = previewTask.userStories;
@@ -328,7 +344,15 @@ export async function POST(
         let notes = task.notes;
         if (requirements && requirements.length > 0) {
           try {
-            const notesObj = notes ? JSON.parse(notes) : {};
+            let notesObj: Record<string, any> = {};
+            if (notes) {
+              try {
+                notesObj = JSON.parse(notes);
+              } catch {
+                // Notes is plain text, not JSON - wrap it
+                notesObj = { text: notes };
+              }
+            }
             notesObj.requirements = requirements;
             if (userStories && userStories.length > 0) {
               notesObj.userStories = userStories;

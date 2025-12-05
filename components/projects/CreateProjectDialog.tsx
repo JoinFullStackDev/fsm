@@ -86,7 +86,7 @@ export default function CreateProjectDialog({
   const loadTemplates = useCallback(async () => {
     setLoadingTemplates(true);
     try {
-      const response = await fetch('/api/admin/templates?limit=100');
+      const response = await fetch('/api/templates?limit=100');
       if (response.ok) {
         const data = await response.json();
         const templatesData = data.data || [];
@@ -121,12 +121,22 @@ export default function CreateProjectDialog({
       const response = await fetch('/api/users');
       if (response.ok) {
         const usersData = await response.json();
+        console.log('[CreateProjectDialog] Loaded users:', {
+          count: usersData?.length || 0,
+          users: usersData?.map((u: UserOption) => ({
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            role: u.role,
+          })),
+        });
         setUsers(usersData || []);
       } else {
+        console.error('[CreateProjectDialog] Failed to load users:', response.status);
         setUsers([]);
       }
     } catch (err) {
-      console.error('Error loading users:', err);
+      console.error('[CreateProjectDialog] Error loading users:', err);
       setUsers([]);
     } finally {
       setLoadingUsers(false);
@@ -330,24 +340,42 @@ export default function CreateProjectDialog({
 
       // Add project members if any were selected
       if (selectedMemberIds.length > 0) {
+        console.log('[CreateProjectDialog] Adding members to project:', {
+          projectId: projectData.id,
+          memberIds: selectedMemberIds,
+        });
+        
         // Use API route to add members (handles RLS and permissions)
-        const memberPromises = selectedMemberIds.map((userId) =>
-          fetch(`/api/projects/${projectData.id}/members`, {
+        // Note: organization_role_id is not set here - members can set their role in project settings
+        const memberPromises = selectedMemberIds.map(async (userId) => {
+          const response = await fetch(`/api/projects/${projectData.id}/members`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               user_id: userId,
-              role: 'engineer',
             }),
-          })
-        );
+          });
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('[CreateProjectDialog] Failed to add member:', {
+              userId,
+              status: response.status,
+              error: errorData,
+            });
+            throw new Error(errorData.message || errorData.error || `Failed to add member (${response.status})`);
+          }
+          return response;
+        });
 
         const results = await Promise.allSettled(memberPromises);
-        const failures = results.filter((r) => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.ok));
+        const failures = results.filter((r) => r.status === 'rejected');
 
         if (failures.length > 0) {
-          console.error('Failed to add some project members:', failures);
-          showError(`Project created but failed to add ${failures.length} member(s)`);
+          const errorMessages = failures
+            .map((r) => (r as PromiseRejectedResult).reason?.message || 'Unknown error')
+            .slice(0, 3);
+          console.error('[CreateProjectDialog] Failed to add some project members:', errorMessages);
+          showError(`Project created but failed to add ${failures.length} member(s): ${errorMessages.join(', ')}`);
         }
       }
 

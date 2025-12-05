@@ -8,6 +8,8 @@ import crypto from 'crypto';
 // Fallback to environment variable for backwards compatibility
 const defaultApiKey = process.env.GEMINI_API_KEY || '';
 
+export type GeminiModel = 'gemini-2.5-flash' | 'gemini-2.5-flash-lite';
+
 export interface AIPromptOptions {
   context?: string;
   phaseData?: any;
@@ -89,20 +91,20 @@ function createGeminiClient(apiKey: string) {
  * @param apiKey - Optional API key (if not provided, uses default from env)
  * @param projectName - Optional project name for context
  * @param returnMetadata - If true, returns enhanced response with metadata
+ * @param model - The Gemini model to use (default: gemini-2.5-flash)
  */
 export async function generateAIResponse(
   prompt: string,
   options: AIPromptOptions = {},
   apiKey?: string,
   projectName?: string,
-  returnMetadata: boolean = false
+  returnMetadata: boolean = false,
+  model: GeminiModel = 'gemini-2.5-flash'
 ): Promise<string | AIResponseWithMetadata> {
   const key = apiKey || defaultApiKey;
   if (!key) {
     throw new Error('Gemini API key not configured');
   }
-
-  const model = 'gemini-2.5-flash';
   const startTime = Date.now();
 
   // Generate request key for deduplication
@@ -333,13 +335,20 @@ export async function generateAIResponse(
 
 /**
  * Generate structured JSON response with enhanced metadata tracking
+ * @param prompt - The prompt to send to Gemini
+ * @param options - Additional options for the prompt
+ * @param apiKey - Optional API key (if not provided, uses default from env)
+ * @param projectName - Optional project name for context
+ * @param returnMetadata - If true, returns enhanced response with metadata
+ * @param model - The Gemini model to use (default: gemini-2.5-flash)
  */
 export async function generateStructuredAIResponse<T>(
   prompt: string,
   options: AIPromptOptions = {},
   apiKey?: string,
   projectName?: string,
-  returnMetadata: boolean = false
+  returnMetadata: boolean = false,
+  model: GeminiModel = 'gemini-2.5-flash'
 ): Promise<T | { result: T; metadata: AIResponseWithMetadata['metadata'] }> {
   const enhancedPrompt = `${prompt}\n\nPlease respond with valid JSON only, no additional text.`;
   const response = await generateAIResponse(
@@ -347,7 +356,8 @@ export async function generateStructuredAIResponse<T>(
     options,
     apiKey,
     projectName,
-    returnMetadata
+    returnMetadata,
+    model
   );
 
   // Handle metadata response

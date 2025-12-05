@@ -189,7 +189,7 @@ export default function OpportunityDetailPage() {
     setLoadingTemplates(true);
     try {
       // Use the organization-scoped templates API endpoint
-      const response = await fetch('/api/admin/templates');
+      const response = await fetch('/api/templates');
       if (response.ok) {
         const result = await response.json();
         // Ensure we always set an array, even if result.data is not an array

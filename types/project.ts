@@ -461,3 +461,34 @@ export interface ResourceAllocationConflict {
   }>;
 }
 
+// ============================================
+// TEAMS TYPES
+// ============================================
+
+export interface Team {
+  id: string;
+  organization_id: string;
+  name: string;
+  description: string | null;
+  color: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TeamMember {
+  id: string;
+  team_id: string;
+  user_id: string;
+  created_at: string;
+  user?: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+}
+
+export interface TeamWithMembers extends Team {
+  members: TeamMember[];
+  member_count: number;
+}
+

@@ -4,6 +4,7 @@ import { unauthorized, internalError, badRequest, forbidden } from '@/lib/utils/
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { hasAIFeatures, getKnowledgeBaseAccessLevel } from '@/lib/packageLimits';
 import { generateAIResponse } from '@/lib/ai/geminiClient';
+import { logAIUsage } from '@/lib/ai/aiUsageLogger';
 import { getGeminiApiKey } from '@/lib/utils/geminiConfig';
 import { retrieveRelevantArticles, buildRAGContext, buildRAGPrompt, extractSources } from '@/lib/kb/rag';
 import logger from '@/lib/utils/logger';
@@ -22,6 +23,17 @@ export async function POST(request: NextRequest) {
 
     if (!authUser) {
       return unauthorized('You must be logged in to use AI chat');
+    }
+
+    // Get user record
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('auth_id', authUser.id)
+      .single();
+
+    if (userError || !userData) {
+      return unauthorized('User record not found');
     }
 
     const organizationId = await getUserOrganizationId(supabase, authUser.id);
@@ -75,10 +87,10 @@ export async function POST(request: NextRequest) {
         answer: "I couldn't find any relevant articles in the knowledge base to answer your question. Please try rephrasing your query or check if the information exists in the knowledge base.",
         sources: [],
         metadata: {
-          model: 'gemini-2.5-flash',
+          model: 'gemini-2.5-flash-lite',
           tokens_used: 0,
           response_time_ms: Date.now() - startTime,
-        },
+        } as any,
       });
     }
 
@@ -102,37 +114,57 @@ export async function POST(request: NextRequest) {
 
     const prompt = buildRAGPrompt(query, context, systemInstructions);
 
-    // Generate answer using Gemini
-    const aiResponse = await generateAIResponse(prompt, {}, apiKey, undefined, true);
+    // Generate answer using Gemini with Flash-Lite for conversational tasks
+    const aiResponse = await generateAIResponse(
+      prompt,
+      {},
+      apiKey,
+      undefined,
+      true, // returnMetadata
+      'gemini-2.5-flash-lite' // Use Flash-Lite for conversational Q&A
+    );
 
     const answer = typeof aiResponse === 'string' ? aiResponse : aiResponse.text;
-    const metadata = typeof aiResponse === 'object' && 'metadata' in aiResponse ? aiResponse.metadata : {
-      model: 'gemini-2.5-flash',
-      tokens_used: 0,
-      response_time_ms: Date.now() - startTime,
-    };
+    let metadata: any = null;
+    if (typeof aiResponse === 'object' && 'metadata' in aiResponse) {
+      metadata = aiResponse.metadata;
+    }
 
     // Extract sources
     const sources = extractSources(context);
 
-    // Track AI usage
+    // Track AI usage in both knowledge_base_analytics (existing) and activity_logs (new)
     trackAIChatUsage(supabase, authUser.id, query, organizationId).catch((err) => {
       logger.error('[KB AI Chat] Error tracking usage:', err);
     });
+
+    // Also log to activity_logs for super admin tracking
+    if (metadata && userData?.id) {
+      logAIUsage(
+        supabase,
+        userData.id,
+        'kb_chat',
+        metadata,
+        null,
+        null
+      ).catch((err) => {
+        logger.error('[KB AI Chat] Error logging AI usage:', err);
+      });
+    }
 
     // Handle metadata with proper type checking
     const metadataWithTokens = metadata as {
       model?: string;
       total_tokens?: number;
       tokens_used?: number;
-    };
+    } | null;
 
     const response: AIChatOutput = {
       answer,
       sources,
       metadata: {
-        model: metadataWithTokens.model || 'gemini-2.5-flash',
-        tokens_used: metadataWithTokens.total_tokens || metadataWithTokens.tokens_used || 0,
+        model: metadataWithTokens?.model || 'gemini-2.5-flash-lite',
+        tokens_used: metadataWithTokens?.total_tokens || metadataWithTokens?.tokens_used || 0,
         response_time_ms: Date.now() - startTime,
       },
     };

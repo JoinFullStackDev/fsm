@@ -97,7 +97,7 @@ export default function TemplateBuilderPage() {
     
     try {
       // Use API endpoint to avoid RLS recursion issues
-      const response = await fetch(`/api/admin/templates/${templateId}`);
+      const response = await fetch(`/api/templates/${templateId}`);
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -329,7 +329,7 @@ export default function TemplateBuilderPage() {
 
       // Get existing field configs to determine which to update vs insert
       // Use API route to avoid RLS recursion issues
-      const fieldsResponse = await fetch(`/api/admin/templates/${templateId}/field-configs`);
+      const fieldsResponse = await fetch(`/api/templates/${templateId}/field-configs`);
       let existingFields: any[] = [];
       if (fieldsResponse.ok) {
         const fieldsData = await fieldsResponse.json();
@@ -420,7 +420,7 @@ export default function TemplateBuilderPage() {
       const idsToDelete = fieldsToDelete.map((f: TemplateFieldConfig) => f.id).filter((id: string | undefined): id is string => !!id);
 
       // Use API route to save all field configs (INSERT, UPDATE, DELETE) to avoid RLS recursion
-      const saveResponse = await fetch(`/api/admin/templates/${templateId}/field-configs`, {
+      const saveResponse = await fetch(`/api/templates/${templateId}/field-configs`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -851,7 +851,7 @@ export default function TemplateBuilderPage() {
           )}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
             <IconButton
-              onClick={() => router.push('/admin/templates')}
+              onClick={() => router.push('/templates')}
               sx={{
                 color: theme.palette.text.primary,
                 border: `1px solid ${theme.palette.divider}`,
@@ -890,7 +890,7 @@ export default function TemplateBuilderPage() {
             <Button
               variant="outlined"
               startIcon={<PreviewIcon />}
-              onClick={() => router.push(`/admin/templates/${templateId}/preview`)}
+              onClick={() => router.push(`/templates/${templateId}/preview`)}
               sx={{
                 borderColor: theme.palette.text.primary,
                 color: theme.palette.text.primary,
@@ -907,7 +907,7 @@ export default function TemplateBuilderPage() {
                 variant="outlined"
                 startIcon={<DownloadIcon />}
                 onClick={() => {
-                  window.open(`/admin/templates/${templateId}/export`, '_blank');
+                  window.open(`/templates/${templateId}/export`, '_blank');
                 }}
                 sx={{
                   borderColor: theme.palette.text.primary,

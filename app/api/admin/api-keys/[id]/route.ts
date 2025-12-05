@@ -14,9 +14,9 @@ const API_KEY_PREFIX = 'sk_live_';
  */
 async function requireSuperAdmin(request: NextRequest): Promise<{ userId: string }> {
   const supabase = await createServerSupabaseClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user: authUser } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!authUser) {
     throw unauthorized('You must be logged in');
   }
 
@@ -25,7 +25,7 @@ async function requireSuperAdmin(request: NextRequest): Promise<{ userId: string
   const { data: regularUserData, error: regularUserError } = await supabase
     .from('users')
     .select('id, role, is_super_admin')
-    .eq('auth_id', session.user.id)
+    .eq('auth_id', authUser.id)
     .single();
 
   if (regularUserError || !regularUserData) {
@@ -33,7 +33,7 @@ async function requireSuperAdmin(request: NextRequest): Promise<{ userId: string
     const { data: adminUserData, error: adminUserError } = await adminClient
       .from('users')
       .select('id, role, is_super_admin')
-      .eq('auth_id', session.user.id)
+      .eq('auth_id', authUser.id)
       .single();
 
     if (adminUserError || !adminUserData) {

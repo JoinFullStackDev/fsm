@@ -35,6 +35,13 @@ export async function GET(request: NextRequest) {
       role: u.role,
     })).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
+    logger.info('[Users API GET] Returning users:', {
+      organizationId,
+      userCount: userList.length,
+      usersWithRoles: userList.filter(u => u.role).length,
+      usersWithoutRoles: userList.filter(u => !u.role).length,
+    });
+
     return NextResponse.json(userList, { status: 200 });
   } catch (error) {
     logger.error('[Users] Unexpected error:', error);

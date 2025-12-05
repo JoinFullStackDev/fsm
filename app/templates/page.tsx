@@ -98,7 +98,7 @@ export default function TemplatesPage() {
         offset: offset.toString(),
       });
 
-      const response = await fetch(`/api/admin/templates?${params}`);
+      const response = await fetch(`/api/templates?${params}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -195,7 +195,7 @@ export default function TemplatesPage() {
 
       // Update existing template via API endpoint
       try {
-        const response = await fetch(`/api/admin/templates/${editingTemplate.id}`, {
+        const response = await fetch(`/api/templates/${editingTemplate.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -223,7 +223,7 @@ export default function TemplatesPage() {
     } else {
       // Create new template via API route (handles organization_id and package limits)
       try {
-        const response = await fetch('/api/admin/templates', {
+        const response = await fetch('/api/templates', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -243,7 +243,7 @@ export default function TemplatesPage() {
         const newTemplate = await response.json();
         showSuccess('Template created! Now add phase data.');
         handleCloseDialog();
-        router.push(`/admin/templates/${newTemplate.id}/edit`);
+        router.push(`/templates/${newTemplate.id}/edit`);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to create template';
         showError(errorMessage);
@@ -260,7 +260,7 @@ export default function TemplatesPage() {
     if (!deleteConfirm.templateId) return;
 
     try {
-      const response = await fetch(`/api/admin/templates/${deleteConfirm.templateId}`, {
+      const response = await fetch(`/api/templates/${deleteConfirm.templateId}`, {
         method: 'DELETE',
       });
 
@@ -309,7 +309,7 @@ export default function TemplatesPage() {
 
   const handleDuplicate = async (template: ProjectTemplate) => {
     try {
-      const response = await fetch(`/api/admin/templates/${template.id}/duplicate`, {
+      const response = await fetch(`/api/templates/${template.id}/duplicate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -386,7 +386,7 @@ export default function TemplatesPage() {
             <Button
               variant="outlined"
               startIcon={<AutoAwesomeIcon />}
-              onClick={() => router.push('/admin/templates/generate')}
+              onClick={() => router.push('/templates/generate')}
               fullWidth={false}
               sx={{
                 borderColor: theme.palette.text.primary,
@@ -667,7 +667,7 @@ export default function TemplatesPage() {
                             showError('Cannot edit global templates. Please duplicate the template to create your own copy.');
                             return;
                           }
-                          router.push(`/admin/templates/${template.id}/builder`);
+                          router.push(`/templates/${template.id}/builder`);
                         }}
                         disabled={template.is_publicly_available}
                         onMouseDown={(e) => {
@@ -696,7 +696,7 @@ export default function TemplatesPage() {
                             showError('Cannot edit global templates. Please duplicate the template to create your own copy.');
                             return;
                           }
-                          router.push(`/admin/templates/${template.id}/edit`);
+                          router.push(`/templates/${template.id}/edit`);
                         }}
                         disabled={template.is_publicly_available}
                         onMouseDown={(e) => {
@@ -758,7 +758,7 @@ export default function TemplatesPage() {
                 },
               ]}
               onRowClick={(template) => {
-                router.push(`/admin/templates/${template.id}/builder`);
+                router.push(`/templates/${template.id}/builder`);
               }}
               emptyMessage="No templates found"
             />

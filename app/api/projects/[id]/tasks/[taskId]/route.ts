@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { notifyTaskAssigned } from '@/lib/notifications';
 import { sendTaskAssignedEmail, sendTaskUpdatedEmail } from '@/lib/emailNotifications';
-import { unauthorized, notFound, internalError, badRequest } from '@/lib/utils/apiErrors';
+import { unauthorized, notFound, internalError, badRequest, forbidden } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 
 // GET - Get a single task
@@ -18,25 +19,48 @@ export async function GET(
       return unauthorized('You must be logged in to view tasks');
     }
 
-    const { data: task, error } = await supabase
+    // Use admin client to bypass RLS
+    const adminClient = createAdminSupabaseClient();
+
+    // Get user's organization
+    const { data: userData } = await adminClient
+      .from('users')
+      .select('id, organization_id')
+      .eq('auth_id', user.id)
+      .single();
+
+    if (!userData) {
+      return notFound('User not found');
+    }
+
+    // Get task with project info to verify org access
+    const { data: task, error } = await adminClient
       .from('project_tasks')
       .select(`
         *,
-        assignee:users!project_tasks_assignee_id_fkey(id, name, email, avatar_url)
+        assignee:users!project_tasks_assignee_id_fkey(id, name, email, avatar_url),
+        project:projects!project_tasks_project_id_fkey(organization_id)
       `)
       .eq('id', params.taskId)
       .eq('project_id', params.id)
       .single();
 
-    // Transform to flatten assignee
-    const transformedTask = task ? {
-      ...task,
-      assignee: task.assignee || null,
-    } : null;
-
-    if (error || !transformedTask) {
+    if (error || !task) {
       return notFound('Task');
     }
+
+    // Verify user belongs to same organization
+    const projectOrgId = (task.project as any)?.organization_id;
+    if (projectOrgId && userData.organization_id !== projectOrgId) {
+      return forbidden('You do not have access to this task');
+    }
+
+    // Transform to flatten assignee and remove project relation
+    const { project: _project, ...taskWithoutProject } = task;
+    const transformedTask = {
+      ...taskWithoutProject,
+      assignee: task.assignee || null,
+    };
 
     return NextResponse.json(transformedTask);
   } catch (error) {
@@ -58,6 +82,20 @@ export async function PUT(
       return unauthorized('You must be logged in to update tasks');
     }
 
+    // Use admin client to bypass RLS - all org members can update tasks
+    const adminClient = createAdminSupabaseClient();
+
+    // Get user's organization
+    const { data: userData } = await adminClient
+      .from('users')
+      .select('id, name, organization_id')
+      .eq('auth_id', user.id)
+      .single();
+
+    if (!userData) {
+      return notFound('User not found');
+    }
+
     const body = await request.json();
     const {
       title,
@@ -74,12 +112,22 @@ export async function PUT(
       parent_task_id,
     } = body;
 
-    // Get current task to check if assignee changed and validate parent_task_id
-    const { data: currentTask } = await supabase
+    // Get current task to check if assignee changed, validate parent_task_id, and verify org access
+    const { data: currentTask } = await adminClient
       .from('project_tasks')
-      .select('assignee_id, title, project_id, parent_task_id')
+      .select('assignee_id, title, project_id, parent_task_id, project:projects!project_tasks_project_id_fkey(organization_id, name)')
       .eq('id', params.taskId)
       .single();
+
+    if (!currentTask) {
+      return notFound('Task');
+    }
+
+    // Verify user belongs to same organization as the project
+    const projectOrgId = (currentTask.project as any)?.organization_id;
+    if (projectOrgId && userData.organization_id !== projectOrgId) {
+      return forbidden('You do not have access to update this task');
+    }
 
     // Validate parent_task_id if being updated
     if (parent_task_id !== undefined && parent_task_id !== null) {
@@ -89,7 +137,7 @@ export async function PUT(
       }
 
       // Check that parent task exists and belongs to same project
-      const { data: parentTask, error: parentError } = await supabase
+      const { data: parentTask, error: parentError } = await adminClient
         .from('project_tasks')
         .select('id, project_id, parent_task_id')
         .eq('id', parent_task_id)
@@ -121,7 +169,7 @@ export async function PUT(
     if (dependencies !== undefined) updateData.dependencies = dependencies;
     if (parent_task_id !== undefined) updateData.parent_task_id = parent_task_id;
 
-    const { data: task, error } = await supabase
+    const { data: task, error } = await adminClient
       .from('project_tasks')
       .update(updateData)
       .eq('id', params.taskId)
@@ -141,6 +189,9 @@ export async function PUT(
       return notFound('Task');
     }
 
+    // Get project name from current task for notifications
+    const projectName = (currentTask.project as any)?.name;
+
     // Check if assignee changed and create notification
     if (
       assignee_id !== undefined &&
@@ -148,21 +199,7 @@ export async function PUT(
       assignee_id &&
       assignee_id !== null
     ) {
-      // Get project info
-      const { data: project } = await supabase
-        .from('projects')
-        .select('name')
-        .eq('id', params.id)
-        .single();
-
-      // Get assigner info
-      const { data: assigner } = await supabase
-        .from('users')
-        .select('id, name')
-        .eq('auth_id', user.id)
-        .single();
-
-      if (project && assigner) {
+      if (projectName && userData) {
         const taskLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/project/${params.id}?task=${params.taskId}`;
 
         // Create notification asynchronously (don't wait for it)
@@ -171,9 +208,9 @@ export async function PUT(
           params.taskId,
           task.title,
           params.id,
-          project.name,
-          assigner.id,
-          assigner.name
+          projectName,
+          userData.id,
+          userData.name
         ).catch((err) => {
           logger.error('[Task Update] Error creating notification:', err);
         });
@@ -182,8 +219,8 @@ export async function PUT(
         sendTaskAssignedEmail(
           assignee_id,
           task.title,
-          project.name,
-          assigner.name || 'Someone',
+          projectName,
+          userData.name || 'Someone',
           taskLink
         ).catch((err) => {
           logger.error('[Task Update] Error sending email notification:', err);
@@ -192,30 +229,22 @@ export async function PUT(
     }
 
     // Send email notification for other updates (status, priority changes) if assignee exists
-    if (task.assignee_id && (status !== undefined || priority !== undefined)) {
-      const { data: project } = await supabase
-        .from('projects')
-        .select('name')
-        .eq('id', params.id)
-        .single();
+    if (task.assignee_id && (status !== undefined || priority !== undefined) && projectName) {
+      const taskLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/project/${params.id}?task=${params.taskId}`;
+      const updateDetails: string[] = [];
+      if (status !== undefined) updateDetails.push(`Status changed to ${status}`);
+      if (priority !== undefined) updateDetails.push(`Priority changed to ${priority}`);
 
-      if (project) {
-        const taskLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/project/${params.id}?task=${params.taskId}`;
-        const updateDetails: string[] = [];
-        if (status !== undefined) updateDetails.push(`Status changed to ${status}`);
-        if (priority !== undefined) updateDetails.push(`Priority changed to ${priority}`);
-
-        if (updateDetails.length > 0) {
-          sendTaskUpdatedEmail(
-            task.assignee_id,
-            task.title,
-            project.name,
-            updateDetails.join(', '),
-            taskLink
-          ).catch((err) => {
-            logger.error('[Task Update] Error sending task updated email:', err);
-          });
-        }
+      if (updateDetails.length > 0) {
+        sendTaskUpdatedEmail(
+          task.assignee_id,
+          task.title,
+          projectName,
+          updateDetails.join(', '),
+          taskLink
+        ).catch((err) => {
+          logger.error('[Task Update] Error sending task updated email:', err);
+        });
       }
     }
 
@@ -245,7 +274,39 @@ export async function DELETE(
       return unauthorized('You must be logged in to delete tasks');
     }
 
-    const { error } = await supabase
+    // Use admin client to bypass RLS
+    const adminClient = createAdminSupabaseClient();
+
+    // Get user's organization
+    const { data: userData } = await adminClient
+      .from('users')
+      .select('id, organization_id')
+      .eq('auth_id', user.id)
+      .single();
+
+    if (!userData) {
+      return notFound('User not found');
+    }
+
+    // Get task with project info to verify org access
+    const { data: task } = await adminClient
+      .from('project_tasks')
+      .select('id, project:projects!project_tasks_project_id_fkey(organization_id)')
+      .eq('id', params.taskId)
+      .eq('project_id', params.id)
+      .single();
+
+    if (!task) {
+      return notFound('Task');
+    }
+
+    // Verify user belongs to same organization
+    const projectOrgId = (task.project as any)?.organization_id;
+    if (projectOrgId && userData.organization_id !== projectOrgId) {
+      return forbidden('You do not have access to delete this task');
+    }
+
+    const { error } = await adminClient
       .from('project_tasks')
       .delete()
       .eq('id', params.taskId)

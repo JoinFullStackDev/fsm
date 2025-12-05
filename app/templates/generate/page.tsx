@@ -173,7 +173,7 @@ Please help me craft this description based on my project needs, making sure to 
   // AI features: true means enabled, null also means enabled (unlimited)
   const hasAIFeatures = features?.ai_features_enabled === true || features?.ai_features_enabled === null;
   if (!hasAIFeatures) {
-    router.push('/admin/templates');
+    router.push('/templates');
     return null;
   }
 
@@ -192,7 +192,7 @@ Please help me craft this description based on my project needs, making sure to 
     setError(null);
 
     try {
-      const response = await fetch('/api/admin/templates/generate', {
+      const response = await fetch('/api/templates/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -265,7 +265,7 @@ Please help me craft this description based on my project needs, making sure to 
         field_configs: filteredFieldConfigs,
       };
 
-      const response = await fetch('/api/admin/templates/generate/save', {
+      const response = await fetch('/api/templates/generate/save', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -280,7 +280,7 @@ Please help me craft this description based on my project needs, making sure to 
       }
 
       showSuccess('Template created successfully!');
-      router.push(`/admin/templates/${data.templateId}/builder`);
+      router.push(`/templates/${data.templateId}/builder`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to save template';
       setError(errorMessage);
@@ -568,7 +568,7 @@ Please help me craft this description based on my project needs, making sure to 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4 }}>
           <Button
             startIcon={<ArrowBackIcon />}
-            onClick={() => router.push('/admin/templates')}
+            onClick={() => router.push('/templates')}
             sx={{
               color: theme.palette.text.primary,
               border: `1px solid ${theme.palette.text.primary}`,
@@ -860,7 +860,7 @@ Please help me craft this description based on my project needs, making sure to 
               <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', pt: 2 }}>
                 <Button
                   variant="outlined"
-                  onClick={() => router.push('/admin/templates')}
+                  onClick={() => router.push('/templates')}
                   sx={{
                     borderColor: theme.palette.text.primary,
                     color: theme.palette.text.primary,

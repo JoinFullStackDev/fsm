@@ -7,7 +7,7 @@ import logger from '@/lib/utils/logger';
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/admin/templates/[id]/field-configs
+ * GET /api/templates/[id]/field-configs
  * 
  * Gets field configs for a template.
  * Uses admin client to bypass RLS and avoid recursion.
@@ -98,7 +98,7 @@ export async function GET(
       fieldConfigs: fieldConfigs || [] 
     });
   } catch (error) {
-    logger.error('Error in GET /api/admin/templates/[id]/field-configs:', error);
+    logger.error('Error in GET /api/templates/[id]/field-configs:', error);
     return internalError('Failed to load field configs', {
       error: error instanceof Error ? error.message : 'Unknown error',
     });
@@ -106,7 +106,7 @@ export async function GET(
 }
 
 /**
- * PUT /api/admin/templates/[id]/field-configs
+ * PUT /api/templates/[id]/field-configs
  * 
  * Saves field configs for a template (handles INSERT, UPDATE, DELETE).
  * Uses admin client to bypass RLS and avoid recursion.
@@ -209,7 +209,7 @@ export async function PUT(
       message: 'Field configs saved successfully' 
     });
   } catch (error) {
-    logger.error('Error in PUT /api/admin/templates/[id]/field-configs:', error);
+    logger.error('Error in PUT /api/templates/[id]/field-configs:', error);
     return internalError('Failed to save field configs', {
       error: error instanceof Error ? error.message : 'Unknown error',
     });

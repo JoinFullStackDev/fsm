@@ -24,9 +24,9 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!authUser) {
       return unauthorized('You must be logged in to view API keys');
     }
 
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     const { data: regularUserData, error: regularUserError } = await supabase
       .from('users')
       .select('id, role, is_super_admin')
-      .eq('auth_id', session.user.id)
+      .eq('auth_id', authUser.id)
       .single();
 
     if (regularUserError || !regularUserData) {
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       const { data: adminUserData, error: adminUserError } = await adminClient
         .from('users')
         .select('id, role, is_super_admin')
-        .eq('auth_id', session.user.id)
+        .eq('auth_id', authUser.id)
         .single();
 
       if (adminUserError || !adminUserData) {
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user's organization for org admins
-    const userOrgId = await getUserOrganizationId(supabase, session.user.id);
+    const userOrgId = await getUserOrganizationId(supabase, authUser.id);
     const isSuperAdmin = userData.is_super_admin === true;
 
     // Get query parameters
@@ -141,9 +141,9 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!authUser) {
       return unauthorized('You must be logged in to create API keys');
     }
 
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
     const { data: regularUserData, error: regularUserError } = await supabase
       .from('users')
       .select('id, role, is_super_admin')
-      .eq('auth_id', session.user.id)
+      .eq('auth_id', authUser.id)
       .single();
 
     if (regularUserError || !regularUserData) {
@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
       const { data: adminUserData, error: adminUserError } = await adminClient
         .from('users')
         .select('id, role, is_super_admin')
-        .eq('auth_id', session.user.id)
+        .eq('auth_id', authUser.id)
         .single();
 
       if (adminUserError || !adminUserData) {
@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
     }
 
     const isSuperAdmin = userData.is_super_admin === true;
-    const userOrgId = await getUserOrganizationId(supabase, session.user.id);
+    const userOrgId = await getUserOrganizationId(supabase, authUser.id);
 
     // Parse request body
     const body = await request.json();

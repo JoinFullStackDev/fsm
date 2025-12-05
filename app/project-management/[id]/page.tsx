@@ -253,17 +253,75 @@ export default function ProjectTaskManagementPage() {
   }, [projectId]); // Only depend on projectId - loadData is stable
 
   // Check for preview mode from analyze endpoint
+  // First checks sessionStorage (populated by project details page), then falls back to API
   useEffect(() => {
     const previewParam = searchParams.get('preview');
     const analysisId = searchParams.get('analysis_id');
     
     // Only load if we have preview param, analysis ID, and haven't loaded preview yet
     if (previewParam === 'true' && analysisId && !showPreview && previewTasks.length === 0) {
+      // Helper function to transform tasks to PreviewTask format
+      const transformTasks = (tasks: any[], resultAnalysisId: string): PreviewTask[] => {
+        return tasks.map((task: any, index: number) => ({
+          // PreviewTask-specific fields
+          previewId: task.previewId || `preview-${Date.now()}-${index}`,
+          duplicateStatus: task.isUpdate ? 'possible-duplicate' : 'unique',
+          existingTaskId: task.isUpdate ? task.id : null,
+          requirements: task.requirements || [],
+          userStories: task.userStories,
+          // ProjectTask fields (required for database insertion)
+          title: task.title,
+          description: task.description || null,
+          phase_number: task.phase_number,
+          priority: task.priority || 'medium',
+          status: task.status || 'todo',
+          estimated_hours: task.estimated_hours || null,
+          tags: task.tags || [],
+          start_date: task.start_date || null,
+          due_date: task.due_date || null,
+          assignee_id: task.assignee_id || null,
+          notes: task.notes || null,
+          dependencies: task.dependencies || [],
+          ai_generated: true,
+          ai_analysis_id: resultAnalysisId || null,
+          parent_task_id: task.parent_task_id || null,
+        }));
+      };
+
+      // First, check sessionStorage for cached preview data (set by project details page)
+      const storedPreview = sessionStorage.getItem(`preview_${projectId}`);
+      
+      if (storedPreview) {
+        try {
+          const data = JSON.parse(storedPreview);
+          // Only use if it's recent (within 5 minutes) and matches the analysis_id
+          if (data.analysis_id === analysisId && Date.now() - data.timestamp < 5 * 60 * 1000) {
+            const previewTasksData = transformTasks(data.tasks, data.analysis_id);
+            
+            console.log('[Preview Mode] Loaded from sessionStorage:', previewTasksData.length, 'tasks');
+            setPreviewTasks(previewTasksData);
+            setPreviewSummary(data.summary);
+            setPreviewAnalysisId(data.analysis_id);
+            setShowPreview(true);
+            
+            // Clear sessionStorage after loading
+            sessionStorage.removeItem(`preview_${projectId}`);
+            return; // Don't make API call
+          }
+        } catch (e) {
+          console.error('[Preview Mode] Error parsing stored preview:', e);
+        }
+        // Clear invalid/expired data
+        sessionStorage.removeItem(`preview_${projectId}`);
+      }
+
+      // Fallback: Load preview tasks from analyze endpoint (only if not in sessionStorage)
       let isCancelled = false;
       
-      // Load preview tasks from analyze endpoint
       const loadPreviewTasks = async () => {
         if (isCancelled) return;
+        
+        console.log('[Preview Mode] No cached data, fetching from API...');
         
         try {
           const response = await fetch(`/api/projects/${projectId}/analyze?preview=true`, {
@@ -277,34 +335,10 @@ export default function ProjectTaskManagementPage() {
             if (isCancelled) return;
             
             if (result.preview && result.tasks) {
-              // Transform tasks to PreviewTask format
-              const previewTasksData: PreviewTask[] = result.tasks.map((task: any, index: number) => ({
-                // PreviewTask-specific fields
-                previewId: task.previewId || `preview-${Date.now()}-${index}`,
-                duplicateStatus: task.isUpdate ? 'possible-duplicate' : 'unique',
-                existingTaskId: task.isUpdate ? task.id : null,
-                requirements: task.requirements || [],
-                userStories: task.userStories,
-                // ProjectTask fields (required for database insertion)
-                title: task.title,
-                description: task.description || null,
-                phase_number: task.phase_number,
-                priority: task.priority || 'medium',
-                status: task.status || 'todo',
-                estimated_hours: task.estimated_hours || null,
-                tags: task.tags || [],
-                start_date: task.start_date || null,
-                due_date: task.due_date || null,
-                assignee_id: task.assignee_id || null,
-                notes: task.notes || null,
-                dependencies: task.dependencies || [],
-                ai_generated: true,
-                ai_analysis_id: result.analysis_id || null,
-                parent_task_id: task.parent_task_id || null,
-              }));
+              const previewTasksData = transformTasks(result.tasks, result.analysis_id);
               
               if (!isCancelled) {
-                console.log('[Preview Mode] Preview tasks loaded:', previewTasksData.length, 'tasks');
+                console.log('[Preview Mode] Preview tasks loaded from API:', previewTasksData.length, 'tasks');
                 setPreviewTasks(previewTasksData);
                 setPreviewSummary(result.summary);
                 setPreviewAnalysisId(result.analysis_id);
@@ -314,7 +348,7 @@ export default function ProjectTaskManagementPage() {
           }
         } catch (err) {
           if (!isCancelled) {
-            console.error('Failed to load preview tasks:', err);
+            console.error('[Preview Mode] Failed to load preview tasks:', err);
           }
         }
       };
@@ -827,6 +861,10 @@ export default function ProjectTaskManagementPage() {
               setPreviewTasks([]);
               setPreviewSummary(undefined);
               setPreviewAnalysisId(null);
+              // Clear any lingering sessionStorage
+              sessionStorage.removeItem(`preview_${projectId}`);
+              // Clear URL params
+              router.replace(`/project-management/${projectId}`, { scroll: false });
             } catch (err) {
               console.error('[Task Inject] Error:', err);
               showError(err instanceof Error ? err.message : 'Failed to inject tasks');
@@ -841,6 +879,10 @@ export default function ProjectTaskManagementPage() {
             setPreviewTasks([]);
             setPreviewSummary(undefined);
             setPreviewAnalysisId(null);
+            // Clear any lingering sessionStorage
+            sessionStorage.removeItem(`preview_${projectId}`);
+            // Clear URL params
+            router.replace(`/project-management/${projectId}`, { scroll: false });
           }}
         />
       ) : (

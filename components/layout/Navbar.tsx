@@ -99,7 +99,7 @@ export default function Navbar() {
               </Button>
             )}
             <Button
-              onClick={() => router.push('/admin/templates')}
+              onClick={() => router.push('/templates')}
               sx={{
                 color: '#E0E0E0',
                 '&:hover': {

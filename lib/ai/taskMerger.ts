@@ -4,7 +4,8 @@ import type { PreviewTask } from '@/types/taskGenerator';
 
 /**
  * Merge AI-generated task content into existing task
- * Existing task remains the parent (keeps ID, created_at, etc.)
+ * Existing task remains unchanged except for notes - all AI suggestions are recorded there
+ * This prevents confusion by not modifying the task's title, description, dates, etc.
  */
 export function mergeTaskContent(
   existingTask: ProjectTask,
@@ -12,100 +13,111 @@ export function mergeTaskContent(
 ): Partial<ProjectTask> {
   const updates: Partial<ProjectTask> = {};
 
-  // Merge description: append if different
+  // Parse existing notes to preserve them
+  const existingNotes = existingTask.notes ? parseNotes(existingTask.notes) : {};
+
+  // Build AI suggestions summary to add to notes
+  const aiSuggestions: Record<string, any> = {
+    mergedAt: new Date().toISOString(),
+    mergedFrom: 'ai-task-generator',
+    aiTaskTitle: aiTask.title, // Record what the AI called this task
+  };
+
+  // Record AI description if different
   if (aiTask.description && aiTask.description !== existingTask.description) {
-    if (existingTask.description) {
-      // Append new description if existing has one
-      updates.description = `${existingTask.description}\n\n--- Merged from AI ---\n\n${aiTask.description}`;
-    } else {
-      // Use AI description if existing doesn't have one
-      updates.description = aiTask.description;
-    }
+    aiSuggestions.aiDescription = aiTask.description;
   }
 
-  // Merge notes: combine requirements and other notes
-  const existingNotes = existingTask.notes ? parseNotes(existingTask.notes) : {};
-  const aiNotes = aiTask.notes ? parseNotes(aiTask.notes) : {};
+  // Record AI requirements
+  const aiRequirements = aiTask.requirements || [];
+  if (aiRequirements.length > 0) {
+    aiSuggestions.aiRequirements = aiRequirements;
+  }
 
-  // Merge requirements arrays
+  // Record AI user stories
+  const aiUserStories = aiTask.userStories || [];
+  if (aiUserStories.length > 0) {
+    aiSuggestions.aiUserStories = aiUserStories;
+  }
+
+  // Record AI due date if different
+  if (aiTask.due_date && aiTask.due_date !== existingTask.due_date) {
+    aiSuggestions.aiDueDate = aiTask.due_date;
+  }
+
+  // Record AI start date if different
+  if (aiTask.start_date && aiTask.start_date !== existingTask.start_date) {
+    aiSuggestions.aiStartDate = aiTask.start_date;
+  }
+
+  // Record AI priority if different
+  if (aiTask.priority && aiTask.priority !== existingTask.priority) {
+    aiSuggestions.aiPriority = aiTask.priority;
+  }
+
+  // Record AI tags (new ones only)
+  const existingTags = existingTask.tags || [];
+  const newAiTags = (aiTask.tags || []).filter((tag) => !existingTags.includes(tag));
+  if (newAiTags.length > 0) {
+    aiSuggestions.aiTags = newAiTags;
+  }
+
+  // Record AI estimated hours if different
+  if (aiTask.estimated_hours && aiTask.estimated_hours !== existingTask.estimated_hours) {
+    aiSuggestions.aiEstimatedHours = aiTask.estimated_hours;
+  }
+
+  // Parse any notes from the AI task
+  const aiNotes = aiTask.notes ? parseNotes(aiTask.notes) : {};
+  if (aiNotes.notes || aiNotes.text) {
+    aiSuggestions.aiNotes = aiNotes.notes || aiNotes.text;
+  }
+
+  // Build merged notes - preserve existing notes and add AI suggestions
+  const mergedNotes: Record<string, any> = {
+    ...existingNotes,
+  };
+
+  // Add or append to merge history
+  if (!mergedNotes.aiMergeHistory) {
+    mergedNotes.aiMergeHistory = [];
+  }
+  mergedNotes.aiMergeHistory.push(aiSuggestions);
+
+  // Also merge requirements into existing (additive, deduplicated)
   const existingRequirements = Array.isArray(existingNotes.requirements)
     ? existingNotes.requirements
     : [];
-  const aiRequirements = aiTask.requirements || [];
-  
-  // Combine and deduplicate requirements
   const mergedRequirements = [
     ...existingRequirements,
-    ...aiRequirements.filter((req) => !existingRequirements.includes(req)),
+    ...aiRequirements.filter((req: string) => !existingRequirements.includes(req)),
   ];
+  if (mergedRequirements.length > 0) {
+    mergedNotes.requirements = mergedRequirements;
+  }
 
-  // Merge user stories if present
+  // Merge user stories (additive, deduplicated)
   const existingUserStories = Array.isArray(existingNotes.userStories)
     ? existingNotes.userStories
     : [];
-  const aiUserStories = aiTask.userStories || [];
   const mergedUserStories = [
     ...existingUserStories,
-    ...aiUserStories.filter((story) => !existingUserStories.includes(story)),
+    ...aiUserStories.filter((story: string) => !existingUserStories.includes(story)),
   ];
-
-  // Build merged notes object
-  const mergedNotes: Record<string, any> = {
-    ...existingNotes,
-    requirements: mergedRequirements,
-  };
-
   if (mergedUserStories.length > 0) {
     mergedNotes.userStories = mergedUserStories;
   }
 
-  // Preserve any other notes from existing task
-  if (existingNotes.notes) {
-    mergedNotes.notes = existingNotes.notes;
-  }
-  if (aiNotes.notes) {
-    mergedNotes.notes = mergedNotes.notes
-      ? `${mergedNotes.notes}\n\n--- Merged from AI ---\n\n${aiNotes.notes}`
-      : aiNotes.notes;
-  }
-
-  // Add merge metadata
-  mergedNotes.mergedAt = new Date().toISOString();
-  mergedNotes.mergedFrom = 'ai-task-generator';
-
   updates.notes = JSON.stringify(mergedNotes);
 
-  // Merge due_date: only if existing task doesn't have one
-  if (!existingTask.due_date && aiTask.due_date) {
-    updates.due_date = aiTask.due_date;
-  }
-
-  // Merge tags: combine and deduplicate
-  const existingTags = existingTask.tags || [];
-  const aiTags = aiTask.tags || [];
-  const mergedTags = [
-    ...existingTags,
-    ...aiTags.filter((tag) => !existingTags.includes(tag)),
-  ];
-  if (mergedTags.length > 0) {
-    updates.tags = mergedTags;
-  }
-
-  // Update priority if AI task has higher priority
-  const priorityOrder = { low: 1, medium: 2, high: 3, critical: 4 };
-  if (
-    aiTask.priority &&
-    priorityOrder[aiTask.priority] > priorityOrder[existingTask.priority]
-  ) {
-    updates.priority = aiTask.priority;
-  }
-
-  // Mark as updated
+  // Mark as updated (only updating notes, not other fields)
   updates.updated_at = new Date().toISOString();
 
-  logger.debug('[Task Merger] Merged task content:', {
+  logger.debug('[Task Merger] Merged AI suggestions into notes:', {
     existingTaskId: existingTask.id,
-    updates: Object.keys(updates),
+    existingTitle: existingTask.title,
+    aiTitle: aiTask.title,
+    suggestionsRecorded: Object.keys(aiSuggestions).length,
   });
 
   return updates;

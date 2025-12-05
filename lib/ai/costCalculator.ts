@@ -13,6 +13,15 @@ const GEMINI_2_5_FLASH_PRICING = {
 };
 
 /**
+ * Gemini 2.5 Flash-Lite pricing (as of 2024)
+ * Approximately 50% cheaper than Flash
+ */
+const GEMINI_2_5_FLASH_LITE_PRICING = {
+  input: 0.0375 / 1_000_000,  // ~$0.0375 per 1M input tokens
+  output: 0.15 / 1_000_000,   // ~$0.15 per 1M output tokens
+};
+
+/**
  * Calculate AI cost based on token usage
  * Falls back to character-based estimation if tokens not provided
  * 
@@ -32,6 +41,12 @@ export function calculateAICost(
 ): number {
   // Use token-based calculation if available (more accurate)
   if (inputTokens !== undefined && outputTokens !== undefined) {
+    if (model.includes('gemini-2.5-flash-lite')) {
+      const inputCost = inputTokens * GEMINI_2_5_FLASH_LITE_PRICING.input;
+      const outputCost = outputTokens * GEMINI_2_5_FLASH_LITE_PRICING.output;
+      return inputCost + outputCost;
+    }
+    
     if (model.includes('gemini-2.5-flash') || model.includes('gemini-2.0-flash')) {
       const inputCost = inputTokens * GEMINI_2_5_FLASH_PRICING.input;
       const outputCost = outputTokens * GEMINI_2_5_FLASH_PRICING.output;
@@ -49,6 +64,12 @@ export function calculateAICost(
   if (promptChars !== undefined && responseChars !== undefined) {
     const estimatedInputTokens = Math.ceil(promptChars / 4);
     const estimatedOutputTokens = Math.ceil(responseChars / 4);
+    
+    if (model.includes('gemini-2.5-flash-lite')) {
+      const inputCost = estimatedInputTokens * GEMINI_2_5_FLASH_LITE_PRICING.input;
+      const outputCost = estimatedOutputTokens * GEMINI_2_5_FLASH_LITE_PRICING.output;
+      return inputCost + outputCost;
+    }
     
     if (model.includes('gemini-2.5-flash') || model.includes('gemini-2.0-flash')) {
       const inputCost = estimatedInputTokens * GEMINI_2_5_FLASH_PRICING.input;
@@ -70,6 +91,10 @@ export function calculateAICost(
  * Get pricing information for a model
  */
 export function getModelPricing(model: string): { input: number; output: number } | null {
+  if (model.includes('gemini-2.5-flash-lite')) {
+    return GEMINI_2_5_FLASH_LITE_PRICING;
+  }
+  
   if (model.includes('gemini-2.5-flash') || model.includes('gemini-2.0-flash')) {
     return GEMINI_2_5_FLASH_PRICING;
   }

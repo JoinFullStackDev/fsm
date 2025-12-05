@@ -15,9 +15,9 @@ export async function POST(
 ) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!authUser) {
       return unauthorized('You must be logged in');
     }
 
@@ -25,7 +25,7 @@ export async function POST(
     const { data: currentUser, error: userError } = await supabase
       .from('users')
       .select('id, role, name, organization_id')
-      .eq('auth_id', session.user.id)
+      .eq('auth_id', authUser.id)
       .single();
 
     if (userError || !currentUser) {
@@ -66,7 +66,7 @@ export async function POST(
 
     // Check if user's email is already confirmed in Supabase Auth
     // If confirmed, we can't use invite type - need to use recovery type instead
-    let authUser;
+    let targetAuthUser;
     try {
       const { data: authUserData, error: authUserError } = await adminClient.auth.admin.getUserById(targetUser.auth_id);
       if (authUserError) {
@@ -75,7 +75,7 @@ export async function POST(
           error: authUserError.message,
         });
       } else {
-        authUser = authUserData.user;
+        targetAuthUser = authUserData.user;
       }
     } catch (err) {
       logger.warn('[Resend Invite] Error fetching auth user:', err);
@@ -86,13 +86,13 @@ export async function POST(
                    (request.headers.get('origin') || 'http://localhost:3000');
     
     // If email is already confirmed, use recovery type instead of invite
-    const linkType = authUser?.email_confirmed_at ? 'recovery' : 'invite';
+    const linkType = targetAuthUser?.email_confirmed_at ? 'recovery' : 'invite';
     
     logger.info('[Resend Invite] Generating link:', {
       userId: params.id,
       email: targetUser.email,
       linkType,
-      emailConfirmed: !!authUser?.email_confirmed_at,
+      emailConfirmed: !!targetAuthUser?.email_confirmed_at,
     });
 
     const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({

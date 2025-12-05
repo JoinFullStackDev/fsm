@@ -57,7 +57,7 @@ export default function EditTemplatePage() {
     
     try {
       // Use API endpoint to avoid RLS recursion issues
-      const response = await fetch(`/api/admin/templates/${templateId}`);
+      const response = await fetch(`/api/templates/${templateId}`);
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -127,7 +127,7 @@ export default function EditTemplatePage() {
 
     setSavingMetadata(true);
     try {
-      const response = await fetch(`/api/admin/templates/${templateId}`, {
+      const response = await fetch(`/api/templates/${templateId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -417,7 +417,7 @@ export default function EditTemplatePage() {
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
         <IconButton
-          onClick={() => router.push('/admin/templates')}
+          onClick={() => router.push('/templates')}
           sx={{
             color: theme.palette.text.primary,
             border: `1px solid ${theme.palette.divider}`,
