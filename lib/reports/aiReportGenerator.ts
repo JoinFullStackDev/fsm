@@ -1,4 +1,4 @@
-import { generateAIResponse } from '@/lib/ai/geminiClient';
+import { generateAIResponse, type AIResponseWithMetadata } from '@/lib/ai/geminiClient';
 import type { ProjectTask, ProjectTaskExtended } from '@/types/project';
 import type { WeeklyReportData, MonthlyReportData, ForecastReportData } from './dataAggregator';
 import { format, parseISO } from 'date-fns';
@@ -11,6 +11,11 @@ export interface ReportContent {
   teamWorkload: string;
 }
 
+export interface ReportContentWithMetadata {
+  content: ReportContent;
+  metadata: AIResponseWithMetadata['metadata'];
+}
+
 /**
  * Generate AI-powered report content for weekly report
  */
@@ -19,7 +24,7 @@ export async function generateWeeklyReportContent(
   projectName: string,
   projectMembers: Array<{ id: string; name: string | null }>,
   apiKey?: string
-): Promise<ReportContent> {
+): Promise<ReportContentWithMetadata> {
   const lastWeekRange = `${format(data.lastWeek.start, 'MMM d')} - ${format(data.lastWeek.end, 'MMM d, yyyy')}`;
   const thisWeekRange = `${format(data.thisWeek.start, 'MMM d')} - ${format(data.thisWeek.end, 'MMM d, yyyy')}`;
 
@@ -72,12 +77,20 @@ Format your response as JSON with this structure:
 }`;
 
   try {
-    const response = await generateAIResponse(prompt, {
-      projectData: { name: projectName },
-    }, apiKey, projectName);
+    const response = await generateAIResponse(
+      prompt,
+      {
+        projectData: { name: projectName },
+      },
+      apiKey,
+      projectName,
+      true, // returnMetadata
+      'gemini-2.5-flash' // Use Flash for quality report generation
+    );
 
     // Handle both string and metadata response types
     const responseText = typeof response === 'string' ? response : response.text;
+    const metadata = typeof response === 'object' && 'metadata' in response ? response.metadata : null;
 
     // Parse JSON response
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -102,10 +115,38 @@ Format your response as JSON with this structure:
       reportContent.executiveSummary = enhancedSummary;
     }
 
-    return reportContent;
+    return {
+      content: reportContent,
+      metadata: metadata || {
+        prompt_length: prompt.length,
+        full_prompt_length: prompt.length,
+        response_length: responseText.length,
+        model: 'gemini-2.5-flash',
+        response_time_ms: 0,
+        input_tokens: 0,
+        output_tokens: 0,
+        total_tokens: 0,
+        estimated_cost: 0,
+      },
+    };
   } catch (error) {
     // Fallback to basic report if AI fails
-    return generateFallbackWeeklyContent(data, projectName);
+    const fallbackContent = generateFallbackWeeklyContent(data, projectName);
+    return {
+      content: fallbackContent,
+      metadata: {
+        prompt_length: prompt.length,
+        full_prompt_length: prompt.length,
+        response_length: 0,
+        model: 'gemini-2.5-flash',
+        response_time_ms: 0,
+        input_tokens: 0,
+        output_tokens: 0,
+        total_tokens: 0,
+        estimated_cost: 0,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+    };
   }
 }
 
@@ -117,7 +158,7 @@ export async function generateMonthlyReportContent(
   projectName: string,
   projectMembers: Array<{ id: string; name: string | null }>,
   apiKey?: string
-): Promise<ReportContent> {
+): Promise<ReportContentWithMetadata> {
   const monthRange = `${format(data.month.start, 'MMMM yyyy')}`;
 
   const completedTasksList = data.month.completed.slice(0, 15).map((t) => `- ${t.title}${t.due_date ? ` (due: ${format(parseISO(t.due_date), 'MMM d')})` : ''}`).join('\n');
@@ -173,12 +214,20 @@ Format your response as JSON with this structure:
 }`;
 
   try {
-    const response = await generateAIResponse(prompt, {
-      projectData: { name: projectName },
-    }, apiKey, projectName);
+    const response = await generateAIResponse(
+      prompt,
+      {
+        projectData: { name: projectName },
+      },
+      apiKey,
+      projectName,
+      true, // returnMetadata
+      'gemini-2.5-flash' // Use Flash for quality report generation
+    );
 
     // Handle both string and metadata response types
     const responseText = typeof response === 'string' ? response : response.text;
+    const metadata = typeof response === 'object' && 'metadata' in response ? response.metadata : null;
 
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     let reportContent: ReportContent;
@@ -201,9 +250,37 @@ Format your response as JSON with this structure:
       reportContent.executiveSummary = enhancedSummary;
     }
 
-    return reportContent;
+    return {
+      content: reportContent,
+      metadata: metadata || {
+        prompt_length: prompt.length,
+        full_prompt_length: prompt.length,
+        response_length: responseText.length,
+        model: 'gemini-2.5-flash',
+        response_time_ms: 0,
+        input_tokens: 0,
+        output_tokens: 0,
+        total_tokens: 0,
+        estimated_cost: 0,
+      },
+    };
   } catch (error) {
-    return generateFallbackMonthlyContent(data, projectName);
+    const fallbackContent = generateFallbackMonthlyContent(data, projectName);
+    return {
+      content: fallbackContent,
+      metadata: {
+        prompt_length: prompt.length,
+        full_prompt_length: prompt.length,
+        response_length: 0,
+        model: 'gemini-2.5-flash',
+        response_time_ms: 0,
+        input_tokens: 0,
+        output_tokens: 0,
+        total_tokens: 0,
+        estimated_cost: 0,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+    };
   }
 }
 
@@ -215,7 +292,7 @@ export async function generateForecastReportContent(
   projectName: string,
   projectMembers: Array<{ id: string; name: string | null }>,
   apiKey?: string
-): Promise<ReportContent> {
+): Promise<ReportContentWithMetadata> {
   const periodRange = `${format(data.period.start, 'MMM d')} - ${format(data.period.end, 'MMM d, yyyy')}`;
 
   const keyTasksList = data.tasks.slice(0, 15).map((t) => `- ${t.title} (${t.priority}${t.due_date ? `, due: ${format(parseISO(t.due_date), 'MMM d')}` : ''})`).join('\n');
@@ -267,12 +344,20 @@ Format your response as JSON with this structure:
 }`;
 
   try {
-    const response = await generateAIResponse(prompt, {
-      projectData: { name: projectName },
-    }, apiKey, projectName);
+    const response = await generateAIResponse(
+      prompt,
+      {
+        projectData: { name: projectName },
+      },
+      apiKey,
+      projectName,
+      true, // returnMetadata
+      'gemini-2.5-flash' // Use Flash for quality report generation
+    );
 
     // Handle both string and metadata response types
     const responseText = typeof response === 'string' ? response : response.text;
+    const metadata = typeof response === 'object' && 'metadata' in response ? response.metadata : null;
 
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     let reportContent: ReportContent;
@@ -292,9 +377,37 @@ Format your response as JSON with this structure:
       reportContent.executiveSummary = enhancedSummary;
     }
 
-    return reportContent;
+    return {
+      content: reportContent,
+      metadata: metadata || {
+        prompt_length: prompt.length,
+        full_prompt_length: prompt.length,
+        response_length: responseText.length,
+        model: 'gemini-2.5-flash',
+        response_time_ms: 0,
+        input_tokens: 0,
+        output_tokens: 0,
+        total_tokens: 0,
+        estimated_cost: 0,
+      },
+    };
   } catch (error) {
-    return generateFallbackForecastContent(data, projectName);
+    const fallbackContent = generateFallbackForecastContent(data, projectName);
+    return {
+      content: fallbackContent,
+      metadata: {
+        prompt_length: prompt.length,
+        full_prompt_length: prompt.length,
+        response_length: 0,
+        model: 'gemini-2.5-flash',
+        response_time_ms: 0,
+        input_tokens: 0,
+        output_tokens: 0,
+        total_tokens: 0,
+        estimated_cost: 0,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+    };
   }
 }
 

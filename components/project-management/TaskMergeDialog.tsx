@@ -20,7 +20,6 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Merge as MergeIcon } from '@mui/icons-material';
-import { createSupabaseClient } from '@/lib/supabaseClient';
 import type { PreviewTask, TaskMerge } from '@/types/taskGenerator';
 import type { ProjectTask } from '@/types/project';
 
@@ -29,6 +28,7 @@ interface TaskMergeDialogProps {
   onClose: () => void;
   previewTask: PreviewTask;
   existingTaskId: string;
+  projectId: string;
   onDecision: (previewTaskId: string, action: 'merge' | 'keep-both' | 'discard', existingTaskId: string) => void;
 }
 
@@ -37,39 +37,43 @@ export default function TaskMergeDialog({
   onClose,
   previewTask,
   existingTaskId,
+  projectId,
   onDecision,
 }: TaskMergeDialogProps) {
   const theme = useTheme();
   const [existingTask, setExistingTask] = useState<ProjectTask | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [action, setAction] = useState<'merge' | 'keep-both' | 'discard'>('merge');
-  const supabase = createSupabaseClient();
 
   useEffect(() => {
-    if (open && existingTaskId) {
+    if (open && existingTaskId && projectId) {
       const loadExistingTask = async () => {
         setLoading(true);
+        setError(null);
         try {
-          const { data, error } = await supabase
-            .from('project_tasks')
-            .select('*')
-            .eq('id', existingTaskId)
-            .single();
-
-          if (error) {
-            console.error('[Task Merge Dialog] Error loading task:', error);
-          } else {
-            setExistingTask(data as ProjectTask);
+          // Use API endpoint instead of direct Supabase query to avoid RLS issues
+          const response = await fetch(`/api/projects/${projectId}/tasks/${existingTaskId}`);
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error('[Task Merge Dialog] API Error:', errorData);
+            setError('Failed to load existing task');
+            return;
           }
-        } catch (error) {
-          console.error('[Task Merge Dialog] Error:', error);
+          
+          const data = await response.json();
+          setExistingTask(data as ProjectTask);
+        } catch (err) {
+          console.error('[Task Merge Dialog] Error:', err);
+          setError('Failed to load existing task');
         } finally {
           setLoading(false);
         }
       };
       loadExistingTask();
     }
-  }, [open, existingTaskId, supabase]);
+  }, [open, existingTaskId, projectId]);
 
   const handleConfirm = () => {
     if (previewTask.previewId) {
@@ -167,7 +171,11 @@ export default function TaskMergeDialog({
                 Existing Task
               </Typography>
               <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
-                {existingTask ? (
+                {error ? (
+                  <Typography variant="body2" color="error">
+                    {error}
+                  </Typography>
+                ) : existingTask ? (
                   <>
                     <Typography variant="body2" fontWeight={500}>
                       {existingTask.title}
@@ -180,10 +188,15 @@ export default function TaskMergeDialog({
                         Due: {new Date(existingTask.due_date).toLocaleDateString()}
                       </Typography>
                     )}
+                    {existingTask.status && (
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        Status: {existingTask.status}
+                      </Typography>
+                    )}
                   </>
                 ) : (
                   <Typography variant="body2" color="text.secondary">
-                    Loading...
+                    Loading existing task...
                   </Typography>
                 )}
               </Box>

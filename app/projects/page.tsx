@@ -45,7 +45,7 @@ function ProjectsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createSupabaseClient();
-  const { role, loading: roleLoading } = useRole();
+  const { role, isCompanyAdmin, loading: roleLoading } = useRole();
   const { showSuccess, showError } = useNotification();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -487,7 +487,7 @@ function ProjectsPageContent() {
                   >
                     <OpenInNewIcon fontSize="small" />
                   </IconButton>
-                  {role === 'admin' && (
+                  {isCompanyAdmin && (
                     <IconButton
                       size="small"
                       onClick={(e) => {

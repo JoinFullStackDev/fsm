@@ -1,7 +1,7 @@
 import logger from '@/lib/utils/logger';
 import type { ProjectTask } from '@/types/project';
 import type { PreviewTask, DuplicateStatus } from '@/types/taskGenerator';
-import { generateStructuredAIResponse } from './geminiClient';
+import { generateStructuredAIResponse, type AIResponseWithMetadata, type GeminiModel } from './geminiClient';
 
 /**
  * Calculate Levenshtein distance between two strings
@@ -94,12 +94,14 @@ export function calculateStringSimilarity(
 /**
  * Calculate semantic similarity using AI
  * Uses Gemini to compare task meanings
+ * @returns similarity score and metadata
  */
 export async function calculateSemanticSimilarity(
   task1: { title: string; description: string | null },
   task2: { title: string; description: string | null },
-  apiKey: string
-): Promise<number> {
+  apiKey: string,
+  model: GeminiModel = 'gemini-2.5-flash-lite'
+): Promise<{ similarity: number; metadata?: AIResponseWithMetadata['metadata'] }> {
   const prompt = `Compare these two tasks and determine how similar they are semantically (meaning, not just wording).
 
 Task 1:
@@ -127,30 +129,68 @@ Return ONLY a JSON object with this format:
     const result = await generateStructuredAIResponse<{
       similarity: number;
       reason?: string;
-    }>(prompt, {}, apiKey);
+    }>(
+      prompt,
+      {},
+      apiKey,
+      undefined,
+      true, // returnMetadata
+      model
+    );
 
     // Handle both wrapped and unwrapped results
-    const similarityResult = 'result' in result ? result.result : result;
+    let similarityResult: { similarity: number; reason?: string };
+    let metadata: AIResponseWithMetadata['metadata'] | undefined;
+
+    if (typeof result === 'object' && result !== null && 'result' in result && 'metadata' in result) {
+      similarityResult = (result as { result: { similarity: number; reason?: string }; metadata: AIResponseWithMetadata['metadata'] }).result;
+      metadata = (result as { result: { similarity: number; reason?: string }; metadata: AIResponseWithMetadata['metadata'] }).metadata;
+    } else if (typeof result === 'object' && result !== null && 'result' in result) {
+      similarityResult = (result as { result: { similarity: number; reason?: string } }).result;
+    } else {
+      similarityResult = result as { similarity: number; reason?: string };
+    }
 
     // Clamp similarity to 0-1 range
-    return Math.max(0, Math.min(1, similarityResult.similarity || 0));
+    return {
+      similarity: Math.max(0, Math.min(1, similarityResult.similarity || 0)),
+      metadata,
+    };
   } catch (error) {
     logger.error('[Task Similarity] Error calculating semantic similarity:', error);
     // Fallback to string similarity if AI fails
-    return calculateStringSimilarity(task1, task2);
+    return {
+      similarity: calculateStringSimilarity(task1, task2),
+    };
   }
 }
 
 /**
  * Detect duplicates for new tasks against existing tasks
  * Uses hybrid approach: string similarity first, then AI semantic similarity
+ * @returns tasks with duplicate status and accumulated metadata
  */
 export async function detectDuplicates(
   newTasks: PreviewTask[],
   existingTasks: ProjectTask[],
   apiKey: string
-): Promise<PreviewTask[]> {
+): Promise<{ tasks: PreviewTask[]; metadata?: AIResponseWithMetadata['metadata'] }> {
   const results: PreviewTask[] = [];
+  const metadataAccumulator: {
+    total_tokens: number;
+    input_tokens: number;
+    output_tokens: number;
+    estimated_cost: number;
+    response_time_ms: number;
+    calls: number;
+  } = {
+    total_tokens: 0,
+    input_tokens: 0,
+    output_tokens: 0,
+    estimated_cost: 0,
+    response_time_ms: 0,
+    calls: 0,
+  };
 
   for (const newTask of newTasks) {
     let bestMatch: { task: ProjectTask; similarity: number } | null = null;
@@ -177,14 +217,25 @@ export async function detectDuplicates(
       // Check top 3 candidates with AI (to avoid too many API calls)
       for (const candidate of candidates.slice(0, 3)) {
         try {
-          const semanticSim = await calculateSemanticSimilarity(
+          const result = await calculateSemanticSimilarity(
             newTask,
             candidate.task,
-            apiKey
+            apiKey,
+            'gemini-2.5-flash-lite' // Use Flash-Lite for simple comparison
           );
 
+          // Accumulate metadata
+          if (result.metadata) {
+            metadataAccumulator.calls++;
+            metadataAccumulator.input_tokens += result.metadata.input_tokens || 0;
+            metadataAccumulator.output_tokens += result.metadata.output_tokens || 0;
+            metadataAccumulator.total_tokens += result.metadata.total_tokens || 0;
+            metadataAccumulator.estimated_cost += result.metadata.estimated_cost || 0;
+            metadataAccumulator.response_time_ms += result.metadata.response_time_ms || 0;
+          }
+
           // Combine string and semantic similarity (weighted average)
-          const combinedSimilarity = candidate.stringSimilarity * 0.3 + semanticSim * 0.7;
+          const combinedSimilarity = candidate.stringSimilarity * 0.3 + result.similarity * 0.7;
 
           if (!bestMatch || combinedSimilarity > bestMatch.similarity) {
             bestMatch = { task: candidate.task, similarity: combinedSimilarity };
@@ -220,6 +271,22 @@ export async function detectDuplicates(
     });
   }
 
-  return results;
+  // Return tasks with accumulated metadata (if any AI calls were made)
+  const metadata: AIResponseWithMetadata['metadata'] | undefined = metadataAccumulator.calls > 0 ? {
+    prompt_length: 0,
+    full_prompt_length: 0,
+    response_length: 0,
+    model: 'gemini-2.5-flash-lite',
+    response_time_ms: metadataAccumulator.response_time_ms,
+    input_tokens: metadataAccumulator.input_tokens,
+    output_tokens: metadataAccumulator.output_tokens,
+    total_tokens: metadataAccumulator.total_tokens,
+    estimated_cost: metadataAccumulator.estimated_cost,
+  } : undefined;
+
+  return {
+    tasks: results,
+    metadata,
+  };
 }
 

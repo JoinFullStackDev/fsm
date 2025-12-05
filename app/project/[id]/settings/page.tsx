@@ -17,25 +17,42 @@ import {
   IconButton,
   Grid,
   Chip,
-  Avatar,
   Divider,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Collapse,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { ArrowBack as ArrowBackIcon, Add as AddIcon, Delete as DeleteIcon, Description as DescriptionIcon } from '@mui/icons-material';
+import { ArrowBack as ArrowBackIcon, Add as AddIcon, Delete as DeleteIcon, ExpandMore as ExpandMoreIcon, ExpandLess as ExpandLessIcon } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { getCsrfHeaders } from '@/lib/utils/csrfClient';
-import type { Project, ProjectStatus, PrimaryTool, ProjectTemplate, UserRole, ScopeOfWork } from '@/types/project';
+import type { Project, ProjectStatus, PrimaryTool, ProjectTemplate, UserRole, ScopeOfWork, ProjectMemberAllocation, UserWorkloadSummary } from '@/types/project';
 import SOWList from '@/components/projects/SOWList';
 import SOWForm from '@/components/projects/SOWForm';
 import SOWView from '@/components/projects/SOWView';
+import ResourceAllocationForm from '@/components/projects/ResourceAllocationForm';
+import ResourceAllocationList from '@/components/projects/ResourceAllocationList';
+import WorkloadIndicator from '@/components/projects/WorkloadIndicator';
+
+interface OrganizationRole {
+  id: string;
+  name: string;
+  description: string | null;
+}
 
 interface ProjectMember {
   id: string;
   user_id: string;
-  role: UserRole;
+  role?: UserRole | null; // Legacy field - deprecated, use organization_role_id
+  organization_role_id?: string | null;
+  organization_role?: OrganizationRole | null;
   user: {
     id: string;
     name: string | null;
@@ -76,9 +93,23 @@ export default function ProjectSettingsPage() {
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState('');
-  const [selectedRole, setSelectedRole] = useState<UserRole>('engineer');
+  const [selectedRoleId, setSelectedRoleId] = useState<string>(''); // Organization role ID
   const [memberToRemove, setMemberToRemove] = useState<string | null>(null);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  // Organization roles
+  const [organizationRoles, setOrganizationRoles] = useState<OrganizationRole[]>([]);
+  const [loadingRoles, setLoadingRoles] = useState(true);
+  // Role editing state
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+  const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
+  const [updatingRole, setUpdatingRole] = useState(false);
+  // Resource allocation state
+  const [allocations, setAllocations] = useState<Array<ProjectMemberAllocation & { user?: any }>>([]);
+  const [workloads, setWorkloads] = useState<Map<string, UserWorkloadSummary>>(new Map());
+  const [loadingAllocations, setLoadingAllocations] = useState(false);
+  const [allocationFormOpen, setAllocationFormOpen] = useState(false);
+  const [editingAllocation, setEditingAllocation] = useState<ProjectMemberAllocation | null>(null);
+  const [showAllocationSection, setShowAllocationSection] = useState(false);
   // SOW state
   const [sows, setSows] = useState<ScopeOfWork[]>([]);
   const [loadingSOWs, setLoadingSOWs] = useState(false);
@@ -90,7 +121,7 @@ export default function ProjectSettingsPage() {
     const loadTemplates = async () => {
       setLoadingTemplates(true);
       try {
-        const response = await fetch('/api/admin/templates');
+        const response = await fetch('/api/templates');
         if (response.ok) {
           const data = await response.json();
           setTemplates(data.data || []);
@@ -108,6 +139,25 @@ export default function ProjectSettingsPage() {
 
     loadTemplates();
   }, []);
+
+  const loadOrganizationRoles = useCallback(async () => {
+    setLoadingRoles(true);
+    try {
+      const response = await fetch('/api/organization/roles');
+      if (response.ok) {
+        const data = await response.json();
+        setOrganizationRoles(data.roles || []);
+        // Set default role if roles available
+        if (data.roles && data.roles.length > 0 && !selectedRoleId) {
+          setSelectedRoleId(data.roles[0].id);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading organization roles:', err);
+    } finally {
+      setLoadingRoles(false);
+    }
+  }, [selectedRoleId]);
 
   const loadMembers = useCallback(async () => {
     setLoadingMembers(true);
@@ -162,6 +212,99 @@ export default function ProjectSettingsPage() {
     }
   }, [projectId]);
 
+  const loadAllocations = useCallback(async () => {
+    if (!projectId) return;
+    setLoadingAllocations(true);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/resources`);
+      if (response.ok) {
+        const resourcesData = await response.json();
+        setAllocations(resourcesData.allocations || []);
+        
+        // Create workload map
+        const workloadMap = new Map<string, UserWorkloadSummary>();
+        if (resourcesData.workloads) {
+          resourcesData.workloads.forEach((w: UserWorkloadSummary) => {
+            workloadMap.set(w.user_id, w);
+          });
+        }
+        setWorkloads(workloadMap);
+      }
+    } catch (error) {
+      console.error('Error loading allocations:', error);
+    } finally {
+      setLoadingAllocations(false);
+    }
+  }, [projectId]);
+
+  const handleRoleChange = (memberId: string, roleId: string | null) => {
+    setEditingMemberId(memberId);
+    setEditingRoleId(roleId);
+  };
+
+  const handleRoleUpdate = async (memberId: string, newRoleId: string) => {
+    const member = members.find(m => m.id === memberId);
+    if (!member || newRoleId === member.organization_role_id) {
+      handleRoleCancel();
+      return;
+    }
+
+    setUpdatingRole(true);
+    setEditingRoleId(newRoleId);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/members`, {
+        method: 'PATCH',
+        headers: getCsrfHeaders(),
+        body: JSON.stringify({
+          member_id: memberId,
+          organization_role_id: newRoleId,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        showError('Failed to update role: ' + (error.error || 'Unknown error'));
+        handleRoleCancel();
+        setUpdatingRole(false);
+        return;
+      }
+
+      showSuccess('Role updated successfully');
+      handleRoleCancel();
+      // Reload members
+      loadMembers();
+    } catch (error) {
+      showError('Failed to update role: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      handleRoleCancel();
+    } finally {
+      setUpdatingRole(false);
+    }
+  };
+
+  const handleRoleCancel = () => {
+    setEditingMemberId(null);
+    setEditingRoleId(null);
+  };
+
+  // Get display name for a member's role
+  const getMemberRoleName = (member: ProjectMember): string => {
+    if (member.organization_role?.name) {
+      return member.organization_role.name;
+    }
+    // Fallback to legacy role
+    return member.role?.toUpperCase() || 'No Role';
+  };
+
+  // Get color for role chip based on role name
+  const getRoleChipColor = (roleName: string): 'default' | 'primary' | 'secondary' | 'error' | 'success' => {
+    const lowerName = roleName.toLowerCase();
+    if (lowerName.includes('admin')) return 'error';
+    if (lowerName.includes('manager') || lowerName.includes('pm')) return 'primary';
+    if (lowerName.includes('designer')) return 'secondary';
+    if (lowerName.includes('engineer') || lowerName.includes('developer')) return 'success';
+    return 'default';
+  };
+
   useEffect(() => {
     const loadProject = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -190,8 +333,10 @@ export default function ProjectSettingsPage() {
         setOriginalTemplateId(currentTemplateId);
         setLoading(false);
         
-        // Load members after project loads
+        // Load members, roles, and allocations after project loads
         loadMembers();
+        loadAllocations();
+        loadOrganizationRoles();
       } catch (error) {
         console.error('Error loading project:', error);
         setError('Failed to load project');
@@ -203,7 +348,7 @@ export default function ProjectSettingsPage() {
       loadProject();
       loadSOWs();
     }
-  }, [projectId, router, supabase, loadMembers, loadSOWs]);
+  }, [projectId, router, supabase, loadMembers, loadSOWs, loadAllocations, loadOrganizationRoles]);
 
   const handleSave = async () => {
     // Check if template changed
@@ -266,7 +411,7 @@ export default function ProjectSettingsPage() {
   };
 
   const handleAddMember = async () => {
-    if (!selectedUserId) return;
+    if (!selectedUserId || !selectedRoleId) return;
 
     try {
       const response = await fetch(`/api/projects/${projectId}/members`, {
@@ -274,7 +419,7 @@ export default function ProjectSettingsPage() {
         headers: getCsrfHeaders(),
         body: JSON.stringify({
           user_id: selectedUserId,
-          role: selectedRole,
+          organization_role_id: selectedRoleId,
         }),
       });
 
@@ -286,7 +431,7 @@ export default function ProjectSettingsPage() {
 
       showSuccess('Member added successfully');
       setSelectedUserId('');
-      setSelectedRole('engineer');
+      // Keep selected role for convenience when adding multiple members
       // Reload members
       loadMembers();
     } catch (error) {
@@ -549,93 +694,171 @@ export default function ProjectSettingsPage() {
                   backgroundColor: theme.palette.background.paper,
                 }}
               >
-                <Typography
-                  variant="h6"
-                  sx={{
-                    mb: 3,
-                    fontWeight: 600,
-                    fontFamily: 'var(--font-rubik), Rubik, sans-serif',
-                    color: theme.palette.text.primary,
-                  }}
-                >
-                  Team Members
-                </Typography>
-
-                {/* Existing Members */}
-                {members.length > 0 && (
-                  <Box sx={{ mb: 3 }}>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        mb: 2,
-                        color: theme.palette.text.secondary,
-                        fontWeight: 500,
-                      }}
-                    >
-                      Current Members ({members.length})
-                    </Typography>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
-                      {members.map((member) => (
-                        <Chip
-                          key={member.id}
-                          avatar={
-                            <Avatar sx={{ bgcolor: theme.palette.action.hover, color: theme.palette.text.primary }}>
-                              {member.user?.name?.charAt(0).toUpperCase() || member.user?.email?.charAt(0).toUpperCase() || '?'}
-                            </Avatar>
-                          }
-                          label={
-                            <Box>
-                              <Typography variant="body2" sx={{ fontWeight: 500, color: theme.palette.text.primary }}>
-                                {member.user?.name || member.user?.email || 'Unknown'}
-                              </Typography>
-                              <Typography variant="caption" sx={{ color: theme.palette.text.secondary, display: 'block' }}>
-                                {member.role.toUpperCase()}
-                              </Typography>
-                            </Box>
-                          }
-                          onDelete={() => {
-                            setMemberToRemove(member.id);
-                            setShowRemoveConfirm(true);
-                          }}
-                          deleteIcon={<DeleteIcon />}
-                          sx={{
-                            backgroundColor: theme.palette.action.hover,
-                            border: `1px solid ${theme.palette.divider}`,
-                            height: 'auto',
-                            py: 1,
-                            '& .MuiChip-label': {
-                              px: 1.5,
-                            },
-                            '& .MuiChip-deleteIcon': {
-                              color: theme.palette.text.secondary,
-                              '&:hover': {
-                                color: theme.palette.text.primary,
-                              },
-                            },
-                          }}
-                        />
-                      ))}
-                    </Box>
-                  </Box>
-                )}
-
-                {members.length === 0 && (
-                  <Alert
-                    severity="info"
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                  <Typography
+                    variant="h6"
                     sx={{
-                      mb: 3,
-                      backgroundColor: theme.palette.background.paper,
-                      border: `1px solid ${theme.palette.divider}`,
+                      fontWeight: 600,
+                      fontFamily: 'var(--font-rubik), Rubik, sans-serif',
                       color: theme.palette.text.primary,
                     }}
                   >
-                    No team members added yet. Add members below to collaborate on this project.
-                  </Alert>
-                )}
+                    Team Members
+                  </Typography>
+                </Box>
 
-                <Divider sx={{ my: 3, borderColor: theme.palette.divider }} />
+                {/* Members Table */}
+                <TableContainer
+                  component={Paper}
+                  elevation={0}
+                  sx={{
+                    mb: 3,
+                    backgroundColor: theme.palette.background.paper,
+                    border: `1px solid ${theme.palette.divider}`,
+                  }}
+                >
+                  <Table>
+                    <TableHead>
+                      <TableRow sx={{ backgroundColor: theme.palette.background.paper }}>
+                        <TableCell sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Name</TableCell>
+                        <TableCell sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Email</TableCell>
+                        <TableCell sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Role</TableCell>
+                        <TableCell sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Workload</TableCell>
+                        <TableCell align="right" sx={{ color: theme.palette.text.primary, fontWeight: 600, borderBottom: `1px solid ${theme.palette.divider}` }}>Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {members.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} sx={{ py: 4, textAlign: 'center' }}>
+                            <Alert
+                              severity="info"
+                              sx={{
+                                backgroundColor: theme.palette.background.paper,
+                                border: `1px solid ${theme.palette.divider}`,
+                                color: theme.palette.text.primary,
+                              }}
+                            >
+                              No team members added yet. Add members below to collaborate on this project.
+                            </Alert>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        members.map((member) => (
+                          <TableRow
+                            key={member.id}
+                            sx={{
+                              '&:hover': {
+                                backgroundColor: theme.palette.action.hover,
+                              },
+                              borderBottom: `1px solid ${theme.palette.divider}`,
+                            }}
+                          >
+                            <TableCell sx={{ color: theme.palette.text.primary, borderBottom: `1px solid ${theme.palette.divider}` }}>
+                              {member.user?.name || 'N/A'}
+                            </TableCell>
+                            <TableCell sx={{ color: theme.palette.text.primary, borderBottom: `1px solid ${theme.palette.divider}` }}>
+                              {member.user?.email}
+                            </TableCell>
+                            <TableCell sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
+                              {editingMemberId === member.id ? (
+                                <FormControl size="small" sx={{ minWidth: 150 }}>
+                                  <Select
+                                    value={editingRoleId || member.organization_role_id || ''}
+                                    onChange={(e) => {
+                                      const newRoleId = e.target.value as string;
+                                      handleRoleUpdate(member.id, newRoleId);
+                                    }}
+                                    disabled={updatingRole || loadingRoles}
+                                    onClose={() => {
+                                      if (editingRoleId === member.organization_role_id) {
+                                        handleRoleCancel();
+                                      }
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Escape') {
+                                        handleRoleCancel();
+                                      }
+                                    }}
+                                    autoFocus
+                                    MenuProps={{
+                                      PaperProps: {
+                                        sx: {
+                                          backgroundColor: theme.palette.background.paper,
+                                          border: `1px solid ${theme.palette.divider}`,
+                                          '& .MuiMenuItem-root': {
+                                            color: theme.palette.text.primary,
+                                            '&:hover': {
+                                              backgroundColor: theme.palette.action.hover,
+                                            },
+                                          },
+                                        },
+                                      },
+                                    }}
+                                    sx={{
+                                      color: theme.palette.text.primary,
+                                      backgroundColor: theme.palette.background.paper,
+                                      '& .MuiOutlinedInput-notchedOutline': {
+                                        borderColor: theme.palette.divider,
+                                      },
+                                    }}
+                                  >
+                                    {organizationRoles.map((role) => (
+                                      <MenuItem key={role.id} value={role.id}>
+                                        {role.name}
+                                      </MenuItem>
+                                    ))}
+                                  </Select>
+                                </FormControl>
+                              ) : (
+                                <Chip
+                                  label={getMemberRoleName(member)}
+                                  size="small"
+                                  onClick={() => handleRoleChange(member.id, member.organization_role_id || null)}
+                                  color={getRoleChipColor(getMemberRoleName(member))}
+                                  sx={{
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    '&:hover': {
+                                      backgroundColor: theme.palette.action.selected,
+                                    },
+                                  }}
+                                />
+                              )}
+                            </TableCell>
+                            <TableCell sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
+                              <WorkloadIndicator
+                                workload={workloads.get(member.user_id)}
+                                size="small"
+                                showLabel={true}
+                              />
+                            </TableCell>
+                            <TableCell align="right" sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
+                              <IconButton
+                                onClick={() => {
+                                  setMemberToRemove(member.id);
+                                  setShowRemoveConfirm(true);
+                                }}
+                                sx={{
+                                  color: theme.palette.text.primary,
+                                  '&:hover': {
+                                    backgroundColor: theme.palette.action.hover,
+                                  },
+                                }}
+                                size="small"
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
 
                 {/* Add Member Form */}
+                <Divider sx={{ my: 3, borderColor: theme.palette.divider }} />
                 <Typography
                   variant="subtitle2"
                   sx={{
@@ -673,14 +896,20 @@ export default function ProjectSettingsPage() {
                     <FormControl fullWidth size="small">
                       <InputLabel>Role</InputLabel>
                       <Select
-                        value={selectedRole}
+                        value={selectedRoleId}
                         label="Role"
-                        onChange={(e) => setSelectedRole(e.target.value as UserRole)}
+                        onChange={(e) => setSelectedRoleId(e.target.value as string)}
+                        disabled={loadingRoles || organizationRoles.length === 0}
                       >
-                        <MenuItem value="pm">Product Manager</MenuItem>
-                        <MenuItem value="designer">Designer</MenuItem>
-                        <MenuItem value="engineer">Engineer</MenuItem>
-                        <MenuItem value="admin">Admin</MenuItem>
+                        {organizationRoles.length === 0 ? (
+                          <MenuItem disabled>No roles available</MenuItem>
+                        ) : (
+                          organizationRoles.map((role) => (
+                            <MenuItem key={role.id} value={role.id}>
+                              {role.name}
+                            </MenuItem>
+                          ))
+                        )}
                       </Select>
                     </FormControl>
                   </Grid>
@@ -689,7 +918,7 @@ export default function ProjectSettingsPage() {
                       variant="contained"
                       startIcon={<AddIcon />}
                       onClick={handleAddMember}
-                      disabled={!selectedUserId || loadingMembers}
+                      disabled={!selectedUserId || !selectedRoleId || loadingMembers}
                       fullWidth
                       sx={{
                         backgroundColor: theme.palette.text.primary,
@@ -708,6 +937,76 @@ export default function ProjectSettingsPage() {
                     </Button>
                   </Grid>
                 </Grid>
+
+                {/* Resource Allocations Section */}
+                <Divider sx={{ my: 4, borderColor: theme.palette.divider }} />
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Button
+                    variant="outlined"
+                    startIcon={showAllocationSection ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                    onClick={() => setShowAllocationSection(!showAllocationSection)}
+                    sx={{
+                      borderColor: theme.palette.divider,
+                      color: theme.palette.text.primary,
+                      '&:hover': {
+                        borderColor: theme.palette.text.secondary,
+                        backgroundColor: theme.palette.action.hover,
+                      },
+                    }}
+                  >
+                    {showAllocationSection ? 'Hide' : 'Show'} Resource Allocations
+                  </Button>
+                  {showAllocationSection && (
+                    <Button
+                      variant="contained"
+                      startIcon={<AddIcon />}
+                      onClick={() => {
+                        setEditingAllocation(null);
+                        setAllocationFormOpen(true);
+                      }}
+                      size="small"
+                      sx={{
+                        backgroundColor: theme.palette.text.primary,
+                        color: theme.palette.background.default,
+                        '&:hover': {
+                          backgroundColor: theme.palette.text.secondary,
+                        },
+                      }}
+                    >
+                      Add Allocation
+                    </Button>
+                  )}
+                </Box>
+                <Collapse in={showAllocationSection}>
+                  <Box sx={{ mt: 2 }}>
+                    <ResourceAllocationList
+                      allocations={allocations}
+                      workloads={workloads}
+                      onEdit={(allocation) => {
+                        setEditingAllocation(allocation);
+                        setAllocationFormOpen(true);
+                      }}
+                      onDelete={async (allocationId) => {
+                        try {
+                          const response = await fetch(`/api/projects/${projectId}/resource-allocation/${allocationId}`, {
+                            method: 'DELETE',
+                            headers: getCsrfHeaders(),
+                          });
+                          if (response.ok) {
+                            showSuccess('Allocation deleted successfully');
+                            loadAllocations();
+                          } else {
+                            const error = await response.json();
+                            showError('Failed to delete allocation: ' + (error.error || 'Unknown error'));
+                          }
+                        } catch (error) {
+                          showError('Failed to delete allocation');
+                        }
+                      }}
+                      loading={loadingAllocations}
+                    />
+                  </Box>
+                </Collapse>
               </Paper>
             </Grid>
 
@@ -837,6 +1136,46 @@ export default function ProjectSettingsPage() {
           }
         }}
         sow={editingSOW}
+      />
+      <ResourceAllocationForm
+        open={allocationFormOpen}
+        onClose={() => {
+          setAllocationFormOpen(false);
+          setEditingAllocation(null);
+        }}
+        onSubmit={async (data) => {
+          try {
+            const url = editingAllocation
+              ? `/api/projects/${projectId}/resource-allocation/${editingAllocation.id}`
+              : `/api/projects/${projectId}/resource-allocation`;
+            
+            const response = await fetch(url, {
+              method: editingAllocation ? 'PUT' : 'POST',
+              headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
+              body: JSON.stringify(data),
+            });
+
+            if (!response.ok) {
+              const error = await response.json();
+              showError('Failed to save allocation: ' + (error.error || 'Unknown error'));
+              throw new Error(error.error || 'Failed to save allocation');
+            }
+
+            showSuccess(editingAllocation ? 'Allocation updated successfully' : 'Allocation created successfully');
+            setAllocationFormOpen(false);
+            setEditingAllocation(null);
+            loadAllocations();
+          } catch (error) {
+            throw error;
+          }
+        }}
+        allocation={editingAllocation}
+        projectId={projectId}
+        availableUsers={members.map(m => ({
+          id: m.user_id,
+          name: m.user?.name || null,
+          email: m.user?.email || '',
+        }))}
       />
       <ConfirmModal
         open={showTemplateConfirm}

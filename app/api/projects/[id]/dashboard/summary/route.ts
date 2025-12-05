@@ -4,6 +4,7 @@ import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { unauthorized, notFound, forbidden, internalError } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 import { generateAIResponse } from '@/lib/ai/geminiClient';
+import { logAIUsage } from '@/lib/ai/aiUsageLogger';
 
 export async function POST(
   request: NextRequest,
@@ -210,16 +211,42 @@ Generate a comprehensive project summary that includes:
 
 Format the response as markdown with clear sections and bullet points. Be concise but comprehensive. Focus on actionable insights.`;
 
-    // Generate summary (returns raw markdown text, not JSON)
-    const summaryText = await generateAIResponse(
+    // Generate summary with metadata tracking (returns raw markdown text, not JSON)
+    const aiResponse = await generateAIResponse(
       prompt,
       {
         context: 'Generate project dashboard summary',
       },
       apiKey,
       project.name,
-      false
-    ) as string;
+      true, // returnMetadata
+      'gemini-2.5-flash' // Use Flash for detailed project analysis
+    );
+
+    // Extract summary text and metadata
+    let summaryText: string;
+    let metadata: any = null;
+
+    if (typeof aiResponse === 'object' && 'metadata' in aiResponse) {
+      summaryText = (aiResponse as any).text || '';
+      metadata = (aiResponse as any).metadata;
+    } else {
+      summaryText = typeof aiResponse === 'string' ? aiResponse : '';
+    }
+
+    // Log AI usage (non-blocking)
+    if (metadata && userData?.id) {
+      logAIUsage(
+        adminClient,
+        userData.id,
+        'project_summary',
+        metadata,
+        'project',
+        projectId
+      ).catch((err) => {
+        logger.error('[Dashboard Summary API] Error logging AI usage:', err);
+      });
+    }
 
     // Save summary to database
     const { data: savedSummary, error: saveError } = await adminClient

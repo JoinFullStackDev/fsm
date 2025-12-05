@@ -22,6 +22,7 @@ import {
   VpnKey as VpnKeyIcon,
   CreditCard as CreditCardIcon,
   Security as SecurityIcon,
+  Groups as GroupsIcon,
 } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useRole } from '@/lib/hooks/useRole';
@@ -34,6 +35,7 @@ import AdminSystemTab from '@/components/admin/AdminSystemTab';
 import AdminAnalyticsTab from '@/components/admin/AdminAnalyticsTab';
 import AdminApiKeysTab from '@/components/admin/AdminApiKeysTab';
 import AdminSubscriptionTab from '@/components/admin/AdminSubscriptionTab';
+import AdminTeamsTab from '@/components/admin/AdminTeamsTab';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -273,6 +275,9 @@ export default function AdminPage() {
             {isCompanyAdmin && (
               <Tab icon={<SecurityIcon />} iconPosition="start" label="Roles" />
             )}
+            {isCompanyAdmin && (
+              <Tab icon={<GroupsIcon />} iconPosition="start" label="Teams" />
+            )}
             {showApiKeysTab && (
               <Tab icon={<VpnKeyIcon />} iconPosition="start" label="API Keys" />
             )}
@@ -301,9 +306,16 @@ export default function AdminPage() {
             </TabPanel>
           )}
           
-          {/* Tab index calculation: 2 if Roles shown, 1 if not (API Keys conditional) */}
+          {/* Tab 2: Teams (company admin only) */}
+          {isCompanyAdmin && (
+            <TabPanel value={activeTab} index={2}>
+              <AdminTeamsTab />
+            </TabPanel>
+          )}
+          
+          {/* Tab index calculation: 3 if Roles+Teams shown, 1 if not (API Keys conditional) */}
           {showApiKeysTab && (
-            <TabPanel value={activeTab} index={isCompanyAdmin ? 2 : 1}>
+            <TabPanel value={activeTab} index={isCompanyAdmin ? 3 : 1}>
               {!apiAccessEnabled && isSuperAdmin && (
                 <Alert severity="warning" sx={{ mb: 2 }}>
                   API Keys tab is shown via super admin override. API Access module is currently disabled for this organization.
@@ -322,32 +334,32 @@ export default function AdminPage() {
             </TabPanel>
           )}
           
-          {/* Tab index calculation: Theme tab */}
-          <TabPanel value={activeTab} index={isCompanyAdmin ? (showApiKeysTab ? 3 : 2) : (showApiKeysTab ? 2 : 1)}>
+          {/* Tab index calculation: Theme tab (after Users, Roles, Teams, API Keys) */}
+          <TabPanel value={activeTab} index={isCompanyAdmin ? (showApiKeysTab ? 4 : 3) : (showApiKeysTab ? 2 : 1)}>
             <AdminThemeTab />
           </TabPanel>
           
           {/* Tab index calculation: Subscription tab */}
-          <TabPanel value={activeTab} index={isCompanyAdmin ? (showApiKeysTab ? 4 : 3) : (showApiKeysTab ? 3 : 2)}>
+          <TabPanel value={activeTab} index={isCompanyAdmin ? (showApiKeysTab ? 5 : 4) : (showApiKeysTab ? 3 : 2)}>
             <AdminSubscriptionTab />
           </TabPanel>
           
           {/* Tab index calculation: API Config (super admin only) */}
           {isSuperAdmin && (
-            <TabPanel value={activeTab} index={isCompanyAdmin ? (showApiKeysTab ? 5 : 4) : (showApiKeysTab ? 4 : 3)}>
+            <TabPanel value={activeTab} index={isCompanyAdmin ? (showApiKeysTab ? 6 : 5) : (showApiKeysTab ? 4 : 3)}>
               <AdminApiConfigTab />
             </TabPanel>
           )}
           
           {/* Tab index calculation: System (super admin only) */}
           {isSuperAdmin && (
-            <TabPanel value={activeTab} index={isCompanyAdmin ? (showApiKeysTab ? 6 : 5) : (showApiKeysTab ? 5 : 4)}>
+            <TabPanel value={activeTab} index={isCompanyAdmin ? (showApiKeysTab ? 7 : 6) : (showApiKeysTab ? 5 : 4)}>
               <AdminSystemTab />
             </TabPanel>
           )}
           
           {/* Tab index calculation: Analytics */}
-          <TabPanel value={activeTab} index={isSuperAdmin ? (isCompanyAdmin ? (showApiKeysTab ? 7 : 6) : (showApiKeysTab ? 6 : 5)) : (isCompanyAdmin ? (showApiKeysTab ? 5 : 4) : (showApiKeysTab ? 4 : 3))}>
+          <TabPanel value={activeTab} index={isSuperAdmin ? (isCompanyAdmin ? (showApiKeysTab ? 8 : 7) : (showApiKeysTab ? 6 : 5)) : (isCompanyAdmin ? (showApiKeysTab ? 6 : 5) : (showApiKeysTab ? 4 : 3))}>
             <AdminAnalyticsTab />
           </TabPanel>
         </Box>

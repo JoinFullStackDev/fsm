@@ -81,8 +81,9 @@ export async function POST(request: NextRequest) {
         newOrgId: organization_id 
       });
       
-      const updates: { organization_id: string; name?: string } = {
+      const updates: { organization_id: string; name?: string; is_company_admin?: boolean } = {
         organization_id,
+        is_company_admin: true, // Org creator becomes company admin
       };
 
       if (name && name.trim() && existingUser.name !== name.trim()) {
@@ -262,6 +263,7 @@ export async function POST(request: NextRequest) {
       name: name?.trim() || null, // Use null instead of empty string
       role: role || 'admin',
       organization_id,
+      is_company_admin: true, // Org creator becomes company admin
     };
     
     logger.info('Creating user with data:', insertData);

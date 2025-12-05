@@ -301,7 +301,7 @@ export default function PhasePage() {
           
           // Get all templates that have template_phases matching these phase numbers
           // Load templates via API route to avoid RLS recursion
-          const templatesResponse = await fetch('/api/admin/templates');
+          const templatesResponse = await fetch('/api/templates');
           let allTemplatePhases: any[] = [];
           if (templatesResponse.ok) {
             const templatesData = await templatesResponse.json();
@@ -400,7 +400,7 @@ export default function PhasePage() {
             // Use the best match if it has field configs for the current phase
             if (bestMatch) {
               // Load field configs via API route
-              const phaseConfigsResponse = await fetch(`/api/admin/templates/${bestMatch.templateId}/field-configs?phase_number=${actualPhaseNumberFromDB}`);
+              const phaseConfigsResponse = await fetch(`/api/templates/${bestMatch.templateId}/field-configs?phase_number=${actualPhaseNumberFromDB}`);
               let phaseConfigs: any[] = [];
               if (phaseConfigsResponse.ok) {
                 const configsData = await phaseConfigsResponse.json();
@@ -420,7 +420,7 @@ export default function PhasePage() {
       // Strategy 2: If no template_id or no field configs found, try default template (backward compatibility)
       if (!templateToUse) {
         // Load templates via API route to find default template
-        const templatesResponse = await fetch('/api/admin/templates');
+        const templatesResponse = await fetch('/api/templates');
         let defaultTemplate: any = null;
         if (templatesResponse.ok) {
           const templatesData = await templatesResponse.json();
@@ -434,7 +434,7 @@ export default function PhasePage() {
 
         if (defaultTemplate) {
           // Check if default template has field configs for this actual phase_number
-          const configsResponse = await fetch(`/api/admin/templates/${defaultTemplate.id}/field-configs?phase_number=${actualPhaseNumberFromDB}`);
+          const configsResponse = await fetch(`/api/templates/${defaultTemplate.id}/field-configs?phase_number=${actualPhaseNumberFromDB}`);
           let fieldConfigs: any[] = [];
           if (configsResponse.ok) {
             const configsData = await configsResponse.json();

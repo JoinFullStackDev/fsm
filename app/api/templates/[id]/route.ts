@@ -8,7 +8,7 @@ import logger from '@/lib/utils/logger';
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/admin/templates/[id]
+ * GET /api/templates/[id]
  * 
  * Gets a single template with all its related data (phases, field configs, field groups).
  * Requires authentication and organization access.
@@ -99,7 +99,7 @@ export async function GET(
       fieldGroups: groupsResult.data || [],
     });
   } catch (error) {
-    logger.error('Error in GET /api/admin/templates/[id]:', error);
+    logger.error('Error in GET /api/templates/[id]:', error);
     return internalError('Failed to load template', {
       error: error instanceof Error ? error.message : 'Unknown error',
     });
@@ -107,7 +107,7 @@ export async function GET(
 }
 
 /**
- * PUT /api/admin/templates/[id]
+ * PUT /api/templates/[id]
  * 
  * Updates a template's metadata (name, description, category, is_public).
  * Cannot update global templates (is_publicly_available = true).
@@ -210,7 +210,7 @@ export async function PUT(
 
     return NextResponse.json({ template: updatedTemplate });
   } catch (error) {
-    logger.error('Error in PUT /api/admin/templates/[id]:', error);
+    logger.error('Error in PUT /api/templates/[id]:', error);
     return internalError('Failed to update template', {
       error: error instanceof Error ? error.message : 'Unknown error',
     });
@@ -218,7 +218,7 @@ export async function PUT(
 }
 
 /**
- * DELETE /api/admin/templates/[id]
+ * DELETE /api/templates/[id]
  * 
  * Deletes a template and all its related data (phases, field configs, field groups).
  * Requires admin authentication.
@@ -233,14 +233,14 @@ export async function DELETE(
 ) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!authUser) {
       return unauthorized('You must be logged in to delete templates');
     }
 
     // Get user's organization
-    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    const organizationId = await getUserOrganizationId(supabase, authUser.id);
     if (!organizationId) {
       return badRequest('User is not assigned to an organization');
     }
@@ -250,7 +250,7 @@ export async function DELETE(
     const { data: regularUserData, error: regularUserError } = await supabase
       .from('users')
       .select('id, role, organization_id, is_super_admin')
-      .eq('auth_id', session.user.id)
+      .eq('auth_id', authUser.id)
       .single();
 
     if (regularUserError || !regularUserData) {
@@ -259,7 +259,7 @@ export async function DELETE(
       const { data: adminUserData, error: adminUserError } = await adminClient
         .from('users')
         .select('id, role, organization_id, is_super_admin')
-        .eq('auth_id', session.user.id)
+        .eq('auth_id', authUser.id)
         .single();
 
       if (adminUserError || !adminUserData) {
@@ -366,7 +366,7 @@ export async function DELETE(
       message: 'Template deleted successfully' 
     });
   } catch (error) {
-    logger.error('Error in DELETE /api/admin/templates/[id]:', error);
+    logger.error('Error in DELETE /api/templates/[id]:', error);
     return internalError('Failed to delete template', {
       error: error instanceof Error ? error.message : 'Unknown error',
     });

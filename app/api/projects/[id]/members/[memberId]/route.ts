@@ -50,7 +50,7 @@ export async function DELETE(
     const adminClient = createAdminSupabaseClient();
     const { data: userData, error: userError } = await adminClient
       .from('users')
-      .select('id, role, organization_id, is_super_admin')
+      .select('id, role, organization_id, is_super_admin, is_company_admin')
       .eq('auth_id', user.id)
       .single();
 
@@ -70,14 +70,14 @@ export async function DELETE(
       return notFound('Project not found');
     }
 
-    // Check permissions: super admins, project owners, admins, and PMs can remove members
-    const isSuperAdmin = userData.role === 'admin' && userData.is_super_admin === true;
+    // Check permissions: super admins, company admins, project owners can remove members
+    const isSuperAdmin = userData.is_super_admin === true;
+    const isCompanyAdmin = userData.is_company_admin === true;
+    const isLegacyAdmin = userData.role === 'admin' && !userData.is_super_admin;
     const isProjectOwner = project.owner_id === userData.id;
     const projectInUserOrg = project.organization_id === organizationId;
-    const isAdmin = userData.role === 'admin';
-    const isPM = userData.role === 'pm';
 
-    if (!isSuperAdmin && !isProjectOwner && !projectInUserOrg && !isAdmin && !isPM) {
+    if (!isSuperAdmin && !isCompanyAdmin && !isLegacyAdmin && !isProjectOwner && !projectInUserOrg) {
       // Check if user is a project member (members can remove themselves)
       const { data: currentUserMember } = await adminClient
         .from('project_members')

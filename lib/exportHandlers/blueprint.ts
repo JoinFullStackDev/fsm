@@ -7,7 +7,7 @@ import type {
   Phase6Data,
 } from '@/types/phases';
 import type { Project } from '@/types/project';
-import { generateAIResponse } from '@/lib/ai/geminiClient';
+import { generateAIResponse, type AIResponseWithMetadata } from '@/lib/ai/geminiClient';
 
 export interface BlueprintBundle {
   project: {
@@ -68,7 +68,7 @@ export async function generateBlueprintBundle(
     phase6?: Phase6Data;
   },
   apiKey?: string
-): Promise<BlueprintBundle> {
+): Promise<{ bundle: BlueprintBundle; metadata?: AIResponseWithMetadata['metadata'] }> {
   const phase1 = phases.phase1 || ({} as Phase1Data);
   const phase2 = phases.phase2 || ({} as Phase2Data);
   const phase3 = phases.phase3 || ({} as Phase3Data);
@@ -78,6 +78,23 @@ export async function generateBlueprintBundle(
 
   // Use AI to generate comprehensive blueprint documents if API key is available
   const useAI = !!apiKey;
+  
+  // Accumulate metadata from all AI calls
+  const metadataAccumulator: {
+    total_tokens: number;
+    input_tokens: number;
+    output_tokens: number;
+    estimated_cost: number;
+    response_time_ms: number;
+    calls: number;
+  } = {
+    total_tokens: 0,
+    input_tokens: 0,
+    output_tokens: 0,
+    estimated_cost: 0,
+    response_time_ms: 0,
+    calls: 0,
+  };
 
   // Generate concept summary with AI
   let conceptSummary: string;
@@ -102,9 +119,23 @@ Timeline: ${phase1.high_level_timeline || 'Not defined'}
 Create a professional markdown document with clear sections, proper formatting, and comprehensive analysis. Make it client-ready and actionable.`,
         { projectData: project, phaseData: phase1 },
         apiKey,
-        project.name
+        project.name,
+        true, // returnMetadata
+        'gemini-2.5-flash' // Use Flash for quality content generation
       );
-      conceptSummary = typeof conceptResponse === 'string' ? conceptResponse : conceptResponse.text;
+      
+      if (typeof conceptResponse === 'object' && 'metadata' in conceptResponse) {
+        conceptSummary = conceptResponse.text;
+        const meta = conceptResponse.metadata;
+        metadataAccumulator.calls++;
+        metadataAccumulator.input_tokens += meta.input_tokens || 0;
+        metadataAccumulator.output_tokens += meta.output_tokens || 0;
+        metadataAccumulator.total_tokens += meta.total_tokens || 0;
+        metadataAccumulator.estimated_cost += meta.estimated_cost || 0;
+        metadataAccumulator.response_time_ms += meta.response_time_ms || 0;
+      } else {
+        conceptSummary = typeof conceptResponse === 'string' ? conceptResponse : '';
+      }
     } catch (error) {
       conceptSummary = `# Concept Summary\n\n## Problem Statement\n${phase1.problem_statement || 'Not defined'}\n\n## Target Users\n${phase1.target_users?.join('\n- ') || 'Not defined'}\n\n## Why Now / Market Timing\n${phase1.why_now || 'Not defined'}\n\n## Value Hypothesis\n${phase1.value_hypothesis || 'Not defined'}\n\n## Initial Features\n${phase1.initial_features?.join('\n- ') || 'Not defined'}`;
     }
@@ -126,9 +157,23 @@ Assumptions: ${phase1.assumptions?.join(', ') || 'None defined'}
 Create a professional markdown document that analyzes each constraint, risk, and assumption in detail. Provide mitigation strategies for risks and validation plans for assumptions.`,
         { projectData: project, phaseData: phase1 },
         apiKey,
-        project.name
+        project.name,
+        true, // returnMetadata
+        'gemini-2.5-flash' // Use Flash for quality content generation
       );
-      racSummary = typeof racResponse === 'string' ? racResponse : racResponse.text;
+      
+      if (typeof racResponse === 'object' && 'metadata' in racResponse) {
+        racSummary = racResponse.text;
+        const meta = racResponse.metadata;
+        metadataAccumulator.calls++;
+        metadataAccumulator.input_tokens += meta.input_tokens || 0;
+        metadataAccumulator.output_tokens += meta.output_tokens || 0;
+        metadataAccumulator.total_tokens += meta.total_tokens || 0;
+        metadataAccumulator.estimated_cost += meta.estimated_cost || 0;
+        metadataAccumulator.response_time_ms += meta.response_time_ms || 0;
+      } else {
+        racSummary = typeof racResponse === 'string' ? racResponse : '';
+      }
     } catch (error) {
       racSummary = `# Risks, Assumptions, Constraints\n\n## Constraints\n${phase1.constraints?.join('\n- ') || 'None defined'}\n\n## Risks\n${phase1.risks?.join('\n- ') || 'None defined'}\n\n## Assumptions\n${phase1.assumptions?.join('\n- ') || 'None defined'}`;
     }
@@ -150,9 +195,23 @@ Tech Stack: ${phase2.tech_stack_preferences || 'Not specified'}
 Create a professional markdown document that analyzes technical feasibility, resource requirements, timeline considerations, and potential challenges.`,
         { projectData: project, phaseData: { ...phase1, tech_stack: phase2.tech_stack_preferences } },
         apiKey,
-        project.name
+        project.name,
+        true, // returnMetadata
+        'gemini-2.5-flash' // Use Flash for quality content generation
       );
-      highLevelFeasibility = typeof feasibilityResponse === 'string' ? feasibilityResponse : feasibilityResponse.text;
+      
+      if (typeof feasibilityResponse === 'object' && 'metadata' in feasibilityResponse) {
+        highLevelFeasibility = feasibilityResponse.text;
+        const meta = feasibilityResponse.metadata;
+        metadataAccumulator.calls++;
+        metadataAccumulator.input_tokens += meta.input_tokens || 0;
+        metadataAccumulator.output_tokens += meta.output_tokens || 0;
+        metadataAccumulator.total_tokens += meta.total_tokens || 0;
+        metadataAccumulator.estimated_cost += meta.estimated_cost || 0;
+        metadataAccumulator.response_time_ms += meta.response_time_ms || 0;
+      } else {
+        highLevelFeasibility = typeof feasibilityResponse === 'string' ? feasibilityResponse : '';
+      }
     } catch (error) {
       highLevelFeasibility = `# High-Level Feasibility\n\n${phase1.feasibility_notes || 'Not defined'}\n\n## Timeline\n${phase1.high_level_timeline || 'Not defined'}`;
     }
@@ -174,9 +233,23 @@ Personas: ${JSON.stringify(phase2.personas || [], null, 2)}
 Create a professional markdown document that defines measurable business outcomes, establishes clear KPIs with targets, and explains how success will be measured.`,
         { projectData: project, phaseData: phase2 },
         apiKey,
-        project.name
+        project.name,
+        true, // returnMetadata
+        'gemini-2.5-flash' // Use Flash for quality content generation
       );
-      outcomesAndKPIs = typeof outcomesResponse === 'string' ? outcomesResponse : outcomesResponse.text;
+      
+      if (typeof outcomesResponse === 'object' && 'metadata' in outcomesResponse) {
+        outcomesAndKPIs = outcomesResponse.text;
+        const meta = outcomesResponse.metadata;
+        metadataAccumulator.calls++;
+        metadataAccumulator.input_tokens += meta.input_tokens || 0;
+        metadataAccumulator.output_tokens += meta.output_tokens || 0;
+        metadataAccumulator.total_tokens += meta.total_tokens || 0;
+        metadataAccumulator.estimated_cost += meta.estimated_cost || 0;
+        metadataAccumulator.response_time_ms += meta.response_time_ms || 0;
+      } else {
+        outcomesAndKPIs = typeof outcomesResponse === 'string' ? outcomesResponse : '';
+      }
     } catch (error) {
       outcomesAndKPIs = `# Business Outcomes & KPIs\n\n## Business Outcomes\n${phase2.business_outcomes?.join('\n- ') || 'None defined'}\n\n## KPIs\n${phase2.kpis?.join('\n- ') || 'None defined'}`;
     }
@@ -200,9 +273,23 @@ Full Feature Details: ${JSON.stringify(phase2.scored_features || [], null, 2)}
 Create a professional markdown document that organizes features by release phase (MVP, V2, V3), explains the rationale for prioritization, and provides a clear roadmap timeline.`,
         { projectData: project, phaseData: phase2 },
         apiKey,
-        project.name
+        project.name,
+        true, // returnMetadata
+        'gemini-2.5-flash' // Use Flash for quality content generation
       );
-      outcomeRoadmap = typeof roadmapResponse === 'string' ? roadmapResponse : roadmapResponse.text;
+      
+      if (typeof roadmapResponse === 'object' && 'metadata' in roadmapResponse) {
+        outcomeRoadmap = roadmapResponse.text;
+        const meta = roadmapResponse.metadata;
+        metadataAccumulator.calls++;
+        metadataAccumulator.input_tokens += meta.input_tokens || 0;
+        metadataAccumulator.output_tokens += meta.output_tokens || 0;
+        metadataAccumulator.total_tokens += meta.total_tokens || 0;
+        metadataAccumulator.estimated_cost += meta.estimated_cost || 0;
+        metadataAccumulator.response_time_ms += meta.response_time_ms || 0;
+      } else {
+        outcomeRoadmap = typeof roadmapResponse === 'string' ? roadmapResponse : '';
+      }
     } catch (error) {
       outcomeRoadmap = `# Outcome Roadmap\n\n## MVP Features\n${phase2.scored_features?.filter(f => f.mvp_group === 'mvp').map(f => `- ${f.title}`).join('\n') || 'None defined'}\n\n## V2 Features\n${phase2.scored_features?.filter(f => f.mvp_group === 'v2').map(f => `- ${f.title}`).join('\n') || 'None defined'}\n\n## V3 Features\n${phase2.scored_features?.filter(f => f.mvp_group === 'v3').map(f => `- ${f.title}`).join('\n') || 'None defined'}`;
     }
@@ -223,7 +310,7 @@ ${phase3.navigation?.secondary_nav?.join('\n- ') || 'Not defined'}
 ${JSON.stringify(phase3.navigation?.route_map || {}, null, 2)}
 `;
 
-  return {
+  const bundle: BlueprintBundle = {
     project: {
       name: project.name,
       description: project.description || '',
@@ -269,6 +356,24 @@ ${JSON.stringify(phase3.navigation?.route_map || {}, null, 2)}
       performance_requirements: phase6.performance_requirements || '',
       launch_readiness: phase6.launch_readiness || [],
     },
+  };
+
+  // Return bundle with accumulated metadata (if any AI calls were made)
+  const metadata: AIResponseWithMetadata['metadata'] | undefined = metadataAccumulator.calls > 0 ? {
+    prompt_length: 0,
+    full_prompt_length: 0,
+    response_length: 0,
+    model: 'gemini-2.5-flash',
+    response_time_ms: metadataAccumulator.response_time_ms,
+    input_tokens: metadataAccumulator.input_tokens,
+    output_tokens: metadataAccumulator.output_tokens,
+    total_tokens: metadataAccumulator.total_tokens,
+    estimated_cost: metadataAccumulator.estimated_cost,
+  } : undefined;
+
+  return {
+    bundle,
+    metadata,
   };
 }
 

@@ -171,9 +171,20 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
+  // Redirect old /admin/templates routes to new /templates route
+  if (request.nextUrl.pathname.startsWith('/admin/templates')) {
+    const newPath = request.nextUrl.pathname.replace('/admin/templates', '/templates');
+    return NextResponse.redirect(new URL(newPath + request.nextUrl.search, request.url));
+  }
+
+  // Redirect old /api/admin/templates routes to new /api/templates route
+  if (request.nextUrl.pathname.startsWith('/api/admin/templates')) {
+    const newPath = request.nextUrl.pathname.replace('/api/admin/templates', '/api/templates');
+    return NextResponse.redirect(new URL(newPath + request.nextUrl.search, request.url));
+  }
+
   // Protect admin routes
-  // Exclude /admin/templates routes - they handle their own access control based on package settings
-  if (request.nextUrl.pathname.startsWith('/admin') && !request.nextUrl.pathname.startsWith('/admin/templates')) {
+  if (request.nextUrl.pathname.startsWith('/admin')) {
     // Call getUser() only when needed for admin routes
     if (!user) {
       const userResult = await supabase.auth.getUser();
@@ -242,8 +253,8 @@ export async function middleware(request: NextRequest) {
     return response; // Explicitly allow access
   }
 
-  // For /admin/templates routes, just check authentication and let the page handle access control
-  if (request.nextUrl.pathname.startsWith('/admin/templates')) {
+  // For /templates routes, just check authentication and let the page handle access control
+  if (request.nextUrl.pathname.startsWith('/templates')) {
     // Call getUser() for auth check
     if (!user) {
       const userResult = await supabase.auth.getUser();

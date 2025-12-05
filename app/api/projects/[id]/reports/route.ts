@@ -9,6 +9,7 @@ import {
   generateMonthlyReportContent,
   generateForecastReportContent,
 } from '@/lib/reports/aiReportGenerator';
+import { logAIUsage } from '@/lib/ai/aiUsageLogger';
 import { generatePDFReport } from '@/lib/reports/pdfGenerator';
 import { format } from 'date-fns';
 
@@ -96,37 +97,58 @@ export async function POST(
     // Aggregate data based on report type
     let reportData: any;
     let reportContent: any;
+    let reportMetadata: any = null;
     let dateRange: string;
 
     if (reportType === 'weekly') {
       reportData = getWeeklyTasks(tasks);
-      reportContent = await generateWeeklyReportContent(
+      const result = await generateWeeklyReportContent(
         reportData,
         project.name,
         projectMembers,
         geminiApiKey
       );
+      reportContent = result.content;
+      reportMetadata = result.metadata;
       dateRange = `${format(reportData.lastWeek.start, 'MMM d')} - ${format(reportData.thisWeek.end, 'MMM d, yyyy')}`;
     } else if (reportType === 'monthly') {
       reportData = getMonthlyTasks(tasks);
-      reportContent = await generateMonthlyReportContent(
+      const result = await generateMonthlyReportContent(
         reportData,
         project.name,
         projectMembers,
         geminiApiKey
       );
+      reportContent = result.content;
+      reportMetadata = result.metadata;
       dateRange = format(reportData.month.start, 'MMMM yyyy');
     } else if (reportType === 'forecast') {
       reportData = getForecastTasks(tasks, forecastDays);
-      reportContent = await generateForecastReportContent(
+      const result = await generateForecastReportContent(
         reportData,
         project.name,
         projectMembers,
         geminiApiKey
       );
+      reportContent = result.content;
+      reportMetadata = result.metadata;
       dateRange = `${format(reportData.period.start, 'MMM d')} - ${format(reportData.period.end, 'MMM d, yyyy')}`;
     } else {
       return badRequest('Invalid report type');
+    }
+
+    // Log AI usage (non-blocking)
+    if (reportMetadata && userData?.id) {
+      logAIUsage(
+        supabase,
+        userData.id,
+        'report_generation',
+        reportMetadata,
+        'project',
+        params.id
+      ).catch((err) => {
+        logger.error('[Reports API] Error logging AI usage:', err);
+      });
     }
 
     // Generate report based on format

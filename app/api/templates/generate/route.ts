@@ -4,6 +4,7 @@ import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { hasAIFeatures } from '@/lib/packageLimits';
 import { generateStructuredAIResponse } from '@/lib/ai/geminiClient';
+import { logAIUsage } from '@/lib/ai/aiUsageLogger';
 
 interface GeneratedTemplate {
   template: {
@@ -253,14 +254,25 @@ Respond ONLY with valid JSON matching this exact structure:
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get user record
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('auth_id', authUser.id)
+      .single();
+
+    if (userError || !userData) {
+      return NextResponse.json({ error: 'User record not found' }, { status: 401 });
+    }
+
     // Get user's organization
-    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    const organizationId = await getUserOrganizationId(supabase, authUser.id);
     if (!organizationId) {
       return NextResponse.json({ error: 'User is not assigned to an organization' }, { status: 400 });
     }
@@ -296,8 +308,9 @@ export async function POST(request: NextRequest) {
     const selectedMethodology = methodology || 'fsm'; // Default to FSM if not provided
     const prompt = getMethodologyPrompt(selectedMethodology, name, description, category);
 
-    // Generate structured response
+    // Generate structured response with metadata tracking
     let result: GeneratedTemplate;
+    let metadata: any = null;
     try {
       const response = await generateStructuredAIResponse<GeneratedTemplate>(
         prompt,
@@ -306,13 +319,19 @@ export async function POST(request: NextRequest) {
         },
         apiKey,
         undefined,
-        false // Don't return metadata for template generation
+        true, // returnMetadata
+        'gemini-2.5-flash' // Use Flash for complex template structure generation
       );
       
-      // Handle response (should be just GeneratedTemplate when returnMetadata is false)
-      result = typeof response === 'object' && 'result' in response 
-        ? (response as any).result 
-        : response as GeneratedTemplate;
+      // Handle response with metadata
+      if ('result' in response && 'metadata' in response) {
+        result = response.result;
+        metadata = response.metadata;
+      } else {
+        result = typeof response === 'object' && 'result' in response 
+          ? (response as any).result 
+          : response as GeneratedTemplate;
+      }
     } catch (parseError) {
       // If parsing fails, try to get the raw response for debugging
       return NextResponse.json(
@@ -374,6 +393,22 @@ export async function POST(request: NextRequest) {
         field_key: uniqueKey,
       };
     });
+
+    // Log AI usage (non-blocking)
+    if (metadata && userData?.id) {
+      const { logAIUsage } = await import('@/lib/ai/aiUsageLogger');
+      logAIUsage(
+        supabase,
+        userData.id,
+        'template_generation',
+        metadata,
+        null,
+        null
+      ).catch((err) => {
+        // Use console.error since logger might not be imported
+        console.error('[Template Generate] Error logging AI usage:', err);
+      });
+    }
 
     return NextResponse.json({
       result: {

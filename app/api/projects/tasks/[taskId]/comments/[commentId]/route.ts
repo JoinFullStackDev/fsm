@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 
 export async function PATCH(
   request: NextRequest,
@@ -7,17 +8,20 @@ export async function PATCH(
 ) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Use admin client to bypass RLS
+    const adminClient = createAdminSupabaseClient();
+
     // Get user record
-    const { data: userData } = await supabase
+    const { data: userData } = await adminClient
       .from('users')
       .select('id')
-      .eq('auth_id', session.user.id)
+      .eq('auth_id', user.id)
       .single();
 
     if (!userData) {
@@ -32,7 +36,7 @@ export async function PATCH(
     }
 
     // Update comment (only if user owns it)
-    const { data: comment, error } = await supabase
+    const { data: comment, error } = await adminClient
       .from('task_comments')
       .update({
         content: content.trim(),
@@ -69,17 +73,20 @@ export async function DELETE(
 ) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Use admin client to bypass RLS
+    const adminClient = createAdminSupabaseClient();
+
     // Get user record
-    const { data: userData } = await supabase
+    const { data: userData } = await adminClient
       .from('users')
       .select('id')
-      .eq('auth_id', session.user.id)
+      .eq('auth_id', user.id)
       .single();
 
     if (!userData) {
@@ -87,7 +94,7 @@ export async function DELETE(
     }
 
     // Delete comment (only if user owns it)
-    const { error } = await supabase
+    const { error } = await adminClient
       .from('task_comments')
       .delete()
       .eq('id', params.commentId)
@@ -105,4 +112,3 @@ export async function DELETE(
     );
   }
 }
-

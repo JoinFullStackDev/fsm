@@ -46,7 +46,8 @@ function SetPasswordForm() {
           return;
         }
 
-        if (accessToken && type === 'invite') {
+        // Handle both 'invite' (new users) and 'recovery' (re-invited users with confirmed emails)
+        if (accessToken && (type === 'invite' || type === 'recovery')) {
           // Exchange the access token for a session
           const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,

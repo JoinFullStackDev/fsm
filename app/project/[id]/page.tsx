@@ -115,7 +115,7 @@ export default function ProjectPage() {
   const projectId = params.id as string;
   const supabase = createSupabaseClient();
   const { showSuccess, showError } = useNotification();
-  const { role, loading: roleLoading } = useRole();
+  const { role, isCompanyAdmin, loading: roleLoading } = useRole();
   const [project, setProject] = useState<Project | null>(null);
   const [phases, setPhases] = useState<PhaseSummary[]>([]);
   const [fieldConfigsByPhase, setFieldConfigsByPhase] = useState<Record<number, Array<{ field_key: string }>>>({});
@@ -465,8 +465,19 @@ export default function ProjectPage() {
       const result = await response.json();
       
       if (result.preview) {
-        // Navigate to project-management page with preview tasks
-        // The project-management page will handle showing the preview table
+        // Store preview data in sessionStorage before navigating
+        // This prevents double API calls when the project-management page loads
+        sessionStorage.setItem(`preview_${projectId}`, JSON.stringify({
+          tasks: result.tasks,
+          summary: result.summary,
+          next_steps: result.next_steps,
+          blockers: result.blockers,
+          estimates: result.estimates,
+          analysis_id: result.analysis_id,
+          timestamp: Date.now(),
+        }));
+        
+        // Navigate to project-management page with preview flag
         router.push(`/project-management/${projectId}?preview=true&analysis_id=${result.analysis_id}`);
       } else {
         // Fallback: direct insertion (shouldn't happen with preview=true)
@@ -678,7 +689,7 @@ export default function ProjectPage() {
                       <SettingsIcon />
                     </IconButton>
                   </Tooltip>
-                  {role === 'admin' && (
+                  {isCompanyAdmin && (
                     <Tooltip title="Delete Project">
                       <IconButton
                         onClick={handleDeleteClick}
@@ -1154,7 +1165,7 @@ export default function ProjectPage() {
                       <Button
                         size="small"
                         endIcon={<ArrowForwardIcon />}
-                        onClick={() => router.push(`/project/${projectId}/members`)}
+                        onClick={() => router.push(`/project/${projectId}/settings`)}
                         sx={{
                           color: theme.palette.text.primary,
                           textTransform: 'none',
@@ -1364,7 +1375,7 @@ export default function ProjectPage() {
                     <Button
                       variant="outlined"
                       startIcon={<PeopleIcon />}
-                      onClick={() => router.push(`/project/${projectId}/members`)}
+                      onClick={() => router.push(`/project/${projectId}/settings`)}
                       fullWidth
                       sx={{
                         borderColor: theme.palette.divider,

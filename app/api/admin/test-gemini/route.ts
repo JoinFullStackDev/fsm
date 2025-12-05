@@ -12,8 +12,8 @@ export async function POST(request: NextRequest) {
     const supabase = await createServerSupabaseClient();
     logger.debug('[Test Gemini SDK] ✓ Supabase client created');
     
-    // Try getUser() first (more reliable, authenticates with Supabase Auth server)
-    logger.debug('[Test Gemini SDK] Step 2a: Getting user (getUser)...');
+    // Use getUser() - authenticates with Supabase Auth server
+    logger.debug('[Test Gemini SDK] Step 2: Getting user (getUser)...');
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     logger.debug('[Test Gemini SDK] User check result:', {
       hasUser: !!user,
@@ -21,22 +21,9 @@ export async function POST(request: NextRequest) {
       userError: userError?.message,
     });
     
-    // Also try getSession() for compatibility
-    logger.debug('[Test Gemini SDK] Step 2b: Getting session (getSession)...');
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    logger.debug('[Test Gemini SDK] Session check result:', {
-      hasSession: !!session,
-      userId: session?.user?.id,
-      sessionError: sessionError?.message,
-    });
-
-    // Use user if available, otherwise fall back to session
-    const currentUser = user || session?.user;
-    
-    if (!currentUser) {
-      logger.error('[Test Gemini SDK] ✗ No user or session found - returning 401');
+    if (!user) {
+      logger.error('[Test Gemini SDK] ✗ No user found - returning 401');
       logger.error('[Test Gemini SDK] User error:', userError?.message);
-      logger.error('[Test Gemini SDK] Session error:', sessionError?.message);
       
       // Log request headers to see if cookies are being sent
       const cookieHeader = request.headers.get('cookie');
@@ -45,11 +32,13 @@ export async function POST(request: NextRequest) {
       
       return NextResponse.json({ 
         error: 'Unauthorized - No session found',
-        details: userError?.message || sessionError?.message || 'Please ensure you are logged in',
+        details: userError?.message || 'Please ensure you are logged in',
       }, { status: 401 });
     }
     
-    logger.debug('[Test Gemini SDK] ✓ User/session found, user ID:', currentUser.id);
+    const currentUser = user;
+    
+    logger.debug('[Test Gemini SDK] ✓ User found, user ID:', currentUser.id);
 
     // Check if user is admin
     const { data: userData, error: dbUserError } = await supabase

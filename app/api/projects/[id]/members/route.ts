@@ -49,7 +49,7 @@ export async function GET(
     }
 
     // Verify access: super admin, project owner, project member, or org member
-    const isSuperAdmin = userData.role === 'admin' && userData.is_super_admin === true;
+    const isSuperAdmin = userData.is_super_admin === true;
     const isProjectOwner = project.owner_id === userData.id;
     const projectInUserOrg = project.organization_id === organizationId;
     
@@ -74,12 +74,23 @@ export async function GET(
     const members = await cacheGetOrSet(
       membersCacheKey,
       async () => {
-        const { data: membersData, error: membersError } = await adminClient
+        // First try to fetch with organization_role join (if column exists)
+        let membersData = null;
+        let membersError = null;
+        
+        // Fetch members with organization_role join
+        const result = await adminClient
           .from('project_members')
           .select(`
             id,
             user_id,
-            role,
+            organization_role_id,
+            created_at,
+            organization_role:organization_roles (
+              id,
+              name,
+              description
+            ),
             user:users!project_members_user_id_fkey (
               id,
               name,
@@ -89,6 +100,9 @@ export async function GET(
           `)
           .eq('project_id', params.id)
           .order('created_at', { ascending: true });
+        
+        membersData = result.data;
+        membersError = result.error;
 
         if (membersError) {
           logger.error('[Project Members GET] Error loading members:', membersError);
@@ -133,7 +147,7 @@ export async function POST(
     const adminClient = createAdminSupabaseClient();
     const { data: userData, error: userError } = await adminClient
       .from('users')
-      .select('id, role, organization_id, is_super_admin')
+      .select('id, role, organization_id, is_super_admin, is_company_admin')
       .eq('auth_id', user.id)
       .single();
 
@@ -142,10 +156,11 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { user_id, role } = body;
+    const { user_id, organization_role_id } = body;
 
-    if (!user_id || !role) {
-      return badRequest('user_id and role are required');
+    // user_id is required, organization_role_id is optional (can be set later)
+    if (!user_id) {
+      return badRequest('user_id is required');
     }
 
     // Get project to verify access - use admin client
@@ -156,13 +171,29 @@ export async function POST(
       .single();
 
     if (projectError || !project) {
+      logger.warn('[Project Member POST] Project not found:', { projectId: params.id, error: projectError });
       return notFound('Project not found');
     }
 
     // Verify access: super admin, project owner, project member, or org member
-    const isSuperAdmin = userData.role === 'admin' && userData.is_super_admin === true;
+    const isSuperAdmin = userData.is_super_admin === true;
     const isProjectOwner = project.owner_id === userData.id;
     const projectInUserOrg = project.organization_id === organizationId;
+    
+    // Debug logging for permission checks
+    logger.info('[Project Member POST] Permission check:', {
+      projectId: params.id,
+      userId: userData.id,
+      userRole: userData.role,
+      projectOwnerId: project.owner_id,
+      projectOrgId: project.organization_id,
+      userOrgId: organizationId,
+      isSuperAdmin,
+      isProjectOwner,
+      projectInUserOrg,
+      isCompanyAdmin: userData.is_company_admin === true,
+      isLegacyAdmin: userData.role === 'admin' && !userData.is_super_admin,
+    });
     
     if (!isSuperAdmin && !isProjectOwner && !projectInUserOrg) {
       // Check if user is a project member
@@ -174,16 +205,28 @@ export async function POST(
         .single();
       
       if (!projectMember) {
+        logger.warn('[Project Member POST] Access denied - not a project member:', {
+          projectId: params.id,
+          userId: userData.id,
+        });
         return forbidden('You do not have access to this project');
       }
     }
 
-    // Check if user has permission to add members (owner, admin, or PM)
-    const isAdmin = userData.role === 'admin';
-    const isPM = userData.role === 'pm';
+    // Check if user has permission to add members (super admin, company admin, or project owner)
+    const isCompanyAdmin = userData.is_company_admin === true;
+    const isLegacyAdmin = userData.role === 'admin' && !userData.is_super_admin;
 
-    if (!isProjectOwner && !isAdmin && !isPM) {
-      return forbidden('Only project owners, admins, or PMs can add members');
+    if (!isSuperAdmin && !isCompanyAdmin && !isLegacyAdmin && !isProjectOwner) {
+      logger.warn('[Project Member POST] Permission denied - cannot add members:', {
+        projectId: params.id,
+        userId: userData.id,
+        isSuperAdmin,
+        isCompanyAdmin,
+        isLegacyAdmin,
+        isProjectOwner,
+      });
+      return forbidden('Only project owners or company admins can add members');
     }
 
     // Check if member already exists - use admin client to avoid RLS issues
@@ -239,15 +282,38 @@ export async function POST(
     }
 
     // Use admin client to bypass RLS for inserting members
-    // This ensures the insert works even if RLS policies have issues
+    // Use organization_role_id for role assignment (preferred over legacy role column)
+    const insertData: { project_id: string; user_id: string; organization_role_id?: string } = {
+      project_id: params.id,
+      user_id,
+    };
+    
+    // Set organization_role_id if provided
+    if (organization_role_id) {
+      insertData.organization_role_id = organization_role_id;
+    }
+    
+    logger.info('[Project Member POST] Inserting member:', {
+      projectId: params.id,
+      userId: user_id,
+      organizationRoleId: organization_role_id || 'not set',
+    });
+    
     const { data: member, error: memberError } = await adminClient
       .from('project_members')
-      .insert({
-        project_id: params.id,
-        user_id,
-        role,
-      })
-      .select()
+      .insert(insertData)
+      .select(`
+        id, 
+        project_id, 
+        user_id, 
+        organization_role_id,
+        created_at,
+        organization_role:organization_roles (
+          id,
+          name,
+          description
+        )
+      `)
       .single();
 
     if (memberError) {
@@ -312,10 +378,13 @@ export async function PATCH(
       return unauthorized('You must be logged in to update project members');
     }
 
-    // Get user record
-    const { data: userData, error: userError } = await supabase
+    // Use admin client to bypass RLS for all queries
+    const adminClient = createAdminSupabaseClient();
+
+    // Get user record using admin client
+    const { data: userData, error: userError } = await adminClient
       .from('users')
-      .select('id, role')
+      .select('id, role, is_super_admin, is_company_admin')
       .eq('auth_id', user.id)
       .single();
 
@@ -324,14 +393,18 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { member_id, role } = body;
+    const { member_id, organization_role_id } = body;
 
-    if (!member_id || !role) {
-      return badRequest('member_id and role are required');
+    if (!member_id) {
+      return badRequest('member_id is required');
+    }
+    
+    if (!organization_role_id) {
+      return badRequest('organization_role_id is required');
     }
 
-    // Verify user is project owner or admin
-    const { data: project, error: projectError } = await supabase
+    // Verify user is project owner or admin using admin client
+    const { data: project, error: projectError } = await adminClient
       .from('projects')
       .select('owner_id, name')
       .eq('id', params.id)
@@ -342,15 +415,16 @@ export async function PATCH(
     }
 
     const isOwner = project.owner_id === userData.id;
-    const isAdmin = userData.role === 'admin';
-    const isPM = userData.role === 'pm';
+    const isCompanyAdmin = userData.is_company_admin === true;
+    const isSuperAdmin = userData.is_super_admin === true;
+    const isLegacyAdmin = userData.role === 'admin' && !userData.is_super_admin;
 
-    if (!isOwner && !isAdmin && !isPM) {
-      return forbidden('Only project owners, admins, or PMs can update member roles');
+    if (!isOwner && !isSuperAdmin && !isCompanyAdmin && !isLegacyAdmin) {
+      return forbidden('Only project owners or company admins can update member roles');
     }
 
-    // Verify member exists and belongs to this project
-    const { data: existingMember, error: memberCheckError } = await supabase
+    // Verify member exists and belongs to this project using admin client
+    const { data: existingMember, error: memberCheckError } = await adminClient
       .from('project_members')
       .select('id, user_id')
       .eq('id', member_id)
@@ -358,21 +432,48 @@ export async function PATCH(
       .single();
 
     if (memberCheckError || !existingMember) {
+      logger.warn('[Project Member PATCH] Member not found:', {
+        memberId: member_id,
+        projectId: params.id,
+        error: memberCheckError,
+      });
       return notFound('Project member not found');
     }
 
-    // Use admin client to bypass RLS for updating members
-    const adminClient = createAdminSupabaseClient();
+    // Update organization_role_id only
+    const updateData = { organization_role_id };
     const { data: updatedMember, error: updateError } = await adminClient
       .from('project_members')
-      .update({ role })
+      .update(updateData)
       .eq('id', member_id)
-      .select()
+      .select(`
+        id,
+        project_id,
+        user_id,
+        organization_role_id,
+        created_at,
+        organization_role:organization_roles (
+          id,
+          name,
+          description
+        )
+      `)
       .single();
 
     if (updateError) {
       logger.error('[Project Member] Error updating member role:', updateError);
       return internalError('Failed to update project member role', { error: updateError.message });
+    }
+
+    // Invalidate cache after updating member role
+    try {
+      const { cacheDel, CACHE_KEYS } = await import('@/lib/cache/unifiedCache');
+      const membersCacheKey = CACHE_KEYS.projectMembers(params.id);
+      await cacheDel(membersCacheKey);
+      logger.info('[Project Member PATCH] Cache invalidated for project:', params.id);
+    } catch (cacheError) {
+      logger.warn('[Project Member PATCH] Failed to invalidate cache:', cacheError);
+      // Don't fail the request if cache invalidation fails
     }
 
     return NextResponse.json({ member: updatedMember });

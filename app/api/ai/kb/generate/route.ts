@@ -4,6 +4,7 @@ import { unauthorized, internalError, badRequest, forbidden } from '@/lib/utils/
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { hasAIFeatures, getKnowledgeBaseAccessLevel } from '@/lib/packageLimits';
 import { generateStructuredAIResponse } from '@/lib/ai/geminiClient';
+import { logAIUsage } from '@/lib/ai/aiUsageLogger';
 import { getGeminiApiKey } from '@/lib/utils/geminiConfig';
 import logger from '@/lib/utils/logger';
 import type { AIGenerateArticleInput, AIGenerateArticleOutput } from '@/types/kb';
@@ -105,21 +106,47 @@ Return the response as a JSON object with this exact structure:
   }
 }`;
 
-    // Generate article using Gemini
+    // Generate article using Gemini with Flash for quality content generation
     const response = await generateStructuredAIResponse<AIGenerateArticleOutput>(
       generationPrompt,
       {},
       apiKey,
       undefined,
-      false
+      true, // returnMetadata
+      'gemini-2.5-flash' // Use Flash for quality content creation
     );
 
-    const articleData = 'result' in response ? response.result : response;
+    // Extract result and metadata
+    let articleData: AIGenerateArticleOutput;
+    let metadata: any = null;
 
-    // Track AI usage
+    if (typeof response === 'object' && response !== null && 'result' in response && 'metadata' in response) {
+      articleData = (response as { result: AIGenerateArticleOutput; metadata: any }).result;
+      metadata = (response as { result: AIGenerateArticleOutput; metadata: any }).metadata;
+    } else if (typeof response === 'object' && response !== null && 'result' in response) {
+      articleData = (response as { result: AIGenerateArticleOutput }).result;
+    } else {
+      articleData = response as AIGenerateArticleOutput;
+    }
+
+    // Track AI usage in both knowledge_base_analytics (existing) and activity_logs (new)
     trackAIUsage(supabase, userData.id, 'generate', organizationId).catch((err) => {
       logger.error('[KB AI Generate] Error tracking usage:', err);
     });
+
+    // Also log to activity_logs for super admin tracking
+    if (metadata && userData?.id) {
+      logAIUsage(
+        supabase,
+        userData.id,
+        'kb_generate',
+        metadata,
+        null,
+        null
+      ).catch((err) => {
+        logger.error('[KB AI Generate] Error logging AI usage:', err);
+      });
+    }
 
     return NextResponse.json(articleData);
   } catch (error) {

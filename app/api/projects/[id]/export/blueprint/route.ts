@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { generateBlueprintBundle } from '@/lib/exportHandlers/blueprint';
+import { logAIUsage } from '@/lib/ai/aiUsageLogger';
 import { generateBlueprintZip } from '@/lib/exportHandlers/zipGenerator';
 import type { Project } from '@/types/project';
 
@@ -49,7 +50,7 @@ export async function POST(
     const apiKey = await getGeminiApiKey(supabase) || undefined;
 
     // Generate blueprint bundle with AI enhancement
-    const bundle = await generateBlueprintBundle(project as Project, {
+    const result = await generateBlueprintBundle(project as Project, {
       phase1: phaseMap[1],
       phase2: phaseMap[2],
       phase3: phaseMap[3],
@@ -58,16 +59,30 @@ export async function POST(
       phase6: phaseMap[6],
     }, apiKey);
 
-    // Generate ZIP file
-    const zipBlob = await generateBlueprintZip(bundle, project.name);
-    const zipBuffer = Buffer.from(await zipBlob.arrayBuffer());
-
     // Get user record for tracking
     const { data: userData } = await supabase
       .from('users')
       .select('id')
       .eq('auth_id', user.id)
       .single();
+
+    // Log AI usage (non-blocking)
+    if (result.metadata && userData?.id) {
+      logAIUsage(
+        supabase,
+        userData.id,
+        'blueprint_export',
+        result.metadata,
+        'project',
+        params.id
+      ).catch((err) => {
+        console.error('[Blueprint Export] Error logging AI usage:', err);
+      });
+    }
+
+    // Generate ZIP file
+    const zipBlob = await generateBlueprintZip(result.bundle, project.name);
+    const zipBuffer = Buffer.from(await zipBlob.arrayBuffer());
 
     // Record export with user_id and file_size (backward compatible)
     const exportData: any = {

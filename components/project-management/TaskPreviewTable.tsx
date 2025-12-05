@@ -195,6 +195,31 @@ export default function TaskPreviewTable({
     setTaskToMerge(null);
   };
 
+  // Get all duplicate tasks
+  const duplicateTasks = localTasks.filter(
+    (t) => t.duplicateStatus !== 'unique' && t.existingTaskId
+  );
+
+  // Apply bulk merge action to all duplicates
+  const handleBulkMergeAction = (action: 'merge' | 'keep-both' | 'discard') => {
+    const newMerges = new Map(merges);
+    for (const task of duplicateTasks) {
+      if (task.previewId && task.existingTaskId) {
+        newMerges.set(task.previewId, {
+          previewTaskId: task.previewId,
+          existingTaskId: task.existingTaskId,
+          action,
+        });
+      }
+    }
+    setMerges(newMerges);
+  };
+
+  // Clear all merge decisions
+  const handleClearMergeDecisions = () => {
+    setMerges(new Map());
+  };
+
   const handleOpenRequirements = (task: PreviewTask) => {
     setTaskForRequirements(task);
     setRequirementsModalOpen(true);
@@ -273,6 +298,58 @@ export default function TaskPreviewTable({
             {summary}
           </Typography>
         </Box>
+      )}
+
+      {/* Bulk Merge Actions */}
+      {duplicateTasks.length > 0 && (
+        <Alert 
+          severity="warning" 
+          sx={{ mb: 2 }}
+          action={
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => handleBulkMergeAction('merge')}
+                sx={{ fontSize: '0.75rem' }}
+              >
+                Merge All
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => handleBulkMergeAction('keep-both')}
+                sx={{ fontSize: '0.75rem' }}
+              >
+                Keep All
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                color="error"
+                onClick={() => handleBulkMergeAction('discard')}
+                sx={{ fontSize: '0.75rem' }}
+              >
+                Discard All
+              </Button>
+              {merges.size > 0 && (
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={handleClearMergeDecisions}
+                  sx={{ fontSize: '0.75rem' }}
+                >
+                  Clear
+                </Button>
+              )}
+            </Box>
+          }
+        >
+          <Typography variant="body2">
+            <strong>{duplicateTasks.length} duplicate{duplicateTasks.length > 1 ? 's' : ''}</strong> detected 
+            {merges.size > 0 && ` (${merges.size} decision${merges.size > 1 ? 's' : ''} made)`}
+          </Typography>
+        </Alert>
       )}
 
       <Box sx={{ mb: 2, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 1.5, sm: 1 }, alignItems: { xs: 'stretch', sm: 'center' }, flexWrap: 'wrap' }}>
@@ -566,6 +643,7 @@ export default function TaskPreviewTable({
           }}
           previewTask={taskToMerge}
           existingTaskId={taskToMerge.existingTaskId || ''}
+          projectId={projectId}
           onDecision={handleMergeDecision}
         />
       )}

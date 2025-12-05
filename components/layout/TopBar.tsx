@@ -83,27 +83,21 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
     
     console.log('[TopBar] Sign out initiated');
     
-    // Store success message FIRST before any operations
     if (typeof window !== 'undefined') {
-      sessionStorage.setItem('signout_success', 'true');
-      console.log('[TopBar] Success message stored');
-      
-      // Clear all cached data
-      localStorage.clear();
-      console.log('[TopBar] LocalStorage cleared');
-      
-      // Sign out - fire and forget
-      supabase.auth.signOut().catch((error: any) => {
-        console.error('[TopBar] Sign out error:', error);
-      });
-      console.log('[TopBar] Sign out called');
-      
-      // Close menu
+      // Close menu first for immediate visual feedback
       handleMenuClose();
       
-      // Immediately redirect - use window.location.replace for immediate redirect
-      console.log('[TopBar] Redirecting to home page...');
-      window.location.replace('/');
+      // Store success message
+      sessionStorage.setItem('signout_success', 'true');
+      
+      // Clear all cached data immediately
+      localStorage.clear();
+      
+      // Start signout in background (don't wait)
+      supabase.auth.signOut().catch(console.error);
+      
+      // Redirect IMMEDIATELY - don't wait for signout
+      window.location.href = '/';
     }
   };
 

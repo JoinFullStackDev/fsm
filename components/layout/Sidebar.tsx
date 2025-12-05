@@ -37,6 +37,7 @@ import {
   DashboardCustomize as DashboardCustomizeIcon,
   ChevronRight as ChevronRightIcon,
   ExpandMore as ExpandMoreIcon,
+  Groups as GroupsIcon,
 } from '@mui/icons-material';
 import { useRole } from '@/lib/hooks/useRole';
 import { useOrganization } from '@/components/providers/OrganizationProvider';
@@ -187,7 +188,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
     // Delay loading templates to allow page to load first (lazy load)
     const timer = setTimeout(async () => {
       try {
-        const response = await fetch('/api/admin/templates?limit=100', {
+        const response = await fetch('/api/templates?limit=100', {
           cache: 'default', // Use browser cache
         });
         if (response.ok) {
@@ -267,11 +268,14 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
     if (path === '/project-management') {
       return pathname?.startsWith('/project-management');
     }
-    if (path === '/admin/templates') {
-      return pathname === '/admin/templates';
+    if (path === '/templates') {
+      return pathname === '/templates';
     }
     if (path === '/my-tasks') {
       return pathname === '/my-tasks';
+    }
+    if (path === '/teams') {
+      return pathname?.startsWith('/teams');
     }
     if (path === '/ops/companies') {
       return pathname?.startsWith('/ops/companies');
@@ -297,7 +301,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
   };
 
   const isTemplateActive = (templateId: string) => {
-    return pathname?.includes(`/admin/templates/${templateId}/`);
+    return pathname?.includes(`/templates/${templateId}/`);
   };
 
   const isProjectManagementActive = (projectId: string) => {
@@ -805,10 +809,10 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                       // When collapsed, show popover instead of navigating
                       setTemplatesPopoverAnchor(e.currentTarget);
                     } else {
-                      handleNavigate('/admin/templates');
+                      handleNavigate('/templates');
                     }
                   }}
-                  selected={isActive('/admin/templates')}
+                  selected={isActive('/templates')}
                   sx={{
                     minHeight: 48,
                     pr: open && templates.length > 0 ? 0.5 : 2,
@@ -828,7 +832,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                     sx={{
                       minWidth: open ? 40 : 40,
                       justifyContent: 'center',
-                      color: isActive('/admin/templates') ? theme.palette.text.primary : theme.palette.text.secondary,
+                      color: isActive('/templates') ? theme.palette.text.primary : theme.palette.text.secondary,
                     }}
                   >
                     <DescriptionIcon sx={{ fontSize: 20 }} />
@@ -870,7 +874,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                       <ListItemButton
                         key={template.id}
                         onClick={() => {
-                          handleNavigate(`/admin/templates/${template.id}/builder`);
+                          handleNavigate(`/templates/${template.id}/builder`);
                         }}
                         selected={isTemplateActive(template.id)}
                         sx={{
@@ -1245,7 +1249,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
           <MenuList dense>
             <MenuItem
               onClick={() => {
-                handleNavigate('/admin/templates');
+                handleNavigate('/templates');
                 setTemplatesPopoverAnchor(null);
               }}
               sx={{
@@ -1264,7 +1268,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                   <MenuItem
                     key={template.id}
                     onClick={() => {
-                      handleNavigate(`/admin/templates/${template.id}/builder`);
+                      handleNavigate(`/templates/${template.id}/builder`);
                       setTemplatesPopoverAnchor(null);
                     }}
                     selected={isTemplateActive(template.id)}
@@ -1459,6 +1463,47 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                     </Box>
                   </>
                 )}
+              </ListItemButton>
+            </Tooltip>
+          </ListItem>
+
+          {/* Teams */}
+          <ListItem disablePadding>
+            <Tooltip
+              title="Teams"
+              placement="right"
+              arrow
+              disableHoverListener={open}
+              disableFocusListener={open}
+              disableTouchListener={open}
+            >
+              <ListItemButton
+                onClick={() => handleNavigate('/teams')}
+                selected={isActive('/teams')}
+                sx={{
+                  minHeight: 48,
+                  '&.Mui-selected': {
+                    backgroundColor: theme.palette.action.hover,
+                    borderLeft: `1px solid ${theme.palette.text.primary}`,
+                    '&:hover': {
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                  },
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    minWidth: open ? 40 : 40,
+                    justifyContent: 'center',
+                    color: isActive('/teams') ? theme.palette.text.primary : theme.palette.text.secondary,
+                  }}
+                >
+                  <GroupsIcon sx={{ fontSize: 20 }} />
+                </ListItemIcon>
+                {open && <ListItemText primary="Teams" primaryTypographyProps={{ fontSize: '0.75rem' }} />}
               </ListItemButton>
             </Tooltip>
           </ListItem>

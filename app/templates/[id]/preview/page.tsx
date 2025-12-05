@@ -56,7 +56,7 @@ export default function TemplatePreviewPage() {
     
     try {
       // Use API endpoint to avoid RLS recursion issues
-      const response = await fetch(`/api/admin/templates/${templateId}`);
+      const response = await fetch(`/api/templates/${templateId}`);
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -202,7 +202,7 @@ export default function TemplatePreviewPage() {
       <Container maxWidth="lg" sx={{ pt: 4, px: { xs: 0, md: 3 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
           <IconButton
-            onClick={() => router.push(`/admin/templates/${templateId}/builder`)}
+            onClick={() => router.push(`/templates/${templateId}/builder`)}
             sx={{
               color: theme.palette.text.primary,
               border: `1px solid ${theme.palette.divider}`,

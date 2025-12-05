@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
     response.headers.set('Cache-Control', 'private, max-age=30'); // 30 second cache for templates
     return response;
   } catch (error) {
-    logger.error('Error in GET /api/admin/templates:', error);
+    logger.error('Error in GET /api/templates:', error);
     return internalError('Failed to load templates', { error: error instanceof Error ? error.message : 'Unknown error' });
   }
 }
@@ -148,14 +148,14 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!authUser) {
       return unauthorized('You must be logged in to create templates');
     }
 
     // Get user's organization
-    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    const organizationId = await getUserOrganizationId(supabase, authUser.id);
     if (!organizationId) {
       return badRequest('User is not assigned to an organization');
     }
@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
     const { data: userData, error: userError } = await adminClient
       .from('users')
       .select('id, role, organization_id')
-      .eq('auth_id', session.user.id)
+      .eq('auth_id', authUser.id)
       .single();
 
     if (userError || !userData) {
@@ -208,7 +208,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(newTemplate, { status: 201 });
   } catch (error) {
-    logger.error('Error in POST /api/admin/templates:', error);
+    logger.error('Error in POST /api/templates:', error);
     return internalError('Failed to create template', { error: error instanceof Error ? error.message : 'Unknown error' });
   }
 }

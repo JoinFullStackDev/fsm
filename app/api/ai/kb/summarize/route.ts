@@ -4,6 +4,7 @@ import { unauthorized, internalError, badRequest, forbidden, notFound } from '@/
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { hasAIFeatures, getKnowledgeBaseAccessLevel } from '@/lib/packageLimits';
 import { generateStructuredAIResponse } from '@/lib/ai/geminiClient';
+import { logAIUsage } from '@/lib/ai/aiUsageLogger';
 import { getGeminiApiKey } from '@/lib/utils/geminiConfig';
 import logger from '@/lib/utils/logger';
 import type { AISummarizeInput, AISummarizeOutput } from '@/types/kb';
@@ -21,6 +22,17 @@ export async function POST(request: NextRequest) {
 
     if (!authUser) {
       return unauthorized('You must be logged in to use AI features');
+    }
+
+    // Get user record
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('auth_id', authUser.id)
+      .single();
+
+    if (userError || !userData) {
+      return unauthorized('User record not found');
     }
 
     const organizationId = await getUserOrganizationId(supabase, authUser.id);
@@ -92,10 +104,36 @@ Return as JSON:
       {},
       apiKey,
       undefined,
-      false
+      true, // returnMetadata
+      'gemini-2.5-flash-lite' // Use Flash-Lite for simpler summarization task
     );
 
-    const summaryData = 'result' in response ? response.result : response;
+    // Extract result and metadata
+    let summaryData: AISummarizeOutput;
+    let metadata: any = null;
+
+    if (typeof response === 'object' && response !== null && 'result' in response && 'metadata' in response) {
+      summaryData = (response as { result: AISummarizeOutput; metadata: any }).result;
+      metadata = (response as { result: AISummarizeOutput; metadata: any }).metadata;
+    } else if (typeof response === 'object' && response !== null && 'result' in response) {
+      summaryData = (response as { result: AISummarizeOutput }).result;
+    } else {
+      summaryData = response as AISummarizeOutput;
+    }
+
+    // Log AI usage (non-blocking)
+    if (metadata && userData?.id) {
+      logAIUsage(
+        supabase,
+        userData.id,
+        'kb_summarize',
+        metadata,
+        'knowledge_base_article',
+        article_id
+      ).catch((err) => {
+        logger.error('[KB AI Summarize] Error logging AI usage:', err);
+      });
+    }
 
     return NextResponse.json(summaryData);
   } catch (error) {

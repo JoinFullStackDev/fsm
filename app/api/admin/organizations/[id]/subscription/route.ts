@@ -16,9 +16,9 @@ export async function PATCH(
 ) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!authUser) {
       return unauthorized('You must be logged in');
     }
 
@@ -26,7 +26,7 @@ export async function PATCH(
     const { data: userData, error: userError } = await supabase
       .from('users')
       .select('role, is_super_admin')
-      .eq('auth_id', session.user.id)
+      .eq('auth_id', authUser.id)
       .single();
 
     if (userError || !userData) {

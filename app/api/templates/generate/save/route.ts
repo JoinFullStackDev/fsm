@@ -42,14 +42,14 @@ interface GeneratedTemplate {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Get user's organization
-    const organizationId = await getUserOrganizationId(supabase, session.user.id);
+    const organizationId = await getUserOrganizationId(supabase, authUser.id);
     if (!organizationId) {
       return NextResponse.json({ error: 'User is not assigned to an organization' }, { status: 400 });
     }
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     const { data: userData, error: userError } = await adminClient
       .from('users')
       .select('id, organization_id')
-      .eq('auth_id', session.user.id)
+      .eq('auth_id', authUser.id)
       .single();
 
     if (userError || !userData) {
