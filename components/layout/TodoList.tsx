@@ -409,7 +409,7 @@ export default function TodoList() {
                 size="small"
                 sx={{
                   backgroundColor: 'primary.main',
-                  color: '#000',
+                  color: 'primary.contrastText',
                   fontWeight: 600,
                 }}
               />

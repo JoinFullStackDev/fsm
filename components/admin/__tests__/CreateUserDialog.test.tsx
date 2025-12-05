@@ -84,7 +84,7 @@ describe('CreateUserDialog', () => {
     );
 
     // Fill email field so we can test name validation
-    const emailInput = screen.getByLabelText(/email/i);
+    const emailInput = screen.getByLabelText('Email *') as HTMLInputElement;
     await act(async () => {
       fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
     });
@@ -115,9 +115,8 @@ describe('CreateUserDialog', () => {
       );
       
       // Validation errors also show in helperText reactively
-      const nameField = screen.getByLabelText(/name/i);
-      const nameInput = nameField as HTMLInputElement;
-      const formControl = nameInput.closest('.MuiFormControl-root');
+      const nameField = screen.getByLabelText('Name *') as HTMLInputElement;
+      const formControl = nameField.closest('.MuiFormControl-root');
       const helperText = formControl?.querySelector('.MuiFormHelperText-root');
       const hasHelperText = helperText && (
         helperText.textContent?.toLowerCase().includes('name is required') ||
@@ -129,7 +128,6 @@ describe('CreateUserDialog', () => {
   });
 
   it('should validate email field', async () => {
-    const user = userEvent.setup();
     renderWithProviders(
       <CreateUserDialog
         open={true}
@@ -138,10 +136,9 @@ describe('CreateUserDialog', () => {
       />
     );
 
-    const nameInput = screen.getByLabelText(/name/i);
+    const nameInput = screen.getByLabelText('Name *') as HTMLInputElement;
     await act(async () => {
-      await user.clear(nameInput);
-      await user.type(nameInput, 'Test User');
+      fireEvent.change(nameInput, { target: { value: 'Test User' } });
     });
     
     // Submit form directly to trigger validation (button is disabled when email is empty)
@@ -166,9 +163,8 @@ describe('CreateUserDialog', () => {
       );
       
       // Also check helperText - it shows reactively when email is empty
-      const emailField = screen.getByLabelText(/email/i);
-      const emailInput = emailField as HTMLInputElement;
-      const formControl = emailInput.closest('.MuiFormControl-root');
+      const emailField = screen.getByLabelText('Email *') as HTMLInputElement;
+      const formControl = emailField.closest('.MuiFormControl-root');
       const helperText = formControl?.querySelector('.MuiFormHelperText-root');
       const hasHelperText = helperText && (
         helperText.textContent?.toLowerCase().includes('email is required') ||
@@ -180,7 +176,6 @@ describe('CreateUserDialog', () => {
   });
 
   it('should validate email format', async () => {
-    const user = userEvent.setup();
     renderWithProviders(
       <CreateUserDialog
         open={true}
@@ -189,12 +184,12 @@ describe('CreateUserDialog', () => {
       />
     );
 
-    const nameInput = screen.getByLabelText(/name/i);
-    const emailInput = screen.getByLabelText(/email/i);
+    const nameInput = screen.getByLabelText('Name *') as HTMLInputElement;
+    const emailInput = screen.getByLabelText('Email *') as HTMLInputElement;
 
     await act(async () => {
-      await user.type(nameInput, 'Test User');
-      await user.type(emailInput, 'invalid-email');
+      fireEvent.change(nameInput, { target: { value: 'Test User' } });
+      fireEvent.change(emailInput, { target: { value: 'invalid-email' } });
     });
 
     await waitFor(() => {
@@ -203,7 +198,6 @@ describe('CreateUserDialog', () => {
   });
 
   it('should submit form with valid data', async () => {
-    const user = userEvent.setup();
     renderWithProviders(
       <CreateUserDialog
         open={true}
@@ -212,14 +206,14 @@ describe('CreateUserDialog', () => {
       />
     );
 
-    const nameInput = screen.getByLabelText(/name/i);
-    const emailInput = screen.getByLabelText(/email/i);
+    // Use exact label text to ensure we get the right fields
+    const nameInput = screen.getByLabelText('Name *') as HTMLInputElement;
+    const emailInput = screen.getByLabelText('Email *') as HTMLInputElement;
     const submitButton = screen.getByRole('button', { name: /create/i });
 
-    // Clear and type values with proper waiting
+    // Use fireEvent.change for more reliable input setting
     await act(async () => {
-      await user.clear(nameInput);
-      await user.type(nameInput, 'Test User');
+      fireEvent.change(nameInput, { target: { value: 'Test User' } });
     });
     
     await waitFor(() => {
@@ -227,8 +221,7 @@ describe('CreateUserDialog', () => {
     });
     
     await act(async () => {
-      await user.clear(emailInput);
-      await user.type(emailInput, 'test@example.com');
+      fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
     });
     
     await waitFor(() => {
@@ -236,7 +229,7 @@ describe('CreateUserDialog', () => {
     });
     
     await act(async () => {
-      await user.click(submitButton);
+      fireEvent.click(submitButton);
     });
 
     await waitFor(() => {
@@ -266,7 +259,6 @@ describe('CreateUserDialog', () => {
       }),
     });
 
-    const user = userEvent.setup();
     renderWithProviders(
       <CreateUserDialog
         open={true}
@@ -275,13 +267,13 @@ describe('CreateUserDialog', () => {
       />
     );
 
-    const nameInput = screen.getByLabelText(/name/i);
-    const emailInput = screen.getByLabelText(/email/i);
+    const nameInput = screen.getByLabelText('Name *') as HTMLInputElement;
+    const emailInput = screen.getByLabelText('Email *') as HTMLInputElement;
     const submitButton = screen.getByRole('button', { name: /create/i });
 
     await act(async () => {
-      await user.type(nameInput, 'Test User');
-      await user.type(emailInput, 'test@example.com');
+      fireEvent.change(nameInput, { target: { value: 'Test User' } });
+      fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
     });
 
     await waitFor(() => {
@@ -289,7 +281,7 @@ describe('CreateUserDialog', () => {
     });
 
     await act(async () => {
-      await user.click(submitButton);
+      fireEvent.click(submitButton);
     });
 
     await waitFor(() => {
@@ -312,7 +304,6 @@ describe('CreateUserDialog', () => {
       json: async () => ({ error: 'User already exists' }),
     });
 
-    const user = userEvent.setup();
     renderWithProviders(
       <CreateUserDialog
         open={true}
@@ -321,28 +312,27 @@ describe('CreateUserDialog', () => {
       />
     );
 
-    const nameInput = screen.getByLabelText(/name/i);
-    const emailInput = screen.getByLabelText(/email/i);
+    const nameInput = screen.getByLabelText('Name *') as HTMLInputElement;
+    const emailInput = screen.getByLabelText('Email *') as HTMLInputElement;
     const submitButton = screen.getByRole('button', { name: /create/i });
 
-    // Clear inputs first
-    await user.clear(nameInput);
-    await user.clear(emailInput);
-    
-    // Type into name field and wait for it to be set
-    await user.type(nameInput, 'Test User');
+    // Use fireEvent for more reliable input setting
+    await act(async () => {
+      fireEvent.change(nameInput, { target: { value: 'Test User' } });
+    });
     await waitFor(() => {
       expect(nameInput).toHaveValue('Test User');
     });
     
-    // Type into email field and wait for it to be set
-    await user.type(emailInput, 'test@example.com');
+    await act(async () => {
+      fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
+    });
     await waitFor(() => {
       expect(emailInput).toHaveValue('test@example.com');
     });
     
     await act(async () => {
-      await user.click(submitButton);
+      fireEvent.click(submitButton);
     });
 
     await waitFor(() => {

@@ -16,6 +16,8 @@ export interface Organization {
   trial_ends_at: string | null;
   logo_url: string | null;
   icon_url: string | null;
+  logo_light_url: string | null;
+  icon_light_url: string | null;
   module_overrides: Record<string, boolean> | null;
   created_at: string;
   updated_at: string;

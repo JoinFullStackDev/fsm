@@ -110,7 +110,7 @@ describe('ProjectsPage', () => {
       showSuccess: mockShowSuccess,
       showError: mockShowError,
     });
-    (useRole as jest.Mock).mockReturnValue({ role: 'admin', isSuperAdmin: false, loading: false });
+    (useRole as jest.Mock).mockReturnValue({ role: 'admin', isSuperAdmin: false, isCompanyAdmin: true, loading: false });
 
     mockSupabaseClient.auth.getSession.mockResolvedValue({
       data: {
@@ -270,7 +270,7 @@ describe('ProjectsPage', () => {
   });
 
   it('should not show delete button for non-admin users', async () => {
-    (useRole as jest.Mock).mockReturnValue({ role: 'pm', isSuperAdmin: false, loading: false });
+    (useRole as jest.Mock).mockReturnValue({ role: 'pm', isSuperAdmin: false, isCompanyAdmin: false, loading: false });
 
     renderWithProviders(<ProjectsPage />);
 

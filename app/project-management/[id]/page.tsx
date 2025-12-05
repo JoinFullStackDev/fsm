@@ -753,10 +753,10 @@ export default function ProjectTaskManagementPage() {
                 minHeight: { xs: '40px', md: '32px' },
                 width: { xs: '100%', md: 'auto' },
                 backgroundColor: 'primary.main',
-                color: '#000',
+                color: 'primary.contrastText',
                 fontSize: { xs: '0.875rem', md: '0.75rem' },
                 '&:hover': {
-                  backgroundColor: 'primary.light',
+                  backgroundColor: 'primary.dark',
                 },
               }}
             >

@@ -10,12 +10,15 @@ import {
   CircularProgress,
   Alert,
   Grid,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { Save as SaveIcon } from '@mui/icons-material';
+import { Save as SaveIcon, LightMode as LightModeIcon, DarkMode as DarkModeIcon } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { usePushNotifications } from '@/lib/hooks/usePushNotifications';
+import { useThemeMode } from '@/components/providers/ThemeContextProvider';
 import type { User, UserPreferences } from '@/types/project';
 
 export default function ProfilePreferencesTab() {
@@ -24,6 +27,7 @@ export default function ProfilePreferencesTab() {
   const { showSuccess, showError } = useNotification();
   const pushNotifications = usePushNotifications();
   const { checkSubscription, supported, subscribed, loading: pushLoading, error: pushError, permission } = pushNotifications;
+  const { mode: currentThemeMode, setThemeMode } = useThemeMode();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<User | null>(null);
@@ -393,6 +397,72 @@ export default function ProfilePreferencesTab() {
             <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 1, ml: 4 }}>
               On mobile devices, the sidebar will always default to collapsed regardless of this setting.
             </Typography>
+          </Box>
+        </Grid>
+
+        <Grid item xs={12}>
+          <Box
+            sx={{
+              p: 3,
+              backgroundColor: theme.palette.background.paper,
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
+            }}
+          >
+            <Typography variant="h6" sx={{ mb: 2, color: theme.palette.text.primary, fontWeight: 600 }}>
+              Appearance
+            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                Choose your preferred theme mode. This setting will be saved to your profile and applied when you sign in.
+              </Typography>
+              <ToggleButtonGroup
+                value={preferences.theme?.mode || currentThemeMode}
+                exclusive
+                onChange={(_, newMode) => {
+                  if (newMode) {
+                    setPreferences({
+                      ...preferences,
+                      theme: {
+                        ...preferences.theme,
+                        mode: newMode,
+                      },
+                    });
+                    // Apply immediately
+                    setThemeMode(newMode);
+                  }
+                }}
+                aria-label="theme mode"
+                sx={{
+                  '& .MuiToggleButton-root': {
+                    color: theme.palette.text.secondary,
+                    borderColor: theme.palette.divider,
+                    px: 3,
+                    py: 1.5,
+                    '&.Mui-selected': {
+                      color: theme.palette.text.primary,
+                      backgroundColor: theme.palette.action.selected,
+                      borderColor: theme.palette.text.primary,
+                      '&:hover': {
+                        backgroundColor: theme.palette.action.hover,
+                      },
+                    },
+                    '&:hover': {
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                  },
+                }}
+              >
+                <ToggleButton value="light" aria-label="light mode">
+                  <LightModeIcon sx={{ mr: 1 }} />
+                  Light
+                </ToggleButton>
+                <ToggleButton value="dark" aria-label="dark mode">
+                  <DarkModeIcon sx={{ mr: 1 }} />
+                  Dark
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
           </Box>
         </Grid>
       </Grid>

@@ -395,7 +395,7 @@ export default function TaskPreviewTable({
             fullWidth={false}
             sx={{
               backgroundColor: 'primary.main',
-              color: '#000',
+              color: 'primary.contrastText',
               flex: { xs: 1, sm: '0 0 auto' },
             }}
           >

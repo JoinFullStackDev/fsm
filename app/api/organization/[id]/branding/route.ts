@@ -32,7 +32,7 @@ export async function GET(
     const adminClient = createAdminSupabaseClient();
     const { data: organization, error } = await adminClient
       .from('organizations')
-      .select('logo_url, icon_url')
+      .select('logo_url, icon_url, logo_light_url, icon_light_url')
       .eq('id', params.id)
       .single();
 
@@ -43,6 +43,8 @@ export async function GET(
     return NextResponse.json({
       logo_url: organization.logo_url,
       icon_url: organization.icon_url,
+      logo_light_url: organization.logo_light_url,
+      icon_light_url: organization.icon_light_url,
     });
   } catch (error) {
     logger.error('Error in GET /api/organization/[id]/branding:', error);
@@ -77,8 +79,9 @@ export async function DELETE(
     const body = await request.json();
     const { type } = body;
 
-    if (type !== 'logo' && type !== 'icon') {
-      return badRequest('Type must be "logo" or "icon"');
+    const validTypes = ['logo', 'icon', 'logo_light', 'icon_light'];
+    if (!validTypes.includes(type)) {
+      return badRequest('Type must be "logo", "icon", "logo_light", or "icon_light"');
     }
 
     const adminClient = createAdminSupabaseClient();
@@ -86,12 +89,18 @@ export async function DELETE(
     // Get current branding to delete file from storage
     const { data: organization } = await adminClient
       .from('organizations')
-      .select('logo_url, icon_url')
+      .select('logo_url, icon_url, logo_light_url, icon_light_url')
       .eq('id', params.id)
       .single();
 
     if (organization) {
-      const urlToDelete = type === 'logo' ? organization.logo_url : organization.icon_url;
+      const urlMap: Record<string, string | null> = {
+        logo: organization.logo_url,
+        icon: organization.icon_url,
+        logo_light: organization.logo_light_url,
+        icon_light: organization.icon_light_url,
+      };
+      const urlToDelete = urlMap[type];
       
       if (urlToDelete) {
         // Extract file path from URL
@@ -116,7 +125,13 @@ export async function DELETE(
     }
 
     // Update organization to remove the URL
-    const updateField = type === 'logo' ? 'logo_url' : 'icon_url';
+    const fieldMap: Record<string, string> = {
+      logo: 'logo_url',
+      icon: 'icon_url',
+      logo_light: 'logo_light_url',
+      icon_light: 'icon_light_url',
+    };
+    const updateField = fieldMap[type];
     const { error: updateError } = await adminClient
       .from('organizations')
       .update({ [updateField]: null })

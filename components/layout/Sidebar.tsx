@@ -41,6 +41,7 @@ import {
 } from '@mui/icons-material';
 import { useRole } from '@/lib/hooks/useRole';
 import { useOrganization } from '@/components/providers/OrganizationProvider';
+import { useThemeMode } from '@/components/providers/ThemeContextProvider';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import type { Project } from '@/types/project';
 
@@ -61,10 +62,22 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const theme = useTheme();
+  const { mode: themeMode } = useThemeMode();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { role } = useRole();
   const { organization, features } = useOrganization();
   const supabase = createSupabaseClient();
+  
+  // Determine which logo/icon to use based on theme mode
+  const isLightMode = themeMode === 'light';
+  const logoToUse = isLightMode 
+    ? (organization?.logo_light_url || organization?.logo_url) 
+    : organization?.logo_url;
+  const iconToUse = isLightMode 
+    ? (organization?.icon_light_url || organization?.icon_url) 
+    : organization?.icon_url;
+  const defaultLogo = isLightMode ? '/fullstack_logo_black.svg' : '/fullstack_logo.svg';
+  const defaultIcon = isLightMode ? '/fullstack_icon_black.svg' : '/fullstack_icon.svg';
   
   const [projects, setProjects] = useState<Project[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -360,10 +373,10 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
           }}
         >
           {open ? (
-            organization?.logo_url ? (
+            logoToUse ? (
               <Box
                 component="img"
-                src={organization.logo_url}
+                src={logoToUse}
                 alt="Company Logo"
                 sx={{
                   height: 40,
@@ -389,7 +402,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
             ) : (
               <Box
                 component="img"
-                src="/fullstack_logo.svg"
+                src={defaultLogo}
                 alt="FullStack Logo"
                 sx={{
                   height: 40,
@@ -404,10 +417,10 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
               />
             )
           ) : (
-            organization?.icon_url ? (
+            iconToUse ? (
               <Box
                 component="img"
-                src={organization.icon_url}
+                src={iconToUse}
                 alt="Company Icon"
                 sx={{
                   height: 32,
@@ -441,7 +454,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
             ) : (
               <Box
                 component="img"
-                src="/fullstack_icon.svg"
+                src={defaultIcon}
                 alt="FullStack Icon"
                 sx={{
                   height: 32,

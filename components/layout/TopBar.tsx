@@ -25,6 +25,8 @@ import {
   Dashboard as DashboardIcon,
   HelpOutline as HelpIcon,
   Feedback as FeedbackIcon,
+  LightMode as LightModeIcon,
+  DarkMode as DarkModeIcon,
 } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useRole } from '@/lib/hooks/useRole';
@@ -34,6 +36,7 @@ import NotificationBell from '@/components/notifications/NotificationBell';
 import NotificationDrawer from '@/components/notifications/NotificationDrawer';
 import WelcomeTour from '@/components/ui/WelcomeTour';
 import RequestSubmissionDialog from '@/components/layout/RequestSubmissionDialog';
+import { useThemeMode } from '@/components/providers/ThemeContextProvider';
 import type { User } from '@/types/project';
 
 interface TopBarProps {
@@ -49,6 +52,7 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
   const { role, isSuperAdmin, loading: roleLoading } = useRole();
   const { features, loading: orgLoading } = useOrganization();
   const { user, loading: userLoading } = useUser();
+  const { mode, toggleTheme } = useThemeMode();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   
   const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
@@ -148,6 +152,18 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           {!userLoading && (
             <>
+              <IconButton
+                onClick={toggleTheme}
+                sx={{
+                  color: theme.palette.text.primary,
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+                title={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+              </IconButton>
               <IconButton
                 onClick={() => {
                   setWelcomeTourOpen(true);

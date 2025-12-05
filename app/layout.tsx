@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter, Rubik } from 'next/font/google';
-import MUIThemeProvider from '@/components/ThemeProvider';
+import ThemeContextProvider from '@/components/providers/ThemeContextProvider';
 import { NotificationProvider } from '@/components/providers/NotificationProvider';
 import { OrganizationProvider } from '@/components/providers/OrganizationProvider';
 import { UserProvider } from '@/components/providers/UserProvider';
@@ -27,9 +27,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} ${rubik.variable}`}>
-        <MUIThemeProvider>
+        <ThemeContextProvider>
           <UserProvider>
             <NotificationProvider>
               <OrganizationProvider>
@@ -41,7 +41,7 @@ export default function RootLayout({
               </OrganizationProvider>
             </NotificationProvider>
           </UserProvider>
-        </MUIThemeProvider>
+        </ThemeContextProvider>
       </body>
     </html>
   );

@@ -21,9 +21,12 @@ import {
   AdminPanelSettings as AdminIcon,
   Security as SecurityIcon,
   Dashboard as DashboardIcon,
+  LightMode as LightModeIcon,
+  DarkMode as DarkModeIcon,
 } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useRole } from '@/lib/hooks/useRole';
+import { useThemeMode } from '@/components/providers/ThemeContextProvider';
 import type { User } from '@/types/project';
 
 export default function LandingHeader() {
@@ -31,6 +34,7 @@ export default function LandingHeader() {
   const theme = useTheme();
   const supabase = createSupabaseClient();
   const { role, isSuperAdmin, loading: roleLoading } = useRole();
+  const { mode, toggleTheme } = useThemeMode();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -163,8 +167,22 @@ export default function LandingHeader() {
           </Typography>
         </Box>
 
-        {/* Right side - Sign In or User Menu */}
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        {/* Right side - Theme Toggle, Sign In or User Menu */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {/* Theme toggle - always visible */}
+          <IconButton
+            onClick={toggleTheme}
+            sx={{
+              color: theme.palette.text.primary,
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+              },
+            }}
+            title={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+          </IconButton>
+          
           {!loading && !user && (
             <Button
               variant="outlined"
