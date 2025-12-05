@@ -730,7 +730,7 @@ export default function ERDEditorModal({
                 onClick={handleSave}
                 disabled={!isValid || isRendering}
                 size="small"
-                sx={{ backgroundColor: 'primary.main', color: '#000' }}
+                sx={{ backgroundColor: 'primary.main', color: 'primary.contrastText' }}
               >
                 Save
               </Button>

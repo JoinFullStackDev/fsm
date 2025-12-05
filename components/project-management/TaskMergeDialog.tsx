@@ -272,7 +272,7 @@ export default function TaskMergeDialog({
           disabled={loading}
           sx={{
             backgroundColor: 'primary.main',
-            color: '#000',
+            color: 'primary.contrastText',
           }}
         >
           Confirm

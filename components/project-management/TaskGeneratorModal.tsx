@@ -246,9 +246,9 @@ export default function TaskGeneratorModal({
           startIcon={loading ? <CircularProgress size={16} /> : <AutoAwesomeIcon />}
           sx={{
             backgroundColor: 'primary.main',
-            color: '#000',
+            color: 'primary.contrastText',
             '&:hover': {
-              backgroundColor: 'primary.light',
+              backgroundColor: 'primary.dark',
             },
           }}
         >

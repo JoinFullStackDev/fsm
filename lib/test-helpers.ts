@@ -10,6 +10,9 @@ export interface MockUser {
   name: string;
   role: UserRole;
   auth_id: string;
+  organization_id?: string;
+  is_super_admin?: boolean;
+  is_company_admin?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -21,6 +24,8 @@ export interface MockProject {
   status: string;
   primary_tool: string;
   template_id: string | null;
+  organization_id?: string;
+  owner_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -71,6 +76,9 @@ export function createMockUser(overrides?: Partial<MockUser>): MockUser {
     name: 'Test User',
     role: 'engineer',
     auth_id: generateTestUUID(123), // auth-123 equivalent
+    organization_id: 'org-123',
+    is_super_admin: false,
+    is_company_admin: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     ...overrides,
@@ -88,6 +96,8 @@ export function createMockProject(overrides?: Partial<MockProject>): MockProject
     status: 'in-progress',
     primary_tool: 'cursor',
     template_id: null,
+    organization_id: 'org-123',
+    owner_id: generateTestUUID(1), // user-1 equivalent
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     ...overrides,

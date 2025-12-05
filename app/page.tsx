@@ -42,6 +42,7 @@ import ProcessStepper from '@/components/landing/ProcessStepper';
 import LandingHeader from '@/components/landing/LandingHeader';
 import InteractiveMockUI from '@/components/landing/InteractiveMockUI';
 import SeeItInActionDashboard from '@/components/landing/SeeItInActionDashboard';
+import LandingFooter from '@/components/landing/LandingFooter';
 import type { PackageFeatures, Package } from '@/lib/organizationContext';
 
 export default function HomePage() {
@@ -256,7 +257,7 @@ export default function HomePage() {
                     fontSize: '1rem',
                     fontWeight: 600,
                     borderRadius: 2,
-                    color: '#1a1a1a',
+                    color: 'primary.contrastText',
                     background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
                     boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.35)}`,
                     '&:hover': {
@@ -1092,6 +1093,9 @@ export default function HomePage() {
         }}
         package={selectedPackage}
       />
+
+      {/* Footer */}
+      <LandingFooter />
     </Box>
   );
 }

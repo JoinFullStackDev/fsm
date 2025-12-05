@@ -55,12 +55,15 @@ export async function POST(
       return badRequest('No file provided');
     }
 
-    if (type !== 'logo' && type !== 'icon') {
-      return badRequest('Type must be "logo" or "icon"');
+    const validTypes = ['logo', 'icon', 'logo_light', 'icon_light'];
+    if (!validTypes.includes(type)) {
+      return badRequest('Type must be "logo", "icon", "logo_light", or "icon_light"');
     }
 
     // Enhanced file validation with magic bytes verification
-    const maxSize = getMaxFileSize('image', type as 'logo' | 'icon');
+    // Use base type (logo or icon) for size limits
+    const baseType = type.startsWith('logo') ? 'logo' : 'icon';
+    const maxSize = getMaxFileSize('image', baseType as 'logo' | 'icon');
     const validation = await validateFileUpload(
       file,
       ['image'], // Allow all image types
@@ -80,12 +83,18 @@ export async function POST(
     // Get current branding to delete old file if it exists
     const { data: organization } = await adminClient
       .from('organizations')
-      .select('logo_url, icon_url')
+      .select('logo_url, icon_url, logo_light_url, icon_light_url')
       .eq('id', params.id)
       .single();
 
     if (organization) {
-      const oldUrl = type === 'logo' ? organization.logo_url : organization.icon_url;
+      const urlMap: Record<string, string | null> = {
+        logo: organization.logo_url,
+        icon: organization.icon_url,
+        logo_light: organization.logo_light_url,
+        icon_light: organization.icon_light_url,
+      };
+      const oldUrl = urlMap[type];
       
       if (oldUrl) {
         // Extract file path from URL
@@ -135,7 +144,13 @@ export async function POST(
       .getPublicUrl(fileName);
 
     // Update organization with new URL
-    const updateField = type === 'logo' ? 'logo_url' : 'icon_url';
+    const fieldMap: Record<string, string> = {
+      logo: 'logo_url',
+      icon: 'icon_url',
+      logo_light: 'logo_light_url',
+      icon_light: 'icon_light_url',
+    };
+    const updateField = fieldMap[type];
     const { error: updateError } = await adminClient
       .from('organizations')
       .update({ [updateField]: publicUrl })

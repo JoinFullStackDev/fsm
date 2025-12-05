@@ -26,7 +26,8 @@ jest.mock('@/components/providers/NotificationProvider', () => ({
 }));
 
 // Mock fetch globally
-global.fetch = jest.fn();
+const mockFetch = jest.fn();
+global.fetch = mockFetch;
 
 describe('ProjectPage - Delete Functionality', () => {
   const mockRouter = {
@@ -72,6 +73,35 @@ describe('ProjectPage - Delete Functionality', () => {
     (useNotification as jest.Mock).mockReturnValue({
       showSuccess: mockShowSuccess,
       showError: mockShowError,
+    });
+
+    // Default fetch mock for API calls
+    mockFetch.mockImplementation((url: string, options?: RequestInit) => {
+      // Handle project API fetch
+      if (url.includes('/api/projects/test-project-id') && (!options || options.method !== 'DELETE')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockProject),
+        });
+      }
+      // Handle users/me API fetch
+      if (url.includes('/api/users/me')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ 
+            id: 'test-user-id', 
+            name: 'Test User', 
+            email: 'test@example.com',
+            role: 'admin',
+            is_company_admin: true,
+          }),
+        });
+      }
+      // Default response for other fetches
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({}),
+      });
     });
 
     // Default session mock
@@ -133,6 +163,8 @@ describe('ProjectPage - Delete Functionality', () => {
       (useRole as jest.Mock).mockReturnValue({
         role: 'admin',
         loading: false,
+        isSuperAdmin: false,
+        isCompanyAdmin: true,
       });
 
       render(<ProjectPage />);
@@ -146,6 +178,8 @@ describe('ProjectPage - Delete Functionality', () => {
       (useRole as jest.Mock).mockReturnValue({
         role: 'pm',
         loading: false,
+        isSuperAdmin: false,
+        isCompanyAdmin: false,
       });
 
       render(<ProjectPage />);
@@ -159,6 +193,8 @@ describe('ProjectPage - Delete Functionality', () => {
       (useRole as jest.Mock).mockReturnValue({
         role: null,
         loading: true,
+        isSuperAdmin: false,
+        isCompanyAdmin: false,
       });
 
       render(<ProjectPage />);
@@ -174,6 +210,8 @@ describe('ProjectPage - Delete Functionality', () => {
       (useRole as jest.Mock).mockReturnValue({
         role: 'admin',
         loading: false,
+        isSuperAdmin: false,
+        isCompanyAdmin: true,
       });
     });
 
@@ -225,9 +263,27 @@ describe('ProjectPage - Delete Functionality', () => {
     });
 
     it('should call delete API when confirmed', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ message: 'Project deleted successfully' }),
+      // Override fetch for DELETE operation
+      mockFetch.mockImplementation((url: string, options?: RequestInit) => {
+        if (url.includes('/api/projects/test-project-id') && options?.method === 'DELETE') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ message: 'Project deleted successfully' }),
+          });
+        }
+        if (url.includes('/api/projects/test-project-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(mockProject),
+          });
+        }
+        if (url.includes('/api/users/me')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ id: 'test-user-id', role: 'admin', is_company_admin: true }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
       });
 
       render(<ProjectPage />);
@@ -247,7 +303,7 @@ describe('ProjectPage - Delete Functionality', () => {
       await userEvent.click(confirmButton);
 
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
+        expect(mockFetch).toHaveBeenCalledWith(
           `/api/projects/${mockProject.id}`,
           expect.objectContaining({
             method: 'DELETE',
@@ -260,9 +316,27 @@ describe('ProjectPage - Delete Functionality', () => {
     });
 
     it('should show error message when delete API fails', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: false,
-        json: async () => ({ error: 'Failed to delete project' }),
+      // Override fetch for DELETE operation to fail
+      mockFetch.mockImplementation((url: string, options?: RequestInit) => {
+        if (url.includes('/api/projects/test-project-id') && options?.method === 'DELETE') {
+          return Promise.resolve({
+            ok: false,
+            json: () => Promise.resolve({ error: 'Failed to delete project' }),
+          });
+        }
+        if (url.includes('/api/projects/test-project-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(mockProject),
+          });
+        }
+        if (url.includes('/api/users/me')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ id: 'test-user-id', role: 'admin', is_company_admin: true }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
       });
 
       render(<ProjectPage />);
@@ -289,17 +363,32 @@ describe('ProjectPage - Delete Functionality', () => {
     });
 
     it('should disable delete button while deleting', async () => {
-      (global.fetch as jest.Mock).mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
+      // Override fetch with delayed DELETE response
+      mockFetch.mockImplementation((url: string, options?: RequestInit) => {
+        if (url.includes('/api/projects/test-project-id') && options?.method === 'DELETE') {
+          return new Promise((resolve) => {
             setTimeout(() => {
               resolve({
                 ok: true,
-                json: async () => ({ message: 'Project deleted successfully' }),
+                json: () => Promise.resolve({ message: 'Project deleted successfully' }),
               });
             }, 100);
-          })
-      );
+          });
+        }
+        if (url.includes('/api/projects/test-project-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(mockProject),
+          });
+        }
+        if (url.includes('/api/users/me')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ id: 'test-user-id', role: 'admin', is_company_admin: true }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      });
 
       render(<ProjectPage />);
 
@@ -331,6 +420,8 @@ describe('ProjectPage - Delete Functionality', () => {
       (useRole as jest.Mock).mockReturnValue({
         role: 'admin',
         loading: false,
+        isSuperAdmin: false,
+        isCompanyAdmin: true,
       });
 
       render(<ProjectPage />);

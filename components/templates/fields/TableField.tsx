@@ -899,7 +899,7 @@ function TableField({ field, value, onChange, error, phaseData, renderHeaderActi
         size="small"
         sx={{
           backgroundColor: 'primary.main',
-          color: '#000',
+          color: 'primary.contrastText',
         }}
       >
         Open Editor
@@ -1188,7 +1188,7 @@ function TableField({ field, value, onChange, error, phaseData, renderHeaderActi
             disabled={!newColumn.key || !newColumn.label}
             sx={{
               backgroundColor: 'primary.main',
-              color: '#000',
+              color: 'primary.contrastText',
             }}
           >
             {editingColumnIndex !== null ? 'Update' : 'Add'}

@@ -341,7 +341,7 @@ export default function ERDField({ field, value, onChange, error, phaseData }: E
             size="small"
             startIcon={<FullscreenIcon />}
             onClick={() => setEditorOpen(true)}
-            sx={{ backgroundColor: 'primary.main', color: '#000' }}
+            sx={{ backgroundColor: 'primary.main', color: 'primary.contrastText' }}
           >
             Edit in Full Screen
           </Button>
