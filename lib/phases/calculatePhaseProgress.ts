@@ -18,7 +18,7 @@ export function calculatePhaseProgress(phaseNumber: number, phaseData: PhaseData
   let totalFields = 0;
   let completedFields = 0;
 
-  const checkValue = (value: any): boolean => {
+  const checkValue = (value: unknown): boolean => {
     if (value === null || value === undefined) return false;
     if (typeof value === 'string') return value.trim().length > 0;
     if (typeof value === 'boolean') return true;
@@ -28,7 +28,8 @@ export function calculatePhaseProgress(phaseNumber: number, phaseData: PhaseData
       if (value.length > 0 && typeof value[0] === 'object') {
         return value.some(item => {
           if (typeof item === 'object' && item !== null) {
-            return Object.keys(item).some(key => checkValue(item[key]));
+            const itemObj = item as Record<string, unknown>;
+            return Object.keys(itemObj).some(key => checkValue(itemObj[key]));
           }
           return checkValue(item);
         });
@@ -37,10 +38,11 @@ export function calculatePhaseProgress(phaseNumber: number, phaseData: PhaseData
     }
     if (typeof value === 'object') {
       // Check if object has any non-empty values
-      const keys = Object.keys(value);
+      const obj = value as Record<string, unknown>;
+      const keys = Object.keys(obj);
       if (keys.length === 0) return false;
       // For nested objects, check if they have meaningful content
-      return keys.some(key => checkValue(value[key]));
+      return keys.some(key => checkValue(obj[key]));
     }
     return true;
   };

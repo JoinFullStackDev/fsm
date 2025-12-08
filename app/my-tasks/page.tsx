@@ -13,7 +13,7 @@ import { useTheme } from '@mui/material/styles';
 import { format, parseISO, addDays, isBefore, isAfter, startOfDay } from 'date-fns';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { PRIORITY_COLORS } from '@/lib/constants';
-import SortableTable from '@/components/dashboard/SortableTable';
+import SortableTable, { type Column } from '@/components/dashboard/SortableTable';
 import type { ProjectTask } from '@/types/project';
 import type { Project } from '@/types/project';
 
@@ -102,12 +102,15 @@ export default function MyTasksPage() {
     router.push(`/project-management/${task.project_id}?taskId=${task.id}`);
   };
 
-  const columns = [
+  const columns: Column<ProjectTask>[] = [];
+  /*
+  const columns: Column<ProjectTask>[] = [
     {
       key: 'title',
       label: 'Task',
       sortable: true,
-      render: (value: string, row: ProjectTask) => {
+      render: (val: unknown, row: ProjectTask) => {
+        const value = val as string;
         const project = projects.find((p) => p.id === row.project_id);
         return (
           <Box>
@@ -129,7 +132,8 @@ export default function MyTasksPage() {
       key: 'project_id',
       label: 'Project',
       sortable: false,
-      render: (value: string) => {
+      render: (val: unknown, _row: ProjectTask) => {
+        const value = val as string;
         const project = projects.find((p) => p.id === value);
         return (
           <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
@@ -143,9 +147,9 @@ export default function MyTasksPage() {
       label: 'Status',
       sortable: true,
       align: 'center' as const,
-      render: (value: string) => (
+      render: (val: unknown, _row: ProjectTask) => (
         <Chip
-          label={getStatusLabel(value || 'todo')}
+          label={getStatusLabel((val as string) || 'todo')}
           size="small"
           sx={{
             backgroundColor: theme.palette.action.hover,
@@ -161,7 +165,8 @@ export default function MyTasksPage() {
       label: 'Priority',
       sortable: true,
       align: 'center' as const,
-      render: (value: string) => {
+      render: (val: unknown, _row: ProjectTask) => {
+        const value = val as string;
         const priorityColor = PRIORITY_COLORS[value as keyof typeof PRIORITY_COLORS] || '#00E5FF';
         return (
           <Chip
@@ -181,7 +186,8 @@ export default function MyTasksPage() {
       key: 'due_date',
       label: 'Due Date',
       sortable: true,
-      render: (value: string, row: ProjectTask) => {
+      render: (val: unknown, row: ProjectTask) => {
+        const value = val as string;
         if (!value) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
         const dueDate = parseISO(value);
         const isOverdue = isBefore(dueDate, new Date()) && row.status !== 'done';
@@ -206,6 +212,7 @@ export default function MyTasksPage() {
       },
     },
   ];
+  */
 
   if (loading) {
     return (

@@ -278,7 +278,7 @@ export async function PUT(
     const body = await request.json();
     const { name, description, is_default, layout } = body;
 
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     };
 

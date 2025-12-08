@@ -3,11 +3,17 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { unauthorized, internalError, badRequest, forbidden, notFound } from '@/lib/utils/apiErrors';
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { hasAIFeatures, getKnowledgeBaseAccessLevel } from '@/lib/packageLimits';
-import { generateStructuredAIResponse } from '@/lib/ai/geminiClient';
+import { generateStructuredAIResponse, AIResponseWithMetadata } from '@/lib/ai/geminiClient';
 import { logAIUsage } from '@/lib/ai/aiUsageLogger';
 import { getGeminiApiKey } from '@/lib/utils/geminiConfig';
 import logger from '@/lib/utils/logger';
 import type { AIRewriteInput, AIRewriteOutput } from '@/types/kb';
+
+// Type for structured AI response with metadata
+interface StructuredAIResponseWithMetadata<T> {
+  result: T;
+  metadata?: AIResponseWithMetadata['metadata'];
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -113,11 +119,12 @@ Please rewrite the content maintaining all key information but adapting the styl
 
     // Extract result and metadata
     let rewriteData: AIRewriteOutput;
-    let metadata: any = null;
+    let metadata: AIResponseWithMetadata['metadata'] | null = null;
 
     if (typeof response === 'object' && response !== null && 'result' in response && 'metadata' in response) {
-      rewriteData = (response as { result: AIRewriteOutput; metadata: any }).result;
-      metadata = (response as { result: AIRewriteOutput; metadata: any }).metadata;
+      const typedResponse = response as StructuredAIResponseWithMetadata<AIRewriteOutput>;
+      rewriteData = typedResponse.result;
+      metadata = typedResponse.metadata || null;
     } else if (typeof response === 'object' && response !== null && 'result' in response) {
       rewriteData = (response as { result: AIRewriteOutput }).result;
     } else {

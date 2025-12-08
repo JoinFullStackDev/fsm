@@ -8,6 +8,7 @@
 
 import type { AdminSetting } from '@/types/project';
 import logger from '@/lib/utils/logger';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface GeminiConfig {
   enabled: boolean;
@@ -18,7 +19,7 @@ export interface GeminiConfig {
 /**
  * Get Gemini API key with priority: env var > admin_settings
  */
-export async function getGeminiApiKey(supabase: any): Promise<string | null> {
+export async function getGeminiApiKey(supabase: SupabaseClient): Promise<string | null> {
   // Priority 1: Use environment variable (super admin's credentials)
   const envApiKey = process.env.GOOGLE_GENAI_API_KEY || process.env.GEMINI_API_KEY || '';
   
@@ -59,7 +60,7 @@ export async function getGeminiApiKey(supabase: any): Promise<string | null> {
 /**
  * Get full Gemini configuration (enabled status, API key, project name)
  */
-export async function getGeminiConfig(supabase: any): Promise<GeminiConfig | null> {
+export async function getGeminiConfig(supabase: SupabaseClient): Promise<GeminiConfig | null> {
   const { API_CONFIG_KEYS } = await import('@/lib/constants');
   
   // Priority 1: Use environment variable (super admin's credentials)

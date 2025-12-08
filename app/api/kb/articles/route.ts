@@ -74,7 +74,8 @@ export async function GET(request: NextRequest) {
     const publishedFilter = published === 'true' || (!isAdminOrPM && published !== 'false');
 
     // Build base query filters (reusable for both data and count)
-    const buildBaseQuery = (baseQuery: any) => {
+    // Using generic type to handle different query types from Supabase
+    const buildBaseQuery = <T extends { or: (filter: string) => T; eq: (col: string, val: string | boolean) => T; is: (col: string, val: null) => T; contains: (col: string, val: string[]) => T }>(baseQuery: T): T => {
       let q = baseQuery;
 
       // Filter by organization
@@ -245,7 +246,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Create article
-    const articleData: any = {
+    const articleData: {
+      organization_id: string | null;
+      title: string;
+      slug: string;
+      summary: string | null;
+      body: string;
+      tags: string[];
+      category_id: string | null;
+      metadata: Record<string, unknown>;
+      published: boolean;
+      created_by: string;
+      updated_by: string;
+    } = {
       organization_id: organizationId,
       title,
       slug: articleSlug,

@@ -6,6 +6,22 @@ import { sendTaskAssignedEmail, sendTaskUpdatedEmail } from '@/lib/emailNotifica
 import { unauthorized, notFound, internalError, badRequest, forbidden } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 
+// Type for task update data
+interface TaskUpdateData {
+  title?: string;
+  description?: string | null;
+  phase_number?: number | null;
+  status?: string;
+  priority?: string;
+  assignee_id?: string | null;
+  start_date?: string | null;
+  due_date?: string | null;
+  tags?: string[];
+  notes?: string | null;
+  dependencies?: string[];
+  parent_task_id?: string | null;
+}
+
 // GET - Get a single task
 export async function GET(
   request: NextRequest,
@@ -154,7 +170,7 @@ export async function PUT(
       }
     }
 
-    const updateData: any = {};
+    const updateData: TaskUpdateData = {};
 
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;

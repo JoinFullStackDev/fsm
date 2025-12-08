@@ -10,6 +10,7 @@ export interface User {
   email: string;
   name: string | null;
   role: UserRole;
+  organization_id?: string | null;
   bio?: string | null;
   company?: string | null;
   title?: string | null;
@@ -23,6 +24,7 @@ export interface User {
   is_active?: boolean;
   is_super_admin?: boolean; // Super admin users cannot be deleted
   is_company_admin?: boolean; // Company admin (organization admin, not super admin)
+  is_affiliate?: boolean; // Whether user is an approved affiliate partner
   last_active_at?: string | null;
   invited_by_admin?: boolean;
   invite_created_at?: string | null;
@@ -119,6 +121,19 @@ export interface ProjectWithPhases extends Project {
   phases: PhaseSummary[];
 }
 
+export interface ProjectPhaseRow {
+  id: string;
+  project_id: string;
+  phase_number: number;
+  phase_name: string;
+  display_order: number;
+  data: any;
+  completed: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PhaseSummary {
   phase_number: number;
   phase_name: string;
@@ -186,6 +201,16 @@ export interface ExportListResponse {
 export type TaskStatus = 'todo' | 'in_progress' | 'done' | 'archived';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'critical';
 
+/**
+ * Reference to a phase field that generated a task
+ * Used for smart re-analysis - tracks which phase data spawned each task
+ */
+export interface TaskSourceReference {
+  phase_number: number;
+  field_key: string;
+  field_hash?: string; // Short hash of field value for change detection
+}
+
 export interface ProjectTask {
   id: string;
   project_id: string;
@@ -204,6 +229,11 @@ export interface ProjectTask {
   ai_generated: boolean;
   ai_analysis_id: string | null;
   parent_task_id: string | null;
+  /**
+   * Links task to originating phase fields for smart re-analysis
+   * When source fields change, the task can be intelligently updated
+   */
+  source_reference?: TaskSourceReference[] | null;
   created_at: string;
   updated_at: string;
   // Optional field for nested loading (not in database, for UI convenience)

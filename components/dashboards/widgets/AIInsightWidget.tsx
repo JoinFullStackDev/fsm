@@ -1,4 +1,5 @@
 'use client';
+import type { WidgetDataset, WidgetSettings } from '@/types/database';
 
 import { useState, useEffect, useRef } from 'react';
 import {
@@ -13,8 +14,8 @@ import BuildingOverlay from '@/components/ai/BuildingOverlay';
 interface AIInsightWidgetProps {
   widgetId: string;
   dashboardId: string;
-  dataset: any;
-  settings?: any;
+  dataset: WidgetDataset;
+  settings?: WidgetSettings;
 }
 
 export default function AIInsightWidget({ widgetId, dashboardId, dataset, settings }: AIInsightWidgetProps) {

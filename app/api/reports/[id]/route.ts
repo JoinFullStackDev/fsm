@@ -34,7 +34,7 @@ export async function GET(
         .eq('project_id', report.project_id);
       
       projectMembers =
-        membersData?.map((m: any) => ({
+        (membersData as Array<{ user_id: string; users: { id: string; name: string | null } }> | null)?.map((m) => ({
           id: m.users.id,
           name: m.users.name,
         })) || [];

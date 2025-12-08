@@ -322,7 +322,7 @@ export async function updateInvoice(
   }
 
   // Calculate totals if line items are updated
-  let updateData: any = {
+  const updateData: Partial<Invoice> = {
     updated_by: data.updated_by || null,
   };
 
@@ -668,7 +668,7 @@ export async function markInvoicePaid(
   const invoiceTotal = parseFloat(invoice.total_amount.toString());
 
   // Update invoice status if fully paid
-  let updateData: any = {};
+  const updateData: Partial<Invoice> = {};
   if (totalPaid >= invoiceTotal) {
     updateData.status = 'paid';
   }
@@ -780,7 +780,13 @@ export async function generateRecurringInvoice(
     company_id: parentInvoice.company_id,
     client_name: parentInvoice.client_name,
     client_email: parentInvoice.client_email,
-    client_address: parentInvoice.client_address as any,
+    client_address: parentInvoice.client_address as {
+      street?: string;
+      city?: string;
+      state?: string;
+      zip?: string;
+      country?: string;
+    } | null,
     line_items: (parentLineItems || []) as InvoiceLineItem[],
     issue_date: newIssueDate.toISOString().split('T')[0],
     due_date: newDueDate ? newDueDate.toISOString().split('T')[0] : null,

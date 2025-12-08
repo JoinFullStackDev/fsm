@@ -48,7 +48,18 @@ export async function GET(request: NextRequest) {
 
     // Filter by organization and visibility (super admins can see all templates)
     // Use admin client to avoid RLS recursion issues
-    let templates: any[] = [];
+    interface TemplateRow {
+      id: string;
+      name: string;
+      description: string | null;
+      category: string | null;
+      organization_id: string | null;
+      is_public: boolean;
+      is_publicly_available: boolean;
+      created_at: string;
+      updated_at: string;
+    }
+    let templates: TemplateRow[] = [];
     let count = 0;
 
     if (userData.role === 'admin' && userData.is_super_admin === true) {

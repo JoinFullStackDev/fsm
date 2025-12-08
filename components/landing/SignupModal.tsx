@@ -36,9 +36,10 @@ interface SignupModalProps {
   open: boolean;
   onClose: () => void;
   package: Package | null;
+  affiliateCode?: string | null;
 }
 
-export default function SignupModal({ open, onClose, package: selectedPackage }: SignupModalProps) {
+export default function SignupModal({ open, onClose, package: selectedPackage, affiliateCode }: SignupModalProps) {
   const router = useRouter();
   const theme = useTheme();
   const supabase = createSupabaseClient();
@@ -258,6 +259,9 @@ export default function SignupModal({ open, onClose, package: selectedPackage }:
       const successUrl = `${baseUrl}/auth/signup-callback?session_id={CHECKOUT_SESSION_ID}`;
       const cancelUrl = `${baseUrl}/auth/signup?canceled=true`;
 
+      // Get affiliate code from prop or sessionStorage
+      const effectiveAffiliateCode = affiliateCode || sessionStorage.getItem('affiliate_code');
+
       // Redirect to Stripe checkout
       const checkoutResponse = await fetch('/api/stripe/create-signup-checkout', {
         method: 'POST',
@@ -272,6 +276,7 @@ export default function SignupModal({ open, onClose, package: selectedPackage }:
           organization_name: organizationName.trim(),
           success_url: successUrl,
           cancel_url: cancelUrl,
+          affiliate_code: effectiveAffiliateCode,
         }),
       });
 

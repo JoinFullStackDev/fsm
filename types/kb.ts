@@ -253,3 +253,53 @@ export interface AnalyticsStats {
   };
 }
 
+// ============================================================================
+// RAG (Retrieval Augmented Generation) Types
+// ============================================================================
+
+/**
+ * Article result from fulltext search query
+ */
+export interface RAGArticleQueryResult {
+  id: string;
+  title: string;
+  slug: string;
+  summary: string | null;
+  body: string;
+  tags: string[];
+  category_id: string | null;
+  published: boolean;
+  organization_id: string | null;
+  category?: KnowledgeBaseCategory | null;
+}
+
+/**
+ * Relevance-scored article result
+ */
+export interface RAGRelevanceResult {
+  article: KnowledgeBaseArticleWithCategory;
+  relevance_score: number;
+}
+
+/**
+ * Vector similarity search result
+ */
+export interface RAGVectorSearchResult {
+  id: string;
+  title: string;
+  slug: string;
+  body: string;
+  similarity: number;
+  category_id: string | null;
+  organization_id: string | null;
+}
+
+/**
+ * Combined search result with match type
+ */
+export interface RAGCombinedResult {
+  article: KnowledgeBaseArticleWithCategory;
+  relevance_score: number;
+  match_type: 'fulltext' | 'vector' | 'both';
+}
+

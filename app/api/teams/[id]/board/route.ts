@@ -4,6 +4,64 @@ import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { unauthorized, notFound, internalError } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 
+// Types for team board data
+interface TeamMemberUser {
+  id: string;
+  name: string | null;
+  email: string;
+  avatar_url: string | null;
+}
+
+interface TeamMemberRow {
+  id: string;
+  user_id: string;
+  created_at: string;
+  user?: TeamMemberUser | TeamMemberUser[] | null;
+}
+
+interface TaskProject {
+  id: string;
+  name: string;
+  organization_id: string;
+  status?: string;
+}
+
+interface TeamBoardTask {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  priority: string;
+  due_date: string | null;
+  assignee_id: string | null;
+  project_id: string;
+  phase_number: number | null;
+  parent_task_id: string | null;
+  tags: string[];
+  estimated_hours: number | null;
+  created_at: string;
+  updated_at: string;
+  project?: TaskProject | TaskProject[] | null;
+}
+
+interface ProjectMembershipRow {
+  user_id: string;
+  project?: TaskProject | TaskProject[] | null;
+}
+
+interface AllocationRow {
+  user_id: string;
+  allocated_hours_per_week: number | string;
+  start_date: string | null;
+  end_date: string | null;
+}
+
+interface CapacityRow {
+  user_id: string;
+  max_hours_per_week: number;
+  default_hours_per_week: number;
+}
+
 export const dynamic = 'force-dynamic';
 
 /**
@@ -76,11 +134,14 @@ export async function GET(
     }
 
     // Get member user IDs and build lookup map
-    const memberUserIds = team.team_members?.map((m: any) => m.user_id) || [];
-    const memberLookup = new Map<string, any>();
-    team.team_members?.forEach((m: any) => {
-      if (m.user) {
-        memberLookup.set(m.user_id, m.user);
+    const teamMembers = (team.team_members || []) as TeamMemberRow[];
+    const memberUserIds = teamMembers.map(m => m.user_id);
+    const memberLookup = new Map<string, TeamMemberUser>();
+    teamMembers.forEach(m => {
+      // Handle both single user object and array format from Supabase
+      const user = Array.isArray(m.user) ? m.user[0] : m.user;
+      if (user) {
+        memberLookup.set(m.user_id, user);
       }
     });
 
@@ -180,13 +241,26 @@ export async function GET(
     const capacities = capacitiesResult.data;
 
     // Filter to only org tasks and add assignee info from memberLookup
-    const orgTasks = tasks
-      .filter((task: any) => task.project?.organization_id === userData.organization_id)
-      .map((task: any) => {
+    const typedTasks = tasks as TeamBoardTask[];
+    
+    // Helper to get project from task (handles array or object from Supabase)
+    const getTaskProject = (task: TeamBoardTask): TaskProject | undefined => {
+      if (Array.isArray(task.project)) return task.project[0];
+      return task.project || undefined;
+    };
+    
+    const orgTasks = typedTasks
+      .filter(task => {
+        const project = getTaskProject(task);
+        return project?.organization_id === userData.organization_id;
+      })
+      .map(task => {
         // Get assignee info from member lookup
         const assigneeInfo = task.assignee_id ? memberLookup.get(task.assignee_id) : null;
+        const project = getTaskProject(task);
         return {
           ...task,
+          project, // Normalize to single object
           assignee: assigneeInfo ? {
             id: assigneeInfo.id,
             name: assigneeInfo.name,
@@ -202,14 +276,16 @@ export async function GET(
     const projectsMap = new Map();
     
     // Add projects from project_members
-    (projectMemberships || []).forEach((pm: any) => {
-      if (pm.project?.organization_id === userData.organization_id) {
-        projectsMap.set(pm.project.id, pm.project);
+    const typedProjectMemberships = (projectMemberships || []) as ProjectMembershipRow[];
+    typedProjectMemberships.forEach(pm => {
+      const project = Array.isArray(pm.project) ? pm.project[0] : pm.project;
+      if (project && project.organization_id === userData.organization_id) {
+        projectsMap.set(project.id, project);
       }
     });
     
     // Add projects from tasks
-    orgTasks.forEach((task: any) => {
+    orgTasks.forEach(task => {
       if (task.project && !projectsMap.has(task.project.id)) {
         projectsMap.set(task.project.id, {
           id: task.project.id,
@@ -222,12 +298,20 @@ export async function GET(
     const uniqueProjects = Array.from(projectsMap.values());
 
     // Calculate workloads for each member
+    const typedAllocations = (allocations || []) as AllocationRow[];
+    const typedCapacities = (capacities || []) as CapacityRow[];
+    
     const workloads = memberUserIds.map((userId: string) => {
-      const userAllocations = (allocations || []).filter((a: any) => a.user_id === userId);
-      const userCapacity = (capacities || []).find((c: any) => c.user_id === userId);
+      const userAllocations = typedAllocations.filter(a => a.user_id === userId);
+      const userCapacity = typedCapacities.find(c => c.user_id === userId);
       
       const totalAllocated = userAllocations.reduce(
-        (sum: number, a: any) => sum + parseFloat(a.allocated_hours_per_week || 0),
+        (sum: number, a) => {
+          const hours = typeof a.allocated_hours_per_week === 'string' 
+            ? parseFloat(a.allocated_hours_per_week) 
+            : (a.allocated_hours_per_week || 0);
+          return sum + hours;
+        },
         0
       );
       const maxHours = userCapacity?.max_hours_per_week || 40;
@@ -247,18 +331,18 @@ export async function GET(
     });
 
     // Calculate task stats by status (excluding done for stats)
-    const activeTasks = orgTasks.filter((t: any) => t.status !== 'done');
+    const activeTasks = orgTasks.filter(t => t.status !== 'done');
     const tasksByStatus = {
-      todo: activeTasks.filter((t: any) => t.status === 'todo').length,
-      in_progress: activeTasks.filter((t: any) => t.status === 'in_progress').length,
-      review: activeTasks.filter((t: any) => t.status === 'review').length,
-      blocked: activeTasks.filter((t: any) => t.status === 'blocked').length,
+      todo: activeTasks.filter(t => t.status === 'todo').length,
+      in_progress: activeTasks.filter(t => t.status === 'in_progress').length,
+      review: activeTasks.filter(t => t.status === 'review').length,
+      blocked: activeTasks.filter(t => t.status === 'blocked').length,
     };
 
     // Tasks due soon (within 7 days)
     const now = new Date();
     const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    const tasksDueSoon = activeTasks.filter((t: any) => {
+    const tasksDueSoon = activeTasks.filter(t => {
       if (!t.due_date) return false;
       const dueDate = new Date(t.due_date);
       return dueDate >= now && dueDate <= weekFromNow;

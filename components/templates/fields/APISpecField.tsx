@@ -1,4 +1,5 @@
 'use client';
+import type { PhaseDataUnion } from '@/types/phases';
 
 import {
   Box,
@@ -27,7 +28,7 @@ interface APISpecFieldProps {
   value: APISpec[];
   onChange: (value: APISpec[]) => void;
   error?: string;
-  phaseData?: any;
+  phaseData?: Record<string, unknown>;
 }
 
 export default function APISpecField({ field, value, onChange, error, phaseData }: APISpecFieldProps) {

@@ -5,17 +5,42 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import logger from '@/lib/utils/logger';
+import type { ChartDataPoint, ChartWidgetData as BaseChartWidgetData } from '@/types/database';
 
-export interface ChartDataPoint {
-  name: string;
-  value: number;
-  [key: string]: any;
+// Re-export for backward compatibility
+export type { ChartDataPoint };
+
+// Extended ChartWidgetData with yAxis support
+export interface ChartWidgetData extends BaseChartWidgetData {
+  yAxis?: string;
 }
 
-export interface ChartWidgetData {
-  data: ChartDataPoint[];
-  xAxis?: string;
-  yAxis?: string;
+// Local query result interfaces
+interface TaskCreatedAtResult {
+  created_at: string;
+}
+
+interface PhaseCompletedResult {
+  updated_at: string;
+  completed: boolean;
+}
+
+interface TaskStatusResult {
+  status: string;
+}
+
+interface TaskPriorityResult {
+  priority: string | null;
+}
+
+interface ActivityLogResult {
+  created_at: string;
+  metadata: Record<string, unknown> | null;
+}
+
+interface ExportResult {
+  created_at: string;
+  export_type: string;
 }
 
 /**
@@ -76,7 +101,7 @@ export async function getTaskTimeline(
     const groupBy = options?.groupBy || 'day';
     const grouped: Record<string, number> = {};
 
-    tasks.forEach((task: any) => {
+    (tasks as TaskCreatedAtResult[]).forEach((task) => {
       const date = new Date(task.created_at);
       let key: string;
 
@@ -164,7 +189,7 @@ export async function getPhaseCompletionTimeline(
     // Group by date
     const grouped: Record<string, number> = {};
 
-    phases.forEach((phase: any) => {
+    (phases as PhaseCompletedResult[]).forEach((phase) => {
       const date = new Date(phase.updated_at);
       const key = date.toISOString().split('T')[0];
       grouped[key] = (grouped[key] || 0) + 1;
@@ -230,7 +255,7 @@ export async function getTaskStatusDistribution(
 
     // Count by status
     const grouped: Record<string, number> = {};
-    tasks.forEach((task: any) => {
+    (tasks as TaskStatusResult[]).forEach((task) => {
       const status = task.status || 'unknown';
       grouped[status] = (grouped[status] || 0) + 1;
     });
@@ -296,7 +321,7 @@ export async function getTaskPriorityDistribution(
 
     // Count by priority
     const grouped: Record<string, number> = {};
-    tasks.forEach((task: any) => {
+    (tasks as TaskPriorityResult[]).forEach((task) => {
       const priority = task.priority || 'medium';
       grouped[priority] = (grouped[priority] || 0) + 1;
     });
@@ -359,7 +384,7 @@ export async function getPhaseStatusDistribution(
       return { data: [] };
     }
 
-    const completed = phases.filter((p: any) => p.completed === true).length;
+    const completed = (phases as PhaseCompletedResult[]).filter((p) => p.completed === true).length;
     const incomplete = phases.length - completed;
 
     const data = [
@@ -439,7 +464,7 @@ export async function getAIUsageTimeline(
     const groupBy = options?.groupBy || 'day';
     const grouped: Record<string, number> = {};
 
-    logs.forEach((log: any) => {
+    (logs as ActivityLogResult[]).forEach((log) => {
       const date = new Date(log.created_at);
       let key: string;
 
@@ -453,12 +478,12 @@ export async function getAIUsageTimeline(
         key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       }
 
-      const metadata = log.metadata || {};
+      const metadata = (log.metadata || {}) as Record<string, unknown>;
       // Try multiple ways to extract token count
       let tokens = 0;
-      if (metadata.total_tokens) {
+      if (typeof metadata.total_tokens === 'number') {
         tokens = metadata.total_tokens;
-      } else if (metadata.input_tokens && metadata.output_tokens) {
+      } else if (typeof metadata.input_tokens === 'number' && typeof metadata.output_tokens === 'number') {
         tokens = metadata.input_tokens + metadata.output_tokens;
       } else if (typeof metadata.input_tokens === 'number') {
         tokens = metadata.input_tokens;
@@ -537,7 +562,7 @@ export async function getExportTimeline(
     const groupBy = options?.groupBy || 'day';
     const grouped: Record<string, number> = {};
 
-    exports.forEach((exp: any) => {
+    (exports as ExportResult[]).forEach((exp) => {
       const date = new Date(exp.created_at);
       let key: string;
 

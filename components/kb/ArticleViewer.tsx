@@ -152,7 +152,8 @@ export default function ArticleViewer({ article, onExportPDF }: ArticleViewerPro
       >
         <ReactMarkdown
           components={{
-            code({ node, inline, className, children, ...props }: any) {
+            code: (props: any) => {
+              const { inline, className, children } = props;
               const match = /language-(\w+)/.exec(className || '');
               return !inline && match ? (
                 <Box

@@ -4,6 +4,48 @@ import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { internalError } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 
+// Types for organization queries
+interface OrganizationWithSubscription {
+  id: string;
+  name: string;
+  created_at: string;
+  subscriptions?: SubscriptionWithPackage[] | null;
+}
+
+interface SubscriptionWithPackage {
+  id: string;
+  package_id: string | null;
+  status: string;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  packages?: PackageData | null;
+}
+
+interface PackageData {
+  id: string;
+  name: string;
+  price_per_user_monthly: number | null;
+  features: Record<string, boolean> | null;
+}
+
+interface UserCountRow {
+  organization_id: string;
+  count: number | string;
+}
+
+interface ProjectCountRow {
+  organization_id: string;
+  count: number | string;
+}
+
+interface UserOrgRow {
+  organization_id: string | null;
+}
+
+interface ProjectOrgRow {
+  organization_id: string | null;
+}
+
 export const dynamic = 'force-dynamic';
 
 /**
@@ -52,7 +94,7 @@ export async function GET(request: NextRequest) {
       timeoutPromise,
     ]).catch(() => {
       return { data: null, error: { message: 'Query timeout - too many organizations' } };
-    }) as { data: any[] | null; error: any };
+    }) as { data: OrganizationWithSubscription[] | null; error: { message: string } | null };
 
     if (orgError) {
       logger.error('Error loading organizations:', orgError);
@@ -81,7 +123,7 @@ export async function GET(request: NextRequest) {
             .from('users')
             .select('organization_id');
           const counts: Record<string, number> = {};
-          result.data?.forEach((user: any) => {
+          (result.data as UserOrgRow[] | null)?.forEach((user) => {
             if (user.organization_id) {
               counts[user.organization_id] = (counts[user.organization_id] || 0) + 1;
             }
@@ -101,7 +143,7 @@ export async function GET(request: NextRequest) {
             .from('projects')
             .select('organization_id');
           const counts: Record<string, number> = {};
-          result.data?.forEach((project: any) => {
+          (result.data as ProjectOrgRow[] | null)?.forEach((project) => {
             if (project.organization_id) {
               counts[project.organization_id] = (counts[project.organization_id] || 0) + 1;
             }
@@ -117,7 +159,7 @@ export async function GET(request: NextRequest) {
 
     if (userCountsResult.data && Array.isArray(userCountsResult.data)) {
       // RPC returned array of {organization_id, count}
-      userCountsResult.data.forEach((item: any) => {
+      (userCountsResult.data as UserCountRow[]).forEach((item) => {
         userCounts[item.organization_id] = Number(item.count) || 0;
       });
     } else if (userCountsResult.data && typeof userCountsResult.data === 'object') {
@@ -127,7 +169,7 @@ export async function GET(request: NextRequest) {
 
     if (projectCountsResult.data && Array.isArray(projectCountsResult.data)) {
       // RPC returned array of {organization_id, count}
-      projectCountsResult.data.forEach((item: any) => {
+      (projectCountsResult.data as ProjectCountRow[]).forEach((item) => {
         projectCounts[item.organization_id] = Number(item.count) || 0;
       });
     } else if (projectCountsResult.data && typeof projectCountsResult.data === 'object') {
@@ -136,7 +178,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Map organizations with counts (no individual queries needed)
-    const organizationsWithDetails = (organizations || []).map((org: any) => {
+    const organizationsWithDetails = (organizations || []).map((org) => {
       const subscription = org.subscriptions && org.subscriptions.length > 0 ? org.subscriptions[0] : null;
       const packageData = subscription?.packages || null;
 

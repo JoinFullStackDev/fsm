@@ -27,6 +27,26 @@ import {
 import { useTheme } from '@mui/material/styles';
 import type { InvoiceLineItem } from '@/types/ops';
 
+interface InvoiceFormData {
+  client_name: string;
+  client_email: string | null;
+  client_address: {
+    street?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+    country?: string;
+  } | null;
+  line_items: InvoiceLineItem[];
+  issue_date: string;
+  due_date: string | null;
+  tax_rate: number;
+  notes: string | null;
+  terms: string | null;
+  is_recurring: boolean;
+  recurring_frequency: 'monthly' | 'quarterly' | 'yearly' | null;
+}
+
 interface InvoiceFormProps {
   initialData?: {
     client_name?: string;
@@ -47,7 +67,7 @@ interface InvoiceFormProps {
     is_recurring?: boolean;
     recurring_frequency?: 'monthly' | 'quarterly' | 'yearly' | null;
   };
-  onSubmit: (data: any) => Promise<void>;
+  onSubmit: (data: InvoiceFormData) => Promise<void>;
   onCancel: () => void;
   loading?: boolean;
 }
@@ -86,7 +106,7 @@ export default function InvoiceForm({
     return { subtotal, taxAmount, total };
   };
 
-  const updateLineItem = (index: number, field: keyof InvoiceLineItem, value: any) => {
+  const updateLineItem = (index: number, field: keyof InvoiceLineItem, value: string | number) => {
     const updated = [...lineItems];
     updated[index] = { ...updated[index], [field]: value };
     
@@ -357,7 +377,7 @@ export default function InvoiceForm({
               <InputLabel>Frequency</InputLabel>
               <Select
                 value={recurringFrequency || ''}
-                onChange={(e) => setRecurringFrequency(e.target.value as any)}
+                onChange={(e) => setRecurringFrequency(e.target.value as 'monthly' | 'quarterly' | 'yearly')}
                 label="Frequency"
               >
                 <MenuItem value="monthly">Monthly</MenuItem>

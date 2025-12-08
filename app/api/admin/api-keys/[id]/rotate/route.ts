@@ -100,9 +100,9 @@ export async function POST(
         key_id: `${keyRecord.key_id.substring(0, API_KEY_PREFIX.length + 8)}****`, // Masked
       },
     });
-  } catch (error: any) {
-    if (error.status) {
-      return error; // Already a NextResponse error
+  } catch (error) {
+    if (error && typeof error === 'object' && 'status' in error) {
+      return error as NextResponse; // Already a NextResponse error
     }
     logger.error('[API Keys] Error rotating key:', error);
     return internalError('Failed to rotate API key', {

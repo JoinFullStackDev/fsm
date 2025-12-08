@@ -48,6 +48,8 @@ import logger from '@/lib/utils/logger';
 import type { ProjectTemplate } from '@/types/project';
 import SortableTable from '@/components/dashboard/SortableTable';
 
+type TemplateWithUsage = ProjectTemplate & { usage_count?: number };
+
 export default function TemplatesPage() {
   const theme = useTheme();
   const router = useRouter();
@@ -55,7 +57,7 @@ export default function TemplatesPage() {
   const { role, loading: roleLoading } = useRole();
   const { features, loading: orgLoading } = useOrganization();
   const { showSuccess, showError } = useNotification();
-  const [templates, setTemplates] = useState<(ProjectTemplate & { usage_count?: number })[]>([]);
+  const [templates, setTemplates] = useState<TemplateWithUsage[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -539,31 +541,35 @@ export default function TemplatesPage() {
                   key: 'name',
                   label: 'Template Name',
                   sortable: true,
-                  render: (value, template) => (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
-                        {value}
-                      </Typography>
-                      {(template as any)?.is_publicly_available && (
-                        <Chip
-                          label="Global"
-                          size="small"
-                          sx={{
-                            backgroundColor: theme.palette.info.main,
-                            color: theme.palette.background.default,
-                            fontWeight: 600,
-                          }}
-                          title="Global template - cannot be edited or deleted. Duplicate to create your own copy."
-                        />
-                      )}
-                    </Box>
-                  ),
+                  render: (val: unknown, template: TemplateWithUsage) => {
+                    const value = val as string;
+                    return (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
+                          {value}
+                        </Typography>
+                        {(template as any)?.is_publicly_available && (
+                          <Chip
+                            label="Global"
+                            size="small"
+                            sx={{
+                              backgroundColor: theme.palette.info.main,
+                              color: theme.palette.background.default,
+                              fontWeight: 600,
+                            }}
+                            title="Global template - cannot be edited or deleted. Duplicate to create your own copy."
+                          />
+                        )}
+                      </Box>
+                    );
+                  },
                 },
                 {
                   key: 'category',
                   label: 'Category',
                   sortable: true,
-                  render: (value) => {
+                  render: (val: unknown) => {
+                    const value = val as string | null;
                     if (!value) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
                     return (
                       <Chip
@@ -583,45 +589,51 @@ export default function TemplatesPage() {
                   key: 'is_public',
                   label: 'Organization Visibility',
                   sortable: true,
-                  render: (value) => (
-                    <Chip
-                      label={value ? 'Organization' : 'Private'}
-                      size="small"
-                      sx={{
-                        backgroundColor: theme.palette.action.hover,
-                        color: theme.palette.text.primary,
-                        border: `1px solid ${theme.palette.divider}`,
-                        fontWeight: 500,
-                      }}
-                    />
-                  ),
+                  render: (val: unknown) => {
+                    const value = val as boolean;
+                    return (
+                      <Chip
+                        label={value ? 'Organization' : 'Private'}
+                        size="small"
+                        sx={{
+                          backgroundColor: theme.palette.action.hover,
+                          color: theme.palette.text.primary,
+                          border: `1px solid ${theme.palette.divider}`,
+                          fontWeight: 500,
+                        }}
+                      />
+                    );
+                  },
                 },
                 {
                   key: 'is_publicly_available',
                   label: 'Publicly Available',
                   sortable: true,
-                  render: (value) => (
-                    <Chip
-                      label={value ? 'Yes' : 'No'}
-                      size="small"
-                      sx={{
-                        backgroundColor: value ? theme.palette.success.main : theme.palette.action.hover,
-                        color: value ? theme.palette.background.default : theme.palette.text.primary,
-                        border: `1px solid ${theme.palette.divider}`,
-                        fontWeight: 500,
-                      }}
-                    />
-                  ),
+                  render: (val: unknown) => {
+                    const value = val as boolean;
+                    return (
+                      <Chip
+                        label={value ? 'Yes' : 'No'}
+                        size="small"
+                        sx={{
+                          backgroundColor: value ? theme.palette.success.main : theme.palette.action.hover,
+                          color: value ? theme.palette.background.default : theme.palette.text.primary,
+                          border: `1px solid ${theme.palette.divider}`,
+                          fontWeight: 500,
+                        }}
+                      />
+                    );
+                  },
                 },
                 {
                   key: 'usage_count',
                   label: 'Usage',
                   sortable: true,
-                  render: (value, template) => {
+                  render: (val: unknown, template: TemplateWithUsage) => {
                     // Get usage_count from the template object
                     // value comes from row[column.key], template is the full row object
-                    const count = (template as any)?.usage_count ?? value ?? 0;
-                    logger.debug('[TemplatesPage] Rendering usage count:', { templateId: (template as any)?.id, templateName: (template as any)?.name, value, count });
+                    const count = template.usage_count ?? (val as number) ?? 0;
+                    logger.debug('[TemplatesPage] Rendering usage count:', { templateId: template.id, templateName: template.name, val, count });
                     return (
                       <Chip
                         label={String(count)}
@@ -641,7 +653,8 @@ export default function TemplatesPage() {
                   key: 'created_at',
                   label: 'Created',
                   sortable: true,
-                  render: (value) => {
+                  render: (val: unknown) => {
+                    const value = val as string;
                     if (!value) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
                     const date = new Date(value);
                     return (
@@ -656,7 +669,7 @@ export default function TemplatesPage() {
                   label: 'Actions',
                   sortable: false,
                   align: 'right',
-                  render: (_, template) => (
+                  render: (_: unknown, template: TemplateWithUsage) => (
                     <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
                       <IconButton
                         size="small"

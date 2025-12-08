@@ -3,12 +3,13 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { unauthorized, internalError, badRequest, forbidden } from '@/lib/utils/apiErrors';
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { hasAIFeatures, getKnowledgeBaseAccessLevel } from '@/lib/packageLimits';
-import { generateAIResponse } from '@/lib/ai/geminiClient';
+import { generateAIResponse, AIResponseWithMetadata } from '@/lib/ai/geminiClient';
 import { logAIUsage } from '@/lib/ai/aiUsageLogger';
 import { getGeminiApiKey } from '@/lib/utils/geminiConfig';
 import { retrieveRelevantArticles, buildRAGContext, buildRAGPrompt, extractSources } from '@/lib/kb/rag';
 import logger from '@/lib/utils/logger';
 import type { AIChatInput, AIChatOutput } from '@/types/kb';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,15 +84,16 @@ export async function POST(request: NextRequest) {
 
     if (retrievedArticles.length === 0) {
       logger.warn('[KB AI Chat] No articles found', { query, organizationId });
-      return NextResponse.json({
+      const noResultsResponse: AIChatOutput = {
         answer: "I couldn't find any relevant articles in the knowledge base to answer your question. Please try rephrasing your query or check if the information exists in the knowledge base.",
         sources: [],
         metadata: {
           model: 'gemini-2.5-flash-lite',
           tokens_used: 0,
           response_time_ms: Date.now() - startTime,
-        } as any,
-      });
+        },
+      };
+      return NextResponse.json(noResultsResponse);
     }
 
     // Build RAG context
@@ -124,10 +126,10 @@ export async function POST(request: NextRequest) {
       'gemini-2.5-flash-lite' // Use Flash-Lite for conversational Q&A
     );
 
-    const answer = typeof aiResponse === 'string' ? aiResponse : aiResponse.text;
-    let metadata: any = null;
+    const answer = typeof aiResponse === 'string' ? aiResponse : (aiResponse as AIResponseWithMetadata).text;
+    let metadata: AIResponseWithMetadata['metadata'] | null = null;
     if (typeof aiResponse === 'object' && 'metadata' in aiResponse) {
-      metadata = aiResponse.metadata;
+      metadata = (aiResponse as AIResponseWithMetadata).metadata || null;
     }
 
     // Extract sources
@@ -152,19 +154,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Handle metadata with proper type checking
-    const metadataWithTokens = metadata as {
-      model?: string;
-      total_tokens?: number;
-      tokens_used?: number;
-    } | null;
-
     const response: AIChatOutput = {
       answer,
       sources,
       metadata: {
-        model: metadataWithTokens?.model || 'gemini-2.5-flash-lite',
-        tokens_used: metadataWithTokens?.total_tokens || metadataWithTokens?.tokens_used || 0,
+        model: metadata?.model || 'gemini-2.5-flash-lite',
+        tokens_used: metadata?.total_tokens || 0,
         response_time_ms: Date.now() - startTime,
       },
     };
@@ -180,7 +175,7 @@ export async function POST(request: NextRequest) {
  * Track AI chat usage
  */
 async function trackAIChatUsage(
-  supabase: any,
+  supabase: SupabaseClient,
   userId: string,
   query: string,
   organizationId: string | null

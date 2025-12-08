@@ -1,4 +1,5 @@
 'use client';
+import type { PhaseDataUnion } from '@/types/phases';
 
 import {
   Box,
@@ -23,7 +24,7 @@ interface ComponentsFieldProps {
   value: Component[];
   onChange: (value: Component[]) => void;
   error?: string;
-  phaseData?: any;
+  phaseData?: Record<string, unknown>;
 }
 
 export default function ComponentsField({ field, value, onChange, error, phaseData }: ComponentsFieldProps) {

@@ -3,13 +3,23 @@
  */
 
 import { createSupabaseClient } from '@/lib/supabaseClient';
+import type { Session, User } from '@supabase/supabase-js';
 import logger from './logger';
 
 export interface SessionResult {
-  session: any | null;
-  user: any | null;
+  session: Session | null;
+  user: User | null;
   userId: string | null;
   error: Error | null;
+}
+
+// User data from our database
+interface DbUser {
+  id: string;
+  email: string;
+  role: string;
+  auth_id: string;
+  name: string | null;
 }
 
 /**
@@ -102,7 +112,7 @@ export async function getUserByAuthId(authId: string) {
  */
 export async function checkRoleAccess(requiredRole: string): Promise<{
   hasAccess: boolean;
-  user: any | null;
+  user: DbUser | null;
   error: Error | null;
 }> {
   const { session, userId, error: sessionError } = await getCurrentSession();

@@ -36,9 +36,9 @@ export async function GET(
     }
 
     return NextResponse.json(project);
-  } catch (error: any) {
-    if (error.status) {
-      return error; // Already a NextResponse error
+  } catch (error) {
+    if (error && typeof error === 'object' && 'status' in error) {
+      return error as NextResponse; // Already a NextResponse error
     }
     logger.error('[API v1] Error fetching project:', error);
     return internalError('Failed to fetch project');
@@ -83,7 +83,7 @@ export async function PUT(
     }
 
     // Build update object
-    const updates: Record<string, any> = {};
+    const updates: Record<string, string | undefined> = {};
     if (name !== undefined) updates.name = name;
     if (description !== undefined) updates.description = description;
     if (status !== undefined) updates.status = status;
@@ -106,9 +106,9 @@ export async function PUT(
     }
 
     return NextResponse.json(updatedProject);
-  } catch (error: any) {
-    if (error.status) {
-      return error; // Already a NextResponse error
+  } catch (error) {
+    if (error && typeof error === 'object' && 'status' in error) {
+      return error as NextResponse; // Already a NextResponse error
     }
     logger.error('[API v1] Error updating project:', error);
     return internalError('Failed to update project');

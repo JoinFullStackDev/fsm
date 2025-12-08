@@ -4,17 +4,22 @@ import { estimateInputTokens, estimateOutputTokens } from './tokenEstimator';
 import { calculateAICost } from './costCalculator';
 import { requestDeduplicator } from '@/lib/utils/requestDeduplication';
 import crypto from 'crypto';
+import type { PhaseDataUnion } from '@/types/phases';
+import type { Project } from '@/types/project';
 
 // Fallback to environment variable for backwards compatibility
 const defaultApiKey = process.env.GEMINI_API_KEY || '';
 
 export type GeminiModel = 'gemini-2.5-flash' | 'gemini-2.5-flash-lite';
 
+// Project data type that can be either the full Project type or a partial
+type ProjectDataType = Project | Partial<Project> | Record<string, unknown>;
+
 export interface AIPromptOptions {
   context?: string;
-  phaseData?: any;
-  projectData?: any;
-  previousPhases?: any[];
+  phaseData?: PhaseDataUnion;
+  projectData?: ProjectDataType;
+  previousPhases?: PhaseDataUnion[];
 }
 
 export interface AIResponseWithMetadata {

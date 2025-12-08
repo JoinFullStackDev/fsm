@@ -27,7 +27,7 @@ import { getDefaultPhaseData } from '@/lib/phaseSchemas';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { validateProjectName } from '@/lib/utils/validation';
 import { getCsrfHeaders } from '@/lib/utils/csrfClient';
-import type { ProjectStatus, PrimaryTool, ProjectTemplate, Project } from '@/types/project';
+import type { ProjectStatus, PrimaryTool, ProjectTemplate, Project, ProjectPhaseRow } from '@/types/project';
 import type { Company } from '@/types/ops';
 
 interface UserOption {
@@ -281,7 +281,7 @@ export default function CreateProjectDialog({
 
         // Create phases from template (copying all metadata)
         if (templatePhases && templatePhases.length > 0) {
-          templatePhases.forEach((templatePhase: any) => {
+          templatePhases.forEach((templatePhase: ProjectPhaseRow) => {
             phaseInserts.push({
               project_id: projectData.id,
               phase_number: templatePhase.phase_number,

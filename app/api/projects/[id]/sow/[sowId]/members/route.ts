@@ -1,16 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
-import { getUserOrganizationId } from '@/lib/organizationContext';
 import { unauthorized, badRequest, internalError, notFound, forbidden } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 import type { SOWMemberWithStats } from '@/types/project';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { 
+  SOWTaskRow, 
+  ProjectMemberAllocationRow, 
+  SOWProjectMemberRow,
+  SOWMemberUpdateData,
+  UserWorkloadSummary 
+} from '@/types/database';
 
 export const dynamic = 'force-dynamic';
 
 // Helper function to check SOW management permissions
 async function checkSOWManagementPermissions(
-  adminClient: any,
+  adminClient: SupabaseClient,
   projectId: string,
   sowId: string,
   userData: { id: string; role: string; is_super_admin?: boolean }
@@ -63,27 +70,28 @@ async function checkSOWManagementPermissions(
 
 // Helper function to enrich members with task counts and workload
 async function enrichMembersWithStats(
-  adminClient: any,
+  adminClient: SupabaseClient,
   projectId: string,
-  members: any[]
+  members: unknown[]
 ): Promise<SOWMemberWithStats[]> {
-  if (!members || members.length === 0) {
+  const typedMembers = members as SOWProjectMemberRow[];
+  if (!typedMembers || typedMembers.length === 0) {
     return [];
   }
 
   // Extract user IDs
-  const memberUserIds = members
+  const memberUserIds = typedMembers
     .map(m => m.project_member?.user_id)
-    .filter(Boolean) as string[];
+    .filter((id): id is string => Boolean(id));
 
   if (memberUserIds.length === 0) {
-    return members.map(m => ({
+    return typedMembers.map(m => ({
       ...m,
       task_count: 0,
       task_count_by_status: { todo: 0, in_progress: 0, done: 0 },
       role_name: m.organization_role?.name || m.project_member?.role || 'Unknown',
       role_description: m.organization_role?.description || null,
-    }));
+    })) as SOWMemberWithStats[];
   }
 
   // Get task counts and estimated hours per member (assignee_id is user_id)
@@ -96,16 +104,16 @@ async function enrichMembersWithStats(
 
   // Get workload summaries with error handling
   const workloadPromises = memberUserIds.map(userId =>
-    adminClient.rpc('get_user_workload_summary', {
+    Promise.resolve(adminClient.rpc('get_user_workload_summary', {
       p_user_id: userId,
       p_start_date: new Date().toISOString().split('T')[0],
       p_end_date: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    }).then((result: any) => ({ userId, data: result.data, error: result.error }))
-      .catch((error: any) => ({ userId, data: null, error }))
+    })).then(result => ({ userId, data: result.data as UserWorkloadSummary | null, error: result.error }))
+      .catch((error: unknown) => ({ userId, data: null, error }))
   );
 
   const workloadResults = await Promise.allSettled(workloadPromises);
-  const workloadsMap = new Map<string, any>();
+  const workloadsMap = new Map<string, UserWorkloadSummary>();
 
   workloadResults.forEach((result, index) => {
     if (result.status === 'fulfilled' && result.value.data) {
@@ -124,24 +132,26 @@ async function enrichMembersWithStats(
     .or(`start_date.is.null,start_date.lte.${today},end_date.is.null,end_date.gte.${today}`);
 
   const allocationsMap = new Map<string, number>();
-  projectAllocations?.forEach((alloc: any) => {
+  (projectAllocations as ProjectMemberAllocationRow[] | null)?.forEach(alloc => {
     allocationsMap.set(alloc.user_id, alloc.allocated_hours_per_week);
   });
 
   // Enrich members with stats
-  return members.map((member) => {
+  const typedTasks = tasks as SOWTaskRow[] | null;
+  return typedMembers.map((member) => {
     const userId = member.project_member?.user_id;
-    const userTasks = tasks?.filter((t: any) => t.assignee_id === userId) || [];
+    const userTasks = typedTasks?.filter(t => t.assignee_id === userId) || [];
     const taskCount = userTasks.length;
     const taskCountByStatus = {
-      todo: userTasks.filter((t: any) => t.status === 'todo').length,
-      in_progress: userTasks.filter((t: any) => t.status === 'in_progress').length,
-      done: userTasks.filter((t: any) => t.status === 'done').length,
+      todo: userTasks.filter(t => t.status === 'todo').length,
+      in_progress: userTasks.filter(t => t.status === 'in_progress').length,
+      done: userTasks.filter(t => t.status === 'done').length,
     };
 
     // Calculate total estimated hours for user's tasks
-    const totalEstimatedHours = userTasks.reduce((sum: number, t: any) => {
-      return sum + (parseFloat(t.estimated_hours) || 0);
+    const totalEstimatedHours = userTasks.reduce((sum: number, t) => {
+      const hours = typeof t.estimated_hours === 'string' ? parseFloat(t.estimated_hours) : (t.estimated_hours || 0);
+      return sum + (hours || 0);
     }, 0);
 
     // Get allocated hours for this project
@@ -151,12 +161,12 @@ async function enrichMembersWithStats(
     // For simplicity, use average weeks (can be enhanced with actual date calculations)
     const weeksUntilDue = userTasks.length > 0 
       ? userTasks
-          .filter((t: any) => t.due_date)
-          .map((t: any) => {
+          .filter((t): t is SOWTaskRow & { due_date: string } => t.due_date !== null)
+          .map(t => {
             const daysUntilDue = Math.max(0, Math.ceil((new Date(t.due_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
             return daysUntilDue / 7; // Convert to weeks
           })
-          .reduce((avg: number, weeks: number, idx: number, arr: number[]) => {
+          .reduce((avg: number, weeks: number, _idx: number, arr: number[]) => {
             return avg + (weeks / arr.length);
           }, 0) || 4 // Default to 4 weeks if no due dates
       : 4;
@@ -189,7 +199,7 @@ async function enrichMembersWithStats(
         ? (totalEstimatedHours / (allocatedHoursPerWeek * Math.max(weeksUntilDue, 1))) * 100 
         : 0,
     };
-  });
+  }) as SOWMemberWithStats[];
 }
 
 // GET - List all members for a SOW (with task counts and workload)
@@ -470,7 +480,7 @@ export async function PUT(
     }
 
     // Build update object
-    const updateData: any = {};
+    const updateData: SOWMemberUpdateData = {};
     if (organization_role_id !== undefined) {
       // Verify organization role belongs to same organization
       const { data: project } = await adminClient

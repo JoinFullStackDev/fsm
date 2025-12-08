@@ -115,11 +115,17 @@ export async function PUT(
         );
       }
 
-      validatedLineItems = line_items.map((item: any) => ({
+      interface LineItemInput {
+        description: string;
+        quantity: string | number;
+        unit_price: string | number;
+        amount?: string | number;
+      }
+      validatedLineItems = (line_items as LineItemInput[]).map((item) => ({
         description: item.description,
-        quantity: parseFloat(item.quantity) || 1,
-        unit_price: parseFloat(item.unit_price) || 0,
-        amount: parseFloat(item.amount) || parseFloat(item.quantity) * parseFloat(item.unit_price) || 0,
+        quantity: parseFloat(String(item.quantity)) || 1,
+        unit_price: parseFloat(String(item.unit_price)) || 0,
+        amount: parseFloat(String(item.amount)) || parseFloat(String(item.quantity)) * parseFloat(String(item.unit_price)) || 0,
       }));
     }
 

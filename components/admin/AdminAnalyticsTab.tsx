@@ -28,6 +28,28 @@ import {
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useOrganization } from '@/components/providers/OrganizationProvider';
 
+// Query result types for admin analytics
+interface UserCreatedAtResult {
+  created_at: string;
+}
+
+interface ProjectIdResult {
+  id: string;
+}
+
+interface ExportTypeResult {
+  export_type: string;
+}
+
+interface UserIdResult {
+  id: string;
+}
+
+interface ExportByType {
+  type: string;
+  count: number;
+}
+
 interface AnalyticsData {
   totalUsers: number;
   activeUsers: number;
@@ -110,7 +132,7 @@ export default function AdminAnalyticsTab() {
         .select('created_at')
         .eq('organization_id', organizationId);
       
-      const newUsersThisMonth = usersData?.filter((u: any) =>
+      const newUsersThisMonth = (usersData as UserCreatedAtResult[] | null)?.filter((u) =>
         new Date(u.created_at) >= startOfMonth
       ).length || 0;
 
@@ -122,9 +144,9 @@ export default function AdminAnalyticsTab() {
         .select('id')
         .eq('organization_id', organizationId);
       
-      const projectIds = orgProjects?.map((p: any) => p.id) || [];
+      const projectIds = (orgProjects as ProjectIdResult[] | null)?.map((p) => p.id) || [];
       
-      let filteredExports: any[] = [];
+      let filteredExports: ExportTypeResult[] = [];
       if (projectIds.length > 0) {
         const { data: exportsData } = await supabase
           .from('exports')
@@ -134,7 +156,7 @@ export default function AdminAnalyticsTab() {
         filteredExports = exportsData || [];
       }
 
-      const exportsByType = filteredExports.reduce((acc: any[], exp: any) => {
+      const exportsByType = filteredExports.reduce((acc: ExportByType[], exp) => {
         const type = exp.export_type || 'unknown';
         const existing = acc.find(e => e.type === type);
         if (existing) {
@@ -143,7 +165,7 @@ export default function AdminAnalyticsTab() {
           acc.push({ type, count: 1 });
         }
         return acc;
-      }, []);
+      }, [] as ExportByType[]);
 
       // Get AI usage from activity logs (filtered by organization via users)
       // Activity_logs table doesn't have organization_id, but users do
@@ -153,9 +175,9 @@ export default function AdminAnalyticsTab() {
         .select('id')
         .eq('organization_id', organizationId);
       
-      const userIds = orgUsers?.map((u: any) => u.id) || [];
+      const userIds = (orgUsers as UserIdResult[] | null)?.map((u) => u.id) || [];
       
-      let filteredAiActivity: any[] = [];
+      let filteredAiActivity: { id: string }[] = [];
       if (userIds.length > 0) {
         const { data: aiActivityData } = await supabase
           .from('activity_logs')

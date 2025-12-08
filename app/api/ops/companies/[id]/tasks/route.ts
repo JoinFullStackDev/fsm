@@ -67,7 +67,12 @@ export async function GET(
     }
 
     // Transform to match OpsTaskWithRelations type
-    const tasksWithRelations: OpsTaskWithRelations[] = (tasks || []).map((task: any) => ({
+    interface TaskQueryResult extends OpsTask {
+      contact?: { id: string; first_name: string; last_name: string; email: string | null } | null;
+      assigned_user?: { id: string; name: string | null; email: string } | null;
+      company?: { id: string; name: string } | null;
+    }
+    const tasksWithRelations: OpsTaskWithRelations[] = (tasks as TaskQueryResult[] || []).map((task) => ({
       ...task,
       contact: task.contact || null,
       assigned_user: task.assigned_user || null,

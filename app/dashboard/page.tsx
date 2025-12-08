@@ -28,8 +28,9 @@ import {
 } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import WelcomeTour from '@/components/ui/WelcomeTour';
+import type { Project, ProjectTask, User } from '@/types/project';
 import logger from '@/lib/utils/logger';
-import SortableTable from '@/components/dashboard/SortableTable';
+import SortableTable, { type Column } from '@/components/dashboard/SortableTable';
 import ProjectsMultiLineChart from '@/components/dashboard/ProjectsMultiLineChart';
 import EmployeeProjectMapping from '@/components/dashboard/EmployeeProjectMapping';
 import { format } from 'date-fns';
@@ -39,9 +40,6 @@ import { useUser } from '@/components/providers/UserProvider';
 import CreateUserDialog from '@/components/admin/CreateUserDialog';
 import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
 import { Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText } from '@mui/material';
-import type { Project } from '@/types/project';
-import type { ProjectTask } from '@/types/project';
-import type { User } from '@/types/project';
 
 function DashboardPageContent() {
   const theme = useTheme();
@@ -645,7 +643,7 @@ function DashboardPageContent() {
                   key: 'name',
                   label: 'Project Name',
                   sortable: true,
-                  render: (value, row) => (
+                  render: (value: unknown, row: Project) => (
                     <Typography
                       sx={{
                         color: theme.palette.text.primary,
@@ -655,12 +653,12 @@ function DashboardPageContent() {
                           textDecoration: 'underline',
                         },
                       }}
-                      onClick={(e) => {
+                      onClick={(e: React.MouseEvent) => {
                         e.stopPropagation();
                         router.push(`/project/${row.id}`);
                       }}
                     >
-                      {value}
+                      {String(value)}
                     </Typography>
                   ),
                 },
@@ -681,7 +679,7 @@ function DashboardPageContent() {
                         maxWidth: 400,
                       }}
                     >
-                      {value || 'No description'}
+                      {String(value || 'No description')}
                     </Typography>
                   ),
                 },
@@ -689,28 +687,34 @@ function DashboardPageContent() {
                   key: 'status',
                   label: 'Status',
                   sortable: true,
-                  render: (value) => (
-                    <Chip
-                      label={String(value).replace('_', ' ')}
-                      size="small"
-                      sx={{
-                        backgroundColor: theme.palette.action.hover,
-                        color: theme.palette.text.primary,
-                        border: `1px solid ${theme.palette.divider}`,
-                        fontWeight: 500,
-                      }}
-                    />
-                  ),
+                  render: (val: unknown) => {
+                    const value = val as string;
+                    return (
+                      <Chip
+                        label={String(value).replace('_', ' ')}
+                        size="small"
+                        sx={{
+                          backgroundColor: theme.palette.action.hover,
+                          color: theme.palette.text.primary,
+                          border: `1px solid ${theme.palette.divider}`,
+                          fontWeight: 500,
+                        }}
+                      />
+                    );
+                  },
                 },
                 {
                   key: 'updated_at',
                   label: 'Last Updated',
                   sortable: true,
-                  render: (value) => (
-                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-                      {value ? format(new Date(value), 'MMM d, yyyy') : 'Never'}
-                    </Typography>
-                  ),
+                  render: (val: unknown) => {
+                    const value = val as string;
+                    return (
+                      <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                        {value ? format(new Date(value), 'MMM d, yyyy') : 'Never'}
+                      </Typography>
+                    );
+                  },
                 },
               ]}
               onRowClick={(row) => router.push(`/project/${row.id}`)}

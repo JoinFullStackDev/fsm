@@ -167,7 +167,21 @@ export async function PUT(
     } = body;
 
     // Build update object
-    const updateData: any = {};
+    const updateData: {
+      title?: string;
+      description?: string;
+      objectives?: string;
+      deliverables?: string;
+      timeline?: string;
+      budget?: number;
+      assumptions?: string;
+      constraints?: string;
+      exclusions?: string;
+      acceptance_criteria?: string;
+      status?: string;
+      approved_by?: string;
+      approved_at?: string;
+    } = {};
     if (title !== undefined) updateData.title = title.trim();
     if (description !== undefined) updateData.description = description;
     if (objectives !== undefined) updateData.objectives = objectives;

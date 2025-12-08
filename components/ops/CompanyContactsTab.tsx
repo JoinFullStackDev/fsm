@@ -151,75 +151,137 @@ export default function CompanyContactsTab({ companyId }: CompanyContactsTabProp
       key: 'name',
       label: 'Name',
       sortable: true,
-      render: (_: any, row: CompanyContact) => `${row.first_name} ${row.last_name}`,
+      render: (_: unknown, row: CompanyContact) => (
+        <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
+          {`${row.first_name} ${row.last_name}`}
+        </Typography>
+      ),
     },
     {
       key: 'email',
       label: 'Email',
       sortable: true,
-      render: (value: string | null) => value || '-',
+      render: (val: unknown) => {
+        const value = val as string | null;
+        if (!value) {
+          return (
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+              -
+            </Typography>
+          );
+        }
+        return (
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+            {value}
+          </Typography>
+        );
+      },
     },
     {
       key: 'phone',
       label: 'Phone',
       sortable: true,
-      render: (value: string | null) => value || '-',
+      render: (val: unknown) => {
+        const value = val as string | null;
+        if (!value) {
+          return (
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+              -
+            </Typography>
+          );
+        }
+        return (
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+            {value}
+          </Typography>
+        );
+      },
     },
     {
       key: 'lead_status',
       label: 'Lead Status',
       sortable: true,
-      render: (value: string | null) =>
-        value ? (
+      render: (val: unknown) => {
+        const value = val as string | null;
+        if (!value) {
+          return (
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+              -
+            </Typography>
+          );
+        }
+        return (
           <Chip
             label={value}
-            color={getLeadStatusColor(value) as any}
+            color={getLeadStatusColor(value) as 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'}
             size="small"
           />
-        ) : (
-          '-'
-        ),
+        );
+      },
     },
     {
       key: 'pipeline_stage',
       label: 'Pipeline Stage',
       sortable: true,
-      render: (value: string | null) =>
-        value ? (
+      render: (val: unknown) => {
+        const value = val as string | null;
+        if (!value) {
+          return (
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+              -
+            </Typography>
+          );
+        }
+        return (
           <Chip
             label={value}
-            color={getPipelineStageColor(value) as any}
+            color={getPipelineStageColor(value) as 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'}
             size="small"
           />
-        ) : (
-          '-'
-        ),
+        );
+      },
     },
     {
       key: 'next_follow_up_date',
       label: 'Next Follow-Up',
       sortable: true,
-      render: (value: string | null) =>
-        value ? new Date(value).toLocaleDateString() : '-',
+      render: (val: unknown) => {
+        const value = val as string | null;
+        if (!value) {
+          return (
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+              -
+            </Typography>
+          );
+        }
+        return (
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+            {new Date(value).toLocaleDateString()}
+          </Typography>
+        );
+      },
     },
     {
       key: 'status',
       label: 'Status',
       sortable: true,
-      render: (value: string) => (
-        <Chip
-          label={value.charAt(0).toUpperCase() + value.slice(1)}
-          color={getStatusColor(value) as any}
-          size="small"
-        />
-      ),
+      render: (val: unknown) => {
+        const value = val as string;
+        return (
+          <Chip
+            label={value.charAt(0).toUpperCase() + value.slice(1)}
+            color={getStatusColor(value) as 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'}
+            size="small"
+          />
+        );
+      },
     },
     {
       key: 'actions',
       label: 'Actions',
       sortable: false,
       align: 'right' as const,
-      render: (_: any, row: CompanyContact) => (
+      render: (_: unknown, row: CompanyContact) => (
         <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
           <IconButton
             size="small"

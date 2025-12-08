@@ -1,4 +1,5 @@
 'use client';
+import type { PhaseDataUnion } from '@/types/phases';
 
 import React, { useState } from 'react';
 import {
@@ -25,7 +26,7 @@ interface FileFieldProps {
   value: string | null; // File path or URL
   onChange: (value: string | null) => void;
   error?: string;
-  phaseData?: any;
+  phaseData?: Record<string, unknown>;
 }
 
 function FileField({ field, value, onChange, error, phaseData }: FileFieldProps) {

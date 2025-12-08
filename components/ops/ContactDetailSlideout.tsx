@@ -52,7 +52,7 @@ import { useNotification } from '@/components/providers/NotificationProvider';
 import TagManager from '@/components/ops/TagManager';
 import InteractionHistory from '@/components/ops/InteractionHistory';
 import AttachmentManager from '@/components/ops/AttachmentManager';
-import type { CompanyContactWithCompany, ContactTag, ContactAttachment, ContactInteraction, LeadSource, LeadStatus, PipelineStage, PriorityLevel, LifecycleStage, FollowUpType, PreferredCommunication, ContactStatus } from '@/types/ops';
+import type { CompanyContactWithCompany, ContactTag, ContactAttachment, ContactInteraction, LeadSource, LeadStatus, PipelineStage, PriorityLevel, LifecycleStage, FollowUpType, PreferredCommunication, ContactStatus, CompanyContact } from '@/types/ops';
 import type { User } from '@/types/project';
 
 interface ContactDetailSlideoutProps {
@@ -244,7 +244,7 @@ export default function ContactDetailSlideout({
 
     setSaving(true);
     try {
-      const updatePayload: any = {
+      const updatePayload: Partial<CompanyContact> = {
         first_name: formData.first_name?.trim(),
         last_name: formData.last_name?.trim(),
         email: formData.email?.trim() || null,

@@ -204,7 +204,7 @@ export async function PUT(
     }
 
     // Build update object with all fields
-    const updateData: any = {};
+    const updateData: Partial<Company> = {};
     if (name !== undefined) updateData.name = name.trim();
     if (status !== undefined) updateData.status = status;
     if (notes !== undefined) updateData.notes = notes;

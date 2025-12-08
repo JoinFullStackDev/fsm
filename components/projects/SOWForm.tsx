@@ -202,11 +202,11 @@ export default function SOWForm({ open, onClose, onSubmit, sow, projectId, oppor
 
     setLoading(true);
     try {
-      const timeline: any = {};
+      const timeline: { start_date?: string; end_date?: string } = {};
       if (startDate) timeline.start_date = startDate;
       if (endDate) timeline.end_date = endDate;
 
-      const budget: any = {};
+      const budget: { estimated_hours?: number; hourly_rate?: number; total_budget?: number } = {};
       if (estimatedHours) budget.estimated_hours = parseFloat(estimatedHours);
       if (hourlyRate) budget.hourly_rate = parseFloat(hourlyRate);
       if (budget.estimated_hours && budget.hourly_rate) {
@@ -223,8 +223,8 @@ export default function SOWForm({ open, onClose, onSubmit, sow, projectId, oppor
         constraints: constraints.filter(c => c.trim()),
         exclusions: exclusions.filter(e => e.trim()),
         acceptance_criteria: acceptanceCriteria.filter(a => a.trim()),
-        timeline: Object.keys(timeline).length > 0 ? timeline : undefined,
-        budget: Object.keys(budget).length > 0 ? budget : undefined,
+        timeline: Object.keys(timeline).length > 0 ? (timeline as NonNullable<ScopeOfWork['timeline']>) : undefined,
+        budget: Object.keys(budget).length > 0 ? (budget as NonNullable<ScopeOfWork['budget']>) : undefined,
       });
       onClose();
     } catch (error) {
@@ -262,7 +262,7 @@ export default function SOWForm({ open, onClose, onSubmit, sow, projectId, oppor
             <InputLabel>Status</InputLabel>
             <Select
               value={status}
-              onChange={(e) => setStatus(e.target.value as any)}
+              onChange={(e) => setStatus(e.target.value as 'draft' | 'review' | 'approved' | 'active' | 'completed' | 'archived')}
               label="Status"
             >
               <MenuItem value="draft">Draft</MenuItem>

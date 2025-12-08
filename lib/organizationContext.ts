@@ -57,6 +57,9 @@ export interface Package {
   features: PackageFeatures;
   is_active: boolean;
   display_order: number;
+  // Trial configuration
+  trial_days: number | null;
+  trial_enabled: boolean;
 }
 
 export interface Subscription {

@@ -70,7 +70,7 @@ export function evaluateConditionalLogic(
  * @returns True if condition is met, false otherwise
  */
 function evaluateCondition(
-  condition: { field: string; operator: string; value: any },
+  condition: { field: string; operator: string; value: unknown },
   phaseData: Record<string, any>
 ): boolean {
   const fieldValue = phaseData[condition.field];

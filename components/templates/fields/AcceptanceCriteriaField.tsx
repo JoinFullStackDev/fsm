@@ -1,4 +1,5 @@
 'use client';
+import type { PhaseDataUnion } from '@/types/phases';
 
 import {
   Box,
@@ -22,7 +23,7 @@ interface AcceptanceCriteriaFieldProps {
   value: AcceptanceCriteria[];
   onChange: (value: AcceptanceCriteria[]) => void;
   error?: string;
-  phaseData?: any;
+  phaseData?: Record<string, unknown>;
 }
 
 export default function AcceptanceCriteriaField({ field, value, onChange, error, phaseData }: AcceptanceCriteriaFieldProps) {

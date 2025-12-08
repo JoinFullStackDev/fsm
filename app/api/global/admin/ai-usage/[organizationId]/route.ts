@@ -4,6 +4,36 @@ import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { internalError, badRequest } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 
+// Types for AI usage data
+interface ActivityLogRow {
+  id: string;
+  user_id: string | null;
+  action_type: string;
+  created_at: string;
+  metadata: AIUsageMetadata | null;
+}
+
+interface AIUsageMetadata {
+  full_prompt_length?: number;
+  prompt_length?: number;
+  response_length?: number;
+  input_tokens?: number;
+  output_tokens?: number;
+  total_tokens?: number;
+  estimated_cost?: number;
+  response_time_ms?: number;
+  error?: string;
+  error_type?: string;
+  feature_type?: string;
+  model?: string;
+}
+
+interface UserRow {
+  id: string;
+  name: string | null;
+  email: string;
+}
+
 export const dynamic = 'force-dynamic';
 
 /**
@@ -58,7 +88,7 @@ export async function GET(
       return internalError('Failed to load users', { error: usersError.message });
     }
 
-    const userIds = (users || []).map((u: any) => u.id);
+    const userIds = (users || []).map((u: { id: string }) => u.id);
 
     if (userIds.length === 0) {
       return NextResponse.json({
@@ -128,7 +158,7 @@ export async function GET(
       .in('id', userIds);
 
     const userMap = new Map<string, { name: string; email: string }>();
-    (userDetails || []).forEach((u: any) => {
+    ((userDetails as UserRow[]) || []).forEach((u) => {
       userMap.set(u.id, { name: u.name || u.email, email: u.email });
     });
 
@@ -149,15 +179,16 @@ export async function GET(
     }>();
 
     // Filter by feature if specified
+    const typedLogs = (aiLogs as ActivityLogRow[]) || [];
     const filteredLogs = feature
-      ? (aiLogs || []).filter((log: any) => {
+      ? typedLogs.filter((log) => {
           const metadata = log.metadata || {};
           const logFeature = metadata.feature_type || log.action_type;
           return logFeature === feature;
         })
-      : (aiLogs || []);
+      : typedLogs;
 
-    filteredLogs.forEach((log: any) => {
+    filteredLogs.forEach((log) => {
       totalRequests++;
 
       const metadata = log.metadata || {};
@@ -199,7 +230,7 @@ export async function GET(
     });
 
     // Build individual requests list
-    const requests = filteredLogs.map((log: any) => {
+    const requests = filteredLogs.map((log) => {
       const metadata = log.metadata || {};
       const user = log.user_id ? userMap.get(log.user_id) : null;
       const fullPromptLength = metadata.full_prompt_length || metadata.prompt_length || 0;

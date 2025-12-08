@@ -6,12 +6,14 @@ import TableWidget from './widgets/TableWidget';
 import AIInsightWidget from './widgets/AIInsightWidget';
 import RichTextWidget from './widgets/RichTextWidget';
 
+import type { WidgetDataset, WidgetSettings } from '@/types/database';
+
 interface WidgetRendererProps {
   widget: {
     id: string;
     widget_type: string;
-    dataset: any;
-    settings?: any;
+    dataset: WidgetDataset;
+    settings?: WidgetSettings;
   };
   dashboardId: string;
 }

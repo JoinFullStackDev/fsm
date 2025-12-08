@@ -90,7 +90,7 @@ export default function TaskDialog({
         : `/api/ops/companies/${companyId}/tasks`;
       const method = isEdit ? 'PUT' : 'POST';
 
-      const body: any = {
+      const body: Record<string, unknown> = {
         title: title.trim(),
         description: description.trim() || null,
         notes: notes.trim() || null,

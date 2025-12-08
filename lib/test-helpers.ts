@@ -142,10 +142,12 @@ export function createMockTask(overrides?: Partial<MockTask>): MockTask {
   };
 }
 
+import type { PostgrestError } from '@supabase/supabase-js';
+
 /**
  * Mock Supabase query response
  */
-export function createMockSupabaseResponse<T>(data: T | null, error: any = null) {
+export function createMockSupabaseResponse<T>(data: T | null, error: PostgrestError | null = null) {
   return {
     data,
     error,

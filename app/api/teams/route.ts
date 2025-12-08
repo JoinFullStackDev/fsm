@@ -2,7 +2,27 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { unauthorized, forbidden, badRequest, internalError } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
-import type { Team, TeamWithMembers } from '@/types/project';
+import type { TeamWithMembers } from '@/types/project';
+
+// Type for team with team_members from query
+interface TeamQueryResult {
+  id: string;
+  name: string;
+  description: string | null;
+  color: string;
+  created_at: string;
+  updated_at: string;
+  team_members?: Array<{
+    id: string;
+    user_id: string;
+    created_at: string;
+    user?: {
+      id: string;
+      name: string | null;
+      email: string;
+    };
+  }>;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -61,7 +81,8 @@ export async function GET() {
         }
 
         // Transform to include member_count
-        return (teams || []).map((team: any) => ({
+        const typedTeams = (teams || []) as TeamQueryResult[];
+        return typedTeams.map(team => ({
           ...team,
           members: team.team_members || [],
           member_count: team.team_members?.length || 0,

@@ -12,6 +12,19 @@ import logger from '@/lib/utils/logger';
 import { VALID_USER_ROLES } from '@/lib/constants';
 import type { UserRole } from '@/types/project';
 
+// Types for user data
+interface UserRow {
+  id: string;
+  auth_id: string | null;
+  email: string;
+  name: string | null;
+  role: string;
+  organization_id: string | null;
+  is_active: boolean;
+  is_super_admin: boolean;
+  created_at: string;
+}
+
 // GET - List all users (admin only)
 export async function GET(request: NextRequest) {
   try {
@@ -95,8 +108,8 @@ export async function GET(request: NextRequest) {
     // CRITICAL SAFETY CHECK: Double-check that all returned users belong to the organization
     // This is a defensive measure in case the query somehow fails
     // NEVER trust the database query alone - always filter in application code
-    const allUsers = users || [];
-    const filteredUsers = allUsers.filter((user: any) => {
+    const allUsers = (users as UserRow[]) || [];
+    const filteredUsers = allUsers.filter((user) => {
       const matches = user.organization_id === organizationId && user.organization_id !== null && user.organization_id !== undefined;
       if (!matches) {
         logger.error('[Admin Users] CRITICAL: User from wrong organization returned by query!', {
@@ -116,7 +129,7 @@ export async function GET(request: NextRequest) {
         expectedCount: allUsers.length,
         filteredCount: filteredUsers.length,
         userId: currentUser.id,
-        returnedUserIds: allUsers.map((u: any) => ({ 
+        returnedUserIds: allUsers.map((u) => ({ 
           id: u.id, 
           email: u.email,
           orgId: u.organization_id,

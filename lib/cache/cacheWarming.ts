@@ -49,7 +49,7 @@ export async function warmUserCache(userId: string, authId: string, organization
       .eq('user_id', userId);
     
     if (projectMembers) {
-      const projectIds = projectMembers.map((pm: any) => pm.project_id);
+      const projectIds = projectMembers.map((pm) => pm.project_id);
       await cacheSet(userProjectsKey, projectIds, CACHE_TTL.USER_PROJECTS);
     }
     

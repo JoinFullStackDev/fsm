@@ -64,7 +64,7 @@ interface Package {
   price_per_user_yearly: number | null;
   base_price_monthly: number | null;
   base_price_yearly: number | null;
-  features: any;
+  features: Record<string, boolean | number | string | null>;
 }
 
 export default function AdminSubscriptionTab() {

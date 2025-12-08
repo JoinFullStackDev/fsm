@@ -15,10 +15,10 @@ import { redactSensitiveData, sanitizeLogMessage, containsSensitiveData } from '
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
 interface Logger {
-  debug: (...args: any[]) => void;
-  info: (...args: any[]) => void;
-  warn: (...args: any[]) => void;
-  error: (...args: any[]) => void;
+  debug: (...args: unknown[]) => void;
+  info: (...args: unknown[]) => void;
+  warn: (...args: unknown[]) => void;
+  error: (...args: unknown[]) => void;
 }
 
 const logger: Logger = {
@@ -26,7 +26,7 @@ const logger: Logger = {
    * Debug logs - only shown in development
    * Use for detailed debugging information that's not needed in production
    */
-  debug: (...args: any[]) => {
+  debug: (...args: unknown[]) => {
     if (isDevelopment) {
       const sanitized = args.map(arg => {
         if (containsSensitiveData(arg)) {
@@ -45,7 +45,7 @@ const logger: Logger = {
    * Info logs - always shown
    * Use for important information that should be visible in production
    */
-  info: (...args: any[]) => {
+  info: (...args: unknown[]) => {
     const sanitized = args.map(arg => {
       if (containsSensitiveData(arg)) {
         return redactSensitiveData(arg);
@@ -62,7 +62,7 @@ const logger: Logger = {
    * Warning logs - always shown
    * Use for warnings that should be visible in production
    */
-  warn: (...args: any[]) => {
+  warn: (...args: unknown[]) => {
     const sanitized = args.map(arg => {
       if (containsSensitiveData(arg)) {
         return redactSensitiveData(arg);
@@ -80,7 +80,7 @@ const logger: Logger = {
    * Use for errors that need to be tracked in production
    * Sensitive data is automatically redacted
    */
-  error: (...args: any[]) => {
+  error: (...args: unknown[]) => {
     const sanitized = args.map(arg => {
       if (arg instanceof Error) {
         return {

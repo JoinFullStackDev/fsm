@@ -294,7 +294,11 @@ export default function SOWMemberList({
               Some team members are overworked based on task estimates vs allocated hours. Consider redistributing tasks or adjusting allocations. This is a warning only - tasks can still be assigned.
             </Alert>
           )}
-          {members.some((m: any) => m.allocation_utilization && m.allocation_utilization >= 80 && m.allocation_utilization < 100) && (
+          {members.some((m: SOWMemberWithStats) => {
+            // Check if allocation_utilization exists on the object (it might be added by the API but not in the type yet)
+            const util = (m as any).allocation_utilization;
+            return util && util >= 80 && util < 100;
+          }) && (
             <Alert severity="info" sx={{ mt: 2 }}>
               Some team members are approaching their allocation limits. Monitor workload to prevent over-allocation.
             </Alert>

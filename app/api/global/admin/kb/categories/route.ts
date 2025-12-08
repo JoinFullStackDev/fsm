@@ -4,6 +4,27 @@ import { requireSuperAdmin } from '@/lib/globalAdmin';
 import { internalError } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 
+// Types for KB categories
+interface KBCategoryRow {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  parent_id: string | null;
+  organization_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface KBCategoryWithChildren extends KBCategoryRow {
+  children: KBCategoryWithChildren[];
+  article_count: number;
+}
+
+interface ArticleWithCategory {
+  category_id: string | null;
+}
+
 export const dynamic = 'force-dynamic';
 
 /**
@@ -33,10 +54,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Build hierarchical structure
-    const categoryMap = new Map<string, any>();
-    const rootCategories: any[] = [];
+    const categoryMap = new Map<string, KBCategoryWithChildren>();
+    const rootCategories: KBCategoryWithChildren[] = [];
+    const typedCategories = (categories as KBCategoryRow[]) || [];
 
-    (categories || []).forEach((category: any) => {
+    typedCategories.forEach((category) => {
       categoryMap.set(category.id, {
         ...category,
         children: [],
@@ -53,7 +75,7 @@ export async function GET(request: NextRequest) {
         .in('category_id', categoryIds);
 
       const counts = new Map<string, number>();
-      (articles || []).forEach((article: any) => {
+      ((articles as ArticleWithCategory[]) || []).forEach((article) => {
         if (article.category_id) {
           counts.set(article.category_id, (counts.get(article.category_id) || 0) + 1);
         }
@@ -71,7 +93,9 @@ export async function GET(request: NextRequest) {
     categoryMap.forEach((category) => {
       if (category.parent_id && categoryMap.has(category.parent_id)) {
         const parent = categoryMap.get(category.parent_id);
-        parent.children.push(category);
+        if (parent) {
+          parent.children.push(category);
+        }
       } else {
         rootCategories.push(category);
       }

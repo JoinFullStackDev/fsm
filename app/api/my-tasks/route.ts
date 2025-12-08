@@ -98,8 +98,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Filter tasks to only include those from user's organization
-    const filteredTasks = (tasks || []).filter((task: any) => {
-      return task.project?.organization_id === userData.organization_id;
+    // Note: Supabase returns nested relations as arrays
+    const filteredTasks = (tasks || []).filter((task) => {
+      const projectData = Array.isArray(task.project) ? task.project[0] : task.project;
+      return projectData?.organization_id === userData.organization_id;
     });
 
     return NextResponse.json({

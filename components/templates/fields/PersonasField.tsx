@@ -1,4 +1,5 @@
 'use client';
+import type { PhaseDataUnion } from '@/types/phases';
 
 import { useState } from 'react';
 import {
@@ -27,7 +28,7 @@ interface PersonasFieldProps {
   value: Persona[];
   onChange: (value: Persona[]) => void;
   error?: string;
-  phaseData?: any;
+  phaseData?: Record<string, unknown>;
 }
 
 export default function PersonasField({ field, value, onChange, error, phaseData }: PersonasFieldProps) {

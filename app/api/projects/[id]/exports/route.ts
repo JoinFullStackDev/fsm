@@ -5,6 +5,22 @@ import logger from '@/lib/utils/logger';
 import { PAGINATION_DEFAULTS } from '@/lib/constants';
 import type { ExportListResponse, ExportWithUser } from '@/types/project';
 
+// Type for export row from database
+interface ExportRow {
+  id: string;
+  project_id: string;
+  export_type: string;
+  storage_path: string | null;
+  user_id: string | null;
+  file_size: number | null;
+  created_at: string;
+  user?: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+}
+
 /**
  * GET /api/projects/[id]/exports
  * 
@@ -115,9 +131,9 @@ export async function GET(
       query = query.lt('created_at', endDatePlusOne.toISOString());
     }
 
-    let exportsData: any[] = [];
+    let exportsData: ExportRow[] = [];
     let totalCount = 0;
-    let queryError: any = null;
+    let queryError: { message: string } | null = null;
 
     try {
       const result = await query;
@@ -181,7 +197,7 @@ export async function GET(
     }
 
     // Transform data to match ExportWithUser type
-    const exportsWithUser: ExportWithUser[] = exportsData.map((exp: any) => ({
+    const exportsWithUser: ExportWithUser[] = exportsData.map((exp) => ({
       id: exp.id,
       project_id: exp.project_id,
       export_type: exp.export_type,
@@ -192,7 +208,7 @@ export async function GET(
       user: exp.user
         ? {
             id: exp.user.id,
-            name: exp.user.name,
+            name: exp.user.name || 'Unknown',
             email: exp.user.email,
           }
         : exp.user_id && usersMap[exp.user_id]

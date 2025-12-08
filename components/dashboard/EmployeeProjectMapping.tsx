@@ -25,7 +25,7 @@ interface EmployeeProjectMappingProps {
   projects: Project[];
   tasks: ProjectTask[];
   users: User[];
-  projectMembers: Array<{ project_id: string; user_id: string; user: User }>;
+  projectMembers: Array<{ project_id: string; user_id: string; user: User; role?: string }>;
   currentUserId: string | null;
   currentUserRole: UserRole | null;
 }
@@ -78,7 +78,7 @@ export default function EmployeeProjectMapping({
         mapping[pm.user_id].projects.push({
           project,
           tasks: userTasks,
-          role: (pm as any).role,
+          role: pm.role,
         });
         mapping[pm.user_id].totalTasks += userTasks.length;
         mapping[pm.user_id].completedTasks += userTasks.filter((t) => t.status === 'done').length;
@@ -186,7 +186,7 @@ export default function EmployeeProjectMapping({
         key: 'project',
         label: 'Project',
         sortable: false,
-        render: (_: any, row: ProjectTask) => {
+        render: (_: unknown, row: ProjectTask) => {
           const project = projects.find((p) => p.id === row.project_id);
           return project?.name || 'Unknown Project';
         },
@@ -196,42 +196,51 @@ export default function EmployeeProjectMapping({
         label: 'Status',
         sortable: true,
         align: 'center' as const,
-        render: (value: string) => (
-          <Chip
-            label={value === 'done' ? 'Completed' : value === 'in_progress' ? 'In Progress' : 'To Do'}
-            size="small"
-            sx={{
-              backgroundColor: theme.palette.action.hover,
-              color: getStatusColor(value),
-              border: `1px solid ${theme.palette.divider}`,
-              fontWeight: 500,
-            }}
-          />
-        ),
+        render: (val: unknown) => {
+          const value = val as string;
+          return (
+            <Chip
+              label={value === 'done' ? 'Completed' : value === 'in_progress' ? 'In Progress' : 'To Do'}
+              size="small"
+              sx={{
+                backgroundColor: theme.palette.action.hover,
+                color: getStatusColor(value),
+                border: `1px solid ${theme.palette.divider}`,
+                fontWeight: 500,
+              }}
+            />
+          );
+        },
       },
       {
         key: 'priority',
         label: 'Priority',
         sortable: true,
         align: 'center' as const,
-        render: (value: string) => (
-          <Chip
-            label={value || 'Medium'}
-            size="small"
-            sx={{
-              backgroundColor: theme.palette.action.hover,
-              color: theme.palette.text.primary,
-              border: `1px solid ${theme.palette.divider}`,
-              fontWeight: 500,
-            }}
-          />
-        ),
+        render: (val: unknown) => {
+          const value = val as string;
+          return (
+            <Chip
+              label={value || 'Medium'}
+              size="small"
+              sx={{
+                backgroundColor: theme.palette.action.hover,
+                color: theme.palette.text.primary,
+                border: `1px solid ${theme.palette.divider}`,
+                fontWeight: 500,
+              }}
+            />
+          );
+        },
       },
       {
         key: 'due_date',
         label: 'Due Date',
         sortable: true,
-        render: (value: string | null) => value ? format(parseISO(value), 'MMM d, yyyy') : '-',
+        render: (val: unknown) => {
+          const value = val as string | null;
+          return value ? format(parseISO(value), 'MMM d, yyyy') : '-';
+        },
       },
     ];
   }, [currentUserTasks, selectedProjectId, projects, theme, getStatusColor]);
@@ -251,7 +260,7 @@ export default function EmployeeProjectMapping({
       key: 'user',
       label: 'Team Member',
       sortable: true,
-      render: (_: any, row: EmployeeMappingItem) => (
+      render: (_: unknown, row: EmployeeMappingItem) => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Avatar
             src={row.user.avatar_url || undefined}
@@ -281,7 +290,7 @@ export default function EmployeeProjectMapping({
       key: 'projects',
       label: 'Projects',
       sortable: false,
-      render: (_: any, row: EmployeeMappingItem) => (
+      render: (_: unknown, row: EmployeeMappingItem) => (
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
           {row.projects.map(({ project, tasks: projectTasks, role }) => (
             <Tooltip
@@ -312,47 +321,56 @@ export default function EmployeeProjectMapping({
       label: 'Total Tasks',
       sortable: true,
       align: 'center' as const,
-      render: (value: number) => (
-        <Typography sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
-          {value}
-        </Typography>
-      ),
+      render: (val: unknown) => {
+        const value = val as number;
+        return (
+          <Typography sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+            {value}
+          </Typography>
+        );
+      },
     },
     {
       key: 'inProgressTasks',
       label: 'In Progress',
       sortable: true,
       align: 'center' as const,
-      render: (value: number) => (
-        <Chip
-          label={value}
-          size="small"
-          sx={{
-            backgroundColor: theme.palette.action.hover,
-            color: theme.palette.text.primary,
-            border: `1px solid ${theme.palette.divider}`,
-            fontWeight: 600,
-          }}
-        />
-      ),
+      render: (val: unknown) => {
+        const value = val as number;
+        return (
+          <Chip
+            label={value}
+            size="small"
+            sx={{
+              backgroundColor: theme.palette.action.hover,
+              color: theme.palette.text.primary,
+              border: `1px solid ${theme.palette.divider}`,
+              fontWeight: 600,
+            }}
+          />
+        );
+      },
     },
     {
       key: 'completedTasks',
       label: 'Completed',
       sortable: true,
       align: 'center' as const,
-      render: (value: number) => (
-        <Chip
-          label={value}
-          size="small"
-          sx={{
-            backgroundColor: theme.palette.action.hover,
-            color: '#4CAF50',
-            border: `1px solid ${theme.palette.divider}`,
-            fontWeight: 600,
-          }}
-        />
-      ),
+      render: (val: unknown) => {
+        const value = val as number;
+        return (
+          <Chip
+            label={value}
+            size="small"
+            sx={{
+              backgroundColor: theme.palette.action.hover,
+              color: '#4CAF50',
+              border: `1px solid ${theme.palette.divider}`,
+              fontWeight: 600,
+            }}
+          />
+        );
+      },
     },
     ];
   }, [theme]);

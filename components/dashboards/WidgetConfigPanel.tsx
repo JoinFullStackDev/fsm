@@ -21,18 +21,26 @@ import {
   Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
+import type { WidgetDataset, WidgetSettings } from '@/types/database';
+
+interface WidgetPosition {
+  x?: number;
+  y?: number;
+  w: number;
+  h: number;
+}
 
 interface WidgetConfigPanelProps {
   open: boolean;
   widget: {
     id: string;
     widget_type: string;
-    dataset: any;
-    position: any;
-    settings: any;
+    dataset: WidgetDataset;
+    position: WidgetPosition;
+    settings: WidgetSettings;
   } | null;
   onClose: () => void;
-  onSave: (widgetId: string, dataset: any, settings: any, position?: any) => void;
+  onSave: (widgetId: string, dataset: WidgetDataset, settings: WidgetSettings, position?: WidgetPosition) => void;
   onDelete: (widgetId: string) => void;
 }
 
@@ -44,9 +52,9 @@ export default function WidgetConfigPanel({
   onDelete,
 }: WidgetConfigPanelProps) {
   const theme = useTheme();
-  const [dataset, setDataset] = useState<any>({});
-  const [settings, setSettings] = useState<any>({});
-  const [position, setPosition] = useState<any>({});
+  const [dataset, setDataset] = useState<WidgetDataset>({});
+  const [settings, setSettings] = useState<WidgetSettings>({});
+  const [position, setPosition] = useState<WidgetPosition>({ w: 4, h: 3 });
 
   useEffect(() => {
     if (widget) {

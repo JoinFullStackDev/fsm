@@ -18,17 +18,25 @@ import {
   Delete as DeleteIcon,
 } from '@mui/icons-material';
 import WidgetRenderer from './WidgetRenderer';
+import type { WidgetDataset, WidgetSettings } from '@/types/database';
+
+interface WidgetPosition {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
 
 interface DashboardEditorProps {
   dashboardId: string;
   widgets: Array<{
     id: string;
     widget_type: string;
-    dataset: any;
-    position: any;
-    settings: any;
+    dataset: WidgetDataset;
+    position: WidgetPosition;
+    settings: WidgetSettings;
   }>;
-  onWidgetUpdate: (widgetId: string, position: any) => void;
+  onWidgetUpdate: (widgetId: string, position: WidgetPosition) => void;
   onWidgetSelect: (widgetId: string) => void;
   selectedWidgetId: string | null;
   isDragging?: boolean;

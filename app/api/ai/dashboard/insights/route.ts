@@ -4,13 +4,44 @@ import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { unauthorized, notFound, internalError, forbidden, badRequest } from '@/lib/utils/apiErrors';
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { hasCustomDashboards, hasAIFeatures } from '@/lib/packageLimits';
-import { generateAIResponse } from '@/lib/ai/geminiClient';
+import { generateAIResponse, AIResponseWithMetadata } from '@/lib/ai/geminiClient';
 import { logAIUsage } from '@/lib/ai/aiUsageLogger';
 import { getGeminiConfig } from '@/lib/utils/geminiConfig';
 import * as metricQueries from '@/lib/dashboards/widgetData/metricQueries';
 import * as chartQueries from '@/lib/dashboards/widgetData/chartQueries';
 import * as tableQueries from '@/lib/dashboards/widgetData/tableQueries';
 import logger from '@/lib/utils/logger';
+import { SupabaseClient } from '@supabase/supabase-js';
+import type {
+  DashboardRow,
+  DashboardWidgetWithDataset,
+  WidgetDataset,
+  MetricWidgetData,
+  ChartWidgetData,
+  TableWidgetData,
+  ChartDataPoint,
+  ChartQueryOptions,
+} from '@/types/database';
+
+// Types for dashboard with widgets
+interface DashboardWithWidgets extends DashboardRow {
+  widgets: DashboardWidgetWithDataset[];
+}
+
+// Type for widget data fetch result
+interface WidgetDataFetchResult {
+  widget_id: string;
+  widget_type: string;
+  title: string;
+  data_source?: string | string[];
+  data?: MetricWidgetData | ChartWidgetData | TableWidgetData | null;
+  error?: string;
+}
+
+// Type for chart data with series
+interface ChartDataWithSeries extends ChartWidgetData {
+  dataSource?: string;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -123,33 +154,33 @@ export async function POST(request: NextRequest) {
     }
 
     // Build prompt based on insight type
-    const widgets = (dashboard as any).widgets || [];
+    const dashboardWithWidgets = dashboard as DashboardWithWidgets;
+    const widgets: DashboardWidgetWithDataset[] = dashboardWithWidgets.widgets || [];
     
     // Fetch actual data for each widget (excluding AI insight widgets themselves)
     const widgetDataPromises = widgets
-      .filter((w: any) => w.widget_type !== 'ai_insight' && w.widget_type !== 'rich_text')
-      .map(async (widget: any) => {
+      .filter((w: DashboardWidgetWithDataset) => w.widget_type !== 'ai_insight' && w.widget_type !== 'rich_text')
+      .map(async (widget: DashboardWidgetWithDataset): Promise<WidgetDataFetchResult> => {
         try {
-          const dataset = widget.dataset || {};
+          const dataset: WidgetDataset = widget.dataset || {};
           const dataSource = dataset.dataSource || dataset.source;
           const dataSources = dataset.dataSources;
           
-          let widgetData: any = null;
+          let widgetData: MetricWidgetData | ChartWidgetData | TableWidgetData | null = null;
           
           switch (widget.widget_type) {
             case 'metric':
               if (dataSource) {
-                const filters = dataset.filters || {};
                 widgetData = await fetchMetricData(adminClient, organizationId, dataSource, dataset, userData.id);
               }
               break;
               
             case 'chart':
               if (dataSource || (dataSources && dataSources.length > 0)) {
-                const options = {
+                const options: ChartQueryOptions = {
                   projectId: dataset.filters?.projectId,
-                  dateRange: dataset.filters?.dateRange,
-                  groupBy: dataset.groupBy || 'day',
+                  dateRange: typeof dataset.filters?.dateRange === 'object' ? dataset.filters.dateRange : undefined,
+                  groupBy: (dataset.groupBy as 'day' | 'week' | 'month') || 'day',
                 };
                 widgetData = await fetchChartData(adminClient, organizationId, dataSource || dataSources, dataset, options);
               }
@@ -180,32 +211,35 @@ export async function POST(request: NextRequest) {
         }
       });
     
-    const widgetDataResults = await Promise.all(widgetDataPromises);
+    const widgetDataResults: WidgetDataFetchResult[] = await Promise.all(widgetDataPromises);
     
     // Format widget data for the prompt
-    const widgetDataSummary = widgetDataResults.map((w: any) => {
+    const widgetDataSummary = widgetDataResults.map((w: WidgetDataFetchResult) => {
       if (w.error) {
         return `- ${w.title} (${w.widget_type}): ${w.error}`;
       }
       
       let dataSummary = '';
-      if (w.widget_type === 'metric') {
-        dataSummary = `Value: ${w.data?.value || 'N/A'}${w.data?.label ? ` (${w.data.label})` : ''}${w.data?.change ? `, Change: ${w.data.change}%` : ''}`;
-      } else if (w.widget_type === 'chart') {
-        const dataPoints = w.data?.data || [];
-        const series = w.data?.series || [];
+      if (w.widget_type === 'metric' && w.data) {
+        const metricData = w.data as MetricWidgetData;
+        dataSummary = `Value: ${metricData.value ?? 'N/A'}${metricData.label ? ` (${metricData.label})` : ''}${metricData.change ? `, Change: ${metricData.change}%` : ''}`;
+      } else if (w.widget_type === 'chart' && w.data) {
+        const chartData = w.data as ChartWidgetData;
+        const dataPoints: ChartDataPoint[] = chartData.data || [];
+        const series = chartData.series || [];
         if (dataPoints.length > 0) {
           const recentPoints = dataPoints.slice(-5); // Last 5 data points
           dataSummary = `Data points: ${dataPoints.length} total. Recent values: ${JSON.stringify(recentPoints)}`;
           if (series.length > 0) {
-            dataSummary += ` Series: ${series.map((s: any) => s.label).join(', ')}`;
+            dataSummary += ` Series: ${series.map((s) => s.label).join(', ')}`;
           }
         } else {
           dataSummary = 'No data available';
         }
-      } else if (w.widget_type === 'table') {
-        const rows = w.data?.rows || [];
-        const columns = w.data?.columns || [];
+      } else if (w.widget_type === 'table' && w.data) {
+        const tableData = w.data as TableWidgetData;
+        const rows = tableData.rows || [];
+        const columns = tableData.columns || [];
         dataSummary = `Table with ${columns.length} columns and ${rows.length} rows. Columns: ${columns.join(', ')}`;
         if (rows.length > 0 && rows.length <= 5) {
           dataSummary += ` Sample rows: ${JSON.stringify(rows)}`;
@@ -262,11 +296,12 @@ Format the response as clear, actionable markdown with:
 
     // Extract insights and metadata
     let insights: string;
-    let metadata: any = null;
+    let metadata: AIResponseWithMetadata['metadata'] | null = null;
     
-    if (typeof aiResponse === 'object' && 'metadata' in aiResponse) {
-      insights = (aiResponse as any).text || '';
-      metadata = (aiResponse as any).metadata;
+    if (typeof aiResponse === 'object' && aiResponse !== null && 'metadata' in aiResponse) {
+      const typedResponse = aiResponse as AIResponseWithMetadata;
+      insights = typedResponse.text || '';
+      metadata = typedResponse.metadata;
     } else {
       insights = typeof aiResponse === 'string' ? aiResponse : '';
     }
@@ -302,25 +337,31 @@ Format the response as clear, actionable markdown with:
  * Fetch metric widget data for AI insights
  */
 async function fetchMetricData(
-  supabase: any,
+  supabase: SupabaseClient,
   organizationId: string,
   dataSource: string,
-  dataset: any,
+  dataset: WidgetDataset,
   userId: string
-) {
+): Promise<MetricWidgetData> {
   const filters = dataset.filters || {};
+  
+  // Normalize status to string array if needed
+  const status = filters.status;
+  const statusArray: string[] | undefined = status 
+    ? (Array.isArray(status) ? status : [status]) 
+    : undefined;
 
   switch (dataSource) {
     case 'task_count':
       return await metricQueries.getTaskCount(supabase, organizationId, {
         projectId: filters.projectId,
-        status: filters.status,
+        status: statusArray,
         assigneeId: filters.assigneeId || (filters.myTasks ? userId : undefined),
         dueDateRange: filters.dueDateRange,
       });
     case 'project_count':
       return await metricQueries.getProjectCount(supabase, organizationId, {
-        status: filters.status,
+        status: statusArray,
       });
     case 'tasks_due_today':
       return await metricQueries.getTasksDueToday(supabase, organizationId, filters.assigneeId || (filters.myTasks ? userId : undefined));
@@ -336,11 +377,11 @@ async function fetchMetricData(
       return await metricQueries.getUserCount(supabase, organizationId);
     case 'opportunity_count':
       return await metricQueries.getOpportunityCount(supabase, organizationId, {
-        status: filters.status,
+        status: statusArray,
       });
     case 'company_count':
       return await metricQueries.getCompanyCount(supabase, organizationId, {
-        status: filters.status,
+        status: statusArray,
       });
     default:
       return { value: 0, label: 'Unknown metric' };
@@ -351,14 +392,14 @@ async function fetchMetricData(
  * Fetch chart widget data for AI insights
  */
 async function fetchChartData(
-  supabase: any,
+  supabase: SupabaseClient,
   organizationId: string,
   dataSource: string | string[] | undefined,
-  dataset: any,
-  options: any
-) {
+  dataset: WidgetDataset,
+  options: ChartQueryOptions
+): Promise<ChartWidgetData> {
   // Support multiple data sources for comparison
-  const dataSources = dataset.dataSources || (dataSource ? [dataSource] : []);
+  const dataSources: string[] = dataset.dataSources || (dataSource ? (Array.isArray(dataSource) ? dataSource : [dataSource]) : []);
   
   if (dataSources.length === 0) {
     return { data: [] };
@@ -366,7 +407,7 @@ async function fetchChartData(
 
   // If multiple data sources, merge them into a single dataset
   if (dataSources.length > 1) {
-    const allDataPromises = dataSources.map(async (ds: string) => {
+    const allDataPromises = dataSources.map(async (ds: string): Promise<ChartDataWithSeries> => {
       const result = await fetchSingleChartData(supabase, organizationId, ds, dataset, options);
       return { dataSource: ds, ...result };
     });
@@ -385,22 +426,22 @@ async function fetchChartData(
     };
     
     // Merge data by date/name key
-    const mergedData: Record<string, any> = {};
+    const mergedData: Record<string, ChartDataPoint> = {};
     
-    allData.forEach((seriesData) => {
+    allData.forEach((seriesData: ChartDataWithSeries) => {
       if (seriesData.data && Array.isArray(seriesData.data)) {
-        seriesData.data.forEach((point: any) => {
+        seriesData.data.forEach((point: ChartDataPoint) => {
           const key = point.name;
           if (!mergedData[key]) {
-            mergedData[key] = { name: key };
+            mergedData[key] = { name: key, value: 0 };
           }
-          const sanitizedKey = seriesData.dataSource.replace(/[^a-zA-Z0-9]/g, '_');
+          const sanitizedKey = seriesData.dataSource?.replace(/[^a-zA-Z0-9]/g, '_') || 'unknown';
           mergedData[key][sanitizedKey] = point.value;
         });
       }
     });
 
-    const mergedArray = Object.values(mergedData).sort((a: any, b: any) => 
+    const mergedArray = Object.values(mergedData).sort((a: ChartDataPoint, b: ChartDataPoint) => 
       a.name.localeCompare(b.name)
     );
 
@@ -424,12 +465,12 @@ async function fetchChartData(
  * Fetch a single chart data source
  */
 async function fetchSingleChartData(
-  supabase: any,
+  supabase: SupabaseClient,
   organizationId: string,
   dataSource: string,
-  dataset: any,
-  options: any
-) {
+  dataset: WidgetDataset,
+  options: ChartQueryOptions
+): Promise<ChartWidgetData> {
   try {
     switch (dataSource) {
       case 'task_timeline':
@@ -460,18 +501,24 @@ async function fetchSingleChartData(
  * Fetch table widget data for AI insights
  */
 async function fetchTableData(
-  supabase: any,
+  supabase: SupabaseClient,
   organizationId: string,
   dataSource: string,
-  dataset: any
-) {
+  dataset: WidgetDataset
+): Promise<TableWidgetData> {
+  // Normalize status to string array if needed
+  const status = dataset.filters?.status;
+  const statusArray: string[] | undefined = status 
+    ? (Array.isArray(status) ? status : [status]) 
+    : undefined;
+  
   const options = {
     projectId: dataset.filters?.projectId,
     limit: dataset.limit || 50,
-    status: dataset.filters?.status,
+    status: statusArray,
     assigneeId: dataset.filters?.assigneeId,
     orderBy: dataset.orderBy,
-    orderDirection: dataset.orderDirection,
+    orderDirection: dataset.orderDirection as 'asc' | 'desc' | undefined,
     actionTypes: dataset.filters?.actionTypes,
   };
 

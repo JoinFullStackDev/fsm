@@ -63,7 +63,7 @@ interface RequestDetail {
   model: string;
   error: string | null;
   error_type: string | null;
-  metadata: any;
+  metadata: Record<string, unknown>;
 }
 
 interface AggregatedStats {

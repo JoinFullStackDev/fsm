@@ -11,6 +11,7 @@ export default function LandingFooter() {
   const footerLinks = [
     { label: 'Privacy Policy', href: '#' },
     { label: 'Terms of Service', href: '#' },
+    { label: 'Become an Affiliate', href: '/affiliates' },
     { label: 'Contact', href: 'mailto:support@fullstackmethod.com' },
   ];
 

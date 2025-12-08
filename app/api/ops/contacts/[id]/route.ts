@@ -199,7 +199,7 @@ export async function PUT(
     }
 
     // Build update object with all fields
-    const updateData: any = {};
+    const updateData: Partial<CompanyContact> = {};
     if (first_name !== undefined) updateData.first_name = first_name.trim();
     if (last_name !== undefined) updateData.last_name = last_name.trim();
     if (email !== undefined) updateData.email = email?.trim() || null;

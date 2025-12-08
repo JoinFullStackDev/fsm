@@ -8,10 +8,26 @@ import {
   generateWeeklyReportContent,
   generateMonthlyReportContent,
   generateForecastReportContent,
+  type ReportContent,
+  type ReportContentWithMetadata,
 } from '@/lib/reports/aiReportGenerator';
 import { logAIUsage } from '@/lib/ai/aiUsageLogger';
 import { generatePDFReport } from '@/lib/reports/pdfGenerator';
 import { format } from 'date-fns';
+import type { ProjectTask } from '@/types/project';
+
+// Types for report data
+interface ProjectMemberQueryResult {
+  user_id: string;
+  users: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+}
+
+// Report data types - these can vary based on report type
+type ReportDataType = ReturnType<typeof getWeeklyTasks> | ReturnType<typeof getMonthlyTasks> | ReturnType<typeof getForecastTasks>;
 
 export async function POST(
   request: NextRequest,
@@ -73,10 +89,8 @@ export async function POST(
       return internalError('Failed to load tasks');
     }
 
-    const tasks = (tasksData || []).map((task: any) => ({
-      ...task,
-      assignee: task.assignee || null,
-    }));
+    // Type the tasks properly for report generation
+    const tasks = (tasksData || []) as (ProjectTask & { assignee?: { id: string; name: string | null; email: string; avatar_url: string | null } | null })[];
 
     // Load project members
     const { data: membersData, error: membersError } = await supabase
@@ -85,7 +99,7 @@ export async function POST(
       .eq('project_id', params.id);
 
     const projectMembers =
-      membersData?.map((m: any) => ({
+      (membersData as ProjectMemberQueryResult[] | null)?.map((m) => ({
         id: m.users.id,
         name: m.users.name,
       })) || [];
@@ -95,9 +109,9 @@ export async function POST(
     const geminiApiKey = await getGeminiApiKey(supabase) || undefined;
 
     // Aggregate data based on report type
-    let reportData: any;
-    let reportContent: any;
-    let reportMetadata: any = null;
+    let reportData: ReportDataType;
+    let reportContent: ReportContent;
+    let reportMetadata: ReportContentWithMetadata['metadata'] | null = null;
     let dateRange: string;
 
     if (reportType === 'weekly') {

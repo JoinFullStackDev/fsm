@@ -73,7 +73,7 @@ interface ContactFormProps {
     notes?: string | null;
     status?: ContactStatus;
   };
-  onSubmit: (data: any) => Promise<void>;
+  onSubmit: (data: Record<string, unknown>) => Promise<void>;
   onCancel: () => void;
   loading?: boolean;
   error?: string | null;

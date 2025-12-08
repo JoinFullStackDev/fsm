@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform to match OpportunityWithCompany type
-    const opportunitiesWithCompany: OpportunityWithCompany[] = (opportunities || []).map((opp: any) => ({
+    const opportunitiesWithCompany: OpportunityWithCompany[] = (opportunities as Array<Opportunity & { company?: { id: string; name: string } | null }> || []).map((opp) => ({
       ...opp,
       company: opp.company || undefined,
     }));

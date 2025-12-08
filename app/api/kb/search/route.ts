@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
  * Track search in analytics
  */
 async function trackSearch(
-  supabase: any,
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   query: string,
   resultCount: number,
   userId: string

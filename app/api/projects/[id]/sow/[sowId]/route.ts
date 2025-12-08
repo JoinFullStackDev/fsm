@@ -4,6 +4,13 @@ import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { unauthorized, badRequest, internalError, notFound, forbidden } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
+import type { 
+  SOWTaskRow, 
+  ProjectMemberAllocationRow, 
+  SOWProjectMemberRow,
+  SOWUpdateData,
+  UserWorkloadSummary 
+} from '@/types/database';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,9 +76,9 @@ export async function GET(
 
     // Enrich project members with task counts and workload if they exist
     if (sow.project_members && sow.project_members.length > 0) {
-      const memberUserIds = sow.project_members
-        .map((pm: any) => pm.project_member?.user_id)
-        .filter(Boolean);
+      const memberUserIds = (sow.project_members as SOWProjectMemberRow[])
+        .map(pm => pm.project_member?.user_id)
+        .filter((id): id is string => Boolean(id));
 
       if (memberUserIds.length > 0) {
         // Get task counts and estimated hours
@@ -93,26 +100,26 @@ export async function GET(
           .or(`start_date.is.null,start_date.lte.${today},end_date.is.null,end_date.gte.${today}`);
 
         const allocationsMap = new Map<string, number>();
-        projectAllocations?.forEach((alloc: any) => {
+        (projectAllocations as ProjectMemberAllocationRow[] | null)?.forEach(alloc => {
           allocationsMap.set(alloc.user_id, alloc.allocated_hours_per_week);
         });
 
         // Get workload summaries with error handling
         const workloadPromises = memberUserIds.map(async (userId: string) => {
           try {
-            const result: any = await adminClient.rpc('get_user_workload_summary', {
+            const result = await adminClient.rpc('get_user_workload_summary', {
               p_user_id: userId,
               p_start_date: new Date().toISOString().split('T')[0],
               p_end_date: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             });
-            return { userId, data: result.data, error: result.error };
-          } catch (error: any) {
+            return { userId, data: result.data as UserWorkloadSummary | null, error: result.error };
+          } catch (error) {
             return { userId, data: null, error };
           }
         });
 
         const workloadResults = await Promise.allSettled(workloadPromises);
-        const workloadsMap = new Map<string, any>();
+        const workloadsMap = new Map<string, UserWorkloadSummary>();
 
         workloadResults.forEach((result, index) => {
           if (result.status === 'fulfilled' && result.value.data) {
@@ -121,33 +128,35 @@ export async function GET(
         });
 
         // Enrich members with stats
-        sow.project_members = sow.project_members.map((member: any) => {
+        const typedTasks = tasks as SOWTaskRow[] | null;
+        sow.project_members = (sow.project_members as SOWProjectMemberRow[]).map((member) => {
           const userId = member.project_member?.user_id;
-          const userTasks = tasks?.filter((t: any) => t.assignee_id === userId) || [];
+          const userTasks = typedTasks?.filter(t => t.assignee_id === userId) || [];
           const taskCount = userTasks.length;
           const taskCountByStatus = {
-            todo: userTasks.filter((t: any) => t.status === 'todo').length,
-            in_progress: userTasks.filter((t: any) => t.status === 'in_progress').length,
-            done: userTasks.filter((t: any) => t.status === 'done').length,
+            todo: userTasks.filter(t => t.status === 'todo').length,
+            in_progress: userTasks.filter(t => t.status === 'in_progress').length,
+            done: userTasks.filter(t => t.status === 'done').length,
           };
 
           // Calculate total estimated hours
-          const totalEstimatedHours = userTasks.reduce((sum: number, t: any) => {
-            return sum + (parseFloat(t.estimated_hours) || 0);
+          const totalEstimatedHours = userTasks.reduce((sum: number, t) => {
+            const hours = typeof t.estimated_hours === 'string' ? parseFloat(t.estimated_hours) : (t.estimated_hours || 0);
+            return sum + (hours || 0);
           }, 0);
 
           // Get allocated hours for this project
           const allocatedHoursPerWeek = allocationsMap.get(userId || '') || 0;
 
           // Calculate average weeks until due dates
-          const weeksUntilDue = userTasks.length > 0 && userTasks.some((t: any) => t.due_date)
+          const weeksUntilDue = userTasks.length > 0 && userTasks.some(t => t.due_date)
             ? userTasks
-                .filter((t: any) => t.due_date)
-                .map((t: any) => {
+                .filter((t): t is SOWTaskRow & { due_date: string } => t.due_date !== null)
+                .map(t => {
                   const daysUntilDue = Math.max(0, Math.ceil((new Date(t.due_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
                   return daysUntilDue / 7;
                 })
-                .reduce((avg: number, weeks: number, idx: number, arr: number[]) => {
+                .reduce((avg: number, weeks: number, _idx: number, arr: number[]) => {
                   return avg + (weeks / arr.length);
                 }, 0) || 4
             : 4;
@@ -279,7 +288,7 @@ export async function PUT(
     } = body;
 
     // Build update object
-    const updateData: any = {};
+    const updateData: SOWUpdateData = {};
     if (title !== undefined) updateData.title = title.trim();
     if (description !== undefined) updateData.description = description;
     if (objectives !== undefined) updateData.objectives = objectives;

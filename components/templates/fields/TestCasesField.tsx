@@ -1,4 +1,5 @@
 'use client';
+import type { PhaseDataUnion } from '@/types/phases';
 
 import {
   Box,
@@ -27,7 +28,7 @@ interface TestCasesFieldProps {
   value: TestCase[];
   onChange: (value: TestCase[]) => void;
   error?: string;
-  phaseData?: any;
+  phaseData?: Record<string, unknown>;
 }
 
 export default function TestCasesField({ field, value, onChange, error, phaseData }: TestCasesFieldProps) {

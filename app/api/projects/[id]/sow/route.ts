@@ -4,7 +4,7 @@ import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { unauthorized, badRequest, internalError, notFound, forbidden } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
-import type { ScopeOfWork, SOWWithAllocations } from '@/types/project';
+import type { ResourceAllocationInput } from '@/types/database';
 
 export const dynamic = 'force-dynamic';
 
@@ -212,7 +212,7 @@ export async function POST(
 
     // Create resource allocations if provided
     if (resource_allocations && Array.isArray(resource_allocations) && resource_allocations.length > 0) {
-      const allocationsToInsert = resource_allocations.map((alloc: any) => ({
+      const allocationsToInsert = (resource_allocations as ResourceAllocationInput[]).map(alloc => ({
         sow_id: sow.id,
         user_id: alloc.user_id,
         role: alloc.role,

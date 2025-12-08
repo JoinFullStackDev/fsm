@@ -58,6 +58,8 @@ export async function POST(request: NextRequest) {
       features,
       is_active,
       display_order,
+      trial_enabled,
+      trial_days,
     } = body;
 
     // Validate required fields
@@ -115,6 +117,8 @@ export async function POST(request: NextRequest) {
         features: features || {},
         is_active: is_active !== undefined ? is_active : true,
         display_order: order,
+        trial_enabled: trial_enabled === true,
+        trial_days: trial_enabled && trial_days ? Number(trial_days) : 0,
       })
       .select()
       .single();

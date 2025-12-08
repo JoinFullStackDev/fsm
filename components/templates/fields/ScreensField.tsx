@@ -1,4 +1,5 @@
 'use client';
+import type { PhaseDataUnion } from '@/types/phases';
 
 import {
   Box,
@@ -25,7 +26,7 @@ interface ScreensFieldProps {
   value: Screen[];
   onChange: (value: Screen[]) => void;
   error?: string;
-  phaseData?: any;
+  phaseData?: Record<string, unknown>;
 }
 
 export default function ScreensField({ field, value, onChange, error, phaseData }: ScreensFieldProps) {

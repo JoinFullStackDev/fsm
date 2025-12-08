@@ -26,6 +26,9 @@ import {
   People as PeopleIcon,
   MenuBook as MenuBookIcon,
   Feedback as FeedbackIcon,
+  Link as LinkIcon,
+  WorkspacePremium as EnterpriseIcon,
+  PersonAdd as PersonAddIcon,
 } from '@mui/icons-material';
 import { useRole } from '@/lib/hooks/useRole';
 import { createSupabaseClient } from '@/lib/supabaseClient';
@@ -131,6 +134,9 @@ export default function GlobalAdminLayout({ children }: GlobalAdminLayoutProps) 
     { path: '/global/admin/organizations', label: 'Organizations', icon: BusinessIcon },
     { path: '/global/admin/users', label: 'Users', icon: PeopleIcon },
     { path: '/global/admin/packages', label: 'Packages', icon: InventoryIcon },
+    { path: '/global/admin/affiliates', label: 'Affiliates', icon: LinkIcon },
+    { path: '/global/admin/affiliate-requests', label: 'Affiliate Requests', icon: PersonAddIcon },
+    { path: '/global/admin/enterprise-packages', label: 'Enterprise', icon: EnterpriseIcon },
     { path: '/global/admin/system', label: 'System Settings', icon: SettingsIcon },
     { path: '/global/admin/ai-usage', label: 'AI Usage', icon: AIIcon },
     { path: '/global/admin/kb', label: 'Knowledge Base', icon: MenuBookIcon },

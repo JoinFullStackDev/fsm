@@ -1,4 +1,5 @@
 'use client';
+import type { PhaseDataUnion } from '@/types/phases';
 
 import React from 'react';
 import { FormControlLabel, Checkbox, Box, Typography, useTheme } from '@mui/material';
@@ -10,7 +11,7 @@ interface CheckboxFieldProps {
   value: boolean;
   onChange: (value: boolean) => void;
   error?: string;
-  phaseData?: any;
+  phaseData?: Record<string, unknown>;
 }
 
 function CheckboxField({ field, value, onChange, error, phaseData }: CheckboxFieldProps) {

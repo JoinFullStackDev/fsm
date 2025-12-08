@@ -1,4 +1,5 @@
 'use client';
+import type { PhaseDataUnion } from '@/types/phases';
 
 import { useState, useEffect, useRef } from 'react';
 import {
@@ -36,7 +37,7 @@ interface ERDFieldProps {
   value: ERDData | Record<string, unknown>;
   onChange: (value: ERDData | Record<string, unknown>) => void;
   error?: string;
-  phaseData?: any;
+  phaseData?: Record<string, unknown>;
 }
 
 const PREVIEW_MERMAID_ID = 'erd-preview-diagram';
@@ -286,7 +287,7 @@ export default function ERDField({ field, value, onChange, error, phaseData }: E
           )}
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
-          {phaseData?.entities && (
+          {Boolean(phaseData?.entities) && (
             <Tooltip title="Sync from Entities">
               <IconButton
                 size="small"

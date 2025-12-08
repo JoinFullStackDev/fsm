@@ -51,9 +51,9 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ requests: requests || [] });
-  } catch (error: any) {
-    if (error.status) {
-      return error; // Already a NextResponse error
+  } catch (error) {
+    if (error && typeof error === 'object' && 'status' in error) {
+      return error as NextResponse; // Already a NextResponse error
     }
     logger.error('[Admin Requests API] Error in GET /api/global/admin/requests:', error);
     return internalError('Failed to fetch requests', {
@@ -95,7 +95,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Prepare update data
-    const updateData: any = {};
+    const updateData: Record<string, string | null | undefined> = {};
     if (updates.status !== undefined) updateData.status = updates.status;
     if (updates.priority !== undefined) updateData.priority = updates.priority;
     if (updates.assigned_to !== undefined) updateData.assigned_to = updates.assigned_to;
@@ -131,9 +131,9 @@ export async function PATCH(request: NextRequest) {
     }
 
     return NextResponse.json(updatedRequest);
-  } catch (error: any) {
-    if (error.status) {
-      return error; // Already a NextResponse error
+  } catch (error) {
+    if (error && typeof error === 'object' && 'status' in error) {
+      return error as NextResponse; // Already a NextResponse error
     }
     logger.error('[Admin Requests API] Error in PATCH /api/global/admin/requests:', error);
     return internalError('Failed to update request', {

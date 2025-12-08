@@ -8,6 +8,7 @@ import { getUserOrganizationId, validateOrganizationAccess } from '@/lib/organiz
 import { canCreateProject } from '@/lib/packageLimits';
 import { isValidUUID } from '@/lib/utils/inputSanitization';
 import logger from '@/lib/utils/logger';
+import { isObject, hasStringProperty, isNonNullable } from '@/lib/utils/typeGuards';
 
 export const dynamic = 'force-dynamic';
 
@@ -145,27 +146,46 @@ export async function GET(request: NextRequest) {
         return internalError('Failed to load project members', { error: memberError.message });
       }
       
-      const ownedProjectIds = (ownedProjects || []).map((p: any) => p.id);
+      const ownedProjectIds = (ownedProjects || [])
+        .filter((p): p is { id: string } => isObject(p) && hasStringProperty(p, 'id'))
+        .map(p => p.id);
 
       // Filter member projects to ONLY include those in the user's organization
-      const memberProjectIds = (memberProjects || [])
-        .filter((mp: any) => {
-          // CRITICAL: Verify project belongs to user's organization
-          const projectOrgId = mp.project?.organization_id;
-          if (!projectOrgId || projectOrgId !== organizationId) {
-            if (projectOrgId) {
-              logger.warn('[Projects API] Member project from different organization detected and filtered:', {
-                projectId: mp.project_id,
-                projectOrgId,
-                userOrgId: organizationId,
-                userId: userData.id,
-              });
-            }
-            return false;
+      // Supabase can return nested relations as either single object or array
+      const memberProjectIds: string[] = [];
+      for (const mp of memberProjects || []) {
+        if (!isObject(mp) || !hasStringProperty(mp, 'project_id')) continue;
+        
+        // Handle Supabase nested relation - can be object or array
+        const projectData = mp.project;
+        let project: { organization_id: string } | null = null;
+        
+        if (Array.isArray(projectData) && projectData.length > 0) {
+          const first = projectData[0];
+          if (isObject(first) && hasStringProperty(first, 'organization_id')) {
+            project = first as { organization_id: string };
           }
-          return true;
-        })
-        .map((mp: any) => mp.project_id);
+        } else if (isObject(projectData) && hasStringProperty(projectData, 'organization_id')) {
+          project = projectData as { organization_id: string };
+        }
+        
+        if (!project) continue;
+        
+        // CRITICAL: Verify project belongs to user's organization  
+        const projectOrgId = project.organization_id;
+        if (!projectOrgId || projectOrgId !== organizationId) {
+          if (projectOrgId) {
+            logger.warn('[Projects API] Member project from different organization detected and filtered:', {
+              projectId: mp.project_id,
+              projectOrgId,
+              userOrgId: organizationId,
+              userId: userData.id,
+            });
+          }
+          continue;
+        }
+        memberProjectIds.push(mp.project_id);
+      }
       
       // 3. Combine owned and member project IDs (remove duplicates)
       allAccessibleProjectIds = [...new Set([...ownedProjectIds, ...memberProjectIds])];
@@ -185,11 +205,19 @@ export async function GET(request: NextRequest) {
           return internalError('Failed to verify project access', { error: verifyError.message });
         }
         
+        // Type for verified project
+        type VerifiedProject = { id: string; organization_id: string };
+        
         // Use only verified project IDs
-        const verifiedProjectIds = (verifiedProjects || [])
-          .map((p: any) => p.id)
+        const typedVerifiedProjects = (verifiedProjects || [])
+          .filter((p): p is VerifiedProject => 
+            isObject(p) && hasStringProperty(p, 'id') && hasStringProperty(p, 'organization_id')
+          );
+        
+        const verifiedProjectIds = typedVerifiedProjects
+          .map(p => p.id)
           .filter((id: string) => {
-            const project = verifiedProjects?.find((p: any) => p.id === id);
+            const project = typedVerifiedProjects.find(p => p.id === id);
             if (project && project.organization_id !== organizationId) {
               logger.error('[Projects API] CRITICAL: Project ID verification failed:', {
                 projectId: id,
@@ -284,24 +312,36 @@ export async function GET(request: NextRequest) {
       return internalError('Failed to load projects', { error: projectsError.message });
     }
 
+    // Type for project from query
+    type ProjectQueryResult = {
+      id: string;
+      name: string;
+      organization_id: string;
+      [key: string]: unknown;
+    };
+    
     // Log raw results before filtering (debug level to reduce console noise)
+    const typedProjects = (projects || []).filter((p): p is ProjectQueryResult => 
+      isObject(p) && hasStringProperty(p, 'id') && hasStringProperty(p, 'name') && hasStringProperty(p, 'organization_id')
+    );
+    
     logger.debug('[Projects API] Raw query results:', {
-      projectsReturned: projects?.length || 0,
+      projectsReturned: typedProjects.length,
       organizationId,
-      projectOrganizationIds: projects?.map((p: any) => ({
+      projectOrganizationIds: typedProjects.map(p => ({
         id: p.id,
         name: p.name,
         organization_id: p.organization_id,
-      })) || [],
+      })),
     });
 
     // CRITICAL SECURITY CHECK: Filter results by accessible project IDs AND verify organization_id
     // This is defense-in-depth to ensure no cross-organization access
     // ALL users (including super admins) are filtered by organization_id in this endpoint
-    const allProjects = projects || [];
+    const allProjects = typedProjects;
     const accessibleProjectIdsSet = new Set(allAccessibleProjectIds);
     
-    const filteredProjects = allProjects.filter((project: any) => {
+    const filteredProjects = allProjects.filter((project) => {
       // CRITICAL: For ALL users (including super admins), verify organization_id matches EXACTLY
       // Super admins should use /global/admin routes for cross-organization access
       const projectOrgId = project.organization_id;
@@ -346,14 +386,14 @@ export async function GET(request: NextRequest) {
         userOrgId: organizationId,
         userId: userData.id,
         filteredProjectIds: allProjects
-          .filter((p: any) => !filteredProjects.find((fp: any) => fp.id === p.id))
-          .map((p: any) => ({ id: p.id, name: p.name, orgId: p.organization_id })),
+          .filter(p => !filteredProjects.find(fp => fp.id === p.id))
+          .map(p => ({ id: p.id, name: p.name, orgId: p.organization_id })),
       });
     }
 
     // CRITICAL: Final security check - verify NO projects from other organizations
     // ALL users (including super admins) must be filtered by organization_id
-    const finalSecurityCheck = filteredProjects.filter((project: any) => {
+    const finalSecurityCheck = filteredProjects.filter((project) => {
       return project.organization_id === organizationId;
     });
     
@@ -482,7 +522,7 @@ export async function POST(request: NextRequest) {
     // Reuse the same admin client we used for user lookup
     
     // Build insert data with explicit organization_id
-    const insertData: any = {
+    const insertData = {
       owner_id: userData.id,
       organization_id: organizationId.trim(), // Ensure it's trimmed
       name: name.trim(),
@@ -546,8 +586,8 @@ export async function POST(request: NextRequest) {
 
     // Try using the database function first (runs with SECURITY DEFINER, bypasses RLS completely)
     // If that fails, fall back to direct insert with admin client
-    let project: any = null;
-    let projectError: any = null;
+    let project: Record<string, unknown> | null = null;
+    let projectError: { message: string; code?: string; details?: string; hint?: string } | null = null;
     
     // Log the exact values being passed to RPC
     logger.info('[Projects API POST] Calling RPC function with:', {
@@ -610,7 +650,7 @@ export async function POST(request: NextRequest) {
         logger.error('[Projects API POST] RPC function returned no result');
         projectError = { message: 'RPC function returned no result' };
       }
-    } catch (rpcError: any) {
+    } catch (rpcError) {
       logger.error('[Projects API POST] RPC call exception:', rpcError);
       // Fall back to direct insert if RPC function doesn't exist or fails
       const { data: directResult, error: directError } = await adminClientForUser
@@ -656,7 +696,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Create notification for project owner if different from creator
-    if (project.owner_id && project.owner_id !== userData.id) {
+    const projectOwnerId = project?.owner_id;
+    const projectId = project?.id as string | undefined;
+    const projectName = project?.name as string | undefined;
+    
+    if (project && projectOwnerId && projectOwnerId !== userData.id && projectId && projectName) {
       const { data: creator } = await supabase
         .from('users')
         .select('name')
@@ -664,14 +708,14 @@ export async function POST(request: NextRequest) {
         .single();
 
       const creatorName = creator?.name || null;
-      const projectLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/project/${project.id}`;
+      const projectLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/project/${projectId}`;
 
       // Send in-app notification
       notifyProjectCreated(
-        project.owner_id,
+        projectOwnerId as string,
         userData.id,
-        project.id,
-        project.name,
+        projectId,
+        projectName,
         creatorName
       ).catch((err) => {
         logger.error('[Project] Error creating notification:', err);
@@ -679,8 +723,8 @@ export async function POST(request: NextRequest) {
 
       // Send email notification (non-blocking)
       sendProjectCreatedEmail(
-        project.owner_id,
-        project.name,
+        projectOwnerId as string,
+        projectName,
         creatorName || 'Someone',
         projectLink
       ).catch((err) => {
@@ -690,13 +734,15 @@ export async function POST(request: NextRequest) {
 
     // Invalidate caches to ensure fresh data in sidebar and other components
     // Run in background (non-blocking) to not delay the response
-    import('@/lib/cache/cacheInvalidation').then(({ invalidateProjectCache }) => {
-      invalidateProjectCache(project.id, organizationId).catch((cacheError) => {
-        logger.warn('[Projects API POST] Failed to invalidate cache:', cacheError);
+    if (projectId) {
+      import('@/lib/cache/cacheInvalidation').then(({ invalidateProjectCache }) => {
+        invalidateProjectCache(projectId, organizationId).catch((cacheError) => {
+          logger.warn('[Projects API POST] Failed to invalidate cache:', cacheError);
+        });
+      }).catch((importError) => {
+        logger.warn('[Projects API POST] Failed to import cache module:', importError);
       });
-    }).catch((importError) => {
-      logger.warn('[Projects API POST] Failed to import cache module:', importError);
-    });
+    }
 
     return NextResponse.json(project, { status: 201 });
   } catch (error) {

@@ -38,7 +38,7 @@ function isSensitiveKey(key: string): boolean {
  * Redact sensitive values from an object
  * Recursively processes objects and arrays
  */
-export function redactSensitiveData(data: any, depth: number = 0): any {
+export function redactSensitiveData(data: unknown, depth: number = 0): unknown {
   // Prevent infinite recursion
   if (depth > 10) {
     return '[Max depth reached]';
@@ -59,8 +59,8 @@ export function redactSensitiveData(data: any, depth: number = 0): any {
   }
 
   // Handle objects
-  const redacted: Record<string, any> = {};
-  for (const [key, value] of Object.entries(data)) {
+  const redacted: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
     if (isSensitiveKey(key)) {
       // Redact sensitive keys
       if (typeof value === 'string' && value.length > 0) {
@@ -105,7 +105,7 @@ export function sanitizeLogMessage(message: string): string {
 /**
  * Check if data contains sensitive information
  */
-export function containsSensitiveData(data: any): boolean {
+export function containsSensitiveData(data: unknown): boolean {
   if (typeof data === 'string') {
     return SENSITIVE_PATTERNS.some(pattern => pattern.test(data));
   }
@@ -115,8 +115,8 @@ export function containsSensitiveData(data: any): boolean {
       return data.some(item => containsSensitiveData(item));
     }
 
-    return Object.keys(data).some(key => 
-      isSensitiveKey(key) || containsSensitiveData(data[key])
+    return Object.keys(data as Record<string, unknown>).some(key => 
+      isSensitiveKey(key) || containsSensitiveData((data as Record<string, unknown>)[key])
     );
   }
 

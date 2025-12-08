@@ -28,6 +28,8 @@ import {
 } from '@mui/material';
 import { Warning as WarningIcon } from '@mui/icons-material';
 
+import type { ProjectTask } from '@/types/project';
+
 interface ProjectMember {
   id: string;
   user_id: string;
@@ -122,7 +124,7 @@ export default function SOWMemberSelector({
           const tasks = tasksData.tasks || [];
           const counts = new Map<string, number>();
           userIds.forEach((userId: string) => {
-            const count = tasks.filter((t: any) => t.assignee_id === userId && t.status !== 'archived').length;
+            const count = tasks.filter((t: ProjectTask) => t.assignee_id === userId && t.status !== 'archived').length;
             counts.set(userId, count);
           });
           setMemberTaskCounts(counts);

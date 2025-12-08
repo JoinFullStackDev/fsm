@@ -123,32 +123,44 @@ export default function CompanyTasksTab({ companyId }: CompanyTasksTabProps) {
       key: 'contact',
       label: 'Contact',
       sortable: false,
-      render: (value: any) => value ? `${value.first_name} ${value.last_name}` : '-',
+      render: (val: unknown) => {
+        const value = val as CompanyContact | null;
+        return value ? `${value.first_name} ${value.last_name}` : '-';
+      },
     },
     {
       key: 'assigned_user',
       label: 'Assigned To',
       sortable: false,
-      render: (value: any) => value ? value.name || value.email : '-',
+      render: (val: unknown) => {
+        const value = val as { name?: string | null; email?: string } | null;
+        return value ? value.name || value.email : '-';
+      },
     },
     {
       key: 'due_date',
       label: 'Due Date',
       sortable: true,
-      render: (value: string | null) => value ? new Date(value).toLocaleDateString() : '-',
+      render: (val: unknown) => {
+        const value = val as string | null;
+        return value ? new Date(value).toLocaleDateString() : '-';
+      },
     },
     {
       key: 'created_at',
       label: 'Created',
       sortable: true,
-      render: (value: string) => new Date(value).toLocaleDateString(),
+      render: (val: unknown) => {
+        const value = val as string;
+        return new Date(value).toLocaleDateString();
+      },
     },
     {
       key: 'actions',
       label: 'Actions',
       sortable: false,
       align: 'right' as const,
-      render: (_: any, row: OpsTaskWithRelations) => (
+      render: (_: unknown, row: OpsTaskWithRelations) => (
         <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
           <IconButton
             size="small"

@@ -112,7 +112,7 @@ export async function PUT(
     const body = await request.json();
     const { dataset, position, settings } = body;
 
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     };
 

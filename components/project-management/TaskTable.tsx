@@ -158,8 +158,8 @@ export default function TaskTable({
     let sortedParents = parents;
     if (sortField && sortDirection) {
       sortedParents = [...parents].sort((a, b) => {
-        let aValue: any;
-        let bValue: any;
+        let aValue: number | string;
+        let bValue: number | string;
 
         switch (sortField) {
           case 'phase':
@@ -287,7 +287,7 @@ export default function TaskTable({
   const handleFieldUpdate = useCallback(async (
     taskId: string,
     field: 'assignee' | 'start_date' | 'due_date' | 'priority' | 'status',
-    value: any
+    value: string | null | TaskPriority | TaskStatus
   ) => {
     if (!onTaskUpdate) return;
 
@@ -305,15 +305,15 @@ export default function TaskTable({
 
     const updates: Partial<ProjectTask> = {};
     if (field === 'assignee') {
-      updates.assignee_id = value || null;
+      updates.assignee_id = (value as string) || null;
     } else if (field === 'start_date') {
-      updates.start_date = value || null;
+      updates.start_date = (value as string) || null;
     } else if (field === 'due_date') {
-      updates.due_date = value || null;
+      updates.due_date = (value as string) || null;
     } else if (field === 'priority') {
-      updates.priority = value;
+      updates.priority = value as TaskPriority;
     } else if (field === 'status') {
-      updates.status = value;
+      updates.status = value as TaskStatus;
     }
 
     await onTaskUpdate(taskId, updates);

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react';
 import { createSupabaseClient } from '@/lib/supabaseClient';
+import type { Session } from '@supabase/supabase-js';
 import logger from '@/lib/utils/logger';
 import { AVAILABLE_MODULES } from '@/lib/modules';
 import {
@@ -195,7 +196,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     const {
       data: { subscription: authSubscription },
-    } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
+    } = supabase.auth.onAuthStateChange(async (event: string, session: Session | null) => {
       // Clear cache on sign out or user change
       if (event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
         // Get current user before clearing

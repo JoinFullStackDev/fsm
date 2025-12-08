@@ -131,8 +131,8 @@ export default function TaskPreviewTable({
           const tasksData = await tasksResponse.json();
           const tasks = tasksData.tasks || [];
           const counts = new Map<string, number>();
-          (data.members || []).forEach((m: any) => {
-            const count = tasks.filter((t: any) => t.assignee_id === m.user_id && t.status !== 'archived').length;
+          (data.members || []).forEach((m: { user_id: string }) => {
+            const count = tasks.filter((t: { assignee_id: string | null; status: string }) => t.assignee_id === m.user_id && t.status !== 'archived').length;
             counts.set(m.user_id, count);
           });
           setAssigneeTaskCounts(counts);

@@ -7,6 +7,12 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import logger from '@/lib/utils/logger';
 import { queryCache, generateCacheKey } from '@/lib/cache/queryCache';
 
+// Local type for activity log result
+interface ActivityLogResult {
+  created_at: string;
+  metadata: Record<string, unknown> | null;
+}
+
 export interface MetricWidgetData {
   value: number;
   label: string;
@@ -451,13 +457,13 @@ export async function getAITokensUsed(
 
     // Sum up total tokens from metadata
     let totalTokens = 0;
-    logs.forEach((log: any) => {
+    (logs as ActivityLogResult[]).forEach((log) => {
       const metadata = log.metadata || {};
       // Try multiple ways to extract token count
       let tokens = 0;
-      if (metadata.total_tokens) {
+      if (typeof metadata.total_tokens === 'number') {
         tokens = metadata.total_tokens;
-      } else if (metadata.input_tokens && metadata.output_tokens) {
+      } else if (typeof metadata.input_tokens === 'number' && typeof metadata.output_tokens === 'number') {
         tokens = metadata.input_tokens + metadata.output_tokens;
       } else if (typeof metadata.input_tokens === 'number') {
         tokens = metadata.input_tokens;

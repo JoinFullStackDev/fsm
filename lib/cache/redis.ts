@@ -9,13 +9,17 @@
  */
 
 import logger from '@/lib/utils/logger';
+import type { Redis } from '@upstash/redis';
+
+// Redis constructor type
+type RedisConstructor = new (config: { url: string; token: string }) => Redis;
 
 // Optional Redis import - will be null if package is not installed
 // Using dynamic import to avoid build errors if package is not installed
-let RedisClass: any = undefined;
+let RedisClass: RedisConstructor | null | undefined = undefined;
 
 // Lazy load Redis class
-async function loadRedis(): Promise<any> {
+async function loadRedis(): Promise<RedisConstructor | null> {
   if (RedisClass !== undefined) {
     return RedisClass;
   }
@@ -27,28 +31,29 @@ async function loadRedis(): Promise<any> {
       RedisClass = null;
       return null;
     }
-    RedisClass = redisModule.Redis;
+    RedisClass = redisModule.Redis as unknown as RedisConstructor;
     logger.debug('[Redis] @upstash/redis package loaded successfully');
     return RedisClass;
-  } catch (error: any) {
+  } catch (error) {
     // @upstash/redis not installed or import failed - Redis will be disabled
     RedisClass = null;
-    const errorMsg = error?.message || String(error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    const errorCode = error && typeof error === 'object' && 'code' in error ? (error as { code?: string }).code : undefined;
     logger.debug('[Redis] @upstash/redis import failed - Redis caching disabled', { 
       error: errorMsg,
-      code: error?.code 
+      code: errorCode 
     });
     return null;
   }
 }
 
-let redisClient: any | null = null;
+let redisClient: Redis | null = null;
 let redisEnabled = false;
 
 /**
  * Initialize Redis client
  */
-async function initRedisClient(): Promise<any | null> {
+async function initRedisClient(): Promise<Redis | null> {
   if (redisClient) {
     return redisClient;
   }
@@ -97,7 +102,7 @@ async function initRedisClient(): Promise<any | null> {
 /**
  * Get Redis client instance
  */
-export async function getRedisClient(): Promise<any | null> {
+export async function getRedisClient(): Promise<Redis | null> {
   return await initRedisClient();
 }
 
@@ -204,12 +209,13 @@ export async function redisDelPattern(pattern: string): Promise<number> {
     // For now, we'll delete keys one by one if we know the pattern
     // In production, consider using a more efficient approach
     let deleted = 0;
-    let cursor = 0;
+    let cursor: string | number = 0;
     
     do {
-      const result = await client.scan(cursor, { match: pattern, count: 100 });
+      // Explicitly type the result from scan to avoid implicit any
+      const result: [string | number, string[]] = await client.scan(cursor, { match: pattern, count: 100 });
       cursor = result[0];
-      const keys = result[1] as string[];
+      const keys = result[1];
       
       if (keys.length > 0) {
         await client.del(...keys);

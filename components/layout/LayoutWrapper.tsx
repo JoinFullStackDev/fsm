@@ -11,7 +11,7 @@ interface LayoutWrapperProps {
 const AUTH_ROUTES = ['/auth', '/signin', '/signup', '/forgot-password', '/reset-password', '/confirm'];
 const STANDALONE_ROUTES = ['/reports'];
 const LANDING_ROUTES = ['/'];
-const PUBLIC_ROUTES = ['/pricing']; // Public pages that don't need dashboard layout
+const PUBLIC_ROUTES = ['/pricing', '/affiliates']; // Public pages that don't need dashboard layout
 const GLOBAL_ADMIN_ROUTES = ['/global/admin'];
 
 export default function LayoutWrapper({ children }: LayoutWrapperProps) {

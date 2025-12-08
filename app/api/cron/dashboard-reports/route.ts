@@ -127,7 +127,8 @@ export async function POST(request: NextRequest) {
           doc.setFontSize(10);
           doc.setFont('helvetica', 'normal');
 
-          widgets.forEach((widget: any) => {
+          interface WidgetRow { widget_type: string; id: string; }
+          (widgets as WidgetRow[]).forEach((widget) => {
             if (yPosition > doc.internal.pageSize.getHeight() - 30) {
               doc.addPage();
               yPosition = margin;
@@ -146,7 +147,7 @@ export async function POST(request: NextRequest) {
         const pdfBase64 = pdfBuffer.toString('base64');
 
         // Get organization ID from dashboard or user
-        const organizationId = (dashboard as any).organization_id || (user as any).organization_id || null;
+        const organizationId = (dashboard as { organization_id?: string }).organization_id || (user as { organization_id?: string }).organization_id || null;
 
         // Send email
         const emailHtml = `
@@ -164,7 +165,7 @@ export async function POST(request: NextRequest) {
           emailHtml,
           undefined,
           undefined,
-          organizationId
+          organizationId || undefined
         );
 
         if (!emailResult.success) {

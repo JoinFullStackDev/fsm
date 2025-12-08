@@ -82,9 +82,9 @@ export async function GET(
     };
 
     return NextResponse.json(maskedKey);
-  } catch (error: any) {
-    if (error.status) {
-      return error; // Already a NextResponse error
+  } catch (error) {
+    if (error && typeof error === 'object' && 'status' in error) {
+      return error as NextResponse; // Already a NextResponse error
     }
     logger.error('[API Keys] Error fetching key:', error);
     return internalError('Failed to fetch API key');
@@ -118,7 +118,7 @@ export async function PATCH(
     }
 
     // Build update object
-    const updates: Record<string, any> = {};
+    const updates: Record<string, string | null | undefined> = {};
     if (name !== undefined) updates.name = name;
     if (description !== undefined) updates.description = description;
     if (expires_at !== undefined) updates.expires_at = expires_at || null;
@@ -164,9 +164,9 @@ export async function PATCH(
     };
 
     return NextResponse.json(maskedKey);
-  } catch (error: any) {
-    if (error.status) {
-      return error; // Already a NextResponse error
+  } catch (error) {
+    if (error && typeof error === 'object' && 'status' in error) {
+      return error as NextResponse; // Already a NextResponse error
     }
     logger.error('[API Keys] Error updating key:', error);
     return internalError('Failed to update API key');
@@ -213,9 +213,9 @@ export async function DELETE(
     });
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    if (error.status) {
-      return error; // Already a NextResponse error
+  } catch (error) {
+    if (error && typeof error === 'object' && 'status' in error) {
+      return error as NextResponse; // Already a NextResponse error
     }
     logger.error('[API Keys] Error revoking key:', error);
     return internalError('Failed to revoke API key');

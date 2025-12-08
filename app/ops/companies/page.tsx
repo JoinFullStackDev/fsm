@@ -158,41 +158,53 @@ export default function CompaniesPage() {
       key: 'status',
       label: 'Status',
       sortable: true,
-      render: (value: string) => (
-        <Chip
-          label={value.charAt(0).toUpperCase() + value.slice(1)}
-          color={getStatusColor(value) as any}
-          size="small"
-        />
-      ),
+      render: (val: unknown) => {
+        const value = val as string;
+        return (
+          <Chip
+            label={value.charAt(0).toUpperCase() + value.slice(1)}
+            color={getStatusColor(value) as 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'}
+            size="small"
+          />
+        );
+      },
     },
     {
       key: 'contacts_count',
       label: 'Contacts',
       sortable: true,
       align: 'center' as const,
-      render: (value: number) => value || 0,
+      render: (val: unknown) => {
+        const value = val as number;
+        return value || 0;
+      },
     },
     {
       key: 'opportunities_count',
       label: 'Opportunities',
       sortable: true,
       align: 'center' as const,
-      render: (value: number) => value || 0,
+      render: (val: unknown) => {
+        const value = val as number;
+        return value || 0;
+      },
     },
     {
       key: 'projects_count',
       label: 'Projects',
       sortable: true,
       align: 'center' as const,
-      render: (value: number) => value || 0,
+      render: (val: unknown) => {
+        const value = val as number;
+        return value || 0;
+      },
     },
     {
       key: 'actions',
       label: 'Actions',
       sortable: false,
       align: 'right' as const,
-      render: (_: any, row: CompanyWithCounts) => (
+      render: (_: unknown, row: CompanyWithCounts) => (
         <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
           <IconButton
             size="small"

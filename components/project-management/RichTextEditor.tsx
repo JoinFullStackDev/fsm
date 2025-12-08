@@ -7,6 +7,10 @@ import { Box, Paper, MenuList, MenuItem, Avatar, Typography, ListItemAvatar, Lis
 import { useTheme } from '@mui/material/styles';
 import type { User } from '@/types/project';
 
+// Quill types - using 'any' for third-party library integration
+// This is acceptable as Quill doesn't have great TypeScript support
+// and the library has complex internal types
+
 // Dynamically import ReactQuill to avoid SSR issues
 const ReactQuill = dynamic(
   async () => {

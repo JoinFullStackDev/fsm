@@ -288,6 +288,7 @@ export async function middleware(request: NextRequest) {
     '/my-tasks',
     '/profile',
     '/projects',
+    '/affiliate', // Affiliate dashboard (not /affiliates which is public)
   ];
   
   const isProtectedRoute = protectedRoutes.some(route => 
@@ -326,6 +327,7 @@ export const config = {
     '/my-tasks/:path*',
     '/profile/:path*',
     '/projects/:path*',
+    '/affiliate/:path*', // Affiliate dashboard (not /affiliates which is public)
   ],
 };
 

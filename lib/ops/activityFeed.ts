@@ -45,10 +45,11 @@ export async function createActivityFeedItem(
     }
 
     return data;
-  } catch (error: any) {
+  } catch (error) {
     // Handle "relation does not exist" errors gracefully
-    const errorMessage = error?.message || error?.error || String(error || '');
-    if (error?.code === '42P01' || 
+    const errorObj = error as { message?: string; error?: string; code?: string };
+    const errorMessage = errorObj?.message || errorObj?.error || String(error || '');
+    if (errorObj?.code === '42P01' || 
         errorMessage.includes('does not exist') || 
         (errorMessage.includes('relation') && errorMessage.includes('activity_feed_items'))) {
       logger.warn('Activity feed items table does not exist, skipping activity feed creation');

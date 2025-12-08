@@ -1,4 +1,5 @@
 'use client';
+import type { PhaseDataUnion } from '@/types/phases';
 
 import React, { useState } from 'react';
 import {
@@ -24,7 +25,7 @@ interface ArrayFieldProps {
   value: string[];
   onChange: (value: string[]) => void;
   error?: string;
-  phaseData?: any;
+  phaseData?: Record<string, unknown>;
 }
 
 function ArrayField({ field, value, onChange, error, phaseData }: ArrayFieldProps) {

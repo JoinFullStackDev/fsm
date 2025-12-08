@@ -76,7 +76,7 @@ export async function getOrganizationRoles(
 
         return {
           ...role,
-          permissions: (permissions?.map((p: any) => p.permission as Permission) ?? []) as Permission[],
+          permissions: (permissions?.map((p) => p.permission as Permission) ?? []) as Permission[],
           user_count: count ?? 0,
         };
       })

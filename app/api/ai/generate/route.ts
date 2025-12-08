@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
-import { generateAIResponse, generateStructuredAIResponse } from '@/lib/ai/geminiClient';
+import { generateAIResponse, generateStructuredAIResponse, AIResponseWithMetadata } from '@/lib/ai/geminiClient';
 import { getGeminiConfig } from '@/lib/utils/geminiConfig';
 import { unauthorized, badRequest, internalError, forbidden } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
+
+// Type for structured AI responses with metadata
+interface StructuredAIResponseWithMetadata {
+  result?: unknown;
+  text?: string;
+  metadata?: AIResponseWithMetadata['metadata'];
+}
 
 /**
  * POST /api/ai/generate
@@ -59,8 +66,8 @@ export async function POST(request: NextRequest) {
       .single();
 
     const startTime = Date.now();
-    let result: any;
-    let metadata: any = null;
+    let result: unknown;
+    let metadata: AIResponseWithMetadata['metadata'] | null = null;
     let error: string | undefined = undefined;
 
     try {
@@ -75,8 +82,9 @@ export async function POST(request: NextRequest) {
         
         // Handle metadata response
         if (response && typeof response === 'object' && 'metadata' in response) {
-          result = (response as any).result;
-          metadata = (response as any).metadata;
+          const typedResponse = response as StructuredAIResponseWithMetadata;
+          result = typedResponse.result;
+          metadata = typedResponse.metadata || null;
         } else {
           result = response;
         }
@@ -91,8 +99,9 @@ export async function POST(request: NextRequest) {
         
         // Handle metadata response
         if (response && typeof response === 'object' && 'metadata' in response) {
-          result = (response as any).text;
-          metadata = (response as any).metadata;
+          const typedResponse = response as AIResponseWithMetadata;
+          result = typedResponse.text;
+          metadata = typedResponse.metadata || null;
         } else {
           result = response;
         }

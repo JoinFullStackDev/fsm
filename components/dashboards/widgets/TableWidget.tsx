@@ -1,4 +1,5 @@
 'use client';
+import type { WidgetDataset, WidgetSettings } from '@/types/database';
 
 import { useState, useEffect, useRef } from 'react';
 import {
@@ -20,8 +21,8 @@ import {
 interface TableWidgetProps {
   widgetId: string;
   dashboardId: string;
-  dataset: any;
-  settings?: any;
+  dataset: WidgetDataset;
+  settings?: WidgetSettings;
 }
 
 interface TableData {

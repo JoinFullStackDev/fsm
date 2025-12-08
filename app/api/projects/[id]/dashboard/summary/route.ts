@@ -3,7 +3,7 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { unauthorized, notFound, forbidden, internalError } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
-import { generateAIResponse } from '@/lib/ai/geminiClient';
+import { generateAIResponse, type AIResponseWithMetadata } from '@/lib/ai/geminiClient';
 import { logAIUsage } from '@/lib/ai/aiUsageLogger';
 
 export async function POST(
@@ -225,7 +225,7 @@ Format the response as markdown with clear sections and bullet points. Be concis
 
     // Extract summary text and metadata
     let summaryText: string;
-    let metadata: any = null;
+    let metadata: AIResponseWithMetadata['metadata'] | null = null;
 
     if (typeof aiResponse === 'object' && 'metadata' in aiResponse) {
       summaryText = (aiResponse as any).text || '';

@@ -8,8 +8,67 @@ import logger from '@/lib/utils/logger';
 
 export interface TableWidgetData {
   columns: string[];
-  rows: Record<string, any>[];
+  rows: Record<string, unknown>[];
   total?: number;
+}
+
+// Local query result interfaces
+// Note: Supabase returns arrays for foreign key joins, even for single records
+interface TaskQueryResult {
+  id: string;
+  title: string;
+  status: string;
+  priority: string | null;
+  due_date: string | null;
+  assignee: Array<{ id: string; name: string | null }> | null;
+  project: Array<{ id: string; name: string }> | null;
+}
+
+interface ProjectQueryResult {
+  id: string;
+  name: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  owner: Array<{ id: string; name: string | null }> | null;
+}
+
+interface OpportunityQueryResult {
+  id: string;
+  name: string;
+  status: string;
+  value: number | null;
+  probability: number | null;
+  company_id: string | null;
+  company: Array<{ id: string; name: string }> | null;
+  created_at: string;
+}
+
+interface CompanyQueryResult {
+  id: string;
+  name: string;
+  status: string;
+  website: string | null;
+  industry: string | null;
+  created_at: string;
+}
+
+interface ContactQueryResult {
+  id: string;
+  company_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+}
+
+interface ActivityQueryResult {
+  id: string;
+  action_type: string;
+  resource_type: string | null;
+  resource_id: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  user: Array<{ id: string; name: string | null }> | null;
 }
 
 /**
@@ -90,14 +149,14 @@ export async function getTasksTable(
       return { columns: ['Title', 'Status', 'Priority', 'Due Date', 'Assignee', 'Project'], rows: [] };
     }
 
-    const rows = (tasks || []).map((task: any) => ({
+    const rows = ((tasks || []) as TaskQueryResult[]).map((task) => ({
       id: task.id,
       'Title': task.title,
       'Status': task.status,
       'Priority': task.priority || 'medium',
       'Due Date': task.due_date ? new Date(task.due_date).toLocaleDateString() : '-',
-      'Assignee': task.assignee?.name || 'Unassigned',
-      'Project': task.project?.name || '-',
+      'Assignee': task.assignee?.[0]?.name || 'Unassigned',
+      'Project': task.project?.[0]?.name || '-',
     }));
 
     return {
@@ -158,11 +217,11 @@ export async function getProjectsTable(
       return { columns: ['Name', 'Status', 'Owner', 'Created', 'Updated'], rows: [] };
     }
 
-    const rows = (projects || []).map((project: any) => ({
+    const rows = ((projects || []) as ProjectQueryResult[]).map((project) => ({
       id: project.id,
       'Name': project.name,
       'Status': project.status,
-      'Owner': project.owner?.name || '-',
+      'Owner': project.owner?.[0]?.name || '-',
       'Created': new Date(project.created_at).toLocaleDateString(),
       'Updated': new Date(project.updated_at).toLocaleDateString(),
     }));
@@ -229,11 +288,11 @@ export async function getOpportunitiesTable(
     }
 
     // Get contacts for all companies that have opportunities
-    const companyIds = [...new Set((opportunities || [])
-      .map((opp: any) => opp.company_id)
-      .filter(Boolean))];
+    const companyIds = [...new Set(((opportunities || []) as OpportunityQueryResult[])
+      .map((opp) => opp.company_id)
+      .filter((id): id is string => Boolean(id)))];
 
-    let contactsMap = new Map<string, any>();
+    const contactsMap = new Map<string, ContactQueryResult>();
     if (companyIds.length > 0) {
       // Get primary contact (first contact) for each company
       const { data: contacts } = await supabase
@@ -244,7 +303,7 @@ export async function getOpportunitiesTable(
 
       if (contacts) {
         // Group by company_id and take the first contact for each company
-        contacts.forEach((contact: any) => {
+        (contacts as ContactQueryResult[]).forEach((contact) => {
           if (!contactsMap.has(contact.company_id)) {
             contactsMap.set(contact.company_id, contact);
           }
@@ -252,7 +311,7 @@ export async function getOpportunitiesTable(
       }
     }
 
-    const rows = (opportunities || []).map((opp: any) => {
+    const rows = ((opportunities || []) as OpportunityQueryResult[]).map((opp) => {
       const contact = opp.company_id ? contactsMap.get(opp.company_id) : null;
       const contactName = contact 
         ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || contact.email
@@ -264,7 +323,7 @@ export async function getOpportunitiesTable(
         'Status': opp.status,
         'Value': opp.value ? `$${opp.value.toLocaleString()}` : '-',
         'Probability': opp.probability ? `${opp.probability}%` : '-',
-        'Company': opp.company?.name || '-',
+        'Company': opp.company?.[0]?.name || '-',
         'Contact': contactName,
       };
     });
@@ -327,7 +386,7 @@ export async function getCompaniesTable(
       return { columns: ['Name', 'Status', 'Website', 'Industry'], rows: [] };
     }
 
-    const rows = (companies || []).map((company: any) => ({
+    const rows = ((companies || []) as CompanyQueryResult[]).map((company) => ({
       id: company.id,
       'Name': company.name,
       'Status': company.status,
@@ -399,17 +458,17 @@ export async function getRecentActivityTable(
     }
 
     // Helper function to generate description from activity data
-    const getActivityDescription = (activity: any): string => {
+    const getActivityDescription = (activity: ActivityQueryResult): string => {
       const action = activity.action_type || '';
       const resourceType = activity.resource_type || '';
       const resourceId = activity.resource_id || '';
-      const metadata = activity.metadata || {};
+      const metadata = (activity.metadata || {}) as Record<string, unknown>;
       
       // Try to extract meaningful info from metadata
-      if (metadata.name) {
+      if (typeof metadata.name === 'string') {
         return `${action} ${metadata.name}`;
       }
-      if (metadata.title) {
+      if (typeof metadata.title === 'string') {
         return `${action} ${metadata.title}`;
       }
       if (resourceType && resourceId) {
@@ -418,11 +477,11 @@ export async function getRecentActivityTable(
       return action || 'Activity';
     };
 
-    const rows = (activities || []).map((activity: any) => ({
+    const rows = ((activities || []) as ActivityQueryResult[]).map((activity) => ({
       id: activity.id,
       'Action': activity.action_type,
       'Description': getActivityDescription(activity),
-      'User': activity.user?.name || 'Unknown',
+      'User': activity.user?.[0]?.name || 'Unknown',
       'Time': new Date(activity.created_at).toLocaleString(),
     }));
 

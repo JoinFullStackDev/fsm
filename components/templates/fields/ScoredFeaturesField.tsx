@@ -1,4 +1,5 @@
 'use client';
+import type { PhaseDataUnion } from '@/types/phases';
 
 import {
   Box,
@@ -28,7 +29,7 @@ interface ScoredFeaturesFieldProps {
   value: ScoredFeature[];
   onChange: (value: ScoredFeature[]) => void;
   error?: string;
-  phaseData?: any;
+  phaseData?: Record<string, unknown>;
 }
 
 export default function ScoredFeaturesField({ field, value, onChange, error, phaseData }: ScoredFeaturesFieldProps) {
