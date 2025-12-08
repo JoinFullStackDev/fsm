@@ -1,4 +1,5 @@
 'use client';
+import type { PhaseDataUnion } from '@/types/phases';
 
 import React from 'react';
 import {
@@ -19,7 +20,7 @@ interface SelectFieldProps {
   value: string;
   onChange: (value: string) => void;
   error?: string;
-  phaseData?: any;
+  phaseData?: Record<string, unknown>;
 }
 
 function SelectField({ field, value, onChange, error, phaseData }: SelectFieldProps) {

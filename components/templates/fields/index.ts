@@ -20,7 +20,7 @@ export { default as UserStoriesField } from './UserStoriesField';
 export { default as AcceptanceCriteriaField } from './AcceptanceCriteriaField';
 export { default as RBACField } from './RBACField';
 export { default as TestCasesField } from './TestCasesField';
-export { default as TableField } from './TableField';
+export { default as TableField, type TableData } from './TableField';
 export { default as SliderField } from './SliderField';
 export { default as DateField } from './DateField';
 export { default as FileField } from './FileField';

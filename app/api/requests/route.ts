@@ -56,7 +56,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Create request
-    const requestData: any = {
+    const requestData: {
+      type: string;
+      title: string;
+      description: string;
+      priority: string;
+      user_id: string;
+      organization_id: string | null;
+      page_url: string | null;
+      steps_to_reproduce: string | null;
+      expected_behavior: string | null;
+      actual_behavior: string | null;
+      status: string;
+    } = {
       type,
       title: title.trim(),
       description: description.trim(),

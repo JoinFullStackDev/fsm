@@ -1,4 +1,5 @@
 'use client';
+import type { WidgetDataset, WidgetSettings } from '@/types/database';
 
 import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, Typography, Box, CircularProgress, useTheme } from '@mui/material';
@@ -7,8 +8,8 @@ import { TrendingUp as TrendingUpIcon, TrendingDown as TrendingDownIcon } from '
 interface MetricWidgetProps {
   widgetId: string;
   dashboardId: string;
-  dataset: any;
-  settings?: any;
+  dataset: WidgetDataset;
+  settings?: WidgetSettings;
 }
 
 interface MetricData {

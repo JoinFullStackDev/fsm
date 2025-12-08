@@ -1,4 +1,5 @@
 'use client';
+import type { PhaseDataUnion } from '@/types/phases';
 
 import { Box, TextField, Typography } from '@mui/material';
 import type { TemplateFieldConfig } from '@/types/templates';
@@ -8,7 +9,7 @@ interface RBACFieldProps {
   value: Record<string, unknown>;
   onChange: (value: Record<string, unknown>) => void;
   error?: string;
-  phaseData?: any;
+  phaseData?: Record<string, unknown>;
 }
 
 export default function RBACField({ field, value, onChange, error, phaseData }: RBACFieldProps) {

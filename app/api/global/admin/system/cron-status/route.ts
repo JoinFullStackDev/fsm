@@ -4,6 +4,15 @@ import { requireSuperAdmin } from '@/lib/globalAdmin';
 import { internalError } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 
+// Types for dashboard subscriptions
+interface DashboardSubscriptionRow {
+  id: string;
+  schedule_type: string;
+  enabled: boolean;
+  last_sent_at: string | null;
+  created_at: string;
+}
+
 export const dynamic = 'force-dynamic';
 
 /**
@@ -31,15 +40,16 @@ export async function GET(request: NextRequest) {
     const disabled = total - enabled;
 
     // Group by schedule type
+    const typedSubscriptions = (subscriptions as DashboardSubscriptionRow[]) || [];
     const bySchedule: Record<string, number> = {};
-    subscriptions?.forEach((sub: any) => {
+    typedSubscriptions.forEach((sub) => {
       bySchedule[sub.schedule_type] = (bySchedule[sub.schedule_type] || 0) + 1;
     });
 
     // Count due subscriptions
     const now = new Date();
     let dueCount = 0;
-    subscriptions?.forEach((sub: any) => {
+    typedSubscriptions.forEach((sub) => {
       if (!sub.enabled) return;
       
       const lastSent = sub.last_sent_at ? new Date(sub.last_sent_at) : null;
@@ -59,17 +69,17 @@ export async function GET(request: NextRequest) {
     });
 
     // Get recent activity (last 10 sent reports)
-    const recentActivity = subscriptions
-      ?.filter((s: any) => s.last_sent_at)
-      .sort((a: any, b: any) => 
-        new Date(b.last_sent_at).getTime() - new Date(a.last_sent_at).getTime()
+    const recentActivity = typedSubscriptions
+      .filter((s) => s.last_sent_at)
+      .sort((a, b) => 
+        new Date(b.last_sent_at!).getTime() - new Date(a.last_sent_at!).getTime()
       )
       .slice(0, 10)
-      .map((s: any) => ({
+      .map((s) => ({
         id: s.id,
         schedule_type: s.schedule_type,
         last_sent_at: s.last_sent_at,
-      })) || [];
+      }));
 
     return NextResponse.json({
       statistics: {

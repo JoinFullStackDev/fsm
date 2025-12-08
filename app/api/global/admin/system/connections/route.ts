@@ -26,8 +26,17 @@ export async function GET(request: NextRequest) {
     }
 
     // Group by connection type
-    const grouped: Record<string, any> = {};
-    (connections || []).forEach((conn: any) => {
+    interface SystemConnection {
+      id: string;
+      connection_type: string;
+      is_active: boolean;
+      test_mode: boolean;
+      config: Record<string, unknown>;
+      created_at: string;
+      updated_at: string;
+    }
+    const grouped: Record<string, SystemConnection> = {};
+    ((connections || []) as SystemConnection[]).forEach((conn) => {
       grouped[conn.connection_type] = conn;
     });
 

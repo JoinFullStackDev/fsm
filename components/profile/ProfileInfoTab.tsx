@@ -182,7 +182,7 @@ export default function ProfileInfoTab() {
 
     setSaving(true);
     try {
-      const updateData: any = {
+      const updateData: Partial<User> = {
         name: formData.name || null,
         bio: formData.bio || null,
         company: formData.company || null,

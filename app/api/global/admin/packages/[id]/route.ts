@@ -33,6 +33,8 @@ export async function PUT(
       features,
       is_active,
       display_order,
+      trial_enabled,
+      trial_days,
     } = body;
 
     // Check if package exists
@@ -73,7 +75,25 @@ export async function PUT(
     }
 
     // Build update object
-    const updateData: any = {
+    interface PackageUpdateData {
+      updated_at: string;
+      name?: string;
+      stripe_price_id?: string | null;
+      stripe_product_id?: string | null;
+      pricing_model?: string;
+      base_price_monthly?: number | null;
+      base_price_yearly?: number | null;
+      price_per_user_monthly?: number | null;
+      price_per_user_yearly?: number | null;
+      stripe_price_id_monthly?: string | null;
+      stripe_price_id_yearly?: string | null;
+      features?: string[];
+      is_active?: boolean;
+      display_order?: number;
+      trial_enabled?: boolean;
+      trial_days?: number;
+    }
+    const updateData: PackageUpdateData = {
       updated_at: new Date().toISOString(),
     };
 
@@ -101,6 +121,8 @@ export async function PUT(
     if (features !== undefined) updateData.features = features;
     if (is_active !== undefined) updateData.is_active = is_active;
     if (display_order !== undefined) updateData.display_order = Number(display_order);
+    if (trial_enabled !== undefined) updateData.trial_enabled = trial_enabled === true;
+    if (trial_days !== undefined) updateData.trial_days = trial_days ? Number(trial_days) : 0;
 
     const { data: packageData, error: updateError } = await adminClient
       .from('packages')

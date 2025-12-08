@@ -32,7 +32,7 @@ import {
   Grid,
   alpha,
 } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { useTheme, type Theme } from '@mui/material/styles';
 import {
   Close as CloseIcon,
   CheckCircle as CheckCircleIcon,
@@ -80,7 +80,7 @@ interface WelcomeTourProps {
 // Animated mock components for new tour steps
 
 // Step 1: Profile Setup - Full width with sidebar and form side by side
-const MockProfileSetup = ({ theme }: { theme: any }) => {
+const MockProfileSetup = ({ theme }: { theme: Theme }) => {
   const [step, setStep] = useState(0);
   const [imageUploading, setImageUploading] = useState(false);
   
@@ -262,7 +262,7 @@ const MockProfileSetup = ({ theme }: { theme: any }) => {
 };
 
 // Step 2: Admin Dashboard - Full width with sidebar nav, roles panel, and users panel
-const MockAdminDashboard = ({ theme }: { theme: any }) => {
+const MockAdminDashboard = ({ theme }: { theme: Theme }) => {
   const [activeTab, setActiveTab] = useState(0);
   const [highlightedRole, setHighlightedRole] = useState<number | null>(null);
   const [highlightedUser, setHighlightedUser] = useState<number | null>(null);
@@ -465,7 +465,7 @@ const MockAdminDashboard = ({ theme }: { theme: any }) => {
 };
 
 // Step 3: Companies, Contacts, Opportunities - Full width with tabs and panels side by side
-const MockCompaniesOps = ({ theme }: { theme: any }) => {
+const MockCompaniesOps = ({ theme }: { theme: Theme }) => {
   const [activeTab, setActiveTab] = useState(0);
   const [highlightedCompany, setHighlightedCompany] = useState<number | null>(null);
   const [highlightedContact, setHighlightedContact] = useState<number | null>(null);
@@ -708,7 +708,7 @@ const MockCompaniesOps = ({ theme }: { theme: any }) => {
 };
 
 // Step 4: Generate Template from PRD - Full width with PRD input, AI processing, and template preview side by side
-const MockTemplateGeneration = ({ theme }: { theme: any }) => {
+const MockTemplateGeneration = ({ theme }: { theme: Theme }) => {
   const [step, setStep] = useState(0);
   const [typing, setTyping] = useState('');
   const [generating, setGenerating] = useState(false);
@@ -892,7 +892,7 @@ const MockTemplateGeneration = ({ theme }: { theme: any }) => {
 };
 
 // Step 5: Create First Project - Full width with form and template selector side by side
-const MockCreateProject = ({ theme }: { theme: any }) => {
+const MockCreateProject = ({ theme }: { theme: Theme }) => {
   const [focused, setFocused] = useState(0);
   
   useEffect(() => {
@@ -1044,7 +1044,7 @@ const MockCreateProject = ({ theme }: { theme: any }) => {
 };
 
 // Step 6: Initiate Project Management - Full width with phases list and active phase detail side by side
-const MockProjectManagement = ({ theme }: { theme: any }) => {
+const MockProjectManagement = ({ theme }: { theme: Theme }) => {
   const [activePhase, setActivePhase] = useState(0);
   const [progressValues, setProgressValues] = useState([0, 0, 0, 0, 0, 0]);
   
@@ -1211,7 +1211,7 @@ const MockProjectManagement = ({ theme }: { theme: any }) => {
 };
 
 // Step 7: Knowledge Base & AI Tool - Full width with search, articles list, and AI response side by side
-const MockKnowledgeBase = ({ theme }: { theme: any }) => {
+const MockKnowledgeBase = ({ theme }: { theme: Theme }) => {
   const [step, setStep] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [aiThinking, setAiThinking] = useState(false);
@@ -1396,7 +1396,7 @@ const MockKnowledgeBase = ({ theme }: { theme: any }) => {
 };
 
 // Legacy components (keeping for reference but not used)
-const MockDashboard = ({ theme }: { theme: any }) => {
+const MockDashboard = ({ theme }: { theme: Theme }) => {
   const [highlighted, setHighlighted] = useState(0);
   
   useEffect(() => {
@@ -1563,7 +1563,7 @@ const MockDashboard = ({ theme }: { theme: any }) => {
   );
 };
 
-const MockTemplateBuilder = ({ theme }: { theme: any }) => {
+const MockTemplateBuilder = ({ theme }: { theme: Theme }) => {
   const fields = ['Project Name', 'Description', 'Category'];
   const [typing, setTyping] = useState('');
   const [fieldIndex, setFieldIndex] = useState(0);
@@ -1706,7 +1706,7 @@ const MockTemplateBuilder = ({ theme }: { theme: any }) => {
   );
 };
 
-const MockProjectForm = ({ theme }: { theme: any }) => {
+const MockProjectForm = ({ theme }: { theme: Theme }) => {
   const [focused, setFocused] = useState(0);
   
   useEffect(() => {
@@ -1838,7 +1838,7 @@ const MockProjectForm = ({ theme }: { theme: any }) => {
   );
 };
 
-const MockProjectDashboard = ({ theme }: { theme: any }) => {
+const MockProjectDashboard = ({ theme }: { theme: Theme }) => {
   const [activePhase, setActivePhase] = useState(0);
   const [progressValues, setProgressValues] = useState([100, 80, 60, 40, 20, 0]);
   
@@ -1954,7 +1954,7 @@ const MockProjectDashboard = ({ theme }: { theme: any }) => {
   );
 };
 
-const MockExportDialog = ({ theme }: { theme: any }) => {
+const MockExportDialog = ({ theme }: { theme: Theme }) => {
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
   
@@ -2118,7 +2118,7 @@ const MockExportDialog = ({ theme }: { theme: any }) => {
   );
 };
 
-const MockKeyboard = ({ theme }: { theme: any }) => {
+const MockKeyboard = ({ theme }: { theme: Theme }) => {
   const [pressedKey, setPressedKey] = useState<string | null>(null);
   const [activeShortcut, setActiveShortcut] = useState(0);
   
@@ -2223,7 +2223,7 @@ const MockKeyboard = ({ theme }: { theme: any }) => {
   );
 };
 
-const getTourSteps = (theme: any): TourStep[] => [
+const getTourSteps = (theme: Theme): TourStep[] => [
   {
     title: 'Complete Your Profile',
     description: 'Set up your account',

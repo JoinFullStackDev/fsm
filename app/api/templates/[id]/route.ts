@@ -186,7 +186,13 @@ export async function PUT(
     const { name, description, category, is_public } = body;
 
     // Build update object (don't allow changing is_publicly_available via this endpoint)
-    const updateData: any = {
+    const updateData: {
+      updated_at: string;
+      name?: string;
+      description?: string | null;
+      category?: string | null;
+      is_public?: boolean;
+    } = {
       updated_at: new Date().toISOString(),
     };
     

@@ -242,19 +242,23 @@ export async function sendPushNotification(
           });
 
           return true;
-        } catch (error: any) {
+        } catch (error) {
           // If subscription is invalid, remove it
-          if (error.statusCode === 410 || error.statusCode === 404) {
+          const errorWithStatus = error as { statusCode?: number; message?: string };
+          const statusCode = errorWithStatus?.statusCode;
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          
+          if (statusCode === 410 || statusCode === 404) {
             logger.debug('[Push Notifications] Removing invalid subscription:', {
               subscriptionId: subscription.id,
-              statusCode: error.statusCode,
-              message: error.message,
+              statusCode,
+              message: errorMessage,
             });
             await unregisterPushSubscription(userId, subscription.endpoint);
           } else {
             logger.error('[Push Notifications] Error sending notification:', {
-              error: error.message,
-              statusCode: error.statusCode,
+              error: errorMessage,
+              statusCode,
               subscriptionId: subscription.id,
               endpoint: subscription.endpoint.substring(0, 50) + '...',
             });

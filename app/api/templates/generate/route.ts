@@ -3,7 +3,7 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { hasAIFeatures } from '@/lib/packageLimits';
-import { generateStructuredAIResponse } from '@/lib/ai/geminiClient';
+import { generateStructuredAIResponse, type AIResponseWithMetadata } from '@/lib/ai/geminiClient';
 import { logAIUsage } from '@/lib/ai/aiUsageLogger';
 
 interface GeneratedTemplate {
@@ -310,7 +310,7 @@ export async function POST(request: NextRequest) {
 
     // Generate structured response with metadata tracking
     let result: GeneratedTemplate;
-    let metadata: any = null;
+    let metadata: AIResponseWithMetadata['metadata'] | null = null;
     try {
       const response = await generateStructuredAIResponse<GeneratedTemplate>(
         prompt,

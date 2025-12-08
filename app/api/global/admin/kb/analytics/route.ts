@@ -4,6 +4,28 @@ import { requireSuperAdmin } from '@/lib/globalAdmin';
 import { internalError } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 
+// Types for KB analytics
+interface KBAnalyticsRecord {
+  action_type: string;
+  article_id: string | null;
+  created_at: string;
+  metadata?: {
+    query?: string;
+    [key: string]: unknown;
+  };
+}
+
+interface KBArticleBasic {
+  id: string;
+  title: string;
+}
+
+interface TopArticle {
+  article_id: string;
+  article_title: string;
+  views: number;
+}
+
 export const dynamic = 'force-dynamic';
 
 /**
@@ -45,18 +67,19 @@ export async function GET(request: NextRequest) {
     }
 
     // Calculate stats
+    const analyticsData = (analytics || []) as KBAnalyticsRecord[];
     const stats = {
-      total_views: analytics?.filter((a: any) => a.action_type === 'view').length || 0,
-      total_searches: analytics?.filter((a: any) => a.action_type === 'search').length || 0,
-      total_ai_queries: analytics?.filter((a: any) => a.action_type === 'ai_query').length || 0,
-      helpful_ratings: analytics?.filter((a: any) => a.action_type === 'helpful').length || 0,
-      unhelpful_ratings: analytics?.filter((a: any) => a.action_type === 'unhelpful').length || 0,
-      total_exports: analytics?.filter((a: any) => a.action_type === 'export').length || 0,
+      total_views: analyticsData.filter((a) => a.action_type === 'view').length,
+      total_searches: analyticsData.filter((a) => a.action_type === 'search').length,
+      total_ai_queries: analyticsData.filter((a) => a.action_type === 'ai_query').length,
+      helpful_ratings: analyticsData.filter((a) => a.action_type === 'helpful').length,
+      unhelpful_ratings: analyticsData.filter((a) => a.action_type === 'unhelpful').length,
+      total_exports: analyticsData.filter((a) => a.action_type === 'export').length,
     };
 
     // Calculate top articles by views
     const articleViews = new Map<string, number>();
-    analytics?.forEach((a: any) => {
+    analyticsData.forEach((a: KBAnalyticsRecord) => {
       if (a.action_type === 'view' && a.article_id) {
         articleViews.set(a.article_id, (articleViews.get(a.article_id) || 0) + 1);
       }
@@ -68,14 +91,14 @@ export async function GET(request: NextRequest) {
       .slice(0, 10)
       .map(([id]) => id);
 
-    let topArticles: any[] = [];
+    let topArticles: TopArticle[] = [];
     if (topArticleIds.length > 0) {
       const { data: articles } = await adminClient
         .from('knowledge_base_articles')
         .select('id, title')
         .in('id', topArticleIds);
 
-      topArticles = (articles || []).map((article: any) => ({
+      topArticles = ((articles || []) as KBArticleBasic[]).map((article) => ({
         article_id: article.id,
         article_title: article.title,
         views: articleViews.get(article.id) || 0,
@@ -84,7 +107,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate search queries
     const searchQueries = new Map<string, number>();
-    analytics?.forEach((a: any) => {
+    analyticsData.forEach((a: KBAnalyticsRecord) => {
       if (a.action_type === 'search' && a.metadata?.query) {
         const query = a.metadata.query.toLowerCase().trim();
         if (query) {
@@ -108,7 +131,7 @@ export async function GET(request: NextRequest) {
       exports: number;
     }>();
 
-    analytics?.forEach((a: any) => {
+    analyticsData.forEach((a: KBAnalyticsRecord) => {
       const date = new Date(a.created_at).toISOString().split('T')[0];
       if (!dailyStats.has(date)) {
         dailyStats.set(date, {

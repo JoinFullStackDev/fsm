@@ -112,9 +112,31 @@ export async function GET(
       logger.error('[Resources GET] Error loading members:', membersResult.error);
     }
 
+    // Types for workload data
+    interface AllocationWithProject {
+      project_id: string;
+      allocated_hours_per_week: number;
+      start_date: string | null;
+      end_date: string | null;
+      project?: Array<{ id: string; name: string }> | { id: string; name: string } | null;
+    }
+
+    interface WorkloadSummary {
+      user_id?: string;
+      total_allocated_hours?: number;
+      is_over_allocated?: boolean;
+      projects?: Array<{
+        project_id: string;
+        project_name: string;
+        allocated_hours_per_week: number;
+        start_date: string | null;
+        end_date: string | null;
+      }>;
+    }
+
     // Get workload summaries for all project members
     const memberUserIds = membersResult.data?.map(m => m.user_id) || [];
-    const workloads: any[] = [];
+    const workloads: WorkloadSummary[] = [];
 
     if (memberUserIds.length > 0) {
       // Batch get workload summaries
@@ -142,14 +164,18 @@ export async function GET(
             .gte('end_date', startDate);
 
           return {
-            ...workloadData,
-            projects: userAllocations?.map((alloc: any) => ({
-              project_id: alloc.project_id,
-              project_name: alloc.project?.name || 'Unknown Project',
-              allocated_hours_per_week: alloc.allocated_hours_per_week,
-              start_date: alloc.start_date,
-              end_date: alloc.end_date,
-            })) || [],
+            ...(workloadData as WorkloadSummary),
+            projects: (userAllocations as AllocationWithProject[] | null)?.map((alloc) => {
+              // Handle both array and object forms of nested relation
+              const projectData = Array.isArray(alloc.project) ? alloc.project[0] : alloc.project;
+              return {
+                project_id: alloc.project_id,
+                project_name: projectData?.name || 'Unknown Project',
+                allocated_hours_per_week: alloc.allocated_hours_per_week,
+                start_date: alloc.start_date,
+                end_date: alloc.end_date,
+              };
+            }) || [],
           };
         }
         return null;

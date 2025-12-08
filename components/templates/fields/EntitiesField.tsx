@@ -1,4 +1,5 @@
 'use client';
+import type { PhaseDataUnion } from '@/types/phases';
 
 import {
   Box,
@@ -23,7 +24,7 @@ interface EntitiesFieldProps {
   value: Entity[];
   onChange: (value: Entity[]) => void;
   error?: string;
-  phaseData?: any;
+  phaseData?: Record<string, unknown>;
 }
 
 export default function EntitiesField({ field, value, onChange, error, phaseData }: EntitiesFieldProps) {

@@ -1,9 +1,8 @@
 import { generateStructuredAIResponse } from './geminiClient';
 import logger from '@/lib/utils/logger';
 import type { ProjectTask } from '@/types/project';
-import type { PreviewTask } from '@/types/taskGenerator';
-import { computePhaseRoleMapping } from './phaseRoleMapping';
-import { buildSOWMembersContext } from './promptTemplates';
+import type { PreviewTask, SourceField } from '@/types/taskGenerator';
+import { buildCompactSOWContext, type SOWMember } from './promptTemplates';
 
 /**
  * Phase data structure for context
@@ -22,39 +21,38 @@ export interface PhaseData {
 export interface TaskGenerationResult {
   tasks: PreviewTask[];
   summary?: string;
+  response_time_ms?: number;
 }
 
 /**
- * Extract dates from text using AI
- * Handles specific dates, relative dates, and implied dates
+ * Extract dates from text using AI (uses flash-lite for speed)
  */
 export async function extractDatesFromText(
   text: string,
   apiKey: string
 ): Promise<{ dueDate: string | null; extractedDates: string[] }> {
-  const prompt = `Extract all dates and deadlines from the following text. Look for:
-- Specific dates: "March 15th", "2025-02-12", "December 31, 2024"
-- Relative dates: "in 2 weeks", "end of quarter", "next month"
-- Implied dates: "before design review in June", "after the meeting next week"
+  const today = new Date().toISOString().split('T')[0];
+  
+  const prompt = `Extract dates from text. Look for specific dates, relative dates ("in 2 weeks"), deadlines.
 
-Text: "${text}"
+Text: "${text.substring(0, 500)}"
 
-Return a JSON object with:
-{
-  "dates": ["2025-03-15", "2025-06-30", ...],  // Array of ISO date strings (YYYY-MM-DD)
-  "earliest": "2025-03-15"  // The earliest date found, or null if none
-}
-
-If no dates are found, return: { "dates": [], "earliest": null }
-If relative dates are found, calculate them from today's date: ${new Date().toISOString().split('T')[0]}`;
+Return JSON: {"dates": ["YYYY-MM-DD"], "earliest": "YYYY-MM-DD" or null}
+Today: ${today}`;
 
   try {
     const result = await generateStructuredAIResponse<{
       dates: string[];
       earliest: string | null;
-    }>(prompt, {}, apiKey);
+    }>(
+      prompt, 
+      {}, 
+      apiKey,
+      undefined,
+      false,
+      'gemini-2.5-flash-lite' // Use faster model for simple extraction
+    );
 
-    // Handle both wrapped and unwrapped results
     const dateResult = 'result' in result ? result.result : result;
 
     return {
@@ -67,20 +65,25 @@ If relative dates are found, calculate them from today's date: ${new Date().toIS
   }
 }
 
+// Re-export SOWMember type for backwards compatibility
+export type { SOWMember } from './promptTemplates';
+
 /**
- * SOW Member information for task assignment
+ * Build compact phase context for task generation
  */
-export interface SOWMember {
-  user_id: string;
-  name: string;
-  role_name: string; // Custom organization role name (or fallback to project role)
-  role_description: string | null; // Custom organization role description
-  current_task_count: number;
-  is_overworked: boolean;
+function buildPhaseContext(phases: PhaseData[]): string {
+  return phases.map(p => {
+    const fieldKeys = Object.keys(p.data || {})
+      .filter(k => !k.startsWith('_') && !['master_prompt', 'generated_document', 'document_generated_at'].includes(k));
+    
+    const status = p.completed ? ' ✓' : '';
+    return `P${p.phase_number}:${p.phase_name || `Phase ${p.phase_number}`}${status} [${fieldKeys.slice(0, 5).join(', ')}${fieldKeys.length > 5 ? '...' : ''}]`;
+  }).join('\n');
 }
 
 /**
  * Generate tasks from user prompt/PRD
+ * OPTIMIZED: Compact prompts, flash-lite for date extraction, source field tracking
  */
 export async function generateTasksFromPrompt(
   prompt: string,
@@ -91,141 +94,112 @@ export async function generateTasksFromPrompt(
   context?: string,
   sowMembers?: SOWMember[]
 ): Promise<TaskGenerationResult> {
-  // Build phase context (optimized: summary instead of full data)
-  const phaseList = phases
-    .map((p) => `Phase ${p.phase_number}: ${p.phase_name || `Phase ${p.phase_number}`}${p.completed ? ' (Completed)' : ''}`)
-    .join(', ');
+  const startTime = Date.now();
+  
+  // Build compact phase context
+  const phaseContext = buildPhaseContext(phases);
+  const phaseNumbers = phases.map(p => p.phase_number).join(', ');
 
-  // Build existing tasks context for AI to avoid duplicates (optimized: reduced from 20 to 10, titles only)
+  // Compact existing tasks summary (titles only, limited)
   const existingTasksContext = existingTasks.length > 0
-    ? `\n\nExisting tasks in this project (avoid creating exact duplicates):\n${existingTasks
-        .slice(0, 10) // Reduced from 20 to 10 for faster processing
-        .map((t) => `- ${t.title}`) // Removed description to save tokens
-        .join('\n')}`
+    ? `\nEXISTING (avoid duplicates):\n${existingTasks.slice(0, 8).map(t => `- ${t.title}`).join('\n')}`
     : '';
 
-  // Use cached phase role mapping utility
-  const phaseRoleMapping = computePhaseRoleMapping(phases);
+  // Build compact SOW context
+  const sowContext = sowMembers?.length ? buildCompactSOWContext(sowMembers, phases) : '';
 
-  // Build SOW members context using shared utility
-  const sowMembersContext = sowMembers && sowMembers.length > 0
-    ? buildSOWMembersContext(sowMembers, phases)
-    : '';
-
-  // PARALLELIZE: Start date extraction in parallel with task generation
+  // Start date extraction in parallel (with flash-lite)
   const dateExtractionPromise = extractDatesFromText(prompt, apiKey);
+  
+  // Get today's date
+  const today = new Date().toISOString().split('T')[0];
 
-  const fullPrompt = `You are generating tasks for a project called "${projectName}" using The FullStack Method™ framework.
+  // OPTIMIZED PROMPT - significantly smaller
+  const fullPrompt = `Generate tasks for "${projectName}" based on user input.
 
-User Input/Prompt:
-${prompt}
-${context ? `\nAdditional Context:\n${context}` : ''}
+USER INPUT:
+${prompt.substring(0, 2000)}${prompt.length > 2000 ? '...' : ''}
+${context ? `\nCONTEXT: ${context.substring(0, 500)}` : ''}
 
-Project Phases Available:
-${phaseList}
-
+PHASES:
+${phaseContext}
 ${existingTasksContext}
-${sowMembersContext}
+${sowContext}
 
-Generate a comprehensive list of tasks based on the user's input. Each task should have:
-- title: Clear, actionable task title
-- description: Detailed description of what needs to be done
-- phase_number: Which phase this task belongs to (must be one of: ${phases.map((p) => p.phase_number).join(', ')})
-- priority: 'low', 'medium', 'high', or 'critical'
-- status: 'todo' (for new tasks)
-- estimated_hours: Estimated number of hours to complete this task (decimal number, e.g., 2.5, 8.0, 16.0). Consider task complexity, scope, and typical work patterns. If uncertain, provide a reasonable estimate.
-- tags: Array of relevant tags
-- requirements: Array of specific requirements for this task (extracted from the prompt)
-- userStories: Array of user stories if mentioned in the prompt (optional)
-- notes: Additional notes or context
-${sowMembers && sowMembers.length > 0 ? '- assignee_id: user_id UUID of the team member to assign this task to (or null if no suitable member). Use the exact UUID from the team members list above, NOT the name.' : ''}
-
-IMPORTANT: Extract dates from the user input. If dates are mentioned:
-- Set due_date to the earliest date found
-- If multiple dates are mentioned, use the earliest one
-- If no dates are found, set due_date to null (user can set it later)
-- Calculate relative dates from today: ${new Date().toISOString().split('T')[0]}
-
-IMPORTANT: For estimated_hours:
-- Provide realistic time estimates based on task complexity
-- Simple tasks: 1-4 hours
-- Medium tasks: 4-16 hours
-- Complex tasks: 16-40 hours
-- Very complex tasks: 40+ hours
-- Consider the task description, requirements, and typical development patterns
-
-Return your response as JSON in this exact format:
+Generate tasks with these fields:
 {
-  "tasks": [
-    {
-      "title": "Task title",
-      "description": "Task description",
-      "phase_number": 1,
-      "priority": "high",
-      "status": "todo",
-      "estimated_hours": 8.0,
-      "tags": ["tag1", "tag2"],
-      "requirements": ["Requirement 1", "Requirement 2"],
-      "userStories": ["As a user, I want..."],
-      "notes": "Additional notes",
-      "due_date": "2025-03-15" or null${sowMembers && sowMembers.length > 0 ? `,\n      "assignee_id": "${sowMembers[0]?.user_id}" or null (MUST be exact UUID from team members list above, NOT a name)` : ''}
-    }
-  ],
-  "summary": "Brief summary of generated tasks"
+  "title": "Action verb + deliverable",
+  "description": "What to do",
+  "phase_number": ${phaseNumbers},
+  "priority": "low|medium|high|critical",
+  "status": "todo",
+  "estimated_hours": 1-40,
+  "tags": ["category"],
+  "requirements": ["req1"],
+  "userStories": ["As a user..."] (optional),
+  "due_date": "YYYY-MM-DD" or null,
+  "assignee_id": "uuid" or null,
+  "source_fields": [{"phase": N, "field": "field_key"}]
 }
 
-Focus on actionable, specific tasks that directly address the user's prompt.`;
+TODAY: ${today}
+
+RULES:
+1. Each task should link to relevant phase fields via source_fields
+2. Assign tasks when role matches team member (see TEAM section)
+3. Extract dates from input; if none found, set due_date to null
+4. Estimated hours: Simple 1-4h, Medium 4-16h, Complex 16-40h
+
+Return JSON: {"tasks": [...], "summary": "Brief summary"}`;
 
   try {
-    // PARALLELIZE: Wait for both task generation and date extraction simultaneously
+    // Run task generation and date extraction in parallel
     const [result, dateExtraction] = await Promise.all([
       generateStructuredAIResponse<{
-      tasks: Array<{
-        title: string;
-        description: string;
-        phase_number: number;
-        priority: 'low' | 'medium' | 'high' | 'critical';
-        status: 'todo';
-        estimated_hours: number;
-        tags: string[];
-        requirements: string[];
-        userStories?: string[];
-        notes?: string;
-        due_date: string | null;
-        assignee_id?: string | null;
-      }>;
-      summary?: string;
-    }>(fullPrompt, {
-      projectData: {
-        name: projectName,
-        // Summarize phase data instead of full JSON (optimized for token efficiency)
-        phases: phases.map((p) => ({
-          phase_number: p.phase_number,
-          phase_name: p.phase_name,
-          completed: p.completed,
-          field_count: Object.keys(p.data || {}).length, // Include field count instead of full data
-        })),
-      },
-    }, apiKey, projectName),
-      dateExtractionPromise, // Parallel date extraction
+        tasks: Array<{
+          title: string;
+          description: string;
+          phase_number: number;
+          priority: 'low' | 'medium' | 'high' | 'critical';
+          status: 'todo';
+          estimated_hours: number;
+          tags: string[];
+          requirements: string[];
+          userStories?: string[];
+          notes?: string;
+          due_date: string | null;
+          assignee_id?: string | null;
+          source_fields?: SourceField[];
+        }>;
+        summary?: string;
+      }>(fullPrompt, {
+        projectData: {
+          name: projectName,
+          phases: phases.map(p => ({
+            phase_number: p.phase_number,
+            phase_name: p.phase_name,
+            completed: p.completed,
+          })),
+        },
+      }, apiKey, projectName),
+      dateExtractionPromise,
     ] as const);
 
-    // Handle both wrapped and unwrapped results
     const taskResult = 'result' in result ? result.result : result;
+    const responseTime = Date.now() - startTime;
 
     // Convert to PreviewTask format
     const previewTasks: PreviewTask[] = taskResult.tasks.map((task, index) => {
       // Build notes JSONB structure
-      const notesData: Record<string, any> = {
+      const notesData: Record<string, unknown> = {
         requirements: task.requirements || [],
       };
-      if (task.userStories && task.userStories.length > 0) {
+      if (task.userStories?.length) {
         notesData.userStories = task.userStories;
       }
       if (task.notes) {
         notesData.notes = task.notes;
       }
-      // Note: assignee_role is not stored - it's only used by AI for assignment decisions
 
       return {
         title: task.title,
@@ -233,9 +207,9 @@ Focus on actionable, specific tasks that directly address the user's prompt.`;
         phase_number: task.phase_number,
         status: task.status,
         priority: task.priority,
-        assignee_id: task.assignee_id || null, // Use AI-suggested assignee if provided
+        assignee_id: task.assignee_id || null,
         parent_task_id: null,
-        start_date: null, // Can be set by user in preview
+        start_date: null,
         due_date: task.due_date,
         estimated_hours: task.estimated_hours || null,
         tags: task.tags || [],
@@ -243,35 +217,31 @@ Focus on actionable, specific tasks that directly address the user's prompt.`;
         dependencies: [],
         ai_generated: true,
         ai_analysis_id: null,
-        duplicateStatus: 'unique', // Will be set by similarity detection
-        existingTaskId: null, // Will be set by similarity detection
+        duplicateStatus: 'unique',
+        existingTaskId: null,
         requirements: task.requirements || [],
         userStories: task.userStories,
-        previewId: `preview-${index}-${Date.now()}`, // Temporary ID for preview
+        previewId: `preview-${index}-${Date.now()}`,
+        source_fields: task.source_fields,
       };
     });
 
-    // Use the date extraction result (already completed in parallel)
-    // If we found dates in the prompt but tasks don't have dates, apply to first few tasks
-    if (dateExtraction.dueDate && previewTasks.length > 0) {
-      const tasksWithoutDates = previewTasks.filter((t) => !t.due_date);
-      if (tasksWithoutDates.length > 0) {
-        // Apply the earliest date to tasks without dates
-        tasksWithoutDates.forEach((task) => {
+    // Apply extracted dates to tasks without dates
+    if (dateExtraction.dueDate) {
+      previewTasks
+        .filter(t => !t.due_date)
+        .forEach(task => {
           task.due_date = dateExtraction.dueDate;
         });
-      }
     }
 
     return {
       tasks: previewTasks,
       summary: taskResult.summary,
+      response_time_ms: responseTime,
     };
   } catch (error) {
     logger.error('[Task Generator] Error generating tasks:', error);
-    throw new Error(
-      `Failed to generate tasks: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
+    throw new Error(`Failed to generate tasks: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
-

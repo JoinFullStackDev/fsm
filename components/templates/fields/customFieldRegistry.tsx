@@ -1,4 +1,5 @@
 'use client';
+import type { PhaseDataUnion } from '@/types/phases';
 
 import React from 'react';
 import PersonasField from './PersonasField';
@@ -21,10 +22,10 @@ import type { TemplateFieldConfig } from '@/types/templates';
 
 interface CustomFieldRegistryProps {
   field: TemplateFieldConfig;
-  value: any;
-  onChange: (value: any) => void;
+  value: unknown;
+  onChange: (value: unknown) => void;
   error?: string;
-  phaseData?: any;
+  phaseData?: Record<string, unknown>;
 }
 
 // Registry mapping field_key to custom component

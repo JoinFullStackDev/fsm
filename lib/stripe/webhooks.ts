@@ -9,6 +9,7 @@ import { isEmailConfigured, sendEmailWithRetry } from '@/lib/emailService';
 import { getPostPaymentWelcomeTemplate } from '@/lib/emailTemplates';
 import logger from '@/lib/utils/logger';
 import type Stripe from 'stripe';
+import type { OrganizationRow } from '@/types/database';
 
 /**
  * Verify and parse Stripe webhook event
@@ -302,7 +303,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription): Pro
         ? 'canceled'
         : 'past_due';
 
-    const orgUpdate: any = {
+    const orgUpdate: Partial<OrganizationRow> = {
       subscription_status: orgStatus,
       updated_at: new Date().toISOString(),
     };

@@ -407,34 +407,41 @@ function ProjectsPageContent() {
               key: 'name',
               label: 'Project Name',
               sortable: true,
-              render: (value) => (
-                <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
-                  {value}
-                </Typography>
-              ),
+              render: (val: unknown) => {
+                const value = val as string;
+                return (
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
+                    {value}
+                  </Typography>
+                );
+              },
             },
             {
               key: 'status',
               label: 'Status',
               sortable: true,
-              render: (value) => (
-                <Chip
-                  label={String(value).replace('_', ' ')}
-                  size="small"
-                  sx={{
-                    backgroundColor: theme.palette.action.hover,
-                    color: theme.palette.text.primary,
-                    border: `1px solid ${theme.palette.divider}`,
-                    fontWeight: 500,
-                  }}
-                />
-              ),
+              render: (val: unknown) => {
+                const value = val as string;
+                return (
+                  <Chip
+                    label={String(value).replace('_', ' ')}
+                    size="small"
+                    sx={{
+                      backgroundColor: theme.palette.action.hover,
+                      color: theme.palette.text.primary,
+                      border: `1px solid ${theme.palette.divider}`,
+                      fontWeight: 500,
+                    }}
+                  />
+                );
+              },
             },
             {
               key: 'primary_tool',
               label: 'Primary Tool',
               sortable: true,
-              render: (value) => {
+              render: (val: unknown) => {
+                const value = val as string | null;
                 if (!value) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
                 return (
                   <Chip
@@ -454,7 +461,8 @@ function ProjectsPageContent() {
               key: 'updated_at',
               label: 'Last Updated',
               sortable: true,
-              render: (value) => {
+              render: (val: unknown) => {
+                const value = val as string;
                 if (!value) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
                 const date = new Date(value);
                 return (
@@ -469,7 +477,7 @@ function ProjectsPageContent() {
               label: 'Actions',
               sortable: false,
               align: 'right',
-              render: (_, project) => (
+              render: (_: unknown, project: Project) => (
                 <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
                   <IconButton
                     size="small"

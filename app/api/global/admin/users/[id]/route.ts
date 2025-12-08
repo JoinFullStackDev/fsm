@@ -67,7 +67,13 @@ export async function PUT(
 
     const { name, email, role, organization_id, is_active } = body;
 
-    const updates: any = {};
+    const updates: {
+      name?: string;
+      email?: string;
+      role?: string;
+      organization_id?: string | null;
+      is_active?: boolean;
+    } = {};
     if (name !== undefined) updates.name = name;
     if (email !== undefined) updates.email = email;
     if (role !== undefined) updates.role = role;

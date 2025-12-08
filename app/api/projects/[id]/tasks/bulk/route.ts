@@ -8,11 +8,11 @@ function unauthorized(message: string) {
   return NextResponse.json({ error: message }, { status: 401 });
 }
 
-function badRequest(message: string, details?: any) {
+function badRequest(message: string, details?: Record<string, unknown>) {
   return NextResponse.json({ error: message, details }, { status: 400 });
 }
 
-function internalError(message: string, details?: any) {
+function internalError(message: string, details?: Record<string, unknown>) {
   return NextResponse.json({ error: message, details }, { status: 500 });
 }
 

@@ -122,41 +122,53 @@ export default function CompanyOpportunitiesTab({ companyId }: CompanyOpportunit
       key: 'value',
       label: 'Value',
       sortable: true,
-      render: (value: number | null) => value ? `$${value.toLocaleString()}` : '-',
+      render: (val: unknown) => {
+        const value = val as number | null;
+        return value ? `$${value.toLocaleString()}` : '-';
+      },
     },
     {
       key: 'status',
       label: 'Status',
       sortable: true,
-      render: (value: string) => (
-        <Chip
-          label={value.charAt(0).toUpperCase() + value.slice(1)}
-          size="small"
-          sx={{
-            ...getStatusStyles(value),
-            fontWeight: 500,
-          }}
-        />
-      ),
+      render: (val: unknown) => {
+        const value = val as string;
+        return (
+          <Chip
+            label={value.charAt(0).toUpperCase() + value.slice(1)}
+            size="small"
+            sx={{
+              ...getStatusStyles(value),
+              fontWeight: 500,
+            }}
+          />
+        );
+      },
     },
     {
       key: 'source',
       label: 'Source',
       sortable: true,
-      render: (value: string) => value || 'Manual',
+      render: (val: unknown) => {
+        const value = val as string;
+        return value || 'Manual';
+      },
     },
     {
       key: 'created_at',
       label: 'Created',
       sortable: true,
-      render: (value: string) => new Date(value).toLocaleDateString(),
+      render: (val: unknown) => {
+        const value = val as string;
+        return new Date(value).toLocaleDateString();
+      },
     },
     {
       key: 'actions',
       label: 'Actions',
       sortable: false,
       align: 'right' as const,
-      render: (_: any, row: Opportunity) => (
+      render: (_: unknown, row: Opportunity) => (
         <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
           <IconButton
             size="small"

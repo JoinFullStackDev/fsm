@@ -3,6 +3,12 @@
  * Used when token counts are not available from the API response
  */
 
+import type { PhaseDataUnion } from '@/types/phases';
+import type { Project } from '@/types/project';
+
+// Project data type that can be either the full Project type or a partial
+type ProjectDataType = Project | Partial<Project> | Record<string, unknown>;
+
 /**
  * Estimate token count from text
  * Rough estimation: 1 token ≈ 4 characters for English text
@@ -38,9 +44,9 @@ export function estimateTokens(text: string, model: string = 'gemini-2.5-flash')
 export function estimateInputTokens(
   prompt: string,
   context?: string,
-  phaseData?: any,
-  projectData?: any,
-  previousPhases?: any[]
+  phaseData?: PhaseDataUnion,
+  projectData?: ProjectDataType,
+  previousPhases?: PhaseDataUnion[]
 ): number {
   let totalChars = prompt.length;
 

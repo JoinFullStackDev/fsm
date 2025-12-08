@@ -5,6 +5,14 @@ import { getUserOrganizationId } from '@/lib/organizationContext';
 import { getKnowledgeBaseAccessLevel } from '@/lib/packageLimits';
 import logger from '@/lib/utils/logger';
 import type { CategoryUpdateInput } from '@/types/kb';
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+// Type for category update data
+interface CategoryUpdateData {
+  name?: string;
+  slug?: string;
+  parent_id?: string | null;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -73,7 +81,7 @@ export async function PUT(
     const { name, slug, parent_id } = body;
 
     // Build update data
-    const updateData: any = {};
+    const updateData: CategoryUpdateData = {};
 
     if (name !== undefined) updateData.name = name;
     if (slug !== undefined) updateData.slug = slug;
@@ -268,7 +276,7 @@ export async function DELETE(
  * Check for circular reference in category hierarchy
  */
 async function checkCircularReference(
-  supabase: any,
+  supabase: SupabaseClient,
   categoryId: string,
   newParentId: string
 ): Promise<boolean> {

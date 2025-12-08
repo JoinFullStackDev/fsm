@@ -292,7 +292,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create dashboard
-    const insertData: any = {
+    const insertData: Record<string, unknown> = {
       owner_id: userData.id,
       name: name.trim(),
       description: description?.trim() || null,

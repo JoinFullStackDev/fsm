@@ -75,7 +75,7 @@ export async function GET(
 
     // If multiple articles found (org + global), prefer org-specific
     const article = organizationId && articles.length > 1
-      ? articles.find((a: any) => a.organization_id === organizationId) || articles[0]
+      ? articles.find((a: { organization_id: string | null }) => a.organization_id === organizationId) || articles[0]
       : articles[0];
 
     // Check access
@@ -100,7 +100,7 @@ export async function GET(
  * Track article view for analytics
  */
 async function trackArticleView(
-  supabase: any,
+  supabase: ReturnType<typeof createServerSupabaseClient> extends Promise<infer T> ? T : never,
   articleId: string,
   userId: string
 ): Promise<void> {

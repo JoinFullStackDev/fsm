@@ -5,6 +5,50 @@ import { unauthorized, badRequest, internalError } from '@/lib/utils/apiErrors';
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import logger from '@/lib/utils/logger';
 import { getStripeClient } from '@/lib/stripe/client';
+import Stripe from 'stripe';
+
+// Types for subscription data
+interface SubscriptionRow {
+  id: string;
+  status: string;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  stripe_subscription_id: string | null;
+  stripe_price_id: string | null;
+  package_id: string | null;
+  billing_interval: string | null;
+  updated_at: string | null;
+}
+
+interface SubscriptionWithPackage extends SubscriptionRow {
+  package?: PackageRow | null;
+}
+
+interface PackageRow {
+  id: string;
+  name: string;
+  pricing_model: string | null;
+  base_price_monthly: number | null;
+  base_price_yearly: number | null;
+  price_per_user_monthly: number | null;
+  price_per_user_yearly: number | null;
+  stripe_price_id_monthly: string | null;
+  stripe_price_id_yearly: string | null;
+  features: Record<string, boolean> | null;
+}
+
+interface SubscriptionUpdateData {
+  status?: string;
+  current_period_start?: string;
+  current_period_end?: string;
+  cancel_at_period_end?: boolean;
+  stripe_subscription_id?: string | null;
+  stripe_price_id?: string | null;
+  package_id?: string | null;
+  billing_interval?: string | null;
+  updated_at?: string;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -111,14 +155,19 @@ export async function GET(request: NextRequest) {
         const stripe = await getStripeClient();
         if (stripe) {
           const stripeSubscription = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id);
-          const subscriptionData = stripeSubscription as any;
+          // Stripe subscriptions have current_period_start/end as Unix timestamps
+          const stripeSub = stripeSubscription as Stripe.Subscription & {
+            current_period_start?: number;
+            current_period_end?: number;
+            cancel_at_period_end?: boolean;
+          };
           
           // Convert Unix timestamps to ISO strings
-          let periodStart = subscriptionData.current_period_start 
-            ? new Date(subscriptionData.current_period_start * 1000).toISOString()
+          let periodStart = stripeSub.current_period_start 
+            ? new Date(stripeSub.current_period_start * 1000).toISOString()
             : subscription.current_period_start;
-          let periodEnd = subscriptionData.current_period_end 
-            ? new Date(subscriptionData.current_period_end * 1000).toISOString()
+          let periodEnd = stripeSub.current_period_end 
+            ? new Date(stripeSub.current_period_end * 1000).toISOString()
             : subscription.current_period_end;
           
           // Validate and correct period end date if it seems wrong (e.g., year instead of month)
@@ -160,7 +209,7 @@ export async function GET(request: NextRequest) {
           subscription.current_period_start = periodStart;
           subscription.current_period_end = periodEnd;
           subscription.status = newStatus;
-          subscription.cancel_at_period_end = subscriptionData.cancel_at_period_end || false;
+          subscription.cancel_at_period_end = stripeSub.cancel_at_period_end || false;
           
           // Update database if dates or status have changed
           if (periodStart !== oldPeriodStart || periodEnd !== oldPeriodEnd || newStatus !== oldStatus) {
@@ -180,7 +229,7 @@ export async function GET(request: NextRequest) {
                 current_period_start: periodStart,
                 current_period_end: periodEnd,
                 status: newStatus,
-                cancel_at_period_end: subscriptionData.cancel_at_period_end || false,
+                cancel_at_period_end: stripeSub.cancel_at_period_end || false,
                 updated_at: new Date().toISOString(),
               })
               .eq('id', subscription.id)
@@ -269,7 +318,7 @@ export async function GET(request: NextRequest) {
 
     // Ensure subscription object has package field if package_id exists
     // This is critical for the frontend component to recognize the subscription
-    if (subscription && subscription.package_id && !(subscription as any).package) {
+    if (subscription && subscription.package_id && !(subscription as SubscriptionWithPackage).package) {
       logger.warn('[Subscription API] Subscription missing package object, attempting to load:', {
         subscriptionId: subscription.id,
         packageId: subscription.package_id,
@@ -283,7 +332,7 @@ export async function GET(request: NextRequest) {
         .single();
       
       if (packageData) {
-        (subscription as any).package = packageData;
+        (subscription as SubscriptionWithPackage).package = packageData;
         logger.info('[Subscription API] Package loaded in final check');
       } else {
         logger.error('[Subscription API] Failed to load package in final check');
@@ -294,7 +343,7 @@ export async function GET(request: NextRequest) {
     const responseData = { subscription: subscription || null };
     
     // Verify package is actually in the response object
-    const subscriptionInResponse = responseData.subscription as any;
+    const subscriptionInResponse = responseData.subscription as SubscriptionWithPackage | null;
     const hasPackageInResponse = !!(subscriptionInResponse?.package);
     
     logger.info('[Subscription API] Returning subscription data', {
@@ -302,14 +351,14 @@ export async function GET(request: NextRequest) {
       hasSubscription: !!subscription,
       status: subscription?.status || 'none',
       subscriptionId: subscription?.id || null,
-      hasPackage: !!(subscription as any)?.package,
+      hasPackage: !!(subscription as SubscriptionWithPackage)?.package,
       hasPackageInResponse,
       packageId: subscription?.package_id || null,
-      packageName: (subscription as any)?.package?.name || null,
+      packageName: (subscription as SubscriptionWithPackage)?.package?.name || null,
       stripeSubscriptionId: subscription?.stripe_subscription_id || null,
       responseDataKeys: Object.keys(responseData),
       subscriptionKeys: subscription ? Object.keys(subscription) : [],
-      packageKeys: (subscription as any)?.package ? Object.keys((subscription as any).package) : [],
+      packageKeys: (subscription as SubscriptionWithPackage)?.package ? Object.keys((subscription as SubscriptionWithPackage).package!) : [],
     });
 
     // Log the actual JSON that will be sent (first 500 chars to avoid huge logs)
@@ -485,7 +534,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Build update object - always update package_id if provided, otherwise preserve existing
-        const updateData: any = {
+        const updateData: SubscriptionUpdateData = {
           status: subscriptionStatus,
           current_period_start: periodStart,
           current_period_end: periodEnd,
@@ -575,7 +624,7 @@ export async function POST(request: NextRequest) {
           stripeSubscriptionId: stripe_subscription_id,
         });
         
-        const updateData: any = {
+        const updateData: SubscriptionUpdateData = {
           stripe_subscription_id: stripe_subscription_id,
           updated_at: new Date().toISOString(),
         };

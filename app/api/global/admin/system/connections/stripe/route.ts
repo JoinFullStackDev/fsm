@@ -52,7 +52,12 @@ export async function PUT(request: NextRequest) {
       ...(live_publishable_key !== undefined && { live_publishable_key }),
     };
 
-    const updateData: any = {
+    const updateData: {
+      config: Record<string, string | undefined>;
+      updated_at: string;
+      test_mode?: boolean;
+      is_active?: boolean;
+    } = {
       config: updatedConfig,
       updated_at: new Date().toISOString(),
     };

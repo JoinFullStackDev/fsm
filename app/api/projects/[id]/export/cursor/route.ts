@@ -66,7 +66,7 @@ export async function POST(
       .single();
 
     // Record export with user_id and file_size (backward compatible)
-    const exportData: any = {
+    const exportData: { project_id: string; export_type: string; storage_path: null; user_id?: string; file_size?: number } = {
       project_id: params.id,
       export_type: 'cursor_bundle',
       storage_path: null,

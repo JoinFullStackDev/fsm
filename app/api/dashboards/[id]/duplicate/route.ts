@@ -113,7 +113,7 @@ export async function POST(
     const { name } = body;
 
     // Create new dashboard
-    const newDashboardData: any = {
+    const newDashboardData: Record<string, unknown> = {
       owner_id: userData.id,
       name: name || `${dashboard.name} (Copy)`,
       description: dashboard.description,

@@ -110,11 +110,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate line items format
-    const validatedLineItems: InvoiceLineItem[] = line_items.map((item: any) => ({
+    interface LineItemInput {
+      description: string;
+      quantity: string | number;
+      unit_price: string | number;
+      amount?: string | number;
+    }
+    const validatedLineItems: InvoiceLineItem[] = (line_items as LineItemInput[]).map((item) => ({
       description: item.description,
-      quantity: parseFloat(item.quantity) || 1,
-      unit_price: parseFloat(item.unit_price) || 0,
-      amount: parseFloat(item.amount) || parseFloat(item.quantity) * parseFloat(item.unit_price) || 0,
+      quantity: parseFloat(String(item.quantity)) || 1,
+      unit_price: parseFloat(String(item.unit_price)) || 0,
+      amount: parseFloat(String(item.amount)) || parseFloat(String(item.quantity)) * parseFloat(String(item.unit_price)) || 0,
     }));
 
     const invoice = await createInvoice(supabase, {

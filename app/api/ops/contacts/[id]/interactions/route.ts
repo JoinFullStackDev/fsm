@@ -168,13 +168,14 @@ export async function POST(
       if (activityResult) {
         logger.info('Created activity feed item for interaction:', activityResult.id);
       }
-    } catch (activityError: any) {
+    } catch (activityError) {
+      const errorObj = activityError as { message?: string; code?: string; details?: unknown; hint?: string };
       logger.error('Error creating activity feed item for interaction:', {
         error: activityError,
-        message: activityError?.message,
-        code: activityError?.code,
-        details: activityError?.details,
-        hint: activityError?.hint,
+        message: errorObj?.message,
+        code: errorObj?.code,
+        details: errorObj?.details,
+        hint: errorObj?.hint,
       });
       // Don't fail the request, but log the error
     }

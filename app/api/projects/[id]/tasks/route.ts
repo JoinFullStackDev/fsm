@@ -7,6 +7,34 @@ import { notifyTaskAssigned } from '@/lib/notifications';
 import { sendTaskAssignedEmail } from '@/lib/emailNotifications';
 import type { ProjectTask } from '@/types/project';
 
+// Types for task data
+interface TaskUser {
+  id: string;
+  name: string | null;
+  email: string;
+  avatar_url: string | null;
+}
+
+interface TaskRow {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  priority: string | null;
+  due_date: string | null;
+  project_id: string;
+  phase_id: string | null;
+  assignee_id: string | null;
+  parent_task_id: string | null;
+  created_at: string;
+  updated_at: string;
+  assignee: TaskUser | null;
+}
+
+interface TaskWithSubtasks extends TaskRow {
+  subtasks: TaskRow[];
+}
+
 // GET - List all tasks for a project
 export async function GET(
   request: NextRequest,
@@ -39,17 +67,17 @@ export async function GET(
     }
 
     // Transform the data to flatten assignee
-    const transformedTasks = tasks?.map((task: any) => ({
-      ...task,
+    const transformedTasks: TaskRow[] = (tasks || []).map((task) => ({
+      ...(task as TaskRow),
       assignee: task.assignee || null,
-    })) || [];
+    }));
 
     // If includeSubtasks is true, group tasks by parent and nest subtasks
     if (includeSubtasks) {
-      const parentTasks = transformedTasks.filter((task: any) => !task.parent_task_id);
-      const subtasksByParent = new Map<string, any[]>();
+      const parentTasks = transformedTasks.filter((task) => !task.parent_task_id);
+      const subtasksByParent = new Map<string, TaskRow[]>();
 
-      transformedTasks.forEach((task: any) => {
+      transformedTasks.forEach((task: TaskRow) => {
         if (task.parent_task_id) {
           if (!subtasksByParent.has(task.parent_task_id)) {
             subtasksByParent.set(task.parent_task_id, []);
@@ -59,7 +87,7 @@ export async function GET(
       });
 
       // Attach subtasks to parent tasks
-      const tasksWithSubtasks = parentTasks.map((task: any) => ({
+      const tasksWithSubtasks: TaskWithSubtasks[] = parentTasks.map((task) => ({
         ...task,
         subtasks: subtasksByParent.get(task.id) || [],
       }));

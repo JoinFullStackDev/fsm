@@ -106,7 +106,7 @@ export default function AdminUsersTab() {
       // This is a defensive measure in case the API route has a bug
       // NEVER display users from other organizations, even if the API returns them
       if (organization?.id) {
-        const orgUsers = fetchedUsers.filter((user: any) => {
+        const orgUsers = fetchedUsers.filter((user) => {
           return user.organization_id === organization.id && user.organization_id !== null;
         });
         if (orgUsers.length !== fetchedUsers.length) {
@@ -114,7 +114,7 @@ export default function AdminUsersTab() {
             total: fetchedUsers.length,
             filtered: orgUsers.length,
             organizationId: organization.id,
-            returnedUserIds: fetchedUsers.map((u: any) => ({ id: u.id, orgId: u.organization_id }))
+            returnedUserIds: fetchedUsers.map((u) => ({ id: u.id, orgId: u.organization_id }))
           });
         }
         setUsers(orgUsers);
@@ -226,10 +226,10 @@ export default function AdminUsersTab() {
       // Extract custom role IDs (exclude default role) for each user
       const rolesMap: Record<string, string[]> = {};
       Object.keys(allRoles).forEach((userId) => {
-        const userRoles = allRoles[userId] || [];
+        const userRoles = (allRoles[userId] || []) as Array<{ id: string; isDefault?: boolean }>;
         const customRoleIds = userRoles
-          .filter((r: any) => !r.isDefault)
-          .map((r: any) => r.id);
+          .filter((r) => !r.isDefault)
+          .map((r) => r.id);
         rolesMap[userId] = customRoleIds;
       });
       
@@ -278,7 +278,7 @@ export default function AdminUsersTab() {
       return;
     }
     
-    if (organization?.id && (user as any).organization_id !== organization.id) {
+    if (organization?.id && user.organization_id !== organization.id) {
       showError('Cannot update user from another organization');
       return;
     }
@@ -309,7 +309,7 @@ export default function AdminUsersTab() {
     }
     
     // Verify user belongs to current organization
-    if (organization?.id && (user as any).organization_id !== organization.id) {
+    if (organization?.id && user.organization_id !== organization.id) {
       showError('Cannot update user from another organization');
       return;
     }
@@ -359,14 +359,14 @@ export default function AdminUsersTab() {
     if (!userToDelete) return;
 
     // Verify user belongs to current organization
-    if (organization?.id && (userToDelete as any).organization_id !== organization.id) {
+    if (organization?.id && userToDelete.organization_id !== organization.id) {
       showError('Cannot delete user from another organization');
       setDeleteConfirmOpen(false);
       return;
     }
 
     // Prevent deletion of super admin users
-    if ((userToDelete as any).is_super_admin) {
+    if (userToDelete.is_super_admin) {
       showError('Cannot delete super admin user');
       setDeleteConfirmOpen(false);
       return;
@@ -423,7 +423,7 @@ export default function AdminUsersTab() {
     // Verify all selected users belong to current organization
     const usersToModify = users.filter(u => userIds.includes(u.id));
     if (organization?.id) {
-      const invalidUsers = usersToModify.filter(u => (u as any).organization_id !== organization.id);
+      const invalidUsers = usersToModify.filter(u => u.organization_id !== organization.id);
       if (invalidUsers.length > 0) {
         showError(`Cannot ${action} users from another organization`);
         return;
@@ -432,7 +432,7 @@ export default function AdminUsersTab() {
     
     if (action === 'delete') {
       // Check for super admin users before deleting
-      const superAdmins = usersToModify.filter(u => (u as any).is_super_admin);
+      const superAdmins = usersToModify.filter(u => u.is_super_admin);
       
       if (superAdmins.length > 0) {
         showError(`Cannot delete super admin user(s): ${superAdmins.map(u => u.email).join(', ')}`);
@@ -663,7 +663,7 @@ export default function AdminUsersTab() {
                 }}
                 disabled={Array.from(selectedUsers).some(id => {
                   const user = users.find(u => u.id === id);
-                  return (user as any)?.is_super_admin === true;
+                  return user?.is_super_admin === true;
                 })}
               >
                 Delete ({selectedUsers.size})
@@ -837,7 +837,7 @@ export default function AdminUsersTab() {
                       <TableCell padding="checkbox">
                         <Checkbox
                           checked={selectedUsers.has(user.id)}
-                          disabled={(user as any)?.is_super_admin === true}
+                          disabled={user.is_super_admin === true}
                           onChange={(e) => {
                             const newSelected = new Set(selectedUsers);
                             if (e.target.checked) {
@@ -861,11 +861,11 @@ export default function AdminUsersTab() {
                         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
                           <Chip
                             label={user.role.toUpperCase()}
-                            color={getRoleColor(user.role) as any}
+                            color={getRoleColor(user.role) as "default" | "primary" | "secondary" | "error" | "info" | "success" | "warning"}
                             size="small"
                             sx={{ fontWeight: 600 }}
                           />
-                          {(user as any)?.is_super_admin && (
+                          {user.is_super_admin && (
                             <Chip
                               label="SUPER ADMIN"
                               color="warning"
@@ -1054,7 +1054,7 @@ export default function AdminUsersTab() {
                     handleDeleteClick(user);
                   }
                 }}
-                disabled={(user as any)?.is_super_admin === true}
+                disabled={user?.is_super_admin === true}
                 sx={{
                   color: theme.palette.error.main,
                   '&:hover': {
@@ -1063,7 +1063,7 @@ export default function AdminUsersTab() {
                 }}
               >
                 <DeleteIcon sx={{ mr: 1, fontSize: 18 }} />
-                {(user as any)?.is_super_admin ? 'Delete User (Super Admin)' : 'Delete User'}
+                {user?.is_super_admin ? 'Delete User (Super Admin)' : 'Delete User'}
               </MenuItem>
             </>
           );

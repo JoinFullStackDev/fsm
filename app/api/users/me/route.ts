@@ -3,12 +3,13 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { getUserByAuthId } from '@/lib/utils/userQueries';
 import { unauthorized, internalError } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
+import type { User } from '@/types/project';
 
 export const dynamic = 'force-dynamic';
 
 // Simple in-memory cache for user data (cleared on each request in dev, persists briefly in production)
 // Cache key: authUserId -> { user, timestamp }
-const userCache = new Map<string, { user: any; timestamp: number }>();
+const userCache = new Map<string, { user: User; timestamp: number }>();
 const CACHE_TTL_MS = 5000; // 5 seconds cache
 
 /**

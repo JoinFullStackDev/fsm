@@ -3,6 +3,7 @@ import { getStripeClient, isStripeConfigured } from '@/lib/stripe/client';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { badRequest, internalError } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
+import { getErrorMessage } from '@/lib/utils/typeGuards';
 import { sendEmailWithRetry } from '@/lib/emailService';
 import { getPrePaymentConfirmationTemplate } from '@/lib/emailTemplates';
 import { isEmailConfigured } from '@/lib/emailService';
@@ -31,7 +32,8 @@ export async function POST(request: NextRequest) {
       organization_name,
       organization_id, // Organization ID if already created (during signup)
       success_url, 
-      cancel_url 
+      cancel_url,
+      affiliate_code, // Optional affiliate code for discounts
     } = body;
 
     if (!package_id || !email || !organization_name || !success_url || !cancel_url) {
@@ -40,10 +42,66 @@ export async function POST(request: NextRequest) {
 
     const supabase = createAdminSupabaseClient();
 
-    // Get package with features
+    // Validate affiliate code if provided
+    let affiliateData: {
+      id: string;
+      code: string;
+      user_id: string;
+      commission_rate: number;
+      is_active: boolean;
+      bonus_trial_days?: number;
+      discount_percent?: number;
+      discount_type?: string;
+      discount_value?: number;
+      discount_duration_months?: number;
+      current_uses?: number;
+    } | null = null;
+    if (affiliate_code) {
+      const { data: affiliate, error: affError } = await supabase
+        .from('affiliate_codes')
+        .select('*')
+        .eq('code', affiliate_code.toUpperCase())
+        .eq('is_active', true)
+        .single();
+
+      if (!affError && affiliate) {
+        const now = new Date();
+        const validFrom = new Date(affiliate.valid_from);
+        const validUntil = affiliate.valid_until ? new Date(affiliate.valid_until) : null;
+        
+        // Validate the affiliate code
+        const isValid = 
+          now >= validFrom &&
+          (!validUntil || now <= validUntil) &&
+          (affiliate.max_uses === null || affiliate.current_uses < affiliate.max_uses) &&
+          (affiliate.applicable_package_ids === null || affiliate.applicable_package_ids.includes(package_id));
+        
+        if (isValid) {
+          affiliateData = affiliate;
+          logger.info('[Stripe] Valid affiliate code found:', {
+            code: affiliate.code,
+            discountType: affiliate.discount_type,
+            discountValue: affiliate.discount_value,
+            bonusTrialDays: affiliate.bonus_trial_days,
+          });
+        } else {
+          logger.warn('[Stripe] Invalid affiliate code:', {
+            code: affiliate_code,
+            reason: now < validFrom ? 'not_yet_active' : 
+                   (validUntil && now > validUntil) ? 'expired' :
+                   (affiliate.max_uses !== null && affiliate.current_uses >= affiliate.max_uses) ? 'max_uses_reached' :
+                   'package_not_applicable',
+          });
+        }
+      } else {
+        logger.warn('[Stripe] Affiliate code not found or inactive:', affiliate_code);
+      }
+    }
+
+    // Get package with features and trial configuration
     const { data: packageData, error: pkgError } = await supabase
       .from('packages')
-      .select('id, stripe_price_id, stripe_price_id_monthly, stripe_price_id_yearly, stripe_product_id, pricing_model, base_price_monthly, base_price_yearly, price_per_user_monthly, price_per_user_yearly, name, features')
+      .select('id, stripe_price_id, stripe_price_id_monthly, stripe_price_id_yearly, stripe_product_id, pricing_model, base_price_monthly, base_price_yearly, price_per_user_monthly, price_per_user_yearly, name, features, trial_enabled, trial_days')
       .eq('id', package_id)
       .single();
 
@@ -106,12 +164,12 @@ export async function POST(request: NextRequest) {
             interval: billing_interval,
           });
         }
-      } catch (priceError: any) {
+      } catch (priceError) {
         logger.warn('[Stripe] Price not found in Stripe, will try to use product:', {
           priceId: selectedPriceId,
           packageId: package_id,
           interval: billing_interval,
-          error: priceError.message,
+          error: getErrorMessage(priceError),
         });
         // Fall through to product ID logic
         priceId = null;
@@ -206,10 +264,10 @@ export async function POST(request: NextRequest) {
 
           logger.info('[Stripe] Created and saved new price:', { priceId, interval: billing_interval });
         }
-      } catch (productError: any) {
+      } catch (productError) {
         logger.error('[Stripe] Error with product:', {
           productId: packageData.stripe_product_id,
-          error: productError.message,
+          error: getErrorMessage(productError),
         });
         
         return badRequest(
@@ -267,10 +325,10 @@ export async function POST(request: NextRequest) {
         expectedAmount: expectedAmountCents,
         interval: billing_interval,
       });
-    } catch (priceError: any) {
+    } catch (priceError) {
       logger.error('[Stripe] Error retrieving price:', {
         priceId,
-        error: priceError.message,
+        error: getErrorMessage(priceError),
       });
       return badRequest('Failed to retrieve price information');
     }
@@ -314,7 +372,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Build line_items conditionally based on usage_type
-    const lineItems: any[] = [{
+    const lineItems: Array<{ price: string; quantity?: number }> = [{
       price: priceId,
     }];
 
@@ -324,6 +382,55 @@ export async function POST(request: NextRequest) {
       lineItems[0].quantity = quantity || 1;
     }
     // For metered or flat-rate licensed, omit quantity (defaults to 1)
+
+    // Determine trial period from package settings + affiliate bonus
+    const trialEnabled = packageData.trial_enabled === true;
+    const packageTrialDays = trialEnabled && packageData.trial_days ? packageData.trial_days : 0;
+    const affiliateBonusDays = affiliateData?.bonus_trial_days || 0;
+    const totalTrialDays = packageTrialDays + affiliateBonusDays;
+
+    // Create Stripe coupon for affiliate discount if applicable
+    let stripeCouponId: string | null = null;
+    if (affiliateData && affiliateData.discount_type !== 'trial_extension' && (affiliateData.discount_value ?? 0) > 0) {
+      try {
+        if (affiliateData.discount_type === 'percentage') {
+          const coupon = await stripe.coupons.create({
+            percent_off: affiliateData.discount_value ?? 0,
+            duration: affiliateData.discount_duration_months ? 'repeating' : 'forever',
+            duration_in_months: affiliateData.discount_duration_months || undefined,
+            metadata: { 
+              affiliate_code_id: affiliateData.id,
+              affiliate_code: affiliateData.code,
+            },
+          });
+          stripeCouponId = coupon.id;
+        } else if (affiliateData.discount_type === 'fixed_amount') {
+          const coupon = await stripe.coupons.create({
+            amount_off: Math.round((affiliateData.discount_value ?? 0) * 100), // Convert to cents
+            currency: 'usd',
+            duration: affiliateData.discount_duration_months ? 'repeating' : 'forever',
+            duration_in_months: affiliateData.discount_duration_months || undefined,
+            metadata: { 
+              affiliate_code_id: affiliateData.id,
+              affiliate_code: affiliateData.code,
+            },
+          });
+          stripeCouponId = coupon.id;
+        }
+        logger.info('[Stripe] Created coupon for affiliate discount:', {
+          couponId: stripeCouponId,
+          affiliateCode: affiliateData.code,
+          discountType: affiliateData.discount_type,
+          discountValue: affiliateData.discount_value,
+        });
+      } catch (couponError) {
+        logger.error('[Stripe] Error creating affiliate coupon:', {
+          error: getErrorMessage(couponError),
+          affiliateCode: affiliateData.code,
+        });
+        // Continue without the coupon - don't fail the checkout
+      }
+    }
 
     // Create checkout session with signup metadata
     // We'll create the organization and user after payment succeeds
@@ -345,6 +452,9 @@ export async function POST(request: NextRequest) {
           package_id: package_id,
           quantity: String(quantity || 1),
           is_signup: 'true',
+          trial_days: String(totalTrialDays),
+          affiliate_code_id: affiliateData?.id || '',
+          affiliate_code: affiliateData?.code || '',
         },
         subscription_data: {
           metadata: {
@@ -353,19 +463,33 @@ export async function POST(request: NextRequest) {
             billing_interval: billing_interval,
             quantity: String(quantity || 1),
             is_signup: 'true',
+            affiliate_code_id: affiliateData?.id || '',
           },
+          // Add trial period if enabled on the package or from affiliate
+          ...(totalTrialDays > 0 && {
+            trial_period_days: totalTrialDays,
+          }),
         },
+        // Apply affiliate discount coupon if created
+        ...(stripeCouponId && {
+          discounts: [{ coupon: stripeCouponId }],
+        }),
       });
-    } catch (stripeError: any) {
+    } catch (stripeError) {
+      const errorMessage = getErrorMessage(stripeError);
+      const errorCode = stripeError && typeof stripeError === 'object' && 'code' in stripeError 
+        ? (stripeError as { code?: string }).code 
+        : undefined;
+      
       logger.error('[Stripe] Error creating checkout session:', {
-        error: stripeError.message,
-        code: stripeError.code,
+        error: errorMessage,
+        code: errorCode,
         priceId: priceId,
         packageId: package_id,
       });
       
       // Provide user-friendly error messages
-      if (stripeError.code === 'resource_missing' || stripeError.message?.includes('No such price')) {
+      if (errorCode === 'resource_missing' || errorMessage?.includes('No such price')) {
         return badRequest(
           `The selected package "${packageData.name}" is not properly configured for payment. ` +
           `Please contact support or select a different package.`
@@ -378,8 +502,35 @@ export async function POST(request: NextRequest) {
     logger.debug('[Stripe] Created signup checkout session:', { 
       sessionId: session.id, 
       email,
-      packageId: package_id 
+      packageId: package_id,
+      trialDays: totalTrialDays > 0 ? totalTrialDays : 'none',
+      affiliateCode: affiliateData?.code || 'none',
+      hasCoupon: !!stripeCouponId,
     });
+
+    // Increment affiliate usage count
+    if (affiliateData) {
+      const { error: updateError } = await supabase
+        .from('affiliate_codes')
+        .update({ 
+          current_uses: (affiliateData.current_uses ?? 0) + 1,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', affiliateData.id);
+
+      if (updateError) {
+        logger.error('[Stripe] Error incrementing affiliate usage:', {
+          affiliateId: affiliateData.id,
+          error: updateError.message,
+        });
+      } else {
+        logger.info('[Stripe] Incremented affiliate usage:', {
+          affiliateId: affiliateData.id,
+          code: affiliateData.code,
+          newUseCount: (affiliateData.current_uses ?? 0) + 1,
+        });
+      }
+    }
 
     // Send pre-payment confirmation email
     try {

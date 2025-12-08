@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create field configs for all phases
-    const allFieldConfigs: any[] = [];
+    const allFieldConfigs: Array<Omit<TemplateFieldConfig, 'id'> & { template_id: string }> = [];
     for (let i = 1; i <= 6; i++) {
       const fieldConfigs = PHASE_FIELD_DEFINITIONS[i] || [];
       fieldConfigs.forEach(config => {

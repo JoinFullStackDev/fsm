@@ -129,7 +129,7 @@ export async function POST(
       h: position?.h ?? defaultHeight,
     };
 
-    const insertData: any = {
+    const insertData = {
       dashboard_id: params.id,
       widget_type,
       dataset: dataset || {},

@@ -41,9 +41,12 @@ export async function GET(
     const roles = await getUserRoles(supabase, params.id, organizationId);
 
     return NextResponse.json({ roles });
-  } catch (error: any) {
-    if (error.status === 401 || error.status === 403) {
-      return error;
+  } catch (error) {
+    if (error && typeof error === 'object' && 'status' in error) {
+      const status = (error as { status: number }).status;
+      if (status === 401 || status === 403) {
+        return error as NextResponse;
+      }
     }
     logger.error('[User Roles] Error fetching user roles:', error);
     return internalError('Failed to fetch user roles');
@@ -112,15 +115,17 @@ export async function POST(
     const roles = await getUserRoles(supabase, params.id, organizationId);
 
     return NextResponse.json({ roles }, { status: 201 });
-  } catch (error: any) {
-    if (error.status === 401 || error.status === 403) {
-      return error;
+  } catch (error) {
+    if (error && typeof error === 'object' && 'status' in error) {
+      const status = (error as { status: number }).status;
+      if (status === 401 || status === 403) {
+        return error as NextResponse;
+      }
     }
     
-    if (error.message) {
-      if (error.message.includes('does not belong')) {
-        return forbidden(error.message);
-      }
+    const errorMessage = error instanceof Error ? error.message : '';
+    if (errorMessage.includes('does not belong')) {
+      return forbidden(errorMessage);
     }
 
     logger.error('[User Roles] Error assigning role:', error);
@@ -190,15 +195,17 @@ export async function DELETE(
     const roles = await getUserRoles(supabase, params.id, organizationId);
 
     return NextResponse.json({ roles });
-  } catch (error: any) {
-    if (error.status === 401 || error.status === 403) {
-      return error;
+  } catch (error) {
+    if (error && typeof error === 'object' && 'status' in error) {
+      const status = (error as { status: number }).status;
+      if (status === 401 || status === 403) {
+        return error as NextResponse;
+      }
     }
     
-    if (error.message) {
-      if (error.message.includes('does not belong')) {
-        return forbidden(error.message);
-      }
+    const errorMessage = error instanceof Error ? error.message : '';
+    if (errorMessage.includes('does not belong')) {
+      return forbidden(errorMessage);
     }
 
     logger.error('[User Roles] Error removing role:', error);

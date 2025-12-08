@@ -27,6 +27,7 @@ import {
   Feedback as FeedbackIcon,
   LightMode as LightModeIcon,
   DarkMode as DarkModeIcon,
+  Link as LinkIcon,
 } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useRole } from '@/lib/hooks/useRole';
@@ -345,6 +346,20 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
             <PersonIcon fontSize="small" sx={{ mr: 1.5, color: theme.palette.text.primary }} />
             <Typography sx={{ color: theme.palette.text.primary }}>Profile</Typography>
           </MenuItem>
+          {user?.is_affiliate && (
+            <MenuItem
+              onClick={() => handleNavigate('/affiliate/dashboard')}
+              sx={{
+                color: theme.palette.text.primary,
+                '&:hover': {
+                  backgroundColor: theme.palette.action.hover,
+                },
+              }}
+            >
+              <LinkIcon fontSize="small" sx={{ mr: 1.5, color: theme.palette.text.primary }} />
+              <Typography sx={{ color: theme.palette.text.primary }}>Affiliate Dashboard</Typography>
+            </MenuItem>
+          )}
           <Divider sx={{ borderColor: theme.palette.divider }} />
           <MenuItem
             onClick={handleSignOut}

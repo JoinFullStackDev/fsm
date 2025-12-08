@@ -55,9 +55,9 @@ export async function GET(request: NextRequest) {
       limit,
       offset,
     });
-  } catch (error: any) {
-    if (error.status) {
-      return error; // Already a NextResponse error
+  } catch (error) {
+    if (error && typeof error === 'object' && 'status' in error) {
+      return error as NextResponse; // Already a NextResponse error
     }
     logger.error('[API v1] Unexpected error:', error);
     return internalError('Failed to fetch opportunities');
@@ -128,9 +128,9 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(opportunity, { status: 201 });
-  } catch (error: any) {
-    if (error.status) {
-      return error; // Already a NextResponse error
+  } catch (error) {
+    if (error && typeof error === 'object' && 'status' in error) {
+      return error as NextResponse; // Already a NextResponse error
     }
     logger.error('[API v1] Unexpected error:', error);
     return internalError('Failed to create opportunity');

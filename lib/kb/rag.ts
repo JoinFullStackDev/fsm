@@ -3,10 +3,21 @@
  * Handles semantic search and context building for AI Q&A
  */
 
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient, PostgrestError } from '@supabase/supabase-js';
 import logger from '@/lib/utils/logger';
 import { generateQueryEmbedding } from './embeddings';
 import type { KnowledgeBaseArticleWithCategory } from '@/types/kb';
+
+// Internal type for article with vector field that may be a string (Supabase pgvector serialization)
+type ArticleWithVector = KnowledgeBaseArticleWithCategory & {
+  vector: number[] | string | null;
+};
+
+// Result type for relevance scoring
+interface RelevanceResult {
+  article: KnowledgeBaseArticleWithCategory;
+  relevance_score: number;
+}
 
 /**
  * Calculate cosine similarity between two vectors
@@ -117,12 +128,12 @@ export async function retrieveRelevantArticles(
     logger.debug('[KB RAG] Found articles with embeddings:', { 
       count: data.length, 
       organizationId,
-      sampleTitles: data.slice(0, 3).map((a: any) => a.title)
+      sampleTitles: data.slice(0, 3).map((a: ArticleWithVector) => a.title)
     });
 
     // Calculate cosine similarity for each article
-    const results = data
-      .map((item: any) => {
+    const results = (data as ArticleWithVector[])
+      .map((item): RelevanceResult | null => {
         if (!item.vector) {
           logger.debug('[KB RAG] Article missing vector:', { id: item.id, title: item.title });
           return null;
@@ -157,9 +168,8 @@ export async function retrieveRelevantArticles(
           relevance_score: similarity,
         };
       })
-      .filter((r: any) => r !== null)
-      .filter((r: any): r is { article: any; relevance_score: number } => r !== null)
-      .sort((a: any, b: any) => b.relevance_score - a.relevance_score)
+      .filter((r): r is RelevanceResult => r !== null)
+      .sort((a, b) => b.relevance_score - a.relevance_score)
       .slice(0, topK);
 
     logger.debug('[KB RAG] Vector search results:', { 
@@ -214,8 +224,8 @@ async function retrieveRelevantArticlesFullText(
     }
 
     // Try full-text search first (if search_vector column exists)
-    let data: any[] | null = null;
-    let error: any = null;
+    let data: KnowledgeBaseArticleWithCategory[] | null = null;
+    let error: PostgrestError | Error | unknown = null;
 
     try {
       const searchTerms = query
@@ -288,8 +298,8 @@ async function retrieveRelevantArticlesFullText(
       }
 
           // Filter articles that contain query terms
-          const matchingArticles = allArticles
-            .map((article: any) => {
+          const matchingArticles = (allArticles as KnowledgeBaseArticleWithCategory[])
+            .map((article): RelevanceResult | null => {
               const titleLower = article.title?.toLowerCase() || '';
               const summaryLower = article.summary?.toLowerCase() || '';
               const bodyLower = article.body?.toLowerCase() || '';
@@ -342,11 +352,11 @@ async function retrieveRelevantArticlesFullText(
               else if (bodyLower.includes(queryLower)) score += 0.1;
 
               return {
-                article: article as KnowledgeBaseArticleWithCategory,
+                article,
                 relevance_score: Math.min(1, score),
               };
             })
-            .filter((r: any): r is { article: KnowledgeBaseArticleWithCategory; relevance_score: number } => r !== null)
+            .filter((r): r is RelevanceResult => r !== null)
             .sort((a, b) => b.relevance_score - a.relevance_score)
             .slice(0, topK);
 

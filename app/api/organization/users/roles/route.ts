@@ -123,21 +123,24 @@ export async function GET(request: NextRequest) {
       .in('user_id', userIds);
 
     // Add custom roles to users
-    userRoles?.forEach((userRole: any) => {
+    (userRoles as Array<{ user_id: string; organization_roles?: { id: string; name: string; description: string | null; is_default?: boolean } | null }> | null)?.forEach((userRole) => {
       const orgRole = userRole.organization_roles;
       if (orgRole && rolesMap[userRole.user_id]) {
         rolesMap[userRole.user_id].push({
           id: orgRole.id,
           name: orgRole.name,
-          isDefault: orgRole.is_default,
+          isDefault: orgRole.is_default ?? false,
         });
       }
     });
 
     return NextResponse.json({ roles: rolesMap });
-  } catch (error: any) {
-    if (error.status === 401 || error.status === 403) {
-      return error;
+  } catch (error) {
+    if (error && typeof error === 'object' && 'status' in error) {
+      const status = (error as { status: number }).status;
+      if (status === 401 || status === 403) {
+        return error as NextResponse;
+      }
     }
     logger.error('[Batch User Roles] Error fetching user roles:', error);
     return internalError('Failed to fetch user roles');

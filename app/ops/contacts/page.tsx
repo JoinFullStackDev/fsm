@@ -132,7 +132,7 @@ export default function ContactsPage() {
       key: 'name',
       label: 'Name',
       sortable: true,
-      render: (_: any, row: CompanyContactWithCompany) => (
+      render: (_: unknown, row: CompanyContactWithCompany) => (
         <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
           {`${row.first_name} ${row.last_name}`}
         </Typography>
@@ -142,7 +142,8 @@ export default function ContactsPage() {
       key: 'company',
       label: 'Company',
       sortable: false,
-      render: (value: any) => {
+      render: (val: unknown) => {
+        const value = val as { name?: string } | null;
         if (!value?.name) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
         return (
           <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
@@ -155,7 +156,8 @@ export default function ContactsPage() {
       key: 'email',
       label: 'Email',
       sortable: true,
-      render: (value: string | null) => {
+      render: (val: unknown) => {
+        const value = val as string | null;
         if (!value) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
         return (
           <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
@@ -168,7 +170,8 @@ export default function ContactsPage() {
       key: 'phone',
       label: 'Phone',
       sortable: true,
-      render: (value: string | null) => {
+      render: (val: unknown) => {
+        const value = val as string | null;
         if (!value) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
         return (
           <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
@@ -181,7 +184,8 @@ export default function ContactsPage() {
       key: 'lead_status',
       label: 'Lead Status',
       sortable: true,
-      render: (value: string | null) => {
+      render: (val: unknown) => {
+        const value = val as string | null;
         if (!value) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
         return (
           <Chip
@@ -201,7 +205,8 @@ export default function ContactsPage() {
       key: 'pipeline_stage',
       label: 'Pipeline Stage',
       sortable: true,
-      render: (value: string | null) => {
+      render: (val: unknown) => {
+        const value = val as string | null;
         if (!value) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
         return (
           <Chip
@@ -221,7 +226,8 @@ export default function ContactsPage() {
       key: 'next_follow_up_date',
       label: 'Next Follow-Up',
       sortable: true,
-      render: (value: string | null) => {
+      render: (val: unknown) => {
+        const value = val as string | null;
         if (!value) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
         return (
           <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
@@ -234,9 +240,9 @@ export default function ContactsPage() {
       key: 'status',
       label: 'Status',
       sortable: true,
-      render: (value: string) => (
+      render: (val: unknown) => (
         <Chip
-          label={value.charAt(0).toUpperCase() + value.slice(1)}
+          label={(val as string).charAt(0).toUpperCase() + (val as string).slice(1)}
           size="small"
           sx={{
             backgroundColor: theme.palette.action.hover,
@@ -252,7 +258,7 @@ export default function ContactsPage() {
       label: 'Actions',
       sortable: false,
       align: 'right' as const,
-      render: (_: any, row: CompanyContactWithCompany) => (
+      render: (_: unknown, row: CompanyContactWithCompany) => (
         <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
           <IconButton
             size="small"

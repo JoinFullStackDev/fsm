@@ -1,4 +1,5 @@
 'use client';
+import type { PhaseDataUnion } from '@/types/phases';
 
 import { Box, TextField, Typography } from '@mui/material';
 import type { TemplateFieldConfig } from '@/types/templates';
@@ -9,7 +10,7 @@ interface NavigationFieldProps {
   value: Navigation;
   onChange: (value: Navigation) => void;
   error?: string;
-  phaseData?: any;
+  phaseData?: Record<string, unknown>;
 }
 
 export default function NavigationField({ field, value, onChange, error, phaseData }: NavigationFieldProps) {

@@ -1,4 +1,5 @@
 'use client';
+import type { PhaseDataUnion } from '@/types/phases';
 
 import React from 'react';
 import { Box, Typography, Slider, useTheme } from '@mui/material';
@@ -9,7 +10,7 @@ interface SliderFieldProps {
   value: number | null;
   onChange: (value: number | null) => void;
   error?: string;
-  phaseData?: any;
+  phaseData?: Record<string, unknown>;
 }
 
 function SliderField({ field, value, onChange, error, phaseData }: SliderFieldProps) {

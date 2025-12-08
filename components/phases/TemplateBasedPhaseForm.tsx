@@ -12,6 +12,7 @@ import {
   SelectField,
   CheckboxField,
   TableField,
+  type TableData,
   CustomField,
   SliderField,
   DateField,
@@ -175,10 +176,10 @@ export default function TemplateBasedPhaseForm({
     }
 
     logger.debug('[TemplateBasedPhaseForm] Loaded', configsResult.data?.length || 0, 'field configs');
-    logger.debug('[TemplateBasedPhaseForm] Field configs:', configsResult.data?.map((f: any) => ({ key: f.field_key, order: f.display_order })));
+    logger.debug('[TemplateBasedPhaseForm] Field configs:', configsResult.data?.map((f: TemplateFieldConfig) => ({ key: f.field_key, order: f.display_order })));
 
     // Deduplicate field configs by field_key (in case of duplicates in database)
-    const uniqueFieldConfigs = (configsResult.data || []).reduce((acc: TemplateFieldConfig[], field: any) => {
+    const uniqueFieldConfigs = (configsResult.data || []).reduce((acc: TemplateFieldConfig[], field: TemplateFieldConfig) => {
       // Check if we already have this field_key
       const existingIndex = acc.findIndex((f: TemplateFieldConfig) => f.field_key === field.field_key);
       if (existingIndex === -1) {
@@ -323,7 +324,7 @@ export default function TemplateBasedPhaseForm({
           <Box onBlur={handleBlur}>
             <TableField
               field={field}
-              value={value}
+              value={value as TableData | null}
               onChange={handleChange}
               phaseData={data}
               renderHeaderActions={setHeaderActions}

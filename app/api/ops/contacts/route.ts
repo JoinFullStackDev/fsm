@@ -6,7 +6,7 @@ import { getUserOrganizationId } from '@/lib/organizationContext';
 import { hasOpsTool } from '@/lib/packageLimits';
 import logger from '@/lib/utils/logger';
 import { sanitizeSearchInput } from '@/lib/utils/inputSanitization';
-import type { CompanyContactWithCompany } from '@/types/ops';
+import type { CompanyContact, CompanyContactWithCompany } from '@/types/ops';
 
 export const dynamic = 'force-dynamic';
 
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform to match CompanyContactWithCompany type
-    const contactsWithCompany: CompanyContactWithCompany[] = (contacts || []).map((contact: any) => ({
+    const contactsWithCompany: CompanyContactWithCompany[] = (contacts as Array<CompanyContact & { company?: { id: string; name: string } | null }> || []).map((contact) => ({
       ...contact,
       company: contact.company || undefined,
     }));

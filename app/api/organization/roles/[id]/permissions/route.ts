@@ -77,18 +77,20 @@ export async function PUT(
     });
 
     return NextResponse.json({ role: updatedRole });
-  } catch (error: any) {
-    if (error.status === 401 || error.status === 403) {
-      return error;
+  } catch (error) {
+    if (error && typeof error === 'object' && 'status' in error) {
+      const status = (error as { status: number }).status;
+      if (status === 401 || status === 403) {
+        return error as NextResponse;
+      }
     }
     
-    if (error.message) {
-      if (error.message.includes('Invalid permissions')) {
-        return badRequest(error.message);
-      }
-      if (error.message.includes('Cannot modify')) {
-        return forbidden(error.message);
-      }
+    const errorMessage = error instanceof Error ? error.message : '';
+    if (errorMessage.includes('Invalid permissions')) {
+      return badRequest(errorMessage);
+    }
+    if (errorMessage.includes('Cannot modify')) {
+      return forbidden(errorMessage);
     }
 
     logger.error('[Organization Roles] Error updating role permissions:', error);

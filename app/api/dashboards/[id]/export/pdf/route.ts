@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { unauthorized, notFound, internalError, forbidden, badRequest } from '@/lib/utils/apiErrors';
-import { getUserOrganizationId } from '@/lib/organizationContext';
 import { hasCustomDashboards } from '@/lib/packageLimits';
 import jsPDF from 'jspdf';
 import { format } from 'date-fns';
@@ -10,6 +9,21 @@ import logger from '@/lib/utils/logger';
 import * as metricQueries from '@/lib/dashboards/widgetData/metricQueries';
 import * as chartQueries from '@/lib/dashboards/widgetData/chartQueries';
 import * as tableQueries from '@/lib/dashboards/widgetData/tableQueries';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { 
+  WidgetDataset, 
+  WidgetSettings,
+  ChartQueryOptions,
+  WidgetData 
+} from '@/types/database';
+
+// Widget type for PDF rendering
+interface PDFWidget {
+  id: string;
+  widget_type: string;
+  dataset?: WidgetDataset;
+  settings?: WidgetSettings;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -226,7 +240,7 @@ export async function POST(
     }
 
     // Widgets with actual data
-    const widgets = (dashboard as any).widgets || [];
+    const widgets = ((dashboard as Record<string, unknown>).widgets || []) as PDFWidget[];
     if (widgets.length > 0) {
       // Don't add a section header - widgets will have their own titles
 
@@ -349,11 +363,11 @@ export async function POST(
  * Fetch widget data for PDF export
  */
 async function fetchWidgetDataForPDF(
-  supabase: any,
+  supabase: SupabaseClient,
   organizationId: string,
-  widget: any,
+  widget: PDFWidget,
   userId: string
-): Promise<any> {
+): Promise<WidgetData> {
   const dataset = widget.dataset || {};
   const dataSource = dataset.dataSource || dataset.source;
   const dataSources = dataset.dataSources;
@@ -365,13 +379,14 @@ async function fetchWidgetDataForPDF(
     
     case 'chart':
       if (!dataSource && (!dataSources || dataSources.length === 0)) return null;
-      const chartOptions = {
+      const chartOptions: ChartQueryOptions = {
         projectId: dataset.filters?.projectId,
         dateRange: dataset.filters?.dateRange,
-        groupBy: dataset.groupBy || 'day',
+        groupBy: (dataset.groupBy as 'day' | 'week' | 'month') || 'day',
       };
       // For PDF, use first data source if multiple
       const chartDataSource = dataSources && dataSources.length > 0 ? dataSources[0] : dataSource;
+      if (!chartDataSource) return null;
       return await fetchChartDataForPDF(supabase, organizationId, chartDataSource, chartOptions);
     
     case 'table':
@@ -401,10 +416,10 @@ async function fetchWidgetDataForPDF(
  * Fetch metric data for PDF
  */
 async function fetchMetricDataForPDF(
-  supabase: any,
+  supabase: SupabaseClient,
   organizationId: string,
   dataSource: string,
-  dataset: any,
+  dataset: WidgetDataset,
   userId: string
 ) {
   switch (dataSource) {
@@ -437,10 +452,10 @@ async function fetchMetricDataForPDF(
  * Fetch chart data for PDF
  */
 async function fetchChartDataForPDF(
-  supabase: any,
+  supabase: SupabaseClient,
   organizationId: string,
   dataSource: string,
-  options: any
+  options: ChartQueryOptions
 ) {
   try {
     switch (dataSource) {
@@ -471,15 +486,21 @@ async function fetchChartDataForPDF(
  * Fetch table data for PDF
  */
 async function fetchTableDataForPDF(
-  supabase: any,
+  supabase: SupabaseClient,
   organizationId: string,
   dataSource: string,
-  dataset: any
+  dataset: WidgetDataset
 ) {
+  // Normalize status to array if needed
+  const statusFilter = dataset.filters?.status;
+  const statusArray = statusFilter 
+    ? (Array.isArray(statusFilter) ? statusFilter : [statusFilter])
+    : undefined;
+    
   const options = {
     projectId: dataset.filters?.projectId,
     limit: dataset.limit || 10,
-    status: dataset.filters?.status,
+    status: statusArray,
     assigneeId: dataset.filters?.assigneeId,
     orderBy: dataset.orderBy,
     orderDirection: dataset.orderDirection,
@@ -501,22 +522,34 @@ async function fetchTableDataForPDF(
   }
 }
 
+// Internal type for widget data when rendering - allows flexible access
+interface RenderableWidgetData {
+  value?: number | string;
+  label?: string;
+  change?: number;
+  data?: Array<{ name: string; value: number }>;
+  columns?: string[];
+  rows?: Array<Record<string, unknown>>;
+  insight?: string;
+  content?: string;
+}
+
 /**
  * Render widget data in PDF
  */
 function renderWidgetDataInPDF(
   doc: jsPDF,
-  widget: any,
-  widgetData: any,
+  widget: PDFWidget,
+  widgetData: WidgetData,
   margin: number,
   yPosition: number,
   pageHeight: number,
   contentWidth: number,
   primaryTextColor: number[],
   secondaryTextColor: number[],
-  accentColor: number[],
+  _accentColor: number[],
   darkBg: number[],
-  cardBg: number[],
+  _cardBg: number[],
   lightBg: number[],
   dividerColor: number[]
 ): number {
@@ -528,15 +561,18 @@ function renderWidgetDataInPDF(
     return currentY + 7;
   }
 
+  // Cast to internal renderable type for flexible property access
+  const data = widgetData as RenderableWidgetData;
+
   doc.setTextColor(primaryTextColor[0], primaryTextColor[1], primaryTextColor[2]);
 
   switch (widget.widget_type) {
     case 'metric':
-      if (widgetData.value !== undefined) {
-        const valueText = typeof widgetData.value === 'number' 
-          ? widgetData.value.toLocaleString() 
-          : String(widgetData.value);
-        const labelText = widgetData.label || 'Value';
+      if (data.value !== undefined) {
+        const valueText = typeof data.value === 'number' 
+          ? data.value.toLocaleString() 
+          : String(data.value);
+        const labelText = data.label || 'Value';
         
         // Large metric value - white
         doc.setFontSize(24);
@@ -551,8 +587,8 @@ function renderWidgetDataInPDF(
         doc.text(labelText, margin + 5, currentY + 8);
         
         // Change indicator - subtle gray
-        if (widgetData.change !== undefined) {
-          const changeText = `${widgetData.change >= 0 ? '+' : ''}${widgetData.change}%`;
+        if (data.change !== undefined) {
+          const changeText = `${data.change >= 0 ? '+' : ''}${data.change}%`;
           doc.setFontSize(9);
           doc.setTextColor(secondaryTextColor[0], secondaryTextColor[1], secondaryTextColor[2]);
           doc.text(changeText, margin + 5, currentY + 13);
@@ -562,10 +598,10 @@ function renderWidgetDataInPDF(
       break;
 
     case 'chart':
-      if (widgetData.data && Array.isArray(widgetData.data) && widgetData.data.length > 0) {
+      if (data.data && Array.isArray(data.data) && data.data.length > 0) {
         doc.setFontSize(9);
         // Render chart data as a styled table - dark theme
-        const maxRows = Math.min(15, widgetData.data.length); // Show more rows
+        const maxRows = Math.min(15, data.data.length); // Show more rows
         const colWidth = contentWidth / 2;
         const rowHeight = 6;
         
@@ -596,7 +632,7 @@ function renderWidgetDataInPDF(
             doc.rect(margin + 5, currentY - 4, contentWidth - 10, rowHeight, 'F');
           }
           
-          const item = widgetData.data[i];
+          const item = data.data[i];
           const name = item.name || String(i + 1);
           const value = item.value !== undefined ? String(item.value) : '-';
           
@@ -605,10 +641,10 @@ function renderWidgetDataInPDF(
           currentY += rowHeight;
         }
         
-        if (widgetData.data.length > maxRows) {
+        if (data.data.length > maxRows) {
           doc.setFontSize(8);
           doc.setTextColor(secondaryTextColor[0], secondaryTextColor[1], secondaryTextColor[2]);
-          doc.text(`... and ${widgetData.data.length - maxRows} more entries`, margin + 8, currentY);
+          doc.text(`... and ${data.data.length - maxRows} more entries`, margin + 8, currentY);
           currentY += 5;
         }
         currentY += 3; // Extra spacing
@@ -620,10 +656,10 @@ function renderWidgetDataInPDF(
       break;
 
     case 'table':
-      if (widgetData.columns && widgetData.rows && widgetData.rows.length > 0) {
+      if (data.columns && data.rows && data.rows.length > 0) {
         doc.setFontSize(8);
-        const maxRows = Math.min(15, widgetData.rows.length);
-        const colCount = Math.min(4, widgetData.columns.length); // Show more columns
+        const maxRows = Math.min(15, data.rows.length);
+        const colCount = Math.min(4, data.columns.length); // Show more columns
         const colWidth = (contentWidth - 10) / colCount;
         const rowHeight = 5;
         
@@ -637,7 +673,7 @@ function renderWidgetDataInPDF(
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(9);
         for (let i = 0; i < colCount; i++) {
-          const colName = widgetData.columns[i]?.substring(0, 18) || '';
+          const colName = data.columns[i]?.substring(0, 18) || '';
           doc.text(colName, margin + 8 + (i * colWidth), currentY);
         }
         currentY += rowHeight + 4;
@@ -658,19 +694,19 @@ function renderWidgetDataInPDF(
             doc.rect(margin + 5, currentY - 4, contentWidth - 10, rowHeight, 'F');
           }
           
-          const row = widgetData.rows[rowIdx];
+          const row = data.rows[rowIdx];
           for (let colIdx = 0; colIdx < colCount; colIdx++) {
-            const colName = widgetData.columns[colIdx];
+            const colName = data.columns[colIdx];
             const cellValue = row[colName] !== undefined ? String(row[colName]).substring(0, 18) : '-';
             doc.text(cellValue, margin + 8 + (colIdx * colWidth), currentY);
           }
           currentY += rowHeight;
         }
         
-        if (widgetData.rows.length > maxRows) {
+        if (data.rows.length > maxRows) {
           doc.setFontSize(8);
           doc.setTextColor(secondaryTextColor[0], secondaryTextColor[1], secondaryTextColor[2]);
-          doc.text(`... and ${widgetData.rows.length - maxRows} more rows`, margin + 8, currentY);
+          doc.text(`... and ${data.rows.length - maxRows} more rows`, margin + 8, currentY);
           currentY += 5;
         }
         currentY += 3; // Extra spacing
@@ -682,10 +718,10 @@ function renderWidgetDataInPDF(
       break;
 
     case 'ai_insight':
-      if (widgetData.insight) {
+      if (data.insight) {
         doc.setFontSize(9);
         doc.setTextColor(primaryTextColor[0], primaryTextColor[1], primaryTextColor[2]);
-        const insightLines = doc.splitTextToSize(widgetData.insight, contentWidth - 10);
+        const insightLines = doc.splitTextToSize(data.insight, contentWidth - 10);
         doc.text(insightLines, margin + 5, currentY);
         currentY += insightLines.length * 4;
       } else {
@@ -696,11 +732,11 @@ function renderWidgetDataInPDF(
       break;
 
     case 'rich_text':
-      if (widgetData.content) {
+      if (data.content) {
         doc.setFontSize(9);
         doc.setTextColor(primaryTextColor[0], primaryTextColor[1], primaryTextColor[2]);
         // Remove markdown formatting for PDF
-        const plainText = widgetData.content
+        const plainText = data.content
           .replace(/#{1,6}\s+/g, '') // Remove headers
           .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold
           .replace(/\*(.*?)\*/g, '$1') // Remove italic

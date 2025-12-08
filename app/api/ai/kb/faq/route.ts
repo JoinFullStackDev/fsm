@@ -3,11 +3,17 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { unauthorized, internalError, badRequest, forbidden, notFound } from '@/lib/utils/apiErrors';
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { hasAIFeatures, getKnowledgeBaseAccessLevel } from '@/lib/packageLimits';
-import { generateStructuredAIResponse } from '@/lib/ai/geminiClient';
+import { generateStructuredAIResponse, AIResponseWithMetadata } from '@/lib/ai/geminiClient';
 import { logAIUsage } from '@/lib/ai/aiUsageLogger';
 import { getGeminiApiKey } from '@/lib/utils/geminiConfig';
 import logger from '@/lib/utils/logger';
 import type { AIGenerateFAQInput, AIGenerateFAQOutput } from '@/types/kb';
+
+// Type for structured AI response with metadata
+interface StructuredAIResponseWithMetadata<T> {
+  result: T;
+  metadata?: AIResponseWithMetadata['metadata'];
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -104,11 +110,12 @@ Generate questions that users might have about this topic. Return as JSON:
 
     // Extract result and metadata
     let faqData: AIGenerateFAQOutput;
-    let metadata: any = null;
+    let metadata: AIResponseWithMetadata['metadata'] | null = null;
 
     if (typeof response === 'object' && response !== null && 'result' in response && 'metadata' in response) {
-      faqData = (response as { result: AIGenerateFAQOutput; metadata: any }).result;
-      metadata = (response as { result: AIGenerateFAQOutput; metadata: any }).metadata;
+      const typedResponse = response as StructuredAIResponseWithMetadata<AIGenerateFAQOutput>;
+      faqData = typedResponse.result;
+      metadata = typedResponse.metadata || null;
     } else if (typeof response === 'object' && response !== null && 'result' in response) {
       faqData = (response as { result: AIGenerateFAQOutput }).result;
     } else {

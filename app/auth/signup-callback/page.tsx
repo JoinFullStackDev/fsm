@@ -546,7 +546,15 @@ function SignupCallbackPageContent() {
         // Step 7: Clean up and redirect
         sessionStorage.removeItem('signup_data');
         sessionStorage.removeItem('selectedPackageId');
-        router.push('/dashboard?invite_users=true');
+        
+        // Check for custom return URL (e.g., affiliate application flow)
+        const returnTo = sessionStorage.getItem('signup_return_to');
+        if (returnTo) {
+          sessionStorage.removeItem('signup_return_to');
+          router.push(returnTo);
+        } else {
+          router.push('/dashboard?invite_users=true');
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
         setLoading(false);

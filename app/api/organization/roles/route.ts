@@ -73,9 +73,12 @@ export async function GET(request: NextRequest) {
     const roles = await getOrganizationRoles(adminClient, organizationId);
 
     return NextResponse.json({ roles });
-  } catch (error: any) {
-    if (error.status === 401 || error.status === 403) {
-      return error; // Already a proper error response
+  } catch (error) {
+    if (error && typeof error === 'object' && 'status' in error) {
+      const status = (error as { status: number }).status;
+      if (status === 401 || status === 403) {
+        return error as NextResponse;
+      }
     }
     logger.error('[Organization Roles] Error fetching roles:', error);
     return internalError('Failed to fetch roles');
@@ -133,18 +136,22 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ role }, { status: 201 });
-  } catch (error: any) {
-    if (error.status === 401 || error.status === 403) {
-      return error;
+  } catch (error) {
+    if (error && typeof error === 'object' && 'status' in error) {
+      const status = (error as { status: number }).status;
+      if (status === 401 || status === 403) {
+        return error as NextResponse;
+      }
     }
     
     // Handle known errors from helper functions
-    if (error.message) {
-      if (error.message.includes('already exists')) {
-        return badRequest(error.message);
+    const errorMessage = error instanceof Error ? error.message : '';
+    if (errorMessage) {
+      if (errorMessage.includes('already exists')) {
+        return badRequest(errorMessage);
       }
-      if (error.message.includes('Invalid permissions')) {
-        return badRequest(error.message);
+      if (errorMessage.includes('Invalid permissions')) {
+        return badRequest(errorMessage);
       }
     }
 

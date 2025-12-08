@@ -183,6 +183,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, [user?.id, fetchNotifications]);
 
   // Realtime subscription: Single instance per user
+  // OPTIMIZED: Only listens for INSERT events to reduce database load
   useEffect(() => {
     if (!user?.id) {
       // Clean up subscription if user logs out
@@ -193,61 +194,50 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Clean up existing subscription before creating new one
-    if (subscriptionRef.current) {
-      subscriptionRef.current.unsubscribe();
-      subscriptionRef.current = null;
-    }
+    // Add delay to prevent rapid reconnections during auth state changes
+    const setupTimeout = setTimeout(() => {
+      // Clean up existing subscription before creating new one
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+      }
 
-    const channelName = `notifications:${user.id}`;
-    const channel = supabase
-      .channel(channelName, {
-        config: {
-          broadcast: { self: false },
-          presence: { key: user.id },
-        },
-      })
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload: any) => {
-          if (payload.eventType === 'INSERT') {
-            const newNotification = payload.new as Notification;
+      const channelName = `notifications:${user.id}`;
+      const channel = supabase
+        .channel(channelName, {
+          config: {
+            broadcast: { self: false },
+            // Remove presence config to reduce overhead
+          },
+        })
+        .on(
+          'postgres_changes',
+          {
+            // IMPORTANT: Only listen for INSERT events to reduce realtime load
+            // UPDATE and DELETE are handled optimistically in the UI
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload: { new: { id: string; user_id: string; is_read: boolean; [key: string]: unknown } }) => {
+            const newNotification = payload.new as unknown as Notification;
             setNotifications((prev) => [newNotification, ...prev]);
             setUnreadCount((prev) => prev + 1);
-          } else if (payload.eventType === 'UPDATE') {
-            const updated = payload.new as Notification;
-            setNotifications(prev => prev.map(n => n.id === updated.id ? updated : n));
-            // Recalculate unread count
-            if (updated.read) {
-              setUnreadCount(prev => Math.max(0, prev - 1));
-            }
-          } else if (payload.eventType === 'DELETE') {
-            const deletedId = payload.old.id;
-            setNotifications(prev => {
-              const deletedNotif = prev.find(n => n.id === deletedId);
-              if (deletedNotif && !deletedNotif.read) {
-                setUnreadCount(count => Math.max(0, count - 1));
-              }
-              return prev.filter(n => n.id !== deletedId);
-            });
           }
-        }
-      )
-      .subscribe((status: string) => {
-        if (status === 'CHANNEL_ERROR') {
-          console.error('[NotificationProvider] Realtime subscription error');
-        }
-      });
+        )
+        .subscribe((status: string) => {
+          if (status === 'CHANNEL_ERROR') {
+            console.error('[NotificationProvider] Realtime subscription error');
+            // Don't immediately retry - let the timeout handle reconnection
+          }
+        });
 
-    subscriptionRef.current = channel;
+      subscriptionRef.current = channel;
+    }, 1000); // 1 second delay to prevent rapid reconnections
 
     return () => {
+      clearTimeout(setupTimeout);
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;

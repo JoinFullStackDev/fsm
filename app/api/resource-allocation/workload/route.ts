@@ -6,6 +6,15 @@ import { unauthorized, badRequest, internalError } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 import type { UserWorkloadSummary } from '@/types/project';
 
+// Types for allocation data
+interface AllocationWithProject {
+  project_id: string;
+  allocated_hours_per_week: number;
+  start_date: string | null;
+  end_date: string | null;
+  project?: Array<{ id: string; name: string }> | { id: string; name: string } | null;
+}
+
 export const dynamic = 'force-dynamic';
 
 // GET - Get workload summary for users
@@ -104,13 +113,16 @@ export async function GET(request: NextRequest) {
 
         const workload: UserWorkloadSummary = {
           ...workloadData,
-          projects: allocations?.map((alloc: any) => ({
-            project_id: alloc.project_id,
-            project_name: alloc.project?.name || 'Unknown Project',
-            allocated_hours_per_week: alloc.allocated_hours_per_week,
-            start_date: alloc.start_date,
-            end_date: alloc.end_date,
-          })) || [],
+          projects: (allocations as AllocationWithProject[] | null)?.map((alloc) => {
+            const projectData = Array.isArray(alloc.project) ? alloc.project[0] : alloc.project;
+            return {
+              project_id: alloc.project_id,
+              project_name: projectData?.name || 'Unknown Project',
+              allocated_hours_per_week: alloc.allocated_hours_per_week,
+              start_date: alloc.start_date,
+              end_date: alloc.end_date,
+            };
+          }) || [],
         };
 
         workloads.push(workload);

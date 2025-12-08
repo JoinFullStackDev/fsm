@@ -204,7 +204,16 @@ export async function PUT(
     const newTemplateId = template_id !== undefined ? (template_id || null) : oldTemplateId;
     const templateChanged = oldTemplateId !== newTemplateId;
 
-    const updateData: any = {
+    const updateData: {
+      name: string;
+      description: string | null;
+      status: string;
+      primary_tool?: string | null;
+      updated_at: string;
+      template_id?: string | null;
+      target_end_date?: string | null;
+      company_id?: string | null;
+    } = {
       name,
       description,
       status,

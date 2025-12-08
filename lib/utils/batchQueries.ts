@@ -5,17 +5,21 @@
 
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import logger from '@/lib/utils/logger';
+import type { ProjectPhaseRow, ProjectMemberRow } from '@/types/database';
 
 export interface BatchQueryResult {
   success: boolean;
-  data?: any;
+  data?: unknown;
   error?: string;
 }
 
 export interface BatchQueryRequest {
   type: string;
-  params: Record<string, any>;
+  params: Record<string, unknown>;
 }
+
+// Type for the admin Supabase client
+type AdminClient = ReturnType<typeof createAdminSupabaseClient>;
 
 /**
  * Execute batched queries
@@ -60,9 +64,9 @@ export async function executeBatchQueries(
  * Execute a single query based on type
  */
 async function executeQuery(
-  adminClient: any,
+  adminClient: AdminClient,
   query: BatchQueryRequest
-): Promise<any> {
+): Promise<unknown> {
   switch (query.type) {
     case 'project_phases':
       return await adminClient
@@ -113,12 +117,17 @@ async function executeQuery(
   }
 }
 
+// Member query result type
+interface MemberQueryResult extends Pick<ProjectMemberRow, 'id' | 'user_id' | 'role'> {
+  user: Array<{ id: string; name: string | null; email: string; avatar_url: string | null }> | null;
+}
+
 /**
  * Batch project data queries (phases + members)
  */
 export async function batchProjectData(projectId: string): Promise<{
-  phases: any[];
-  members: any[];
+  phases: ProjectPhaseRow[];
+  members: MemberQueryResult[];
 }> {
   const adminClient = createAdminSupabaseClient();
 

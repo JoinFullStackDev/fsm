@@ -55,9 +55,10 @@ export default function ProfileGitHubTab() {
     if (!profile) return;
 
     try {
-      const updateData: any = {
+      const updateData: { github_username: null; github_access_token: null; updated_at: string } = {
         github_username: null,
         github_access_token: null,
+        updated_at: new Date().toISOString(),
       };
       
       // Only include updated_at if the column exists (will be added via migration)

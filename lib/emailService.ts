@@ -361,37 +361,49 @@ export async function sendEmail(
       statusCode: result[0]?.statusCode,
     });
     return { success: true };
-  } catch (error: any) {
+  } catch (error) {
     // Get sender email for error logging
     const senderEmail = from || await getSenderEmail() || process.env.SENDGRID_FROM_EMAIL || 'email@fsm.life';
     
-    const errorDetails: any = {
-      error: error.message,
+    // Type the error for SendGrid-specific properties
+    const errorWithResponse = error as { 
+      message?: string; 
+      code?: string;
+      response?: { 
+        statusCode?: number; 
+        body?: { errors?: Array<{ message?: string; field?: string }> }; 
+        headers?: unknown 
+      } 
+    };
+    
+    const baseErrorMessage = error instanceof Error ? error.message : String(error);
+    const errorDetails: Record<string, unknown> = {
+      error: baseErrorMessage,
       to,
       subject,
       from: senderEmail,
     };
     
     // Add SendGrid-specific error details
-    if (error.response) {
-      errorDetails.statusCode = error.response.statusCode;
-      errorDetails.responseBody = error.response.body;
-      errorDetails.responseHeaders = error.response.headers;
+    if (errorWithResponse.response) {
+      errorDetails.statusCode = errorWithResponse.response.statusCode;
+      errorDetails.responseBody = errorWithResponse.response.body;
+      errorDetails.responseHeaders = errorWithResponse.response.headers;
     }
     
     // Add more detailed error information
-    if (error.code) {
-      errorDetails.code = error.code;
+    if (errorWithResponse.code) {
+      errorDetails.code = errorWithResponse.code;
     }
     
     logger.error('[Email] Error sending email:', errorDetails);
     
     // Provide more specific error message
-    let errorMessage = error.message || 'Failed to send email';
-    if (error.response?.body?.errors) {
-      const sendGridErrors = error.response.body.errors;
+    let errorMessage = errorWithResponse.message || 'Failed to send email';
+    if (errorWithResponse.response?.body?.errors) {
+      const sendGridErrors = errorWithResponse.response.body.errors;
       if (Array.isArray(sendGridErrors) && sendGridErrors.length > 0) {
-        errorMessage = sendGridErrors.map((e: any) => e.message || e.field || 'Unknown error').join('; ');
+        errorMessage = sendGridErrors.map((e) => e.message || e.field || 'Unknown error').join('; ');
       }
     }
     

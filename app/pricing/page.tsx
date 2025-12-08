@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   Box,
@@ -18,22 +19,66 @@ import {
   TableHead,
   TableRow,
   Divider,
+  Chip,
 } from '@mui/material';
 import {
   Check as CheckIcon,
   Close as CloseIcon,
+  LocalOffer as OfferIcon,
 } from '@mui/icons-material';
 import PricingCard from '@/components/landing/PricingCard';
 import SignupModal from '@/components/landing/SignupModal';
 import LandingHeader from '@/components/landing/LandingHeader';
 import type { Package } from '@/lib/organizationContext';
 
-export default function PricingPage() {
+function PricingPageContent() {
   const theme = useTheme();
+  const searchParams = useSearchParams();
   const [packages, setPackages] = useState<Package[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
   const [signupModalOpen, setSignupModalOpen] = useState(false);
+  const [affiliateCode, setAffiliateCode] = useState<string | null>(null);
+  const [affiliateDiscount, setAffiliateDiscount] = useState<{ type: string; value: number } | null>(null);
+
+  // Capture ref parameter from URL and store in sessionStorage
+  useEffect(() => {
+    const refCode = searchParams.get('ref');
+    if (refCode) {
+      sessionStorage.setItem('affiliate_code', refCode.toUpperCase());
+      setAffiliateCode(refCode.toUpperCase());
+      // Validate the affiliate code
+      validateAffiliateCode(refCode.toUpperCase());
+    } else {
+      // Check if there's a stored affiliate code
+      const storedCode = sessionStorage.getItem('affiliate_code');
+      if (storedCode) {
+        setAffiliateCode(storedCode);
+        validateAffiliateCode(storedCode);
+      }
+    }
+  }, [searchParams]);
+
+  const validateAffiliateCode = async (code: string) => {
+    try {
+      const response = await fetch('/api/affiliates/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.valid && data.code) {
+          setAffiliateDiscount({
+            type: data.code.discount_type,
+            value: data.code.discount_value,
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Failed to validate affiliate code:', err);
+    }
+  };
 
   useEffect(() => {
     loadPackages();
@@ -101,6 +146,27 @@ export default function PricingPage() {
             >
               Start with a free trial, then choose the plan that fits your team
             </Typography>
+            {/* Show affiliate discount banner */}
+            {affiliateCode && affiliateDiscount && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3, delay: 0.3 }}
+              >
+                <Chip
+                  icon={<OfferIcon />}
+                  label={
+                    affiliateDiscount.type === 'percentage'
+                      ? `${affiliateDiscount.value}% discount applied with code: ${affiliateCode}`
+                      : affiliateDiscount.type === 'fixed_amount'
+                      ? `$${affiliateDiscount.value} off applied with code: ${affiliateCode}`
+                      : `Special offer applied with code: ${affiliateCode}`
+                  }
+                  color="success"
+                  sx={{ mt: 2, fontWeight: 600 }}
+                />
+              </motion.div>
+            )}
           </motion.div>
         </Box>
 
@@ -442,8 +508,21 @@ export default function PricingPage() {
           setSelectedPackage(null);
         }}
         package={selectedPackage}
+        affiliateCode={affiliateCode}
       />
     </Box>
+  );
+}
+
+export default function PricingPage() {
+  return (
+    <Suspense fallback={
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    }>
+      <PricingPageContent />
+    </Suspense>
   );
 }
 

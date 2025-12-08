@@ -143,8 +143,9 @@ export default function ProfilePreferencesTab() {
 
     setSaving(true);
     try {
-      const updateData: any = {
-        preferences: preferences as any, // JSONB field
+      const updateData: { preferences: Record<string, unknown>; updated_at: string } = {
+        preferences: preferences as unknown as Record<string, unknown>, // JSONB field
+        updated_at: new Date().toISOString(),
       };
       
       // Only include updated_at if the column exists (will be added via migration)

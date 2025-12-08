@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { Box, Typography, Paper, Autocomplete, TextField, Checkbox, IconButton, Dialog, DialogTitle } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { useTheme, type Theme } from '@mui/material/styles';
 import { ZoomIn, ZoomOut, FitScreen, Fullscreen, FullscreenExit } from '@mui/icons-material';
 import { format, parseISO, startOfDay, eachDayOfInterval, isAfter, isBefore } from 'date-fns';
 import type { Project } from '@/types/project';
@@ -40,7 +40,7 @@ interface LineConfig {
 }
 
 // Line configs will be created dynamically with theme colors
-const getLineConfigs = (theme: any): LineConfig[] => [
+const getLineConfigs = (theme: Theme): LineConfig[] => [
   { key: 'tasksCreated', label: 'Tasks Created', color: theme.palette.text.primary, defaultVisible: true },
   { key: 'tasksCompleted', label: 'Tasks Completed', color: '#4CAF50', defaultVisible: true },
   { key: 'tasksInProgress', label: 'Tasks In Progress', color: theme.palette.text.secondary, defaultVisible: true },

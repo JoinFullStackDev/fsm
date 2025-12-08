@@ -1,0 +1,224 @@
+# FSM Project - Cursor Rules
+
+## TypeScript Type Safety Rules
+
+### 🚫 NEVER Use `any` Type
+
+The `any` type is **strictly prohibited** in this codebase. Using `any` bypasses TypeScript's type checking and leads to runtime crashes that could have been caught at compile time.
+
+#### ❌ Forbidden Patterns
+
+```typescript
+// NEVER do this
+const data: any = await res.json();
+const result: any = await supabase.from('users').select('*');
+items.forEach((item: any) => { ... });
+catch (error: any) { ... }
+const config = response as any;
+Record<string, any>
+```
+
+#### ✅ Required Patterns
+
+```typescript
+// Use unknown + type guards
+const data: unknown = await res.json();
+if (isUserResponse(data)) {
+  // Now data is properly typed
+}
+
+// Use proper Supabase types
+const { data: users } = await supabase
+  .from('users')
+  .select('id, email, name')
+  .returns<Pick<User, 'id' | 'email' | 'name'>[]>();
+
+// Use type guards for iteration
+items.filter(isValidItem).forEach((item) => { ... });
+
+// Catch blocks - don't type the error, use guards
+catch (error) {
+  logger.error(getErrorMessage(error));
+}
+
+// Use Record<string, unknown> instead
+Record<string, unknown>
+```
+
+### Type Guards Library
+
+Always import type guards from `@/lib/utils/typeGuards`:
+
+```typescript
+import {
+  isNonNullable,
+  isObject,
+  isString,
+  hasProperty,
+  hasStringProperty,
+  getErrorMessage,
+  isError,
+  isArrayOf,
+} from '@/lib/utils/typeGuards';
+```
+
+### Supabase Query Typing
+
+When querying Supabase, always ensure proper typing:
+
+1. **Use `.returns<T>()` for explicit typing:**
+
+```typescript
+const { data } = await supabase
+  .from('users')
+  .select('id, email')
+  .returns<{ id: string; email: string }[]>();
+```
+
+2. **Create interfaces for complex queries:**
+
+```typescript
+interface UserWithOrg {
+  id: string;
+  email: string;
+  organization: { id: string; name: string } | null;
+}
+
+const { data } = await supabase
+  .from('users')
+  .select('id, email, organization:organizations(id, name)')
+  .returns<UserWithOrg[]>();
+```
+
+3. **Validate data before using:**
+
+```typescript
+if (!data || !Array.isArray(data)) {
+  return internalError('Invalid data format');
+}
+```
+
+### Error Handling
+
+Never type catch block errors as `any`:
+
+```typescript
+// ❌ Wrong
+catch (error: any) {
+  logger.error(error.message);
+}
+
+// ✅ Correct
+catch (error) {
+  logger.error(getErrorMessage(error));
+  // Or for more details:
+  if (isError(error)) {
+    logger.error(error.message, { stack: error.stack });
+  }
+}
+```
+
+### API Response Validation
+
+All external data (API responses, user input, database results) must be validated:
+
+```typescript
+// For API route handlers
+export async function POST(request: NextRequest) {
+  const body: unknown = await request.json();
+  
+  // Validate structure
+  if (!isObject(body)) {
+    return badRequest('Invalid request body');
+  }
+  
+  // Validate required fields
+  if (!hasStringProperty(body, 'name') || !hasStringProperty(body, 'email')) {
+    return validationError('Missing required fields');
+  }
+  
+  // Now body.name and body.email are typed as string
+}
+```
+
+### Array Operations
+
+When mapping/filtering arrays from external sources:
+
+```typescript
+// ❌ Wrong
+const userIds = users.map((u: any) => u.id);
+
+// ✅ Correct - Option 1: Type guard filter
+const userIds = users
+  .filter(isObject)
+  .filter((u): u is { id: string } => hasStringProperty(u, 'id'))
+  .map(u => u.id);
+
+// ✅ Correct - Option 2: Use isNonNullable for null filtering
+const userIds = users
+  .map(u => (isObject(u) && hasStringProperty(u, 'id') ? u.id : null))
+  .filter(isNonNullable);
+```
+
+### JSON Parsing
+
+Never assume JSON.parse returns a specific type:
+
+```typescript
+// ❌ Wrong
+const config = JSON.parse(jsonString) as Config;
+
+// ✅ Correct
+import { safeJsonParse } from '@/lib/utils/typeGuards';
+
+const config = safeJsonParse(jsonString, isConfig);
+if (!config) {
+  throw new Error('Invalid config format');
+}
+```
+
+## Code Quality Rules
+
+### Run Build After Changes
+
+After completing any code changes, always run:
+
+```bash
+npm run build
+```
+
+Fix all errors AND warnings before considering the task complete.
+
+### Imports
+
+- Use absolute imports with `@/` prefix
+- Group imports: React/Next → External packages → Internal modules → Types
+- Remove unused imports
+
+### Error Messages
+
+- Always provide user-friendly error messages
+- Log detailed errors server-side, return sanitized messages to clients
+- Use the error utilities from `@/lib/utils/apiErrors`
+
+### Database Queries
+
+- Always handle both `data` and `error` from Supabase responses
+- Check for null/undefined data before processing
+- Use admin client only when necessary (to bypass RLS)
+
+## File Organization
+
+- API routes: `app/api/[resource]/route.ts`
+- Components: `components/[feature]/[ComponentName].tsx`
+- Utilities: `lib/utils/[utilityName].ts`
+- Types: `types/[domain].ts`
+- Type guards: `lib/utils/typeGuards.ts`
+
+## Testing
+
+When writing tests:
+- Mock external dependencies
+- Test both success and error paths
+- Verify type guards work correctly with edge cases

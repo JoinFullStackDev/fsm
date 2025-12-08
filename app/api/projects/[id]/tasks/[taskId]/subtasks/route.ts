@@ -51,7 +51,7 @@ export async function GET(
     }
 
     // Transform to flatten assignee
-    const transformedSubtasks = (subtasks || []).map((task: any) => ({
+    const transformedSubtasks = (subtasks || []).map((task: { assignee?: unknown | null; [key: string]: unknown }) => ({
       ...task,
       assignee: task.assignee || null,
     }));

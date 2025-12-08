@@ -4,9 +4,21 @@ import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { unauthorized, notFound, internalError, forbidden, badRequest } from '@/lib/utils/apiErrors';
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { hasCustomDashboards, hasAIFeatures } from '@/lib/packageLimits';
-import { generateAIResponse } from '@/lib/ai/geminiClient';
+import { generateAIResponse, AIResponseWithMetadata } from '@/lib/ai/geminiClient';
 import { getGeminiConfig } from '@/lib/utils/geminiConfig';
 import logger from '@/lib/utils/logger';
+import type { DashboardRow, DashboardWidgetWithDataset, WidgetDataset } from '@/types/database';
+
+// Type for dashboard with widgets
+interface DashboardWithWidgets extends DashboardRow {
+  widgets: DashboardWidgetWithDataset[];
+}
+
+// Type for widget summary
+interface WidgetSummary {
+  type: string;
+  dataset: WidgetDataset | undefined;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -116,8 +128,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Build prompt for dashboard summary
-    const widgets = (dashboard as any).widgets || [];
-    const widgetSummary = widgets.map((w: any) => ({
+    const dashboardWithWidgets = dashboard as DashboardWithWidgets;
+    const widgets: DashboardWidgetWithDataset[] = dashboardWithWidgets.widgets || [];
+    const widgetSummary: WidgetSummary[] = widgets.map((w: DashboardWidgetWithDataset) => ({
       type: w.widget_type,
       dataset: w.dataset,
     }));
@@ -148,7 +161,9 @@ Format the response as clear, concise markdown.`;
       dashboard.name
     );
 
-    const summary = typeof aiResponse === 'string' ? aiResponse : (aiResponse as any).text || '';
+    const summary = typeof aiResponse === 'string' 
+      ? aiResponse 
+      : (aiResponse as AIResponseWithMetadata).text || '';
 
     return NextResponse.json({
       summary,

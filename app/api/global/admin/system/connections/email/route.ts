@@ -38,8 +38,8 @@ export async function PUT(request: NextRequest) {
 
     // Build config object - encrypt API key if provided
     const currentConfig = existing?.config || {};
-    const updatedConfig: any = {
-      ...currentConfig,
+    const updatedConfig: Record<string, string | boolean | undefined> = {
+      ...(currentConfig as Record<string, string | boolean | undefined>),
     };
 
     // Update sender email if provided
@@ -98,7 +98,7 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    const updateData: any = {
+    const updateData: { config: Record<string, string | boolean | undefined>; updated_at: string; is_active?: boolean } = {
       config: updatedConfig,
       updated_at: new Date().toISOString(),
     };

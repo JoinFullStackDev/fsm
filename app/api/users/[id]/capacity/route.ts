@@ -141,7 +141,12 @@ export async function PUT(
 
     if (existingCapacity) {
       // Update existing
-      const updateData: any = {};
+      const updateData: {
+        default_hours_per_week?: number;
+        max_hours_per_week?: number;
+        is_active?: boolean;
+        notes?: string | null;
+      } = {};
       if (default_hours_per_week !== undefined) updateData.default_hours_per_week = default_hours_per_week;
       if (max_hours_per_week !== undefined) updateData.max_hours_per_week = max_hours_per_week;
       if (is_active !== undefined) updateData.is_active = is_active;

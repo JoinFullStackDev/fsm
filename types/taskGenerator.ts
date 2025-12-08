@@ -6,6 +6,15 @@ import type { ProjectTask } from './project';
 export type DuplicateStatus = 'unique' | 'possible-duplicate' | 'exact-duplicate';
 
 /**
+ * Source field reference from AI generation
+ * Links generated task to the phase field(s) that informed its creation
+ */
+export interface SourceField {
+  phase: number;
+  field: string;
+}
+
+/**
  * Preview task with duplicate detection information
  * Extends ProjectTask with additional fields for preview/audit
  */
@@ -35,6 +44,12 @@ export interface PreviewTask extends Omit<ProjectTask, 'id' | 'created_at' | 'up
    * Temporary ID for preview (not persisted)
    */
   previewId?: string;
+  
+  /**
+   * Source fields from AI generation - indicates which phase fields
+   * generated this task. Converted to source_reference on save.
+   */
+  source_fields?: SourceField[];
 }
 
 /**
@@ -100,6 +115,12 @@ export interface PreviewGenerationResponse {
    * Summary of generation
    */
   summary?: string;
+  
+  /**
+   * AI generation response time in milliseconds
+   * Used for logging and performance tracking
+   */
+  response_time_ms?: number;
 }
 
 /**

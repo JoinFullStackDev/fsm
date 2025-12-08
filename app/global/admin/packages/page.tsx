@@ -73,6 +73,8 @@ interface Package {
   features: PackageFeatures;
   is_active: boolean;
   display_order: number;
+  trial_enabled: boolean;
+  trial_days: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -116,6 +118,8 @@ export default function PackagesPage() {
     features: { ...defaultFeatures },
     is_active: true,
     display_order: 0,
+    trial_enabled: false,
+    trial_days: 0,
   });
 
   const loadPackages = useCallback(async () => {
@@ -163,6 +167,8 @@ export default function PackagesPage() {
         features: { ...defaultFeatures, ...pkg.features },
         is_active: pkg.is_active,
         display_order: pkg.display_order,
+        trial_enabled: pkg.trial_enabled || false,
+        trial_days: pkg.trial_days || 0,
       });
     } else {
       setEditingPackage(null);
@@ -180,6 +186,8 @@ export default function PackagesPage() {
         features: { ...defaultFeatures },
         is_active: true,
         display_order: packages.length,
+        trial_enabled: false,
+        trial_days: 0,
       });
     }
     setDialogOpen(true);
@@ -509,6 +517,14 @@ export default function PackagesPage() {
                           variant="outlined" 
                         />
                       )}
+                      {/* Trial */}
+                      {pkg.trial_enabled && pkg.trial_days && pkg.trial_days > 0 && (
+                        <Chip 
+                          label={`${pkg.trial_days}-day Trial`} 
+                          size="small" 
+                          color="info"
+                        />
+                      )}
                     </Box>
                   </TableCell>
                   <TableCell>
@@ -685,6 +701,39 @@ export default function PackagesPage() {
                 label="Active"
               />
             </Grid>
+
+            {/* Free Trial Configuration */}
+            <Grid item xs={12}>
+              <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
+                Free Trial
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.trial_enabled}
+                    onChange={(e) => setFormData({ ...formData, trial_enabled: e.target.checked })}
+                  />
+                }
+                label="Enable Free Trial"
+              />
+            </Grid>
+            {formData.trial_enabled && (
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Trial Days"
+                  type="number"
+                  value={formData.trial_days || ''}
+                  onChange={(e) =>
+                    setFormData({ ...formData, trial_days: e.target.value ? Number(e.target.value) : 0 })
+                  }
+                  inputProps={{ min: 1, max: 365 }}
+                  helperText="Number of days before first payment is due"
+                />
+              </Grid>
+            )}
 
             {/* Limits */}
             <Grid item xs={12}>

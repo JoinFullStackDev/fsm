@@ -39,11 +39,12 @@ export async function createLeadFromContact(
       // For other errors, throw them
       throw error;
     }
-  } catch (error: any) {
+  } catch (error) {
     // Handle "relation does not exist" errors gracefully
     // Check multiple possible error formats
-    const errorMessage = error?.message || error?.error || String(error || '');
-    if (error?.code === '42P01' || 
+    const errorObj = error as { message?: string; error?: string; code?: string };
+    const errorMessage = errorObj?.message || errorObj?.error || String(error || '');
+    if (errorObj?.code === '42P01' || 
         errorMessage.includes('does not exist') || 
         (errorMessage.includes('relation') && errorMessage.includes('leads'))) {
       logger.warn('Leads table does not exist, skipping lead creation');
@@ -76,7 +77,7 @@ export async function getLeadsForCompany(
 
     if (error) {
       // If the table doesn't exist, return empty array
-      const errorMessage = error.message || (error as any).error || String(error);
+      const errorMessage = error.message || String(error);
       if (error.code === '42P01' || 
           errorMessage.includes('does not exist') ||
           (errorMessage.includes('relation') && errorMessage.includes('leads'))) {
@@ -87,9 +88,10 @@ export async function getLeadsForCompany(
     }
 
     return data || [];
-  } catch (error: any) {
+  } catch (error) {
     // Handle "relation does not exist" errors gracefully
-    if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+    const errorObj = error as { message?: string; code?: string };
+    if (errorObj?.code === '42P01' || errorObj?.message?.includes('does not exist')) {
       logger.warn('Leads table does not exist, returning empty array');
       return [];
     }

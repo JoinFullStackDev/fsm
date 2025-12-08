@@ -3,18 +3,19 @@
  * Allows cache invalidation from multiple API routes
  */
 
-interface CacheEntry {
-  data: any;
+// Generic cache entry - stores any organization context type
+interface CacheEntry<T = unknown> {
+  data: T;
   expiresAt: number;
 }
 
 const contextCache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes (increased from 30 seconds for better performance)
 
-export function getCachedContext(userId: string): any | null {
+export function getCachedContext<T = unknown>(userId: string): T | null {
   const cached = contextCache.get(userId);
   if (cached && cached.expiresAt > Date.now()) {
-    return cached.data;
+    return cached.data as T;
   }
   if (cached) {
     contextCache.delete(userId); // Remove expired entry
@@ -22,7 +23,7 @@ export function getCachedContext(userId: string): any | null {
   return null;
 }
 
-export function setCachedContext(userId: string, data: any): void {
+export function setCachedContext<T = unknown>(userId: string, data: T): void {
   contextCache.set(userId, {
     data,
     expiresAt: Date.now() + CACHE_TTL_MS,

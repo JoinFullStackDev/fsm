@@ -210,7 +210,7 @@ Deployment is handled internally via Vercel:
 
 ## 📚 Documentation
 
-- **[Dashboard Cron Setup](./DASHBOARD_CRON_SETUP.md)** - Configure scheduled dashboard reports
+- See `docs/` directory for additional documentation
 
 ## ✨ Features
 

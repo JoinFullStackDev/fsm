@@ -5,7 +5,8 @@
 import { getStripeClient, isStripeConfigured } from './client';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import logger from '@/lib/utils/logger';
-import type Stripe from 'stripe';
+import Stripe from 'stripe';
+import type { SubscriptionRow } from '@/types/database';
 
 /**
  * Create a Stripe customer for an organization
@@ -218,10 +219,10 @@ export async function createCheckoutSession(
     let price;
     try {
       price = await stripe.prices.retrieve(priceId);
-    } catch (priceError: any) {
+    } catch (priceError) {
       logger.error('[Stripe] Error retrieving price:', {
         priceId,
-        error: priceError.message,
+        error: priceError instanceof Error ? priceError.message : String(priceError),
       });
       return null;
     }
@@ -230,7 +231,7 @@ export async function createCheckoutSession(
     const pricingModel = packageData.pricing_model || 'per_user';
 
     // Build line_items conditionally based on usage_type
-    const lineItems: any[] = [{
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [{
       price: priceId,
     }];
 
@@ -334,22 +335,29 @@ export async function updateSubscriptionFromWebhook(
     }
 
     // Update subscription
-    const subscriptionData = stripeSubscription as any; // Type assertion for Stripe API compatibility
-    
     // Get package_id from subscription metadata if available
     const metadata = stripeSubscription.metadata;
     const packageIdFromMetadata = metadata?.package_id;
     
     // Build update object - preserve package_id if it exists, or set from metadata
-    const updateData: any = {
+    // Using Partial<SubscriptionRow> but we need to be careful with types that might not match exactly
+    // (e.g. Supabase might expect string for dates, while we construct them here)
+    // Local type intersection to handle potential missing types in Stripe SDK
+    type StripeSubscriptionWithPeriod = Stripe.Subscription & {
+      current_period_start: number;
+      current_period_end: number;
+    };
+    const sub = stripeSubscription as StripeSubscriptionWithPeriod;
+
+    const updateData: Partial<SubscriptionRow> = {
       status: stripeSubscription.status as 'active' | 'canceled' | 'past_due' | 'trialing',
-      current_period_start: subscriptionData.current_period_start 
-        ? new Date(subscriptionData.current_period_start * 1000).toISOString()
+      current_period_start: sub.current_period_start 
+        ? new Date(sub.current_period_start * 1000).toISOString()
         : null,
-      current_period_end: subscriptionData.current_period_end 
-        ? new Date(subscriptionData.current_period_end * 1000).toISOString()
+      current_period_end: sub.current_period_end 
+        ? new Date(sub.current_period_end * 1000).toISOString()
         : null,
-      cancel_at_period_end: subscriptionData.cancel_at_period_end || false,
+      cancel_at_period_end: stripeSubscription.cancel_at_period_end || false,
       updated_at: new Date().toISOString(),
     };
     

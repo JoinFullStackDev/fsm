@@ -133,11 +133,14 @@ export async function POST(request: NextRequest) {
           message: `Allocation would exceed user's maximum capacity of ${maxHours} hours/week`,
           current_allocation: totalAllocation - allocated_hours_per_week,
           max_capacity: maxHours,
-          conflicting_projects: existingAllocations?.map((alloc: any) => ({
-            project_id: alloc.project_id,
-            project_name: alloc.project?.name || 'Unknown Project',
-            allocated_hours: alloc.allocated_hours_per_week,
-          })) || [],
+          conflicting_projects: (existingAllocations as Array<{ project_id: string; allocated_hours_per_week: number; project?: Array<{ id: string; name: string }> | { id: string; name: string } | null }> | null)?.map((alloc) => {
+            const projectData = Array.isArray(alloc.project) ? alloc.project[0] : alloc.project;
+            return {
+              project_id: alloc.project_id,
+              project_name: projectData?.name || 'Unknown Project',
+              allocated_hours: alloc.allocated_hours_per_week,
+            };
+          }) || [],
         });
       }
 

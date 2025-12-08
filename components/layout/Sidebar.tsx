@@ -206,7 +206,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
         });
         if (response.ok) {
           const data = await response.json();
-          const templatesList = (data.data || []).map((t: any) => ({ id: t.id, name: t.name }));
+          const templatesList = (data.data || []).map((t: { id: string; name: string }) => ({ id: t.id, name: t.name }));
           setTemplates(templatesList);
         }
       } catch (error) {

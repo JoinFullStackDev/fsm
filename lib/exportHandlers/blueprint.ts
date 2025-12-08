@@ -5,6 +5,17 @@ import type {
   Phase4Data,
   Phase5Data,
   Phase6Data,
+  Persona,
+  ScoredFeature,
+  Screen,
+  Flow,
+  Component,
+  DesignTokens,
+  ERDData,
+  APISpec,
+  UserStory,
+  AcceptanceCriteria,
+  TestCase,
 } from '@/types/phases';
 import type { Project } from '@/types/project';
 import { generateAIResponse, type AIResponseWithMetadata } from '@/lib/ai/geminiClient';
@@ -22,24 +33,24 @@ export interface BlueprintBundle {
     high_level_feasibility: string;
   };
   strategy: {
-    personas: any[];
+    personas: Persona[];
     outcomes_and_kpis: string;
-    feature_backlog: any[];
+    feature_backlog: ScoredFeature[];
     outcome_roadmap: string;
   };
   prototype: {
-    screens: any[];
-    flows: any[];
-    components: any[];
-    design_tokens: any;
+    screens: Screen[];
+    flows: Flow[];
+    components: Component[];
+    design_tokens: DesignTokens | Record<string, unknown>;
     navigation_map: string;
   };
   analysis: {
-    erd: any;
-    apis: any[];
-    user_stories: any[];
-    acceptance_criteria: any[];
-    rbac_matrix: any;
+    erd: ERDData | Record<string, unknown>;
+    apis: APISpec[];
+    user_stories: UserStory[];
+    acceptance_criteria: AcceptanceCriteria[];
+    rbac_matrix: Record<string, unknown>;
     non_functional_requirements: string;
   };
   build: {
@@ -50,7 +61,7 @@ export interface BlueprintBundle {
   };
   qa: {
     test_plan: string;
-    test_cases: any[];
+    test_cases: TestCase[];
     security_checklist: string[];
     performance_requirements: string;
     launch_readiness: string[];

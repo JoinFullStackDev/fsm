@@ -82,8 +82,8 @@ export async function POST(
     }
 
     // Parse request body
-    const body: TaskInjectionRequest & { analysis_id?: string } = await request.json();
-    const { tasks, merges, analysis_id } = body;
+    const body: TaskInjectionRequest & { analysis_id?: string; response_time_ms?: number } = await request.json();
+    const { tasks, merges, analysis_id, response_time_ms } = body;
 
     logger.info('[Task Inject] Received request:', {
       projectId: params.id,
@@ -191,7 +191,7 @@ export async function POST(
             notes = JSON.stringify(notesObj);
           } catch (e) {
             // If notes isn't valid JSON, create new structure
-            const notesObj: any = { requirements: previewTask.requirements };
+            const notesObj: Record<string, unknown> = { requirements: previewTask.requirements };
             if (previewTask.userStories && previewTask.userStories.length > 0) {
               notesObj.userStories = previewTask.userStories;
             }
@@ -361,7 +361,7 @@ export async function POST(
             notes = JSON.stringify(notesObj);
           } catch (e) {
             // If notes isn't valid JSON, create new structure
-            const notesObj: any = { requirements };
+            const notesObj: Record<string, unknown> = { requirements };
             if (userStories && userStories.length > 0) {
               notesObj.userStories = userStories;
             }
@@ -415,6 +415,7 @@ export async function POST(
               full_prompt_length: estimatedPromptLength,
               response_length: estimatedResponseLength,
               model: 'gemini-2.5-flash',
+              response_time_ms: response_time_ms || 0, // Include actual AI generation time from preview
               input_tokens: estimatedInputTokens,
               output_tokens: estimatedOutputTokens,
               total_tokens: estimatedInputTokens + estimatedOutputTokens,

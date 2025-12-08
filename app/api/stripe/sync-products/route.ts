@@ -132,7 +132,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const updateData: any = {
+    interface PackageSyncData {
+      stripe_product_id: string;
+      updated_at: string;
+      pricing_model?: string;
+      stripe_price_id_monthly?: string | null;
+      stripe_price_id_yearly?: string | null;
+      price_per_user_monthly?: number | null;
+      price_per_user_yearly?: number | null;
+      base_price_monthly?: number | null;
+      base_price_yearly?: number | null;
+    }
+    const updateData: PackageSyncData = {
       stripe_product_id,
       updated_at: new Date().toISOString(),
     };

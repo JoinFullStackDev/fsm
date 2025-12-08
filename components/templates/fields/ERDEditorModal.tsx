@@ -1,4 +1,5 @@
 'use client';
+import type { PhaseDataUnion } from '@/types/phases';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
@@ -49,7 +50,7 @@ if (typeof window !== 'undefined' && !(window as any).__MONACO_ENV_SETUP__) {
         onmessage: null,
         onerror: null,
       };
-      return noOpWorker as any;
+      return noOpWorker as unknown as Worker;
     },
   };
   
@@ -58,11 +59,12 @@ if (typeof window !== 'undefined' && !(window as any).__MONACO_ENV_SETUP__) {
   
   // Suppress Monaco initialization errors by catching unhandled promise rejections
   const originalError = console.error;
-  const errorHandler = function(...args: any[]) {
+  const errorHandler = function(...args: unknown[]) {
     // Filter out Monaco worker loading errors
     const message = String(args[0] || '');
+    const firstArg = args[0] as any;
     if (message.includes('Monaco initialization') || 
-        (args[0]?.target?.tagName === 'SCRIPT' && message.includes('error'))) {
+        (firstArg?.target?.tagName === 'SCRIPT' && message.includes('error'))) {
       return; // Suppress Monaco worker errors
     }
     originalError.apply(console, args);
@@ -107,7 +109,7 @@ interface ERDEditorModalProps {
   onClose: () => void;
   value: ERDData;
   onChange: (value: ERDData) => void;
-  phaseData?: any; // Phase4Data for entity sync
+  phaseData?: Record<string, unknown>; // Phase4Data for entity sync
 }
 
 const MERMAID_ID = 'erd-mermaid-diagram';
@@ -497,9 +499,10 @@ export default function ERDEditorModal({
   }, []);
 
   // Configure Monaco Editor JSON language defaults
-  const handleEditorWillMount = useCallback((monaco: any) => {
+  const handleEditorWillMount = useCallback((monaco: unknown) => {
     // Configure JSON language defaults
-    monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
+    const m = monaco as any;
+    m.languages.json.jsonDefaults.setDiagnosticsOptions({
       validate: true,
       schemas: [],
       enableSchemaRequest: false,
@@ -672,7 +675,7 @@ export default function ERDEditorModal({
               <ErrorIcon sx={{ color: 'error.main', fontSize: 20 }} />
             </Tooltip>
           )}
-          {phaseData?.entities && (
+          {Boolean(phaseData?.entities) && (
             <Tooltip title="Sync from Entities">
               <IconButton
                 size="small"

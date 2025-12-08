@@ -1,4 +1,5 @@
 'use client';
+import type { PhaseDataUnion } from '@/types/phases';
 
 import React from 'react';
 import { TextField as MuiTextField, Box, useTheme } from '@mui/material';
@@ -10,7 +11,7 @@ interface TextFieldProps {
   value: string;
   onChange: (value: string) => void;
   error?: string;
-  phaseData?: any;
+  phaseData?: Record<string, unknown>;
 }
 
 function TextField({ field, value, onChange, error, phaseData }: TextFieldProps) {

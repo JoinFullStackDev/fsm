@@ -1,8 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
-import { unauthorized, badRequest, internalError, notFound } from '@/lib/utils/apiErrors';
+import { unauthorized, internalError, notFound } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
+import type { 
+  SOWTaskRow, 
+  ProjectMemberAllocationRow, 
+  UserWorkloadSummary 
+} from '@/types/database';
+
+// Type for SOW member from query - project_member can be object or array from Supabase
+interface SOWMemberQueryResult {
+  project_member_id: string;
+  project_member?: {
+    user_id: string;
+  } | Array<{ user_id: string }> | null;
+}
+
+// Helper to extract user_id from project_member
+function extractUserId(projectMember: SOWMemberQueryResult['project_member']): string | undefined {
+  if (!projectMember) return undefined;
+  if (Array.isArray(projectMember)) {
+    return projectMember[0]?.user_id;
+  }
+  return projectMember.user_id;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -64,9 +86,9 @@ export async function GET(
     }
 
     // Extract user IDs
-    const memberUserIds = (members || [])
-      .map((m: any) => m.project_member?.user_id)
-      .filter(Boolean) as string[];
+    const memberUserIds = ((members || []) as SOWMemberQueryResult[])
+      .map(m => extractUserId(m.project_member))
+      .filter((id): id is string => Boolean(id));
 
     if (memberUserIds.length === 0) {
       return NextResponse.json({ members: [] });
@@ -91,7 +113,7 @@ export async function GET(
       .or(`start_date.is.null,start_date.lte.${today},end_date.is.null,end_date.gte.${today}`);
 
     const allocationsMap = new Map<string, number>();
-    projectAllocations?.forEach((alloc: any) => {
+    (projectAllocations as ProjectMemberAllocationRow[] | null)?.forEach(alloc => {
       allocationsMap.set(alloc.user_id, alloc.allocated_hours_per_week);
     });
 
@@ -106,12 +128,12 @@ export async function GET(
         p_user_id: userId,
         p_start_date: new Date().toISOString().split('T')[0],
         p_end_date: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      })).then((result: any) => ({ userId, data: result.data, error: result.error }))
-        .catch((error: any) => ({ userId, data: null, error }))
+      })).then(result => ({ userId, data: result.data as UserWorkloadSummary | null, error: result.error }))
+        .catch((error: unknown) => ({ userId, data: null, error }))
     );
 
     const workloadResults = await Promise.allSettled(workloadPromises);
-    const workloadsMap = new Map<string, any>();
+    const workloadsMap = new Map<string, UserWorkloadSummary>();
 
     workloadResults.forEach((result, index) => {
       if (result.status === 'fulfilled' && result.value.data) {
@@ -120,37 +142,39 @@ export async function GET(
     });
 
     // Build stats for each member
-    const stats = (members || []).map((member: any) => {
-      const userId = member.project_member?.user_id;
+    const typedTasks = tasks as SOWTaskRow[] | null;
+    const stats = ((members || []) as SOWMemberQueryResult[]).map(member => {
+      const userId = extractUserId(member.project_member);
       if (!userId) {
         return null;
       }
 
-      const userTasks = tasks?.filter((t: any) => t.assignee_id === userId) || [];
+      const userTasks = typedTasks?.filter(t => t.assignee_id === userId) || [];
       const taskCount = userTasks.length;
       const taskCountByStatus = {
-        todo: userTasks.filter((t: any) => t.status === 'todo').length,
-        in_progress: userTasks.filter((t: any) => t.status === 'in_progress').length,
-        done: userTasks.filter((t: any) => t.status === 'done').length,
+        todo: userTasks.filter(t => t.status === 'todo').length,
+        in_progress: userTasks.filter(t => t.status === 'in_progress').length,
+        done: userTasks.filter(t => t.status === 'done').length,
       };
 
       // Calculate total estimated hours
-      const totalEstimatedHours = userTasks.reduce((sum: number, t: any) => {
-        return sum + (parseFloat(t.estimated_hours) || 0);
+      const totalEstimatedHours = userTasks.reduce((sum: number, t) => {
+        const hours = typeof t.estimated_hours === 'string' ? parseFloat(t.estimated_hours) : (t.estimated_hours || 0);
+        return sum + (hours || 0);
       }, 0);
 
       // Get allocated hours for this project
       const allocatedHoursPerWeek = allocationsMap.get(userId) || 0;
 
       // Calculate average weeks until due dates
-      const weeksUntilDue = userTasks.length > 0 && userTasks.some((t: any) => t.due_date)
+      const weeksUntilDue = userTasks.length > 0 && userTasks.some(t => t.due_date)
         ? userTasks
-            .filter((t: any) => t.due_date)
-            .map((t: any) => {
+            .filter((t): t is SOWTaskRow & { due_date: string } => t.due_date !== null)
+            .map(t => {
               const daysUntilDue = Math.max(0, Math.ceil((new Date(t.due_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
               return daysUntilDue / 7;
             })
-            .reduce((avg: number, weeks: number, idx: number, arr: number[]) => {
+            .reduce((avg: number, weeks: number, _idx: number, arr: number[]) => {
               return avg + (weeks / arr.length);
             }, 0) || 4
         : 4;

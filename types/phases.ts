@@ -200,7 +200,10 @@ export interface TestCase {
 }
 
 // Union type for all phase data types
-export type PhaseData = Phase1Data | Phase2Data | Phase3Data | Phase4Data | Phase5Data | Phase6Data | Record<string, any>;
+export type PhaseData = Phase1Data | Phase2Data | Phase3Data | Phase4Data | Phase5Data | Phase6Data;
+
+// Flexible phase data type for dynamic access (use when phase number is unknown at compile time)
+export type PhaseDataUnion = Phase1Data | Phase2Data | Phase3Data | Phase4Data | Phase5Data | Phase6Data | Record<string, unknown>;
 
 // Phase metadata interface
 export interface PhaseMetadata {

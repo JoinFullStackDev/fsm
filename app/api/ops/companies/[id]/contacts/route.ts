@@ -242,10 +242,13 @@ export async function POST(
       if (!activityResult) {
         logger.debug('Activity feed item not created (table may not exist)');
       }
-    } catch (activityError: any) {
+    } catch (activityError) {
       // Check if it's a "table doesn't exist" error - if so, ignore it
-      const errorMessage = activityError?.message || String(activityError || '');
-      if (activityError?.code === '42P01' || 
+      const errorMessage = activityError instanceof Error ? activityError.message : String(activityError || '');
+      const errorCode = activityError && typeof activityError === 'object' && 'code' in activityError 
+        ? (activityError as { code?: string }).code 
+        : undefined;
+      if (errorCode === '42P01' || 
           errorMessage.includes('does not exist') || 
           errorMessage.includes('activity_feed_items')) {
         logger.debug('Activity feed items table does not exist, skipping');

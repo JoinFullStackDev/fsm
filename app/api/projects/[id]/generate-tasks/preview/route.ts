@@ -11,6 +11,56 @@ import { getOrganizationContext, hasFeatureAccess } from '@/lib/organizationCont
 import type { PreviewGenerationRequest, PreviewGenerationResponse } from '@/types/taskGenerator';
 import type { ProjectTask } from '@/types/project';
 
+// Local types for SOW member queries
+// Note: Supabase returns arrays for nested relations in joins
+interface SOWProjectMemberData {
+  project_member?: Array<{
+    user_id: string;
+    role: string;
+    user?: Array<{
+      id: string;
+      name: string | null;
+      email: string;
+    }>;
+  }>;
+  organization_role?: Array<{
+    name: string;
+    description: string | null;
+  }>;
+}
+
+interface AllocationData {
+  user_id: string;
+  allocated_hours_per_week: number;
+  user?: Array<{
+    id: string;
+    name: string | null;
+    email: string;
+  }>;
+}
+
+interface ProjectMemberData {
+  user_id: string;
+  role: string;
+}
+
+interface WorkloadResult {
+  userId: string;
+  data: { is_over_allocated?: boolean } | null;
+  error: unknown;
+}
+
+interface UserData {
+  id: string;
+  name: string | null;
+  email: string;
+}
+
+interface TaskData {
+  assignee_id: string | null;
+  status: string;
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -177,14 +227,16 @@ export async function POST(
       // If SOW exists, use SOW members
       if (activeSOW?.project_members && activeSOW.project_members.length > 0) {
         memberUserIds = activeSOW.project_members
-          .map((pm: any) => pm.project_member?.user_id)
-          .filter(Boolean);
+          .map((pm: SOWProjectMemberData) => pm.project_member?.[0]?.user_id)
+          .filter((id): id is string => Boolean(id));
 
-        activeSOW.project_members.forEach((pm: any) => {
-          const userId = pm.project_member?.user_id;
+        activeSOW.project_members.forEach((pm: SOWProjectMemberData) => {
+          const projectMember = pm.project_member?.[0];
+          const userId = projectMember?.user_id;
           if (userId) {
-            const roleName = pm.organization_role?.name || pm.project_member?.role || 'Team Member';
-            const roleDescription = pm.organization_role?.description || null;
+            const orgRole = pm.organization_role?.[0];
+            const roleName = orgRole?.name || projectMember?.role || 'Team Member';
+            const roleDescription = orgRole?.description || null;
             memberMap.set(userId, { role_name: roleName, role_description: roleDescription });
           }
         });
@@ -206,7 +258,7 @@ export async function POST(
           .or(`start_date.is.null,start_date.lte.${today},end_date.is.null,end_date.gte.${today}`);
 
         if (allocations && allocations.length > 0) {
-          memberUserIds = allocations.map((a: any) => a.user_id).filter(Boolean);
+          memberUserIds = allocations.map((a: AllocationData) => a.user_id).filter((id): id is string => Boolean(id));
           
           // Get project members to get their roles
           const { data: projectMembers } = await adminClient
@@ -215,9 +267,9 @@ export async function POST(
             .eq('project_id', params.id)
             .in('user_id', memberUserIds);
 
-          allocations.forEach((alloc: any) => {
+          allocations.forEach((alloc: AllocationData) => {
             const userId = alloc.user_id;
-            const pm = projectMembers?.find((pm: any) => pm.user_id === userId);
+            const pm = (projectMembers as ProjectMemberData[] | null)?.find((pm) => pm.user_id === userId);
             const roleName = pm?.role || 'Team Member';
             memberMap.set(userId, { role_name: roleName, role_description: null });
           });
@@ -249,16 +301,16 @@ export async function POST(
               p_user_id: userId,
               p_start_date: today,
               p_end_date: futureDate,
-            })).then((result: any) => ({ userId, data: result.data, error: result.error }))
-              .catch((error: any) => ({ userId, data: null, error }))
+            })).then((result) => ({ userId, data: result.data as { is_over_allocated?: boolean } | null, error: result.error }))
+              .catch((error: unknown) => ({ userId, data: null, error }))
           ),
         ]);
 
-        const tasks = tasksResult.data;
-        const users = usersResult.data;
-        const workloadsMap = new Map<string, any>();
+        const tasks = tasksResult.data as TaskData[] | null;
+        const users = usersResult.data as UserData[] | null;
+        const workloadsMap = new Map<string, { is_over_allocated?: boolean }>();
 
-        workloadResults.forEach((result: any) => {
+        (workloadResults as WorkloadResult[]).forEach((result) => {
           if (result?.data) {
             workloadsMap.set(result.userId, result.data);
           }
@@ -266,9 +318,9 @@ export async function POST(
 
         // Build sowMembers array for AI
         sowMembers = memberUserIds.map((userId: string) => {
-          const user = users?.find((u: any) => u.id === userId);
+          const user = users?.find((u) => u.id === userId);
           const memberInfo = memberMap.get(userId);
-          const taskCount = tasks?.filter((t: any) => t.assignee_id === userId).length || 0;
+          const taskCount = tasks?.filter((t) => t.assignee_id === userId).length || 0;
           const workload = workloadsMap.get(userId);
 
           return {
@@ -338,6 +390,7 @@ export async function POST(
     const response: PreviewGenerationResponse = {
       tasks: duplicateResult.tasks,
       summary: generationResult.summary,
+      response_time_ms: generationResult.response_time_ms,
     };
 
     logger.info('[Task Generator Preview] Preview generated successfully:', {
@@ -346,6 +399,7 @@ export async function POST(
       duplicatesCount: duplicateResult.tasks.filter(
         (t) => t.duplicateStatus !== 'unique'
       ).length,
+      responseTimeMs: generationResult.response_time_ms,
     });
 
     return NextResponse.json(response);

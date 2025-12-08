@@ -43,7 +43,22 @@ export async function POST(request: NextRequest) {
       return internalError('Failed to check database user', { error: dbError.message });
     }
 
-    const result: any = {
+    const result: {
+      existsInAuth: boolean;
+      existsInDatabase: boolean;
+      authUserId: string | null;
+      dbUserId: string | null;
+      emailConfirmed: boolean;
+      message?: string;
+      action?: string;
+      fixed?: boolean;
+      updateError?: string;
+      passwordResetError?: string;
+      passwordReset?: boolean;
+      createAuthUserError?: string;
+      authUserCreated?: boolean;
+      newAuthUserId?: string;
+    } = {
       existsInAuth: !!authUser,
       existsInDatabase: !!dbUser,
       authUserId: authUser?.id || null,

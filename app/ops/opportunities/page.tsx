@@ -192,17 +192,21 @@ export default function OpportunitiesPage() {
       key: 'name',
       label: 'Opportunity Name',
       sortable: true,
-      render: (value: string) => (
-        <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
-          {value}
-        </Typography>
-      ),
+      render: (val: unknown) => {
+        const value = val as string;
+        return (
+          <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
+            {value}
+          </Typography>
+        );
+      },
     },
     {
       key: 'company',
       label: 'Company',
       sortable: false,
-      render: (value: any) => {
+      render: (val: unknown) => {
+        const value = val as { name?: string } | null;
         if (!value?.name) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
         return (
           <Typography variant="body2" sx={{ color: theme.palette.text.primary }}>
@@ -215,11 +219,12 @@ export default function OpportunitiesPage() {
       key: 'value',
       label: 'Value',
       sortable: true,
-      render: (value: number | null) => {
+      render: (val: unknown) => {
+        const value = val as number | null;
         if (!value) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
         return (
           <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-            ${value.toLocaleString()}
+            ${String(value)}
           </Typography>
         );
       },
@@ -228,22 +233,26 @@ export default function OpportunitiesPage() {
       key: 'status',
       label: 'Status',
       sortable: true,
-      render: (value: string) => (
-        <Chip
-          label={value.charAt(0).toUpperCase() + value.slice(1)}
-          size="small"
-          sx={{
-            ...getStatusStyles(value),
-            fontWeight: 500,
-          }}
-        />
-      ),
+      render: (val: unknown) => {
+        const value = val as string;
+        return (
+          <Chip
+            label={value.charAt(0).toUpperCase() + value.slice(1)}
+            size="small"
+            sx={{
+              ...getStatusStyles(value),
+              fontWeight: 500,
+            }}
+          />
+        );
+      },
     },
     {
       key: 'source',
       label: 'Source',
       sortable: true,
-      render: (value: string) => {
+      render: (val: unknown) => {
+        const value = val as string;
         const displayValue = value || 'Manual';
         return (
           <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
@@ -256,7 +265,8 @@ export default function OpportunitiesPage() {
       key: 'created_at',
       label: 'Created',
       sortable: true,
-      render: (value: string) => {
+      render: (val: unknown) => {
+        const value = val as string;
         if (!value) return <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>-</Typography>;
         return (
           <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
@@ -270,7 +280,7 @@ export default function OpportunitiesPage() {
       label: 'Actions',
       sortable: false,
       align: 'right' as const,
-      render: (_: any, row: OpportunityWithCompany) => (
+      render: (_: unknown, row: OpportunityWithCompany) => (
         <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
           <IconButton
             size="small"

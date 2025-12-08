@@ -148,7 +148,17 @@ export async function PUT(
     const { title, slug, summary, body: articleBody, tags, category_id, metadata, published } = body;
 
     // Build update data
-    const updateData: any = {
+    const updateData: {
+      updated_by: string;
+      title?: string;
+      slug?: string;
+      summary?: string | null;
+      body?: string;
+      tags?: string[];
+      category_id?: string | null;
+      metadata?: Record<string, unknown>;
+      published?: boolean;
+    } = {
       updated_by: userData.id,
     };
 

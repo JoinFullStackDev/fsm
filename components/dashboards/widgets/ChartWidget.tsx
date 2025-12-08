@@ -19,16 +19,17 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
+import type { WidgetDataset, WidgetSettings, ChartDataPoint } from '@/types/database';
 
 interface ChartWidgetProps {
   widgetId: string;
   dashboardId: string;
-  dataset: any;
-  settings?: any;
+  dataset: WidgetDataset;
+  settings?: WidgetSettings;
 }
 
 interface ChartData {
-  data: Array<{ name: string; value?: number; [key: string]: any }>;
+  data: ChartDataPoint[];
   xAxis?: string;
   yAxis?: string;
   series?: Array<{ key: string; label: string }>; // For multi-series charts
@@ -265,7 +266,7 @@ export default function ChartWidget({ widgetId, dashboardId, dataset, settings }
       case 'pie':
         // Pie charts only support single series - use first series if multiple
         const pieData = isMultiSeries && chartData.series && chartData.series.length > 0
-          ? chartData.data.map((point: any) => ({
+          ? chartData.data.map((point: ChartDataPoint) => ({
               name: point.name,
               value: point[chartData.series![0].key] || 0,
             }))
@@ -284,7 +285,7 @@ export default function ChartWidget({ widgetId, dashboardId, dataset, settings }
                 fill="#8884d8"
                 dataKey="value"
               >
-                {pieData.map((entry: any, index: number) => (
+                {pieData.map((entry, index: number) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>

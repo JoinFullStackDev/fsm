@@ -5,6 +5,14 @@ import { getUserOrganizationId } from '@/lib/organizationContext';
 import { unauthorized, badRequest, internalError, notFound, forbidden } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 
+// Type for allocation update data
+interface AllocationUpdateData {
+  allocated_hours_per_week?: number;
+  start_date?: string;
+  end_date?: string;
+  notes?: string | null;
+}
+
 export const dynamic = 'force-dynamic';
 
 // PUT - Update a resource allocation
@@ -89,7 +97,7 @@ export async function PUT(
     } = body;
 
     // Build update object
-    const updateData: any = {};
+    const updateData: AllocationUpdateData = {};
     if (allocated_hours_per_week !== undefined) {
       if (allocated_hours_per_week <= 0) {
         return badRequest('allocated_hours_per_week must be greater than 0');

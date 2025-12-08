@@ -1,4 +1,5 @@
 'use client';
+import type { WidgetDataset, WidgetSettings } from '@/types/database';
 
 import { Card, CardContent, Typography, Box } from '@mui/material';
 import ReactMarkdown from 'react-markdown';
@@ -6,12 +7,12 @@ import ReactMarkdown from 'react-markdown';
 interface RichTextWidgetProps {
   widgetId: string;
   dashboardId: string;
-  dataset: any;
-  settings?: any;
+  dataset: WidgetDataset;
+  settings?: WidgetSettings;
 }
 
 export default function RichTextWidget({ widgetId, dashboardId, dataset, settings }: RichTextWidgetProps) {
-  const content = dataset.content || settings?.content || '';
+  const content = dataset.content || (settings?.content as string | undefined) || '';
 
   return (
     <Card sx={{ height: '100%' }}>

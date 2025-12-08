@@ -30,6 +30,8 @@ import {
   Work as WorkIcon,
 } from '@mui/icons-material';
 
+import type { WidgetDataset, WidgetSettings } from '@/types/database';
+
 interface DashboardTemplate {
   id: string;
   name: string;
@@ -37,9 +39,9 @@ interface DashboardTemplate {
   icon: string;
   widgets: Array<{
     widget_type: string;
-    dataset: any;
+    dataset: WidgetDataset;
     position: { x: number; y: number; w: number; h: number };
-    settings: any;
+    settings: WidgetSettings;
   }>;
 }
 

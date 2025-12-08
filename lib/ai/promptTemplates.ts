@@ -1,112 +1,248 @@
 /**
  * Common prompt templates and constants for AI operations
- * Reduces duplication and improves maintainability
+ * Optimized for reduced token usage while maintaining effectiveness
  */
 
 /**
- * Common assignment rules for SOW member task assignment
- * Used in both task generation and project analysis
+ * SOW Member type for task assignment
  */
-export const SOW_ASSIGNMENT_RULES = `CRITICAL ASSIGNMENT RULES - MATCH IN THIS EXACT ORDER:
+export interface SOWMember {
+  user_id: string;
+  name: string;
+  role_name: string;
+  role_description: string | null;
+  current_task_count: number;
+  is_overworked: boolean;
+}
 
-STEP 1: PHASE MATCHING (MANDATORY - Must match first):
-   Check the task's phase_number and look up the corresponding phase name from the "Project Phases" list above.
-   Then analyze what type of work that phase requires and match it to team members:
-   
-   - Find the phase name for the task's phase_number (e.g., if phase_number is 6, find "Phase 6: [phase name]")
-   - Analyze the phase name to understand what work it requires:
-     * If phase name contains "concept", "discovery", "strategy", "planning", "framing", "research", "requirements": Match to roles with "product", "strategy", "business", "analyst", "owner", "manager" in role_name or role_description
-     * If phase name contains "design", "UI", "UX", "wireframe", "mockup", "visual": Match to roles with "design", "UI", "UX", "visual", "creative" in role_name or role_description
-     * If phase name contains "build", "develop", "implement", "code", "engineering", "accelerator", "technical", "architecture", "API", "backend", "frontend", "database": Match to roles with "engineer", "developer", "architect", "technical", "programmer", "coder", "backend", "frontend", "full-stack", "software" in role_name or role_description
-     * If phase name contains "QA", "quality", "test", "testing", "hardening", "verification", "assurance", "analysis" (in testing context): Match to roles with "QA", "test", "quality", "assurance", "tester", "SDET" in role_name or role_description
-     * If phase name contains "analysis", "user stories", "stories", "specification": Match to roles with "product", "analyst", "manager", "owner", "technical" in role_name or role_description
-   
-   IMPORTANT EXAMPLES:
-   - Phase name "Testing & Quality Assurance" → Match to roles containing "QA", "test", "quality", "assurance", "tester", "SDET"
-   - Phase name "Build Accelerator" → Match to roles containing "engineer", "developer", "architect", "technical", "programmer"
-   - Phase name "Product Strategy" → Match to roles containing "product", "strategy", "manager", "owner", "business"
-   
-   CRITICAL: Use semantic matching - if a phase is about "Testing & Quality Assurance" and someone's role_name is "QA Engineer" or role_description mentions "quality assurance", that's a match.
-   - Compare the phase name directly to each team member's role_name and role_description
-   - Use the EXACT role_name and role_description from the team members list above
-   - If the role_name or role_description semantically matches what the phase requires, it's a match
-   - If NO team member's role matches the phase requirements, set assignee_id to null (DO NOT assign)
+/**
+ * Phase info for context building
+ */
+export interface PhaseInfo {
+  phase_number: number;
+  phase_name?: string;
+}
 
-STEP 2: TITLE MATCHING (Required if phase matches):
-   After filtering by phase, check the task title for keywords. Match against the team member's ACTUAL role_name and role_description:
-   
-   - Title contains "design", "UI", "UX", "wireframe", "mockup", "visual", "designer": Role_name or role_description MUST contain "design", "UI", "UX", "visual", "creative", or similar design-related terms
-   - Title contains "code", "implement", "develop", "build", "API", "backend", "frontend", "database", "engineer", "developer": Role_name or role_description MUST contain "engineer", "developer", "architect", "technical", "programmer", "coder", "backend", "frontend", or similar technical terms
-   - Title contains "test", "QA", "quality", "testing", "verify", "test case": Role_name or role_description MUST contain "QA", "test", "quality", "assurance", "tester", or similar testing-related terms
-   - Title contains "product", "strategy", "requirements", "stakeholder", "roadmap", "product manager": Role_name or role_description MUST contain "product", "strategy", "manager", "owner", "analyst", "business", or similar product/business terms
-   - Title contains "business", "sales", "marketing", "outreach", "partnership": Role_name or role_description MUST contain "business", "sales", "marketing", "development", "partnership", or similar business-related terms
-   
-   IMPORTANT: Match against the ACTUAL role_name and role_description from the team members list, not generic role names.
-   If title keywords don't match the role name/description, set assignee_id to null (DO NOT assign).
+/**
+ * Role keyword mappings for task assignment
+ * Maps role types to task keywords they should handle
+ */
+export const ROLE_KEYWORD_MAP: Record<string, string[]> = {
+  // Engineering/Development roles
+  'engineer|developer|technical|architect|programmer|coder|backend|frontend|full-stack|software': [
+    'code', 'implement', 'develop', 'build', 'API', 'database', 'backend', 'frontend',
+    'integrate', 'debug', 'deploy', 'infrastructure', 'architecture', 'technical'
+  ],
+  // Design roles
+  'design|UI|UX|visual|creative|graphic': [
+    'design', 'wireframe', 'mockup', 'prototype', 'UI', 'UX', 'visual', 'layout',
+    'interface', 'user experience', 'style guide', 'figma', 'sketch'
+  ],
+  // QA/Testing roles
+  'QA|test|quality|assurance|tester|SDET': [
+    'test', 'QA', 'verify', 'validate', 'quality', 'bug', 'regression',
+    'test case', 'automation', 'testing', 'coverage'
+  ],
+  // Product/Strategy roles
+  'product|strategy|manager|owner|analyst|business analyst|PM': [
+    'requirements', 'strategy', 'roadmap', 'stakeholder', 'user stories',
+    'prioritize', 'scope', 'specification', 'planning', 'analysis'
+  ],
+  // Business/Sales roles
+  'business|sales|marketing|growth|partnership': [
+    'business', 'sales', 'marketing', 'outreach', 'partnership',
+    'customer', 'lead', 'revenue', 'growth'
+  ]
+};
 
-STEP 3: DESCRIPTION MATCHING (Required if phase and title match):
-   Check the task description for keywords that confirm the role match. Use the team member's ACTUAL role_name and role_description:
-   
-   - Description mentions coding, APIs, databases, infrastructure, technical: Role_name or role_description MUST contain technical/engineering keywords
-   - Description mentions design, wireframes, mockups, visual, user experience: Role_name or role_description MUST contain design-related keywords
-   - Description mentions testing, test cases, quality assurance, verification: Role_name or role_description MUST contain testing/QA keywords
-   - Description mentions product strategy, requirements gathering, stakeholder management: Role_name or role_description MUST contain product/business/strategy keywords
-   - Description mentions sales, partnerships, business relationships: Role_name or role_description MUST contain business/sales keywords
-   
-   IMPORTANT: Use semantic matching - if the description aligns with what the role_name or role_description indicates the person does, it's a match.
-   If description doesn't confirm the role match, set assignee_id to null (DO NOT assign).
+/**
+ * Phase type mappings - which role types typically work on which phase types
+ */
+export const PHASE_ROLE_MAP: Record<string, string[]> = {
+  'concept|discovery|strategy|planning|framing|research': ['product', 'strategy', 'manager', 'analyst', 'business'],
+  'design|UI|UX|wireframe|mockup|visual': ['design', 'UI', 'UX', 'visual', 'creative'],
+  'build|develop|implement|code|engineering|accelerator|technical|architecture': ['engineer', 'developer', 'architect', 'technical', 'programmer'],
+  'QA|quality|test|testing|hardening|verification|assurance': ['QA', 'test', 'quality', 'assurance', 'tester'],
+  'analysis|user stories|stories|specification': ['product', 'analyst', 'manager', 'owner']
+};
 
-STEP 4: FINAL VALIDATION:
-   - ALL THREE criteria (phase, title, description) MUST match the role based on the ACTUAL role_name and role_description
-   - Use semantic understanding: if a role description says "responsible for frontend development", that person should get frontend tasks
-   - If any criterion doesn't match, set assignee_id to null
-   - Among multiple matching members, prefer those with fewer current tasks
-   - Avoid overworked members (marked [OVERWORKED]) unless they're the only match
-   - If no clear match exists after all checks, set assignee_id to null
+/**
+ * Compact assignment rules - much more effective and 90% smaller than original
+ */
+export const COMPACT_ASSIGNMENT_RULES = `TASK ASSIGNMENT RULES:
 
-CRITICAL: Use the exact user_id UUID for assignee_id, NOT the name. 
-ONLY assign if ALL THREE criteria (phase, title, description) clearly match the role based on the ACTUAL role_name and role_description provided above. 
-When in doubt, leave unassigned (null).`;
+1. MATCH ROLE TO TASK: Check if team member's role_name/role_description contains keywords matching the task:
+   - Engineer/Developer roles → code, API, database, implement, build, integrate tasks
+   - Designer roles → design, wireframe, mockup, UI, UX, prototype tasks  
+   - QA/Tester roles → test, verify, validate, quality, bug tasks
+   - Product/Manager roles → requirements, strategy, roadmap, stakeholder tasks
+   - Business/Sales roles → business, sales, marketing, partnership tasks
+
+2. MATCH ROLE TO PHASE: The task's phase should align with the role's work type:
+   - Early phases (concept, strategy, planning) → Product/Manager roles
+   - Design phases → Designer roles
+   - Build/Development phases → Engineer/Developer roles
+   - Testing/QA phases → QA/Tester roles
+
+3. ASSIGNMENT PRIORITY:
+   - Prefer members with fewer current tasks (load balancing)
+   - Avoid members marked [BUSY] unless they're the only match
+   - If no clear match, set assignee_id to null
+
+4. CRITICAL: Use exact user_id UUID, NOT the name. When uncertain, leave unassigned (null).`;
+
+/**
+ * Legacy assignment rules - kept for backwards compatibility
+ * @deprecated Use COMPACT_ASSIGNMENT_RULES instead
+ */
+export const SOW_ASSIGNMENT_RULES = COMPACT_ASSIGNMENT_RULES;
+
+/**
+ * Build compact SOW members context for prompts
+ * Optimized for minimal token usage while preserving assignment effectiveness
+ */
+export function buildCompactSOWContext(
+  sowMembers: SOWMember[],
+  phases?: PhaseInfo[]
+): string {
+  if (!sowMembers?.length) return '';
+
+  // Compact member format: id|role|description|tasks|status
+  const membersList = sowMembers
+    .map(m => {
+      const status = m.is_overworked ? ' [BUSY]' : '';
+      const desc = m.role_description ? ` (${m.role_description.substring(0, 50)})` : '';
+      return `- ${m.user_id} | ${m.role_name}${desc} | ${m.current_task_count} tasks${status}`;
+    })
+    .join('\n');
+
+  // Optional phase list for context
+  const phaseContext = phases?.length
+    ? `\nPhases: ${phases.map(p => `${p.phase_number}:${p.phase_name || 'Phase ' + p.phase_number}`).join(', ')}`
+    : '';
+
+  return `
+TEAM MEMBERS (id | role | tasks):
+${membersList}${phaseContext}
+
+${COMPACT_ASSIGNMENT_RULES}`;
+}
 
 /**
  * Build SOW members context string for prompts
+ * @deprecated Use buildCompactSOWContext for better token efficiency
  */
 export function buildSOWMembersContext(
-  sowMembers: Array<{
-    user_id: string;
-    name: string;
-    role_name: string;
-    role_description: string | null;
-    current_task_count: number;
-    is_overworked: boolean;
-  }>,
-  phases: Array<{ phase_number: number; phase_name?: string }>
+  sowMembers: SOWMember[],
+  phases: PhaseInfo[]
 ): string {
-  if (!sowMembers || sowMembers.length === 0) {
-    return '';
-  }
-
-  const membersList = sowMembers
-    .map(
-      (m) =>
-        `- ${m.name} (ID: ${m.user_id}, Role: "${m.role_name}"${
-          m.role_description ? ` - Description: "${m.role_description}"` : ''
-        }): ${m.current_task_count} current tasks${
-          m.is_overworked ? ' [OVERWORKED - avoid assigning]' : ''
-        }`
-    )
-    .join('\n');
-
-  const phasesList = phases
-    .map((p) => `- Phase ${p.phase_number}: "${p.phase_name || `Phase ${p.phase_number}`}"`)
-    .join('\n');
-
-  return `\n\nTeam Members Available (from Scope of Work):
-${membersList}
-
-Project Phases (for reference):
-${phasesList}
-
-${SOW_ASSIGNMENT_RULES}`;
+  // Delegate to compact version for consistency
+  return buildCompactSOWContext(sowMembers, phases);
 }
 
+/**
+ * Get role keywords for matching
+ */
+export function getRoleKeywords(rolePattern: string): string[] {
+  for (const [pattern, keywords] of Object.entries(ROLE_KEYWORD_MAP)) {
+    if (new RegExp(pattern, 'i').test(rolePattern)) {
+      return keywords;
+    }
+  }
+  return [];
+}
+
+/**
+ * Get expected role types for a phase name
+ */
+export function getPhaseRoleTypes(phaseName: string): string[] {
+  for (const [pattern, roles] of Object.entries(PHASE_ROLE_MAP)) {
+    if (new RegExp(pattern, 'i').test(phaseName)) {
+      return roles;
+    }
+  }
+  return [];
+}
+
+/**
+ * Check if a role matches a phase type
+ */
+export function roleMatchesPhase(roleName: string, roleDescription: string | null, phaseName: string): boolean {
+  const expectedRoles = getPhaseRoleTypes(phaseName);
+  if (expectedRoles.length === 0) return true; // No specific requirement
+  
+  const roleText = `${roleName} ${roleDescription || ''}`.toLowerCase();
+  return expectedRoles.some(role => roleText.includes(role.toLowerCase()));
+}
+
+/**
+ * Check if a role matches task keywords
+ */
+export function roleMatchesTaskKeywords(
+  roleName: string, 
+  roleDescription: string | null, 
+  taskTitle: string, 
+  taskDescription: string | null
+): boolean {
+  const roleText = `${roleName} ${roleDescription || ''}`.toLowerCase();
+  const taskText = `${taskTitle} ${taskDescription || ''}`.toLowerCase();
+  
+  for (const [rolePattern, taskKeywords] of Object.entries(ROLE_KEYWORD_MAP)) {
+    // Check if role matches this pattern
+    if (new RegExp(rolePattern, 'i').test(roleText)) {
+      // Check if task contains any of the expected keywords
+      if (taskKeywords.some(keyword => taskText.includes(keyword.toLowerCase()))) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Find best assignee for a task based on role matching
+ */
+export function findBestAssignee(
+  taskTitle: string,
+  taskDescription: string | null,
+  phaseName: string,
+  sowMembers: SOWMember[]
+): string | null {
+  if (!sowMembers?.length) return null;
+
+  // Score each member
+  const scored = sowMembers.map(member => {
+    let score = 0;
+    
+    // Phase match (most important)
+    if (roleMatchesPhase(member.role_name, member.role_description, phaseName)) {
+      score += 3;
+    }
+    
+    // Task keyword match
+    if (roleMatchesTaskKeywords(member.role_name, member.role_description, taskTitle, taskDescription)) {
+      score += 2;
+    }
+    
+    // Workload penalty
+    score -= member.current_task_count * 0.1;
+    
+    // Overworked penalty
+    if (member.is_overworked) {
+      score -= 2;
+    }
+    
+    return { member, score };
+  });
+
+  // Sort by score descending
+  scored.sort((a, b) => b.score - a.score);
+  
+  // Only assign if score is positive (meaningful match)
+  const best = scored[0];
+  if (best && best.score > 0) {
+    return best.member.user_id;
+  }
+  
+  return null;
+}

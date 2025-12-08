@@ -30,6 +30,7 @@ import {
   ArrowBack as ArrowBackIcon,
   Star as StarIcon,
   Verified as VerifiedIcon,
+  LocalOffer as OfferIcon,
 } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import type { PackageFeatures } from '@/lib/organizationContext';
@@ -68,6 +69,46 @@ function SignUpPageContent() {
   const [selectedBillingInterval, setSelectedBillingInterval] = useState<'month' | 'year'>('month');
   const [loadingPackages, setLoadingPackages] = useState(true);
   const [accountCreated, setAccountCreated] = useState(false);
+  const [affiliateCode, setAffiliateCode] = useState<string | null>(null);
+  const [affiliateDiscount, setAffiliateDiscount] = useState<{ type: string; value: number } | null>(null);
+
+  // Capture ref parameter from URL and store in sessionStorage
+  useEffect(() => {
+    const refCode = searchParams.get('ref');
+    if (refCode) {
+      const upperCode = refCode.toUpperCase();
+      sessionStorage.setItem('affiliate_code', upperCode);
+      setAffiliateCode(upperCode);
+      validateAffiliateCode(upperCode);
+    } else {
+      const storedCode = sessionStorage.getItem('affiliate_code');
+      if (storedCode) {
+        setAffiliateCode(storedCode);
+        validateAffiliateCode(storedCode);
+      }
+    }
+  }, [searchParams]);
+
+  const validateAffiliateCode = async (code: string) => {
+    try {
+      const response = await fetch('/api/affiliates/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.valid && data.code) {
+          setAffiliateDiscount({
+            type: data.code.discount_type,
+            value: data.code.discount_value,
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Failed to validate affiliate code:', err);
+    }
+  };
 
   const loadPackages = useCallback(async () => {
     try {
@@ -306,6 +347,9 @@ function SignUpPageContent() {
       const successUrl = `${window.location.origin}/auth/signup-callback?session_id={CHECKOUT_SESSION_ID}`;
       const cancelUrl = `${window.location.origin}/auth/signup?canceled=true`;
 
+      // Get affiliate code from state or sessionStorage
+      const effectiveAffiliateCode = affiliateCode || sessionStorage.getItem('affiliate_code');
+
       const checkoutResponse = await fetch('/api/stripe/create-signup-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -317,6 +361,7 @@ function SignUpPageContent() {
           organization_name: organizationName.trim(),
           success_url: successUrl,
           cancel_url: cancelUrl,
+          affiliate_code: effectiveAffiliateCode,
         }),
       });
 
@@ -455,17 +500,17 @@ function SignUpPageContent() {
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: '#1a1a1a' }}>
+              <Typography variant="h5" sx={{ fontWeight: 700, color: theme.palette.primary.contrastText }}>
                 {selectedPackage.name}
               </Typography>
-              <VerifiedIcon sx={{ fontSize: 28, color: '#1a1a1a' }} />
+              <VerifiedIcon sx={{ fontSize: 28, color: theme.palette.primary.contrastText }} />
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-              <Typography variant="h3" sx={{ fontWeight: 800, color: '#1a1a1a' }}>
+              <Typography variant="h3" sx={{ fontWeight: 800, color: theme.palette.primary.contrastText }}>
                 {isFree ? 'Free' : `$${price.toFixed(2)}`}
               </Typography>
               {!isFree && (
-                <Typography variant="body1" sx={{ color: '#1a1a1a' }}>
+                <Typography variant="body1" sx={{ color: theme.palette.primary.contrastText }}>
                   {suffix}
                 </Typography>
               )}
@@ -474,8 +519,9 @@ function SignUpPageContent() {
               <Typography 
                 variant="body2" 
                 sx={{ 
-                  color: '#1a1a1a !important', 
+                  color: theme.palette.primary.contrastText, 
                   mt: 0.5,
+                  opacity: 0.9,
                 }}
               >
                 or ${(selectedBillingInterval === 'month' ? yearlyPrice : monthlyPrice).toFixed(2)}
@@ -657,6 +703,28 @@ function SignUpPageContent() {
               Create your account and choose a plan
             </Typography>
 
+            {/* Affiliate discount banner */}
+            {affiliateCode && affiliateDiscount && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Chip
+                  icon={<OfferIcon />}
+                  label={
+                    affiliateDiscount.type === 'percentage'
+                      ? `${affiliateDiscount.value}% off with code: ${affiliateCode}`
+                      : affiliateDiscount.type === 'fixed_amount'
+                      ? `$${affiliateDiscount.value} off with code: ${affiliateCode}`
+                      : `Special offer: ${affiliateCode}`
+                  }
+                  color="success"
+                  sx={{ mb: 2, fontWeight: 600, width: '100%', justifyContent: 'flex-start' }}
+                />
+              </motion.div>
+            )}
+
             {error && (
               <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
                 {error}
@@ -829,7 +897,7 @@ function SignUpPageContent() {
                     fontWeight: 600,
                     borderRadius: 2,
                     background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.light} 100%)`,
-                    color: '#1a1a1a',
+                    color: theme.palette.primary.contrastText,
                     '&:hover': {
                       transform: 'translateY(-1px)',
                       boxShadow: `0 6px 20px ${alpha(theme.palette.primary.main, 0.4)}`,

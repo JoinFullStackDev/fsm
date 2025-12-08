@@ -1,4 +1,5 @@
 'use client';
+import type { PhaseDataUnion } from '@/types/phases';
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
@@ -60,15 +61,6 @@ import {
 } from '@mui/icons-material';
 import type { TemplateFieldConfig } from '@/types/templates';
 
-interface TableFieldProps {
-  field: TemplateFieldConfig;
-  value: any;
-  onChange: (value: any) => void;
-  error?: string;
-  phaseData?: any;
-  renderHeaderActions?: (actions: React.ReactNode) => void;
-}
-
 interface TableColumn {
   key: string;
   label: string;
@@ -77,9 +69,18 @@ interface TableColumn {
   required?: boolean;
 }
 
-interface TableData {
+export interface TableData {
   columns: TableColumn[];
-  rows: Record<string, any>[];
+  rows: Record<string, unknown>[];
+}
+
+interface TableFieldProps {
+  field: TemplateFieldConfig;
+  value: TableData | null;
+  onChange: (value: TableData) => void;
+  error?: string;
+  phaseData?: Record<string, unknown>;
+  renderHeaderActions?: (actions: React.ReactNode) => void;
 }
 
 interface EditingCell {
@@ -103,7 +104,7 @@ function SortableColumnHeader({
   column: TableColumn; 
   colIndex: number;
   onMenuOpen: (e: React.MouseEvent<HTMLElement>, colIndex: number) => void;
-  theme: any;
+  theme: { palette: { background: { paper: string }; text: { primary: string; secondary: string }; action: { hover: string } } };
 }) {
   const {
     attributes,
@@ -260,7 +261,7 @@ function TableField({ field, value, onChange, error, phaseData, renderHeaderActi
   };
 
   const handleAddRow = () => {
-    const newRow: Record<string, any> = {};
+    const newRow: Record<string, unknown> = {};
     tableData.columns.forEach(col => {
       switch (col.type) {
         case 'checkbox':
@@ -289,7 +290,7 @@ function TableField({ field, value, onChange, error, phaseData, renderHeaderActi
     });
   };
 
-  const handleCellChange = (rowIndex: number, columnKey: string, newValue: any) => {
+  const handleCellChange = (rowIndex: number, columnKey: string, newValue: string | number | boolean) => {
     const newRows = [...tableData.rows];
     if (!newRows[rowIndex]) {
       newRows[rowIndex] = {};
@@ -472,7 +473,7 @@ function TableField({ field, value, onChange, error, phaseData, renderHeaderActi
       const headers = parseCSVLine(lines[0]);
       const rows = lines.slice(1).map(line => {
         const values = parseCSVLine(line);
-        const row: Record<string, any> = {};
+        const row: Record<string, unknown> = {};
         headers.forEach((header, index) => {
           row[header] = values[index] || '';
         });
@@ -564,7 +565,7 @@ function TableField({ field, value, onChange, error, phaseData, renderHeaderActi
   };
 
   // Render cell for editable table (fullscreen only)
-  const renderCell = (row: Record<string, any>, column: TableColumn, rowIndex: number) => {
+  const renderCell = (row: Record<string, unknown>, column: TableColumn, rowIndex: number) => {
     const value = row[column.key] ?? '';
     const isEditing = editingCell?.rowIndex === rowIndex && editingCell?.columnKey === column.key;
 
@@ -691,7 +692,7 @@ function TableField({ field, value, onChange, error, phaseData, renderHeaderActi
   };
 
   // Render read-only cell for preview
-  const renderPreviewCell = (row: Record<string, any>, column: TableColumn) => {
+  const renderPreviewCell = (row: Record<string, unknown>, column: TableColumn) => {
     const value = row[column.key] ?? '';
     const displayValue = value === null || value === undefined ? '' : String(value);
 

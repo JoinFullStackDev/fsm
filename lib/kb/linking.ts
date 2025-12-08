@@ -8,6 +8,39 @@ import logger from '@/lib/utils/logger';
 import { generateArticleEmbedding } from './embeddings';
 import type { RelatedContent, KnowledgeBaseArticle } from '@/types/kb';
 
+// Internal query result types
+interface ArticleWithVectorResult {
+  id: string;
+  title: string;
+  slug: string;
+  organization_id: string | null;
+  vector: number[] | string | null;
+}
+
+interface ArticleWithSimilarity extends ArticleWithVectorResult {
+  similarity: number;
+}
+
+interface TaskQueryResult {
+  id: string;
+  title: string;
+  description: string | null;
+  project_id: string;
+}
+
+interface DashboardQueryResult {
+  id: string;
+  name: string;
+}
+
+interface PhaseQueryResult {
+  id: string;
+  project_id: string;
+  phase_number: number;
+  phase_name: string | null;
+  data: Record<string, unknown>;
+}
+
 /**
  * Calculate cosine similarity between two vectors
  */
@@ -104,7 +137,7 @@ export async function findRelatedArticles(
 
     // Filter by organization (include global docs)
     const sourceOrgId = sourceArticle.organization_id;
-    const filtered = allArticles.filter((item: any) => {
+    const filtered = (allArticles as ArticleWithVectorResult[]).filter((item) => {
       if (sourceOrgId === null) {
         // Global article - only show global articles
         return item.organization_id === null;
@@ -116,8 +149,8 @@ export async function findRelatedArticles(
 
     // Calculate cosine similarity for each article
     const similarArticles = filtered
-      .map((item: any) => {
-        if (!item.vector || !Array.isArray(item.vector)) {
+      .map((item): ArticleWithSimilarity | null => {
+        if (!item.vector) {
           return null;
         }
         // Convert item vector to array if needed
@@ -132,12 +165,12 @@ export async function findRelatedArticles(
         const similarity = cosineSimilarity(sourceEmbedding, itemVector);
         return { ...item, similarity };
       })
-      .filter((r: any) => r !== null)
-      .sort((a: any, b: any) => b.similarity - a.similarity)
+      .filter((r): r is ArticleWithSimilarity => r !== null)
+      .sort((a, b) => b.similarity - a.similarity)
       .slice(0, limit);
 
     // Format results
-    return similarArticles.map((item: any) => ({
+    return similarArticles.map((item) => ({
       id: item.id,
       title: item.title,
       slug: item.slug,
@@ -204,8 +237,8 @@ export async function findRelatedTasks(
     }
 
     // Filter tasks that contain keywords and find matching keywords
-    const relatedTasks = (tasks || [])
-      .map((task: any) => {
+    const relatedTasks = ((tasks || []) as TaskQueryResult[])
+      .map((task) => {
         const taskText = `${task.title} ${task.description || ''}`.toLowerCase();
         const matchingKeywords = keywords.filter(kw => 
           taskText.includes(kw.toLowerCase())
@@ -266,7 +299,7 @@ export async function findRelatedDashboards(
       return [];
     }
 
-    return (dashboards || []).map((dashboard: any) => ({
+    return ((dashboards || []) as DashboardQueryResult[]).map((dashboard) => ({
       id: dashboard.id,
       name: dashboard.name,
     }));
@@ -329,8 +362,8 @@ export async function findRelatedPhases(
     }
 
     // Filter phases that contain keywords in their data and find matching keywords
-    const relatedPhases = (phases || [])
-      .map((phase: any) => {
+    const relatedPhases = ((phases || []) as PhaseQueryResult[])
+      .map((phase) => {
         const phaseData = JSON.stringify(phase.data || {}).toLowerCase();
         const matchingKeywords = keywords.filter(kw => 
           phaseData.includes(kw.toLowerCase())

@@ -4,6 +4,38 @@ import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { internalError } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 
+// Types for AI usage data
+interface ActivityLogRow {
+  id: string;
+  user_id: string | null;
+  action_type: string;
+  created_at: string;
+  metadata: AIUsageMetadata | null;
+}
+
+interface AIUsageMetadata {
+  full_prompt_length?: number;
+  prompt_length?: number;
+  response_length?: number;
+  input_tokens?: number;
+  output_tokens?: number;
+  total_tokens?: number;
+  estimated_cost?: number;
+  response_time_ms?: number;
+  error?: string;
+  feature_type?: string;
+}
+
+interface UserRow {
+  id: string;
+  organization_id: string | null;
+}
+
+interface OrganizationRow {
+  id: string;
+  name: string;
+}
+
 export const dynamic = 'force-dynamic';
 
 /**
@@ -40,7 +72,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get unique user IDs from logs
-    const userIds = [...new Set((aiLogs || []).map((log: any) => log.user_id).filter(Boolean))];
+    const userIds = [...new Set((aiLogs as ActivityLogRow[] || []).map((log) => log.user_id).filter((id): id is string => Boolean(id)))];
 
     // Get user and organization info for all users
     let usersMap = new Map<string, { organization_id: string | null; organization_name: string | null }>();
@@ -55,7 +87,7 @@ export async function GET(request: NextRequest) {
 
       if (!usersError && users) {
         // Get unique organization IDs
-        const orgIds = [...new Set(users.map((u: any) => u.organization_id).filter(Boolean))];
+        const orgIds = [...new Set((users as UserRow[]).map((u) => u.organization_id).filter((id): id is string => Boolean(id)))];
         
         // Get organization names
         if (orgIds.length > 0) {
@@ -65,14 +97,14 @@ export async function GET(request: NextRequest) {
             .in('id', orgIds);
 
           if (!orgsError && orgs) {
-            orgs.forEach((org: any) => {
+            (orgs as OrganizationRow[]).forEach((org) => {
               orgsMap.set(org.id, org.name);
             });
           }
         }
 
         // Build users map
-        users.forEach((user: any) => {
+        (users as UserRow[]).forEach((user) => {
           usersMap.set(user.id, {
             organization_id: user.organization_id,
             organization_name: user.organization_id ? (orgsMap.get(user.organization_id) || null) : null,
@@ -125,7 +157,7 @@ export async function GET(request: NextRequest) {
       error_count: number;
     }>();
 
-    (aiLogs || []).forEach((log: any) => {
+    ((aiLogs as ActivityLogRow[]) || []).forEach((log) => {
       totalRequests++;
       
       const logDate = new Date(log.created_at);

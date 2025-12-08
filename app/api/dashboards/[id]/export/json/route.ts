@@ -99,17 +99,27 @@ export async function GET(
     }
 
     // Export structure (without sensitive data)
+    interface DashboardWidget {
+      widget_type: string;
+      dataset?: Record<string, unknown>;
+      position?: Record<string, unknown>;
+      settings?: Record<string, unknown>;
+    }
+    
+    const dashboardRecord = dashboard as Record<string, unknown>;
+    const widgets = (dashboardRecord.widgets as DashboardWidget[] | undefined)?.map(w => ({
+      widget_type: w.widget_type,
+      dataset: w.dataset,
+      position: w.position,
+      settings: w.settings,
+    })) || [];
+    
     const exportData = {
       name: dashboard.name,
       description: dashboard.description,
       is_personal: dashboard.is_personal,
       layout: dashboard.layout,
-      widgets: (dashboard as any).widgets?.map((w: any) => ({
-        widget_type: w.widget_type,
-        dataset: w.dataset,
-        position: w.position,
-        settings: w.settings,
-      })) || [],
+      widgets,
       exported_at: new Date().toISOString(),
     };
 

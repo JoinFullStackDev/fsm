@@ -119,45 +119,57 @@ export default function CompanyProjectsTab({ companyId }: CompanyProjectsTabProp
       key: 'company',
       label: 'Company',
       sortable: false,
-      render: (value: any) => value?.name || '-',
+      render: (val: unknown) => {
+        const value = val as { name?: string } | null;
+        return value?.name || '-';
+      },
     },
     {
       key: 'status',
       label: 'Status',
       sortable: true,
-      render: (value: string) => (
-        <Chip
-          label={value.replace(/_/g, ' ')}
-          color={getStatusColor(value) as any}
-          size="small"
-        />
-      ),
+      render: (val: unknown) => {
+        const value = val as string;
+        return (
+          <Chip
+            label={value.replace(/_/g, ' ')}
+            color={getStatusColor(value) as 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'}
+            size="small"
+          />
+        );
+      },
     },
     {
       key: 'source',
       label: 'Source',
       sortable: true,
-      render: (value: string | null) => (
-        <Chip
-          label={value || 'Manual'}
-          size="small"
-          variant="outlined"
-          color={value === 'Converted' ? 'success' : 'default'}
-        />
-      ),
+      render: (val: unknown) => {
+        const value = val as string | null;
+        return (
+          <Chip
+            label={value || 'Manual'}
+            size="small"
+            variant="outlined"
+            color={value === 'Converted' ? 'success' : 'default'}
+          />
+        );
+      },
     },
     {
       key: 'created_at',
       label: 'Created',
       sortable: true,
-      render: (value: string) => new Date(value).toLocaleDateString(),
+      render: (val: unknown) => {
+        const value = val as string;
+        return new Date(value).toLocaleDateString();
+      },
     },
     {
       key: 'actions',
       label: 'Actions',
       sortable: false,
       align: 'right' as const,
-      render: (_: any, row: Project) => (
+      render: (_: unknown, row: Project) => (
         <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
           <IconButton
             size="small"

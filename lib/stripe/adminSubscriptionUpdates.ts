@@ -109,7 +109,7 @@ export async function updateSubscriptionQuantityForUsers(
 export async function getSubscriptionWithUserDetails(
   organizationId: string
 ): Promise<{
-  subscription: any;
+  subscription: unknown;
   userCount: number;
   perUserPrice: number | null;
   totalPrice: number | null;

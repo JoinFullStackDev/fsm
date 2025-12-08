@@ -75,7 +75,7 @@ export async function PUT(
     const body = await request.json();
     const { schedule_type, email, enabled } = body;
 
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     };
 

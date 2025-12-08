@@ -112,7 +112,7 @@ export async function GET(
     }
 
     // Get field configs if project has a template (separate query since it depends on template_id)
-    let fieldConfigs: any[] = [];
+    let fieldConfigs: Array<{ id: string; template_id: string; phase_number: number; field_key: string; config: Record<string, unknown> }> = [];
     if (project.template_id) {
       const { data: configs, error: configsError } = await adminClient
         .from('template_field_configs')

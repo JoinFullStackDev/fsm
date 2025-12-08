@@ -155,11 +155,11 @@ export const RATE_LIMIT_CONFIGS = {
  * Use this in API routes to apply rate limiting
  */
 export function withRateLimit(
-  handler: (request: NextRequest, ...args: any[]) => Promise<NextResponse>,
+  handler: (request: NextRequest, ...args: unknown[]) => Promise<NextResponse>,
   config: RateLimitConfig,
   getUserId?: (request: NextRequest) => Promise<string | undefined>
 ) {
-  return async (request: NextRequest, ...args: any[]): Promise<NextResponse> => {
+  return async (request: NextRequest, ...args: unknown[]): Promise<NextResponse> => {
     const userId = getUserId ? await getUserId(request) : undefined;
     const rateLimitResponse = checkRateLimit(request, config, userId);
     

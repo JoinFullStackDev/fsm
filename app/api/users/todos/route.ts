@@ -66,10 +66,12 @@ export async function GET(request: NextRequest) {
       projectMap.set(p.id, p.name);
     });
 
-    (memberProjects || []).forEach((mp: any) => {
-      if (mp.projects) {
-        allProjectIds.add(mp.projects.id);
-        projectMap.set(mp.projects.id, mp.projects.name);
+    (memberProjects || []).forEach((mp) => {
+      // Supabase returns nested relations as arrays
+      const projectData = Array.isArray(mp.projects) ? mp.projects[0] : mp.projects;
+      if (projectData) {
+        allProjectIds.add(projectData.id);
+        projectMap.set(projectData.id, projectData.name);
       }
     });
 
@@ -146,7 +148,7 @@ export async function GET(request: NextRequest) {
       .order('updated_at', { ascending: false });
 
     if (!phasesError && phases) {
-      phases.forEach((phase: any) => {
+      (phases as Array<{ project_id: string; phase_number: number; phase_name: string | null; completed: boolean; updated_at: string }>).forEach((phase) => {
         const projectName = projectMap.get(phase.project_id) || 'Unknown Project';
         const phaseName = phase.phase_name || defaultPhaseNames[phase.phase_number] || `Phase ${phase.phase_number}`;
         todos.push({

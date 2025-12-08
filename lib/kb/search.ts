@@ -8,6 +8,15 @@ import logger from '@/lib/utils/logger';
 import { generateQueryEmbedding } from './embeddings';
 import type { SearchQuery, SearchResult, KnowledgeBaseArticleWithCategory } from '@/types/kb';
 
+// Internal type for article with vector that may be string
+type ArticleWithVector = KnowledgeBaseArticleWithCategory & {
+  vector: number[] | string | null;
+};
+
+// Type for query builder - kept generic due to complex Supabase typing
+// This is an internal implementation detail
+type QueryBuilder = ReturnType<SupabaseClient<Record<string, unknown>>['from']>;
+
 /**
  * Perform hybrid search combining full-text and vector similarity
  * @param supabase - Supabase client instance
@@ -107,7 +116,7 @@ export async function hybridSearch(
  */
 async function performFullTextSearch(
   supabase: SupabaseClient,
-  baseQuery: any,
+  baseQuery: QueryBuilder,
   searchQuery: string,
   limit: number
 ): Promise<SearchResult[]> {
@@ -158,7 +167,7 @@ async function performFullTextSearch(
  */
 async function performVectorSearch(
   supabase: SupabaseClient,
-  baseQuery: any,
+  baseQuery: QueryBuilder,
   queryEmbedding: number[],
   limit: number
 ): Promise<SearchResult[]> {
@@ -186,8 +195,8 @@ async function performVectorSearch(
     }
 
     // Calculate cosine similarity for each article
-    const results = articles
-      .map((article: any) => {
+    const results = (articles as ArticleWithVector[])
+      .map((article): SearchResult | null => {
         if (!article.vector) {
           return null;
         }
@@ -218,8 +227,8 @@ async function performVectorSearch(
           match_type: 'vector' as const,
         };
       })
-      .filter((r: any) => r !== null)
-      .sort((a: any, b: any) => b.relevance_score - a.relevance_score)
+      .filter((r): r is SearchResult => r !== null)
+      .sort((a, b) => b.relevance_score - a.relevance_score)
       .slice(0, limit);
 
     return results;

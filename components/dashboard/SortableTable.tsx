@@ -21,11 +21,11 @@ import {
 
 export type SortDirection = 'asc' | 'desc' | null;
 
-interface Column<T> {
+export interface Column<T> {
   key: keyof T | string;
   label: string;
   sortable?: boolean;
-  render?: (value: any, row: T) => React.ReactNode;
+  render?: (value: unknown, row: T) => React.ReactNode;
   align?: 'left' | 'right' | 'center';
   width?: string | number;
 }

@@ -17,6 +17,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { Close as CloseIcon, AutoAwesome as AutoAwesomeIcon, Warning as WarningIcon } from '@mui/icons-material';
 import type { PreviewTask } from '@/types/taskGenerator';
+import type { ScopeOfWork, SOWMemberWithStats } from '@/types/project';
 import BuildingOverlay from '@/components/ai/BuildingOverlay';
 
 interface TaskGeneratorModalProps {
@@ -66,7 +67,7 @@ export default function TaskGeneratorModal({
       }
 
       const sowData = await sowResponse.json();
-      const activeSOW = (sowData.sows || []).find((s: any) => s.status === 'active');
+      const activeSOW = (sowData.sows || []).find((s: ScopeOfWork) => s.status === 'active');
       
       if (!activeSOW) {
         return;
@@ -76,7 +77,7 @@ export default function TaskGeneratorModal({
       const membersResponse = await fetch(`/api/projects/${projectId}/sow/${activeSOW.id}/members`);
       if (membersResponse.ok) {
         const membersData = await membersResponse.json();
-        const members = (membersData.members || []).map((m: any) => ({
+        const members = (membersData.members || []).map((m: SOWMemberWithStats) => ({
           user_id: m.project_member?.user_id || '',
           name: m.project_member?.user?.name || m.project_member?.user?.email || 'Unknown',
           role_name: m.role_name || 'Unknown',

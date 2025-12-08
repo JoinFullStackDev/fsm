@@ -7,6 +7,34 @@ import { hasKnowledgeBaseAccess, getKnowledgeBaseAccessLevel } from '@/lib/packa
 import { notifyCategoryAdded } from '@/lib/notifications';
 import logger from '@/lib/utils/logger';
 import type { CategoryCreateInput } from '@/types/kb';
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+// Types for KB categories
+interface KBCategory {
+  id: string;
+  name: string;
+  slug: string;
+  organization_id: string | null;
+  parent_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface KBCategoryWithChildren extends KBCategory {
+  children: KBCategoryWithChildren[];
+  article_count: number;
+}
+
+interface KBArticle {
+  category_id: string | null;
+}
+
+interface CategoryInsertData {
+  organization_id: string | null;
+  name: string;
+  slug: string;
+  parent_id: string | null;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -92,10 +120,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Build hierarchical structure
-    const categoryMap = new Map<string, any>();
-    const rootCategories: any[] = [];
+    const categoryMap = new Map<string, KBCategoryWithChildren>();
+    const rootCategories: KBCategoryWithChildren[] = [];
 
-    (categories || []).forEach((category: any) => {
+    (categories || []).forEach((category: KBCategory) => {
       categoryMap.set(category.id, {
         ...category,
         children: [],
@@ -118,7 +146,9 @@ export async function GET(request: NextRequest) {
     categoryMap.forEach((category) => {
       if (category.parent_id && categoryMap.has(category.parent_id)) {
         const parent = categoryMap.get(category.parent_id);
-        parent.children.push(category);
+        if (parent) {
+          parent.children.push(category);
+        }
       } else {
         rootCategories.push(category);
       }
@@ -243,7 +273,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create category
-    const categoryData: any = {
+    const categoryData: CategoryInsertData = {
       organization_id: organizationId,
       name,
       slug: categorySlug,
@@ -289,7 +319,7 @@ export async function POST(request: NextRequest) {
  * Get article counts per category
  */
 async function getArticleCounts(
-  supabase: any,
+  supabase: SupabaseClient,
   categoryIds: string[]
 ): Promise<Array<{ category_id: string; count: number }>> {
   try {
@@ -304,7 +334,7 @@ async function getArticleCounts(
     }
 
     const counts = new Map<string, number>();
-    (data || []).forEach((article: any) => {
+    ((data || []) as KBArticle[]).forEach((article: KBArticle) => {
       if (article.category_id) {
         counts.set(article.category_id, (counts.get(article.category_id) || 0) + 1);
       }
