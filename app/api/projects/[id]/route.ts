@@ -535,16 +535,11 @@ export async function DELETE(
       return notFound('User not found');
     }
 
-    // Only admins can delete projects
-    if (userData.role !== 'admin') {
-      return forbidden('Admin role required to delete projects');
-    }
-
-    // Get project to validate organization access (super admins can delete all projects)
+    // Get project to validate organization access AND check ownership
     // Use admin client to avoid RLS recursion
     const { data: project, error: projectError } = await adminClient
       .from('projects')
-      .select('organization_id')
+      .select('organization_id, owner_id')
       .eq('id', params.id)
       .single();
 
@@ -552,11 +547,22 @@ export async function DELETE(
       return notFound('Project not found');
     }
 
-    // Validate organization access (super admins can delete all projects)
-    if (userData.is_super_admin !== true) {
-      if (project.organization_id !== organizationId) {
-        return forbidden('You do not have access to delete this project');
-      }
+    // Determine access levels
+    const isSuperAdmin = userData.is_super_admin === true;
+    const isOrgAdmin = userData.role === 'admin' && project.organization_id === organizationId;
+    const isProjectOwner = project.owner_id === userData.id;
+
+    // Allow deletion if:
+    // 1. User is super admin (can delete any project)
+    // 2. User is admin in the same organization (can delete any org project)
+    // 3. User is the project owner (any role can delete their own project)
+    if (!isSuperAdmin && !isOrgAdmin && !isProjectOwner) {
+      return forbidden('You can only delete projects you created, or you need admin access');
+    }
+
+    // Validate organization access for non-super admins
+    if (!isSuperAdmin && project.organization_id !== organizationId) {
+      return forbidden('You do not have access to delete this project');
     }
 
     // Delete the project using admin client to bypass RLS

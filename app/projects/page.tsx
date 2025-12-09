@@ -61,6 +61,7 @@ function ProjectsPageContent() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [initialCompanyId, setInitialCompanyId] = useState<string | undefined>();
   const [initialTemplateId, setInitialTemplateId] = useState<string | undefined>();
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const loadProjects = useCallback(async () => {
     setLoading(true);
@@ -87,6 +88,11 @@ function ProjectsPageContent() {
       // Use API to get user data to avoid RLS recursion
       const userResponse = await fetch('/api/users/me');
       const userData = userResponse.ok ? await userResponse.json() : null;
+      
+      // Store current user ID for ownership checks
+      if (userData?.id) {
+        setCurrentUserId(userData.id);
+      }
       
       if (userData?.organization_id) {
         const filteredProjects = projects.filter((project: any) => {
@@ -495,7 +501,8 @@ function ProjectsPageContent() {
                   >
                     <OpenInNewIcon fontSize="small" />
                   </IconButton>
-                  {isCompanyAdmin && (
+                  {/* Show delete button for company admins OR project owners */}
+                  {(isCompanyAdmin || project.owner_id === currentUserId) && (
                     <IconButton
                       size="small"
                       onClick={(e) => {

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
+import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
+import { getGeminiApiKey } from '@/lib/utils/geminiConfig';
 import logger from '@/lib/utils/logger';
 
 /**
@@ -77,6 +79,23 @@ export async function POST(request: NextRequest) {
     
     let apiKey = body.apiKey;
     const projectName = body.projectName;
+    const useSavedKey = body.useSavedKey;
+
+    // If useSavedKey is true, fetch and decrypt the saved key from database
+    if (useSavedKey && !apiKey) {
+      logger.debug('[Direct Test] Using saved API key from database...');
+      const adminClient = createAdminSupabaseClient();
+      const savedKey = await getGeminiApiKey(adminClient);
+      
+      if (!savedKey) {
+        return NextResponse.json({ 
+          error: 'No saved API key found. Please configure an API key first.' 
+        }, { status: 400 });
+      }
+      
+      apiKey = savedKey;
+      logger.debug('[Direct Test] ✓ Loaded saved API key from database');
+    }
 
     if (!apiKey) {
       return NextResponse.json({ error: 'API key is required' }, { status: 400 });
