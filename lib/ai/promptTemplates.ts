@@ -24,6 +24,14 @@ export interface PhaseInfo {
 }
 
 /**
+ * Result from buildCompactSOWContext with short ID mapping
+ */
+export interface SOWContextResult {
+  promptText: string;
+  shortIdMap: Map<string, string>; // shortId (M1, M2) -> full UUID
+}
+
+/**
  * Role keyword mappings for task assignment
  * Maps role types to task keywords they should handle
  */
@@ -67,29 +75,30 @@ export const PHASE_ROLE_MAP: Record<string, string[]> = {
 };
 
 /**
- * Compact assignment rules - much more effective and 90% smaller than original
+ * Compact assignment rules - optimized for short IDs (M1, M2, etc.)
  */
-export const COMPACT_ASSIGNMENT_RULES = `TASK ASSIGNMENT RULES:
+export const COMPACT_ASSIGNMENT_RULES = `TASK ASSIGNMENT:
 
-1. MATCH ROLE TO TASK: Check if team member's role_name/role_description contains keywords matching the task:
-   - Engineer/Developer roles → code, API, database, implement, build, integrate tasks
-   - Designer roles → design, wireframe, mockup, UI, UX, prototype tasks  
-   - QA/Tester roles → test, verify, validate, quality, bug tasks
-   - Product/Manager roles → requirements, strategy, roadmap, stakeholder tasks
-   - Business/Sales roles → business, sales, marketing, partnership tasks
+Use short IDs (M1, M2, M3...) for assignee_id, NOT names or UUIDs.
 
-2. MATCH ROLE TO PHASE: The task's phase should align with the role's work type:
-   - Early phases (concept, strategy, planning) → Product/Manager roles
-   - Design phases → Designer roles
-   - Build/Development phases → Engineer/Developer roles
-   - Testing/QA phases → QA/Tester roles
+ROLE MATCHING:
+- Developer/Engineer → "Build API", "Implement feature", "Fix bug", "Database migration"
+- Designer → "Create mockups", "Design UI", "Wireframe screens", "Style guide"
+- QA/Tester → "Write tests", "Verify feature", "Test regression", "Bug testing"
+- Product/Manager → "Define requirements", "Write user stories", "Plan sprint"
+- Business/Sales → "Customer outreach", "Sales demo", "Marketing campaign"
 
-3. ASSIGNMENT PRIORITY:
-   - Prefer members with fewer current tasks (load balancing)
-   - Avoid members marked [BUSY] unless they're the only match
-   - If no clear match, set assignee_id to null
+EXAMPLES:
+- "Build user authentication API" → assign to Developer (M1 if Developer)
+- "Create dashboard mockups" → assign to Designer
+- "Write unit tests for login" → assign to QA/Tester
+- "Define MVP requirements" → assign to Product Manager
 
-4. CRITICAL: Use exact user_id UUID, NOT the name. When uncertain, leave unassigned (null).`;
+PRIORITY:
+1. Match role keywords to task content
+2. Prefer members with fewer tasks (see task count)
+3. Skip [BUSY] members unless only option
+4. If unclear, set assignee_id to null`;
 
 /**
  * Legacy assignment rules - kept for backwards compatibility
@@ -99,20 +108,29 @@ export const SOW_ASSIGNMENT_RULES = COMPACT_ASSIGNMENT_RULES;
 
 /**
  * Build compact SOW members context for prompts
- * Optimized for minimal token usage while preserving assignment effectiveness
+ * Uses short IDs (M1, M2, M3) instead of full UUIDs for easier AI processing
+ * Returns both the prompt text and a mapping to expand short IDs back to UUIDs
  */
 export function buildCompactSOWContext(
   sowMembers: SOWMember[],
   phases?: PhaseInfo[]
-): string {
-  if (!sowMembers?.length) return '';
+): SOWContextResult {
+  if (!sowMembers?.length) {
+    return { promptText: '', shortIdMap: new Map() };
+  }
 
-  // Compact member format: id|role|description|tasks|status
+  // Create short ID mapping for easier AI processing
+  const shortIdMap = new Map<string, string>();
+  
+  // Compact member format: shortId|role|description|tasks|status
   const membersList = sowMembers
-    .map(m => {
+    .map((m, index) => {
+      const shortId = `M${index + 1}`; // M1, M2, M3... much easier for AI
+      shortIdMap.set(shortId, m.user_id);
+      
       const status = m.is_overworked ? ' [BUSY]' : '';
       const desc = m.role_description ? ` (${m.role_description.substring(0, 50)})` : '';
-      return `- ${m.user_id} | ${m.role_name}${desc} | ${m.current_task_count} tasks${status}`;
+      return `- ${shortId}: ${m.role_name}${desc} | ${m.current_task_count} tasks${status}`;
     })
     .join('\n');
 
@@ -121,11 +139,25 @@ export function buildCompactSOWContext(
     ? `\nPhases: ${phases.map(p => `${p.phase_number}:${p.phase_name || 'Phase ' + p.phase_number}`).join(', ')}`
     : '';
 
-  return `
-TEAM MEMBERS (id | role | tasks):
+  const promptText = `
+TEAM MEMBERS (use short ID for assignee_id):
 ${membersList}${phaseContext}
 
 ${COMPACT_ASSIGNMENT_RULES}`;
+
+  return { promptText, shortIdMap };
+}
+
+/**
+ * Build compact SOW context - legacy string version
+ * @deprecated Use the SOWContextResult version and handle mapping separately
+ */
+export function buildCompactSOWContextString(
+  sowMembers: SOWMember[],
+  phases?: PhaseInfo[]
+): string {
+  const result = buildCompactSOWContext(sowMembers, phases);
+  return result.promptText;
 }
 
 /**
@@ -135,7 +167,7 @@ ${COMPACT_ASSIGNMENT_RULES}`;
 export function buildSOWMembersContext(
   sowMembers: SOWMember[],
   phases: PhaseInfo[]
-): string {
+): SOWContextResult {
   // Delegate to compact version for consistency
   return buildCompactSOWContext(sowMembers, phases);
 }

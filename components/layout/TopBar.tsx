@@ -35,7 +35,7 @@ import { useOrganization } from '@/components/providers/OrganizationProvider';
 import { useUser } from '@/components/providers/UserProvider';
 import NotificationBell from '@/components/notifications/NotificationBell';
 import NotificationDrawer from '@/components/notifications/NotificationDrawer';
-import WelcomeTour from '@/components/ui/WelcomeTour';
+import { InteractiveOnboarding, OnboardingProvider } from '@/components/onboarding';
 import RequestSubmissionDialog from '@/components/layout/RequestSubmissionDialog';
 import { useThemeMode } from '@/components/providers/ThemeContextProvider';
 import type { User } from '@/types/project';
@@ -379,11 +379,12 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
         open={notificationDrawerOpen}
         onClose={() => setNotificationDrawerOpen(false)}
       />
-      <WelcomeTour
-        open={welcomeTourOpen}
-        onClose={() => setWelcomeTourOpen(false)}
-        onComplete={() => setWelcomeTourOpen(false)}
-      />
+      <OnboardingProvider>
+        <InteractiveOnboarding
+          open={welcomeTourOpen}
+          onClose={() => setWelcomeTourOpen(false)}
+        />
+      </OnboardingProvider>
       <RequestSubmissionDialog
         open={requestDialogOpen}
         onClose={() => setRequestDialogOpen(false)}

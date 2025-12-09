@@ -3,9 +3,13 @@ import logger from '@/lib/utils/logger';
 import { estimateInputTokens, estimateOutputTokens } from './tokenEstimator';
 import { calculateAICost } from './costCalculator';
 import { requestDeduplicator } from '@/lib/utils/requestDeduplication';
+import { cacheGet, cacheSet, cacheDel, CACHE_TTL } from '@/lib/cache/unifiedCache';
 import crypto from 'crypto';
 import type { PhaseDataUnion } from '@/types/phases';
 import type { Project } from '@/types/project';
+
+// Cache TTL for AI responses (5 minutes)
+const AI_CACHE_TTL = CACHE_TTL.MEDIUM;
 
 // Fallback to environment variable for backwards compatibility
 const defaultApiKey = process.env.GEMINI_API_KEY || '';
@@ -112,8 +116,18 @@ export async function generateAIResponse(
   }
   const startTime = Date.now();
 
-  // Generate request key for deduplication
+  // Generate request key for deduplication and caching
   const requestKey = generateRequestKey(prompt, options, projectName);
+  const cacheKey = `ai:response:${model}:${requestKey}`;
+
+  // Check cache first (skip when metadata requested to preserve accurate timing)
+  if (!returnMetadata) {
+    const cached = await cacheGet<string>(cacheKey, AI_CACHE_TTL);
+    if (cached) {
+      logger.debug('[AI Generation] Cache hit - returning cached response');
+      return cached;
+    }
+  }
 
   // Use request deduplication to prevent duplicate concurrent requests
   return requestDeduplicator.execute(requestKey, async () => {
@@ -277,6 +291,12 @@ export async function generateAIResponse(
 
     // Return enhanced response if metadata requested
     if (returnMetadata) {
+      // Still cache the text for future non-metadata requests
+      if (responseText) {
+        cacheSet(cacheKey, responseText, AI_CACHE_TTL).catch((err) => {
+          logger.warn('[AI Generation] Failed to cache response:', err);
+        });
+      }
       return {
         text: responseText,
         metadata: {
@@ -293,6 +313,12 @@ export async function generateAIResponse(
       };
     }
     
+      // Cache the successful response
+      if (responseText) {
+        cacheSet(cacheKey, responseText, AI_CACHE_TTL).catch((err) => {
+          logger.warn('[AI Generation] Failed to cache response:', err);
+        });
+      }
       return responseText;
     } catch (error) {
       const responseTime = Date.now() - startTime;
@@ -356,6 +382,11 @@ export async function generateStructuredAIResponse<T>(
   model: GeminiModel = 'gemini-2.5-flash'
 ): Promise<T | { result: T; metadata: AIResponseWithMetadata['metadata'] }> {
   const enhancedPrompt = `${prompt}\n\nPlease respond with valid JSON only, no additional text.`;
+  
+  // Generate cache key for potential invalidation on parse failure
+  const requestKey = generateRequestKey(enhancedPrompt, options, projectName);
+  const cacheKey = `ai:response:${model}:${requestKey}`;
+  
   const response = await generateAIResponse(
     enhancedPrompt,
     options,
@@ -377,6 +408,10 @@ export async function generateStructuredAIResponse<T>(
         metadata: metadataResponse.metadata,
       };
     } catch (error) {
+      // Invalidate cache so next request gets fresh response
+      logger.warn('[AI] Invalidating cache due to JSON parse failure');
+      cacheDel(cacheKey).catch(() => {});
+      
       // Return error in metadata
       return {
         result: {} as T,
@@ -394,6 +429,10 @@ export async function generateStructuredAIResponse<T>(
     const jsonString = responseText.trim();
     return parseJSONResponse<T>(jsonString);
   } catch (error) {
+    // Invalidate cache so next request gets fresh response
+    logger.warn('[AI] Invalidating cache due to JSON parse failure');
+    cacheDel(cacheKey).catch(() => {});
+    
     logger.error('[AI] Failed to parse JSON response');
     logger.error('[AI] Response length:', responseText.length);
     logger.error('[AI] Response preview (first 500 chars):', responseText.substring(0, 500));

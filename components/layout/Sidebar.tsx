@@ -84,7 +84,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
   const [projectManagementProjects, setProjectManagementProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [myTasksCount, setMyTasksCount] = useState(0);
-  const [projectPhaseProgress, setProjectPhaseProgress] = useState<Record<string, { completed: number; total: number }>>({});
+  const [projectTaskProgress, setProjectTaskProgress] = useState<Record<string, { completed: number; total: number }>>({});
   const [projectsExpanded, setProjectsExpanded] = useState(false);
   const [templatesExpanded, setTemplatesExpanded] = useState(false);
   const [projectManagementExpanded, setProjectManagementExpanded] = useState(false);
@@ -154,40 +154,37 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
     return () => clearInterval(interval);
   }, [supabase]);
 
-  // Load phase progress for each project
+  // Load task progress for each project
   useEffect(() => {
-    const loadProjectPhaseProgress = async () => {
+    const loadProjectTaskProgress = async () => {
       if (projects.length === 0) return;
 
       const progressMap: Record<string, { completed: number; total: number }> = {};
 
       for (const project of projects) {
         try {
-          const { data: phases } = await supabase
-            .from('project_phases')
-            .select('phase_number, completed, phase_name')
-            .eq('project_id', project.id)
-            .eq('is_active', true)
-            .order('display_order', { ascending: true });
+          const { data: tasks } = await supabase
+            .from('project_tasks')
+            .select('id, status')
+            .eq('project_id', project.id);
 
-          if (phases && phases.length > 0) {
-            const total = phases.length;
-            const completed = phases.filter((p: { completed: boolean }) => Boolean(p.completed)).length;
+          if (tasks && tasks.length > 0) {
+            const total = tasks.length;
+            const completed = tasks.filter((t: { status: string }) => t.status === 'done').length;
             progressMap[project.id] = { completed, total };
           } else {
-            // Default to 6 phases if no phases found
-            progressMap[project.id] = { completed: 0, total: 6 };
+            progressMap[project.id] = { completed: 0, total: 0 };
           }
         } catch (error) {
-          console.error(`Error loading phases for project ${project.id}:`, error);
-          progressMap[project.id] = { completed: 0, total: 6 };
+          console.error(`Error loading tasks for project ${project.id}:`, error);
+          progressMap[project.id] = { completed: 0, total: 0 };
         }
       }
 
-      setProjectPhaseProgress(progressMap);
+      setProjectTaskProgress(progressMap);
     };
 
-    loadProjectPhaseProgress();
+    loadProjectTaskProgress();
   }, [projects, supabase]);
 
   // Load templates lazily - only when sidebar is opened or after initial page load
@@ -597,11 +594,11 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
               <Collapse in={projectsExpanded} timeout="auto" unmountOnExit>
                 <List component="div" disablePadding>
                   {projects.map((project) => {
-                    const progress = projectPhaseProgress[project.id] || { completed: 0, total: 6 };
+                    const progress = projectTaskProgress[project.id] || { completed: 0, total: 6 };
                     return (
                       <Tooltip
                         key={project.id}
-                        title={`${project.name} - ${progress.completed}/${progress.total} phases complete`}
+                        title={`${project.name} - ${progress.completed}/${progress.total} tasks complete`}
                         placement="right"
                         arrow
                       >
@@ -738,11 +735,11 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
               <Collapse in={projectManagementExpanded} timeout="auto" unmountOnExit>
                 <List component="div" disablePadding>
                   {projectManagementProjects.map((project) => {
-                    const progress = projectPhaseProgress[project.id] || { completed: 0, total: 6 };
+                    const progress = projectTaskProgress[project.id] || { completed: 0, total: 6 };
                     return (
                       <Tooltip
                         key={project.id}
-                        title={`${project.name} - ${progress.completed}/${progress.total} phases complete`}
+                        title={`${project.name} - ${progress.completed}/${progress.total} tasks complete`}
                         placement="right"
                         arrow
                       >
@@ -1168,11 +1165,11 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
               <>
                 <Divider sx={{ borderColor: theme.palette.divider }} />
                 {projects.map((project) => {
-                  const progress = projectPhaseProgress[project.id] || { completed: 0, total: 6 };
+                  const progress = projectTaskProgress[project.id] || { completed: 0, total: 6 };
                   return (
                     <Tooltip
                       key={project.id}
-                      title={`${project.name} - ${progress.completed}/${progress.total} phases complete`}
+                      title={`${project.name} - ${progress.completed}/${progress.total} tasks complete`}
                       placement="right"
                       arrow
                     >
@@ -1348,11 +1345,11 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
               <>
                 <Divider sx={{ borderColor: theme.palette.divider }} />
                 {projectManagementProjects.map((project) => {
-                  const progress = projectPhaseProgress[project.id] || { completed: 0, total: 6 };
+                  const progress = projectTaskProgress[project.id] || { completed: 0, total: 6 };
                   return (
                     <Tooltip
                       key={project.id}
-                      title={`${project.name} - ${progress.completed}/${progress.total} phases complete`}
+                      title={`${project.name} - ${progress.completed}/${progress.total} tasks complete`}
                       placement="right"
                       arrow
                     >

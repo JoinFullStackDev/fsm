@@ -15,7 +15,7 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import LoadingSkeleton from '@/components/ui/LoadingSkeleton';
-import { NavigateNext as NavigateNextIcon, Refresh as RefreshIcon, AutoAwesome as AutoAwesomeIcon } from '@mui/icons-material';
+import { NavigateNext as NavigateNextIcon, Refresh as RefreshIcon, AutoAwesome as AutoAwesomeIcon, OpenInNew as OpenInNewIcon } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import TaskTable from '@/components/project-management/TaskTable';
 import TaskDetailSheet from '@/components/project-management/TaskDetailSheet';
@@ -720,11 +720,24 @@ export default function ProjectTaskManagementPage() {
           onClick={() => router.push('/project-management')}
           sx={{ color: theme.palette.text.primary, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
         >
-          Project Management
+          Task Management
         </Link>
-        <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
+        <Link
+          component="button"
+          variant="body1"
+          onClick={() => router.push(`/project/${projectId}`)}
+          sx={{ 
+            color: theme.palette.text.secondary, 
+            textDecoration: 'none', 
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+            '&:hover': { textDecoration: 'underline', color: theme.palette.text.primary } 
+          }}
+        >
           {project?.name || 'Project'}
-        </Typography>
+          <OpenInNewIcon sx={{ fontSize: 14 }} />
+        </Link>
       </Breadcrumbs>
 
       {/* Header */}

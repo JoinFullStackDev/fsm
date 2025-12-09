@@ -1,8 +1,34 @@
 import { generateStructuredAIResponse } from './geminiClient';
 import logger from '@/lib/utils/logger';
 import type { ProjectTask, TaskSourceReference } from '@/types/project';
-import { buildCompactSOWContext, type SOWMember } from './promptTemplates';
+import { buildCompactSOWContext, type SOWMember, type SOWContextResult } from './promptTemplates';
 import crypto from 'crypto';
+
+/**
+ * Expand short IDs (M1, M2, etc.) to full UUIDs using the mapping
+ */
+function expandShortIdToUUID(
+  shortId: string | null | undefined,
+  shortIdMap: Map<string, string>
+): string | null {
+  if (!shortId) return null;
+  
+  // Check if it's a short ID (M1, M2, etc.)
+  const shortIdUpper = shortId.toUpperCase();
+  if (shortIdMap.has(shortIdUpper)) {
+    return shortIdMap.get(shortIdUpper) || null;
+  }
+  
+  // Check if it's already a UUID (36 char format)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(shortId)) {
+    return shortId;
+  }
+  
+  // Invalid format - return null
+  logger.warn(`[Project Analyzer] Invalid assignee_id format: ${shortId}`);
+  return null;
+}
 
 // Phase data is dynamic JSONB from database
 export interface PhaseData {
@@ -283,8 +309,11 @@ export async function analyzeProject(
       ).join('\n')}`
     : '';
   
-  // Build SOW context
-  const sowContext = sowMembers?.length ? buildCompactSOWContext(sowMembers, phases) : '';
+  // Build SOW context with short ID mapping
+  let sowContextResult: SOWContextResult = { promptText: '', shortIdMap: new Map() };
+  if (sowMembers?.length) {
+    sowContextResult = buildCompactSOWContext(sowMembers, phases);
+  }
   
   // Build phase list
   const phaseList = phases.map(p => `${p.phase_number}:${p.phase_name || `Phase ${p.phase_number}`}`).join(', ');
@@ -297,10 +326,10 @@ export async function analyzeProject(
     : 'Starting fresh';
 
   // ============================================================================
-  // OPTIMIZED PROMPT - 70% smaller than original
+  // OPTIMIZED PROMPT - team context at TOP for better AI consideration
   // ============================================================================
   const prompt = `Analyze project "${projectName}" and generate tasks.
-
+${sowContextResult.promptText}
 TODAY: ${today}
 TIMELINE: ${totalDays || 180} days total (Planning: ${planningDays || 90}d, Build: ${effectiveBuildDays || 90}d min)
 STATUS: ${statusText}
@@ -309,7 +338,6 @@ PHASES: ${phaseList}
 PHASE DATA:
 ${phaseSummary}
 ${existingTasksSummary}
-${sowContext}
 
 GENERATE TASKS for ALL ${phases.length} phases with these fields:
 {
@@ -322,7 +350,7 @@ GENERATE TASKS for ALL ${phases.length} phases with these fields:
   "tags": ["category"],
   "start_date": "YYYY-MM-DD",
   "due_date": "YYYY-MM-DD",
-  "assignee_id": "uuid or null",
+  "assignee_id": "M1, M2, etc. or null",
   "source_fields": [{"phase": N, "field": "field_key"}]
 }
 
@@ -331,7 +359,7 @@ CRITICAL RULES:
 2. EVERY task MUST have start_date and due_date (YYYY-MM-DD)
 3. Link tasks to phase fields via source_fields (use exact field names from PHASE DATA)
 4. Distribute tasks across timeline: P1-P${Math.ceil(phases.length/2)} in first ${planningDays || 90}d, rest in build phase
-5. Assign tasks to team members when role matches (see TEAM section)
+5. Assign tasks using team member short IDs (M1, M2, etc.) when role matches
 6. Space tasks 2-5 days apart within each phase
 
 Return JSON:
@@ -436,6 +464,12 @@ Return JSON:
       // Convert source_fields to source_reference
       const sourceReference = convertSourceFieldsToReference(task.source_fields, phases);
       
+      // Expand short IDs (M1, M2) to full UUIDs
+      const expandedAssigneeId = expandShortIdToUUID(
+        task.assignee_id,
+        sowContextResult.shortIdMap
+      );
+      
       return {
         ...task,
         project_id: '',
@@ -444,7 +478,7 @@ Return JSON:
         description: task.description || null,
         status: (task.status || 'todo') as ProjectTask['status'],
         priority: (task.priority || 'medium') as ProjectTask['priority'],
-        assignee_id: task.assignee_id || null,
+        assignee_id: expandedAssigneeId,
         start_date: startDate,
         due_date: dueDate,
         estimated_hours: task.estimated_hours || null,
@@ -509,18 +543,22 @@ export async function reAnalyzeChangedTasks(
     return `P${phaseNum} "${phase.phase_name}":\n${fieldContent}`;
   }).filter(Boolean).join('\n\n');
 
-  const sowContext = sowMembers?.length ? buildCompactSOWContext(sowMembers, phases) : '';
+  // Build SOW context with short ID mapping
+  let sowContextResult: SOWContextResult = { promptText: '', shortIdMap: new Map() };
+  if (sowMembers?.length) {
+    sowContextResult = buildCompactSOWContext(sowMembers, phases);
+  }
 
   const prompt = `RE-ANALYZE ${changedTasks.length} tasks - source phase data has changed.
-
+${sowContextResult.promptText}
 CHANGED PHASE FIELDS:
 ${changedContent}
 
 TASKS TO REVIEW:
 ${changedTasks.map(t => `- ID:${t.id} "${t.title}" (P${t.phase_number}, src:${t.source_reference?.map(r => r.field_key).join(',')})`).join('\n')}
-${sowContext}
 
 For each task, determine if it needs updates based on the changed data.
+Use short IDs (M1, M2, etc.) for assignee_id in new tasks.
 
 Return JSON:
 {
@@ -528,7 +566,7 @@ Return JSON:
     {"task_id": "uuid", "changes": {"title":"new title","description":"new desc",...}}
   ],
   "new_tasks": [
-    {"title":"","description":"","phase_number":N,"priority":"","status":"todo","source_fields":[{"phase":N,"field":"key"}]}
+    {"title":"","description":"","phase_number":N,"priority":"","status":"todo","assignee_id":"M1 or null","source_fields":[{"phase":N,"field":"key"}]}
   ]
 }`;
 
@@ -538,7 +576,15 @@ Return JSON:
       new_tasks: GeneratedTask[];
     }>(prompt, {}, apiKey, projectName, false, 'gemini-2.5-flash-lite');
     
-    return 'result' in result ? result.result : result;
+    const analysisResult = 'result' in result ? result.result : result;
+    
+    // Expand short IDs in new tasks
+    const expandedNewTasks = analysisResult.new_tasks.map(task => ({
+      ...task,
+      assignee_id: expandShortIdToUUID(task.assignee_id, sowContextResult.shortIdMap),
+    }));
+    
+    return { updates: analysisResult.updates, new_tasks: expandedNewTasks };
   } catch (error) {
     logger.error('[Project Analyzer] Re-analysis failed:', error);
     return { updates: [], new_tasks: [] };

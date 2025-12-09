@@ -2,77 +2,50 @@
 
 import { useEffect, useState, Suspense, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  Box,
-  Typography,
-  Button,
-  Paper,
-  Grid,
-  Chip,
-  Alert,
-  CircularProgress,
-} from '@mui/material';
+import { Box, Grid, CircularProgress, Alert } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import {
-  Add as AddIcon,
-  FolderOpen as FolderIcon,
-  TrendingUp as TrendingUpIcon,
-  CheckCircle as CheckCircleIcon,
-  Assignment as AssignmentIcon,
-  People as PeopleIcon,
-  Schedule as ScheduleIcon,
-  Assessment as AssessmentIcon,
-  Business as BusinessIcon,
-  Contacts as ContactsIcon,
-  Work as WorkIcon,
-} from '@mui/icons-material';
-import { createSupabaseClient } from '@/lib/supabaseClient';
-import WelcomeTour from '@/components/ui/WelcomeTour';
-import type { Project, ProjectTask, User } from '@/types/project';
-import logger from '@/lib/utils/logger';
-import SortableTable, { type Column } from '@/components/dashboard/SortableTable';
-import ProjectsMultiLineChart from '@/components/dashboard/ProjectsMultiLineChart';
-import EmployeeProjectMapping from '@/components/dashboard/EmployeeProjectMapping';
-import { format } from 'date-fns';
 import { useSearchParams } from 'next/navigation';
+import { createSupabaseClient } from '@/lib/supabaseClient';
+import { InteractiveOnboarding, OnboardingProvider } from '@/components/onboarding';
 import { useOrganization } from '@/components/providers/OrganizationProvider';
 import { useUser } from '@/components/providers/UserProvider';
 import CreateUserDialog from '@/components/admin/CreateUserDialog';
-import CreateProjectDialog from '@/components/projects/CreateProjectDialog';
-import { Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText } from '@mui/material';
+import { Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText, Button } from '@mui/material';
+import type { User } from '@/types/project';
+import logger from '@/lib/utils/logger';
+
+// New dashboard components
+import GreetingHeader from '@/components/dashboard/GreetingHeader';
+import QuickActionsRow from '@/components/dashboard/QuickActionsRow';
+import UserTasksCard from '@/components/dashboard/UserTasksCard';
+import UserProjectsCard from '@/components/dashboard/UserProjectsCard';
+import KBArticlesSlider from '@/components/dashboard/KBArticlesSlider';
+import TeamPreviewCard from '@/components/dashboard/TeamPreviewCard';
+import RecentCommentsCard from '@/components/dashboard/RecentCommentsCard';
 
 function DashboardPageContent() {
   const theme = useTheme();
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createSupabaseClient();
-  const { organization, features } = useOrganization();
+  const { organization } = useOrganization();
   const { user } = useUser();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [tasks, setTasks] = useState<ProjectTask[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [projectMembers, setProjectMembers] = useState<Array<{ project_id: string; user_id: string; user: User; role?: string }>>([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showWelcomeTour, setShowWelcomeTour] = useState(false);
   const [showInvitePrompt, setShowInvitePrompt] = useState(false);
   const [showCreateUserDialog, setShowCreateUserDialog] = useState(false);
   const [pendingInvites, setPendingInvites] = useState<{ quantity: number; organizationId: string } | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
   const [usersLoaded, setUsersLoaded] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [currentUserRole, setCurrentUserRole] = useState<'admin' | 'pm' | 'designer' | 'engineer' | null>(null);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const loadingProjectsRef = useRef(false); // Prevent duplicate project loads
+  const loadingRef = useRef(false);
 
   useEffect(() => {
-    // Don't wait indefinitely for organization context
-    // Proceed with loading dashboard data even if organization context isn't ready
-    // The organization context will load independently and update when ready
-
     // Check for pending user invites after signup
     const inviteDataStr = sessionStorage.getItem('pending_user_invites');
     const inviteUsers = searchParams.get('invite_users') === 'true';
-    
+
     if (inviteDataStr && inviteUsers && organization) {
       try {
         const inviteData = JSON.parse(inviteDataStr);
@@ -84,7 +57,6 @@ function DashboardPageContent() {
           sessionStorage.removeItem('pending_user_invites');
         }
       } catch (err) {
-        // Invalid data, remove it
         sessionStorage.removeItem('pending_user_invites');
       }
     }
@@ -93,17 +65,13 @@ function DashboardPageContent() {
     const loginCount = parseInt(localStorage.getItem('loginCount') || '0', 10);
     localStorage.setItem('loginCount', String(loginCount + 1));
 
-    const loadProjects = async () => {
-      // Prevent duplicate calls
-      if (loadingProjectsRef.current) {
-        logger.debug('[Dashboard] Projects already loading, skipping duplicate call');
-        return;
-      }
+    const checkSession = async () => {
+      if (loadingRef.current) return;
 
       try {
-        loadingProjectsRef.current = true;
+        loadingRef.current = true;
         setLoading(true);
-        
+
         // Log debug info from sign-in if available
         const debugInfo = localStorage.getItem('signin_debug');
         if (debugInfo) {
@@ -111,128 +79,49 @@ function DashboardPageContent() {
           localStorage.removeItem('signin_debug');
         }
 
-        // Wait a bit for session to be fully established (especially after redirect)
+        // Wait a bit for session to be fully established
         await new Promise(resolve => setTimeout(resolve, 200));
 
-        // Single session check to avoid rate limiting
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
         const session = sessionData?.session;
-        
-        logger.debug('Dashboard session check:', { 
-          hasSession: !!session, 
+
+        logger.debug('Dashboard session check:', {
+          hasSession: !!session,
           userId: session?.user?.id,
-          sessionError: sessionError?.message 
+          sessionError: sessionError?.message
         });
 
         if (!session) {
           logger.error('No session in dashboard, redirecting to sign-in');
-          // Redirect to signin immediately if no session
           router.push('/auth/signin');
           return;
         }
 
-        // Use user from UserProvider (already cached and loaded)
-        if (user?.id) {
-          setCurrentUserId(user.id);
-          setCurrentUserRole(user.role || null);
-          logger.debug('[Dashboard] Set current user:', { userId: user.id, role: user.role });
-        } else {
-          setCurrentUserId(null);
-          setCurrentUserRole(null);
-        }
-
-        // Use API route to get projects (handles organization filtering and RLS properly)
-        const response = await fetch('/api/projects?limit=100', {
-          cache: 'default', // Use browser cache
-        });
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ message: 'Failed to load projects' }));
-          logger.error('[Dashboard] Failed to load projects:', errorData);
-          setError(errorData.message || errorData.error || 'Failed to load projects');
-          return;
-        }
-
-        const projectsData = await response.json();
-        logger.debug('[Dashboard] Projects API response:', { 
-          hasData: !!projectsData.data, 
-          dataLength: projectsData.data?.length,
-          total: projectsData.total 
-        });
-        const allProjects = projectsData.data || [];
-        
-        if (allProjects.length === 0) {
-          logger.debug('[Dashboard] No projects found for user');
-        }
-
-        // Remove duplicates
-        const uniqueProjects = Array.from(
-          new Map(allProjects.map((p: any) => [p.id, p])).values()
-        ) as Project[];
-        
-        setProjects(uniqueProjects);
-
-        // Load all tasks for user's projects via API to avoid RLS recursion
-        const projectIds = uniqueProjects.map((p) => p.id);
-        if (projectIds.length > 0) {
-          // Fetch tasks from each project via API (in parallel for performance)
-          const taskPromises = projectIds.map((projectId) =>
-            fetch(`/api/projects/${projectId}/tasks`).then((res) =>
-              res.ok ? res.json() : []
-            ).catch(() => [])
-          );
-          
-          const tasksArrays = await Promise.all(taskPromises);
-          const allTasks = tasksArrays.flat();
-          setTasks(allTasks as ProjectTask[]);
-          logger.debug('[Dashboard] Loaded tasks:', { count: allTasks.length });
-        } else {
-          setTasks([]);
-        }
-
-        // Don't load users on initial page load - lazy load when invite dialog is opened
-        // This reduces unnecessary API calls on page load
-        // Users will be loaded when showInvitePrompt becomes true
-
-        // Project members are loaded via the projects API route, no need for separate query
-        // This avoids RLS recursion issues
-        } catch (fetchError) {
-          logger.error('[Dashboard] Error fetching projects:', fetchError);
-          setError(fetchError instanceof Error ? fetchError.message : 'Failed to load projects');
-        } finally {
-          setLoading(false);
-          loadingProjectsRef.current = false; // Reset loading flag
-        }
+        setError(null);
+      } catch (fetchError) {
+        logger.error('[Dashboard] Error checking session:', fetchError);
+        setError(fetchError instanceof Error ? fetchError.message : 'Failed to load dashboard');
+      } finally {
+        setLoading(false);
+        loadingRef.current = false;
+      }
     };
 
-    // Set up auth state listener to handle session initialization after redirect
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string, session: any) => {
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string, session: unknown) => {
       if (event === 'SIGNED_IN' && session) {
-        logger.debug('Auth state changed to SIGNED_IN, reloading projects');
-        loadProjects();
+        logger.debug('Auth state changed to SIGNED_IN');
+        checkSession();
       }
     });
 
-    loadProjects();
+    checkSession();
 
-    // Cleanup subscription on unmount
     return () => {
       subscription.unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router, organization]); // Include organization so we reload when it's available
-
-  const handleCreateProject = () => {
-    setCreateDialogOpen(true);
-  };
-
-  const handleProjectCreated = (project: Project) => {
-    setCreateDialogOpen(false);
-    router.push(`/project/${project.id}`);
-  };
-
-  const handleViewProjects = () => {
-    router.push('/projects');
-  };
+  }, [router, organization]);
 
   // Lazy load users when invite prompt is shown
   useEffect(() => {
@@ -243,11 +132,11 @@ function DashboardPageContent() {
           if (usersResponse.ok) {
             const usersData = await usersResponse.json();
             if (usersData?.users) {
-              setUsers(usersData.users.map((u: any) => ({ 
-                id: u.id, 
-                email: u.email, 
-                name: u.name, 
-                role: u.role 
+              setUsers(usersData.users.map((u: User) => ({
+                id: u.id,
+                email: u.email,
+                name: u.name,
+                role: u.role
               })) as User[]);
               setUsersLoaded(true);
             }
@@ -260,26 +149,9 @@ function DashboardPageContent() {
     }
   }, [showInvitePrompt, usersLoaded, organization?.id]);
 
-  // Calculate stats
-  const stats = {
-    total: projects.length,
-    inProgress: projects.filter(p => p.status === 'in_progress').length,
-    blueprintReady: projects.filter(p => p.status === 'blueprint_ready').length,
-    totalTasks: tasks.length,
-    completedTasks: tasks.filter(t => t.status === 'done').length,
-    inProgressTasks: tasks.filter(t => t.status === 'in_progress').length,
-    todoTasks: tasks.filter(t => t.status === 'todo').length,
-    teamMembers: users.length, // Will be 0 until users are loaded (only needed for invite prompt)
-    recent: projects.slice(0, 10), // Most recent 10 projects for table
-  };
-
-  const completionRate = stats.totalTasks > 0 
-    ? Math.round((stats.completedTasks / stats.totalTasks) * 100) 
-    : 0;
-
   if (loading) {
     return (
-      <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
         <CircularProgress />
       </Box>
     );
@@ -288,38 +160,6 @@ function DashboardPageContent() {
   return (
     <>
       <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh', p: { xs: 2, md: 3 } }}>
-        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 4, gap: { xs: 2, md: 0 } }}>
-          <Typography
-            variant="h4"
-            component="h1"
-            sx={{
-              fontWeight: 700,
-              color: theme.palette.text.primary,
-              fontSize: { xs: '1.5rem', md: '2.125rem' },
-            }}
-          >
-            Dashboard
-          </Typography>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={handleCreateProject}
-            fullWidth={false}
-            sx={{
-              backgroundColor: theme.palette.text.primary,
-              color: theme.palette.background.default,
-              fontWeight: 600,
-              width: { xs: '100%', md: 'auto' },
-              '&:hover': {
-                backgroundColor: theme.palette.action.hover,
-                transform: { xs: 'none', md: 'translateY(-2px)' },
-              },
-            }}
-          >
-            Create Project
-          </Button>
-        </Box>
-
         {error && (
           <Alert
             severity="error"
@@ -334,443 +174,56 @@ function DashboardPageContent() {
           </Alert>
         )}
 
-        {!error && !loading && projects.length === 0 && (
-          <Alert
-            severity="info"
-            sx={{
-              mb: 3,
-              backgroundColor: theme.palette.action.hover,
-              border: `1px solid ${theme.palette.divider}`,
-              color: theme.palette.text.primary,
-            }}
-          >
-            No projects found. Create your first project to get started!
-          </Alert>
-        )}
+        {/* Greeting Header */}
+        <GreetingHeader />
 
-        {/* Stats Cards */}
-        <Grid container spacing={{ xs: 2, md: 3 }} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper
-              sx={{
-                p: { xs: 1.5, md: 2 },
-                backgroundColor: theme.palette.background.paper,
-                border: `1px solid ${theme.palette.divider}`,
-              }}
-            >
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
-                Total Projects
-              </Typography>
-              <Typography variant="h4" sx={{ color: theme.palette.text.primary, fontWeight: 600, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
-                {stats.total}
-              </Typography>
-            </Paper>
+        {/* Quick Actions */}
+        <QuickActionsRow />
+
+        {/* Tasks and Projects Row */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} md={6}>
+            <UserTasksCard />
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper
-              sx={{
-                p: { xs: 1.5, md: 2 },
-                backgroundColor: theme.palette.background.paper,
-                border: `1px solid ${theme.palette.divider}`,
-              }}
-            >
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
-                Total Tasks
-              </Typography>
-              <Typography variant="h4" sx={{ color: theme.palette.text.primary, fontWeight: 600, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
-                {stats.totalTasks}
-              </Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper
-              sx={{
-                p: { xs: 1.5, md: 2 },
-                backgroundColor: theme.palette.background.paper,
-                border: `1px solid ${theme.palette.divider}`,
-              }}
-            >
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
-                Completion Rate
-              </Typography>
-              <Typography variant="h5" sx={{ color: '#4CAF50', fontWeight: 600, fontSize: { xs: '1.25rem', md: '1.5rem' } }}>
-                {completionRate}%
-              </Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper
-              sx={{
-                p: { xs: 1.5, md: 2 },
-                backgroundColor: theme.palette.background.paper,
-                border: `1px solid ${theme.palette.divider}`,
-              }}
-            >
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
-                Team Members
-              </Typography>
-              <Typography variant="h4" sx={{ color: theme.palette.text.primary, fontWeight: 600, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
-                {stats.teamMembers}
-              </Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper
-              sx={{
-                p: { xs: 1.5, md: 2 },
-                backgroundColor: theme.palette.background.paper,
-                border: `1px solid ${theme.palette.divider}`,
-              }}
-            >
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
-                In Progress Tasks
-              </Typography>
-              <Typography variant="h4" sx={{ color: theme.palette.text.primary, fontWeight: 600, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
-                {stats.inProgressTasks}
-              </Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper
-              sx={{
-                p: { xs: 1.5, md: 2 },
-                backgroundColor: theme.palette.background.paper,
-                border: `1px solid ${theme.palette.divider}`,
-              }}
-            >
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
-                Completed Tasks
-              </Typography>
-              <Typography variant="h5" sx={{ color: '#4CAF50', fontWeight: 600, fontSize: { xs: '1.25rem', md: '1.5rem' } }}>
-                {stats.completedTasks}
-              </Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper
-              sx={{
-                p: { xs: 1.5, md: 2 },
-                backgroundColor: theme.palette.background.paper,
-                border: `1px solid ${theme.palette.divider}`,
-              }}
-            >
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 1, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
-                To Do Tasks
-              </Typography>
-              <Typography variant="h4" sx={{ color: theme.palette.text.secondary, fontWeight: 600, fontSize: { xs: '1.5rem', md: '2.125rem' } }}>
-                {stats.todoTasks}
-              </Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper
-              sx={{
-                p: { xs: 1.5, md: 2 },
-                backgroundColor: theme.palette.background.paper,
-                border: `1px solid ${theme.palette.divider}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Button
-                fullWidth
-                variant="outlined"
-                onClick={handleViewProjects}
-                sx={{
-                  borderColor: theme.palette.text.primary,
-                  color: theme.palette.text.primary,
-                  py: { xs: 1, md: 1.5 },
-                  fontSize: { xs: '0.875rem', md: '1rem' },
-                  '&:hover': {
-                    borderColor: theme.palette.text.primary,
-                    backgroundColor: theme.palette.action.hover,
-                  },
-                }}
-              >
-                View All Projects
-              </Button>
-            </Paper>
+          <Grid item xs={12} md={6}>
+            <UserProjectsCard />
           </Grid>
         </Grid>
 
-        {/* Ops Tool Quick Links */}
-        <Box sx={{ mb: 4 }}>
-          <Typography
-            variant="h6"
-            sx={{
-              color: theme.palette.text.primary,
-              fontWeight: 600,
-              mb: 2,
-              fontSize: { xs: '1rem', md: '1.25rem' },
-            }}
-          >
-            Ops Tool
-          </Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6} md={4}>
-              <Paper
-                sx={{
-                  p: { xs: 1.5, md: 2 },
-                  backgroundColor: theme.palette.background.paper,
-                  border: `1px solid ${theme.palette.divider}`,
-                  cursor: 'pointer',
-                  transition: 'all 0.3s',
-                  '&:hover': {
-                    borderColor: theme.palette.text.primary,
-                    backgroundColor: theme.palette.action.hover,
-                  },
-                }}
-                onClick={() => router.push('/ops/companies')}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, md: 2 } }}>
-                  <BusinessIcon sx={{ fontSize: { xs: 28, md: 32 }, color: theme.palette.text.primary, flexShrink: 0 }} />
-                  <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600, fontSize: { xs: '1rem', md: '1.25rem' } }}>
-                      Companies
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
-                      Manage companies and clients
-                    </Typography>
-                  </Box>
-                </Box>
-              </Paper>
-            </Grid>
-            <Grid item xs={12} sm={6} md={4}>
-              <Paper
-                sx={{
-                  p: { xs: 1.5, md: 2 },
-                  backgroundColor: theme.palette.background.paper,
-                  border: `1px solid ${theme.palette.divider}`,
-                  cursor: 'pointer',
-                  transition: 'all 0.3s',
-                  '&:hover': {
-                    borderColor: theme.palette.text.primary,
-                    backgroundColor: theme.palette.action.hover,
-                  },
-                }}
-                onClick={() => router.push('/ops/opportunities')}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, md: 2 } }}>
-                  <WorkIcon sx={{ fontSize: { xs: 28, md: 32 }, color: theme.palette.text.primary, flexShrink: 0 }} />
-                  <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600, fontSize: { xs: '1rem', md: '1.25rem' } }}>
-                      Opportunities
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
-                      Track sales opportunities
-                    </Typography>
-                  </Box>
-                </Box>
-              </Paper>
-            </Grid>
-            <Grid item xs={12} sm={6} md={4}>
-              <Paper
-                sx={{
-                  p: { xs: 1.5, md: 2 },
-                  backgroundColor: theme.palette.background.paper,
-                  border: `1px solid ${theme.palette.divider}`,
-                  cursor: 'pointer',
-                  transition: 'all 0.3s',
-                  '&:hover': {
-                    borderColor: theme.palette.text.primary,
-                    backgroundColor: theme.palette.action.hover,
-                  },
-                }}
-                onClick={() => router.push('/ops/contacts')}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, md: 2 } }}>
-                  <ContactsIcon sx={{ fontSize: { xs: 28, md: 32 }, color: theme.palette.text.primary, flexShrink: 0 }} />
-                  <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600, fontSize: { xs: '1rem', md: '1.25rem' } }}>
-                      Contacts
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontSize: { xs: '0.75rem', md: '0.875rem' } }}>
-                      Manage company contacts
-                    </Typography>
-                  </Box>
-                </Box>
-              </Paper>
-            </Grid>
+        {/* Knowledge Base Articles Slider */}
+        <KBArticlesSlider />
+
+        {/* Teams and Comments Row */}
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <TeamPreviewCard />
           </Grid>
-        </Box>
-
-        {/* Projects Multi-Line Chart */}
-        {projects.length > 0 && (
-          <Box sx={{ mb: 4 }}>
-            <ProjectsMultiLineChart projects={projects} tasks={tasks} />
-          </Box>
-        )}
-
-        {/* Employee Project Mapping */}
-        {users.length > 0 && (
-          <Box sx={{ mb: 4 }}>
-            <EmployeeProjectMapping
-              projects={projects}
-              tasks={tasks}
-              users={users}
-              projectMembers={projectMembers}
-              currentUserId={currentUserId}
-              currentUserRole={currentUserRole}
-            />
-          </Box>
-        )}
-
-        {/* Recent Projects Table */}
-        <Box>
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 2, gap: { xs: 1, md: 0 } }}>
-            <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600, fontSize: { xs: '1rem', md: '1.25rem' } }}>
-              Recent Projects
-            </Typography>
-            {stats.recent.length > 0 && (
-              <Button
-                size="small"
-                onClick={handleViewProjects}
-                sx={{ 
-                  color: theme.palette.text.primary,
-                  alignSelf: { xs: 'flex-start', md: 'auto' },
-                }}
-              >
-                View All
-              </Button>
-            )}
-          </Box>
-          {stats.recent.length > 0 ? (
-            <SortableTable
-              data={stats.recent}
-              columns={[
-                {
-                  key: 'name',
-                  label: 'Project Name',
-                  sortable: true,
-                  render: (value: unknown, row: Project) => (
-                    <Typography
-                      sx={{
-                        color: theme.palette.text.primary,
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        '&:hover': {
-                          textDecoration: 'underline',
-                        },
-                      }}
-                      onClick={(e: React.MouseEvent) => {
-                        e.stopPropagation();
-                        router.push(`/project/${row.id}`);
-                      }}
-                    >
-                      {String(value)}
-                    </Typography>
-                  ),
-                },
-                {
-                  key: 'description',
-                  label: 'Description',
-                  sortable: true,
-                  render: (value) => (
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        color: theme.palette.text.secondary,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        maxWidth: 400,
-                      }}
-                    >
-                      {String(value || 'No description')}
-                    </Typography>
-                  ),
-                },
-                {
-                  key: 'status',
-                  label: 'Status',
-                  sortable: true,
-                  render: (val: unknown) => {
-                    const value = val as string;
-                    return (
-                      <Chip
-                        label={String(value).replace('_', ' ')}
-                        size="small"
-                        sx={{
-                          backgroundColor: theme.palette.action.hover,
-                          color: theme.palette.text.primary,
-                          border: `1px solid ${theme.palette.divider}`,
-                          fontWeight: 500,
-                        }}
-                      />
-                    );
-                  },
-                },
-                {
-                  key: 'updated_at',
-                  label: 'Last Updated',
-                  sortable: true,
-                  render: (val: unknown) => {
-                    const value = val as string;
-                    return (
-                      <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-                        {value ? format(new Date(value), 'MMM d, yyyy') : 'Never'}
-                      </Typography>
-                    );
-                  },
-                },
-              ]}
-              onRowClick={(row) => router.push(`/project/${row.id}`)}
-              emptyMessage="No recent projects"
-            />
-          ) : (
-            <Paper
-              sx={{
-                p: 4,
-                textAlign: 'center',
-                backgroundColor: theme.palette.background.paper,
-                border: `1px solid ${theme.palette.divider}`,
-              }}
-            >
-              <Typography variant="body1" sx={{ color: theme.palette.text.secondary, mb: 2 }}>
-                No projects yet. Create your first project to get started!
-              </Typography>
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={handleCreateProject}
-                sx={{
-                  backgroundColor: theme.palette.text.primary,
-                  color: theme.palette.background.default,
-                  '&:hover': {
-                    backgroundColor: theme.palette.action.hover,
-                  },
-                }}
-              >
-                Create Project
-              </Button>
-            </Paper>
-          )}
-        </Box>
+          <Grid item xs={12} md={6}>
+            <RecentCommentsCard />
+          </Grid>
+        </Grid>
       </Box>
-      <WelcomeTour
+
+      <InteractiveOnboarding
         open={showWelcomeTour}
         onClose={() => setShowWelcomeTour(false)}
-        onComplete={() => {
-          // Increment tour view count (show first 3 times)
-          const currentCount = parseInt(localStorage.getItem('welcomeTourViewCount') || '0', 10);
-          localStorage.setItem('welcomeTourViewCount', String(currentCount + 1));
-          setShowWelcomeTour(false);
-        }}
       />
 
       {/* Invite Users Prompt */}
-      <Dialog open={showInvitePrompt} onClose={() => {
-        setShowInvitePrompt(false);
-        sessionStorage.removeItem('pending_user_invites');
-        router.push('/dashboard');
-      }} maxWidth="sm" fullWidth>
+      <Dialog
+        open={showInvitePrompt}
+        onClose={() => {
+          setShowInvitePrompt(false);
+          sessionStorage.removeItem('pending_user_invites');
+          router.push('/dashboard');
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Invite Team Members</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            You purchased {pendingInvites?.quantity || 0} user{pendingInvites?.quantity !== 1 ? 's' : ''} for your plan. 
+            You purchased {pendingInvites?.quantity || 0} user{pendingInvites?.quantity !== 1 ? 's' : ''} for your plan.
             You currently have {users.length} user{users.length !== 1 ? 's' : ''} in your organization.
             {pendingInvites && users.length < pendingInvites.quantity && (
               <>
@@ -805,7 +258,6 @@ function DashboardPageContent() {
         open={showCreateUserDialog}
         onClose={() => {
           setShowCreateUserDialog(false);
-          // Check if we've invited all users
           if (pendingInvites && users.length + 1 >= pendingInvites.quantity) {
             sessionStorage.removeItem('pending_user_invites');
             setPendingInvites(null);
@@ -816,66 +268,7 @@ function DashboardPageContent() {
         }}
       />
 
-      {/* Invite Users Prompt */}
-      <Dialog open={showInvitePrompt} onClose={() => {
-        setShowInvitePrompt(false);
-        sessionStorage.removeItem('pending_user_invites');
-        router.push('/dashboard');
-      }} maxWidth="sm" fullWidth>
-        <DialogTitle>Invite Team Members</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            You purchased {pendingInvites?.quantity || 0} user{pendingInvites?.quantity !== 1 ? 's' : ''} for your plan. 
-            You currently have {users.length} user{users.length !== 1 ? 's' : ''} in your organization.
-            {pendingInvites && users.length < pendingInvites.quantity && (
-              <>
-                <br /><br />
-                You can invite up to {pendingInvites.quantity - users.length} more user{pendingInvites.quantity - users.length !== 1 ? 's' : ''} to your organization.
-              </>
-            )}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => {
-            setShowInvitePrompt(false);
-            sessionStorage.removeItem('pending_user_invites');
-            router.push('/dashboard');
-          }}>
-            Maybe Later
-          </Button>
-          <Button
-            variant="contained"
-            onClick={() => {
-              setShowInvitePrompt(false);
-              setShowCreateUserDialog(true);
-            }}
-          >
-            Invite Users Now
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Create User Dialog */}
-      <CreateUserDialog
-        open={showCreateUserDialog}
-        onClose={() => {
-          setShowCreateUserDialog(false);
-          // Check if we've invited all users
-          if (pendingInvites && users.length + 1 >= pendingInvites.quantity) {
-            sessionStorage.removeItem('pending_user_invites');
-            setPendingInvites(null);
-          }
-        }}
-        onUserCreated={() => {
-          // User created - dialog will handle reload
-        }}
-      />
-      <CreateProjectDialog
-        open={createDialogOpen}
-        onClose={() => setCreateDialogOpen(false)}
-        onSuccess={handleProjectCreated}
-      />
-    </>
+      </>
   );
 }
 
@@ -886,8 +279,9 @@ export default function DashboardPage() {
         <CircularProgress />
       </Box>
     }>
-      <DashboardPageContent />
+      <OnboardingProvider>
+        <DashboardPageContent />
+      </OnboardingProvider>
     </Suspense>
   );
 }
-

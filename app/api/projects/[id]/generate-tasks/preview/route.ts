@@ -273,6 +273,34 @@ export async function POST(
             const roleName = pm?.role || 'Team Member';
             memberMap.set(userId, { role_name: roleName, role_description: null });
           });
+        } else {
+          // FALLBACK: No SOW and no allocations - try direct project_members
+          logger.info('[Task Generator Preview] No SOW or allocations, falling back to project_members');
+          const { data: directMembers } = await adminClient
+            .from('project_members')
+            .select(`
+              user_id,
+              role,
+              user:users!project_members_user_id_fkey(
+                id,
+                name,
+                email
+              )
+            `)
+            .eq('project_id', params.id);
+
+          if (directMembers && directMembers.length > 0) {
+            memberUserIds = directMembers
+              .map((m: { user_id: string }) => m.user_id)
+              .filter((id): id is string => Boolean(id));
+            
+            directMembers.forEach((m: { user_id: string; role: string | null }) => {
+              memberMap.set(m.user_id, { 
+                role_name: m.role || 'Team Member', 
+                role_description: null 
+              });
+            });
+          }
         }
       }
 

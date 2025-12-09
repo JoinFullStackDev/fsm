@@ -160,128 +160,60 @@ export default function ProjectPage() {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
 
-      // Load project via API route to avoid RLS recursion issues
-      const projectResponse = await fetch(`/api/projects/${projectId}`);
-      if (!projectResponse.ok) {
-        const errorData = await projectResponse.json();
+      // OPTIMIZATION: Use combined /full endpoint to fetch all project data in a single request
+      // This eliminates the waterfall of sequential API calls
+      const fullProjectResponse = await fetch(`/api/projects/${projectId}/full`);
+      if (!fullProjectResponse.ok) {
+        const errorData = await fullProjectResponse.json();
         setError(errorData.error || 'Project not found');
         setLoading(false);
         return;
       }
       
-      const projectData = await projectResponse.json();
+      const fullData = await fullProjectResponse.json();
       
-      if (!projectData) {
+      if (!fullData.project) {
         setError('Project not found');
         setLoading(false);
         return;
       }
 
-      setProject(projectData);
-      // Extract company name from project data
-      // The API returns company as an object with id and name
-      // Also check if company_id exists and fetch company via API if relation didn't work
-      if (projectData.company?.name) {
-        setCompanyName(projectData.company.name);
-      } else if (projectData.company_id) {
-        // If company relation didn't load, fetch company via API route to avoid RLS issues
-        try {
-          const companyResponse = await fetch(`/api/ops/companies/${projectData.company_id}`);
-          if (companyResponse.ok) {
-            const companyData = await companyResponse.json();
-            setCompanyName(companyData.name || null);
-          } else {
-            setCompanyName(null);
-          }
-        } catch (err) {
-          console.error('[ProjectPage] Error fetching company:', err);
-          setCompanyName(null);
-        }
+      // Set project data
+      setProject(fullData.project);
+      
+      // Set company name from combined response
+      if (fullData.company?.name) {
+        setCompanyName(fullData.company.name);
+      } else if (fullData.project.company?.name) {
+        setCompanyName(fullData.project.company.name);
       } else {
         setCompanyName(null);
       }
 
-      // Use owner info from API response (already joined in the query)
-      if (projectData.owner) {
+      // Set creator from project owner
+      if (fullData.project.owner) {
         setCreator({
-          name: projectData.owner.name,
-          email: projectData.owner.email,
-          avatar_url: projectData.owner.avatar_url,
+          name: fullData.project.owner.name,
+          email: fullData.project.owner.email,
+          avatar_url: fullData.project.owner.avatar_url,
         });
       }
 
-      // Load phases via API route to avoid RLS recursion
-      // The phases API route returns all fields including data
-      let finalPhasesData: any[] = [];
-      
-      try {
-        const phasesResponse = await fetch(`/api/projects/${projectId}/phases`);
-        if (phasesResponse.ok) {
-          const phasesData = await phasesResponse.json();
-          finalPhasesData = phasesData.phases || [];
-        } else {
-          // Fallback to phases from project API if phases API fails
-          console.error('Error loading phases:', await phasesResponse.json());
-          finalPhasesData = projectData.phases || [];
-        }
-      } catch (error) {
-        console.error('Error loading phases:', error);
-        // Fallback to phases from project API
-        finalPhasesData = projectData.phases || [];
-      }
-      
-      setPhases(finalPhasesData);
+      // Set phases from combined response
+      setPhases(fullData.phases || []);
 
-      // Load template field configs if project has a template_id
-      if (projectData.template_id && finalPhasesData && finalPhasesData.length > 0) {
-        const phaseNumbers = finalPhasesData.map((p: any) => p.phase_number);
-        const { data: configsData, error: configsError } = await supabase
-          .from('template_field_configs')
-          .select('phase_number, field_key')
-          .eq('template_id', projectData.template_id)
-          .in('phase_number', phaseNumbers);
-
-        if (!configsError && configsData) {
-          const configsByPhase: Record<number, Array<{ field_key: string }>> = {};
-          configsData.forEach((config: any) => {
-            if (!configsByPhase[config.phase_number]) {
-              configsByPhase[config.phase_number] = [];
-            }
-            configsByPhase[config.phase_number].push({ field_key: config.field_key });
-          });
-          setFieldConfigsByPhase(configsByPhase);
-        }
+      // Set field configs from combined response (already grouped by phase number)
+      if (fullData.fieldConfigsByPhase) {
+        setFieldConfigsByPhase(fullData.fieldConfigsByPhase);
       }
 
-      // Load dashboard stats
-      // Member count - use API route to avoid RLS issues
-      try {
-        const membersResponse = await fetch(`/api/projects/${projectId}/members`);
-        if (membersResponse.ok) {
-          const membersData = await membersResponse.json();
-          const membersArray = membersData.members || [];
-          setMemberCount(membersArray.length);
-          setMembers(membersArray.slice(0, 5)); // Show first 5 members
-        } else {
-          // If API fails, set empty array
-          setMemberCount(0);
-          setMembers([]);
-        }
-      } catch (err) {
-        console.error('[ProjectPage] Error loading members:', err);
-        setMemberCount(0);
-        setMembers([]);
-      }
+      // Set members from combined response
+      const membersArray = fullData.members || [];
+      setMemberCount(membersArray.length);
+      setMembers(membersArray.slice(0, 5)); // Show first 5 members
 
-      // Export count
-      const { count: exportCountData } = await supabase
-        .from('project_exports')
-        .select('*', { count: 'exact', head: true })
-        .eq('project_id', projectId);
-      
-      if (exportCountData !== null) {
-        setExportCount(exportCountData);
-      }
+      // Set export count from combined response
+      setExportCount(fullData.exportCount || 0);
 
       setLoading(false);
     };

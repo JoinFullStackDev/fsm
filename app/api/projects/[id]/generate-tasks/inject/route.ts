@@ -32,7 +32,7 @@ export async function POST(
         .single(),
       adminClient
         .from('projects')
-        .select('id, owner_id')
+        .select('id, owner_id, initiated_at')
         .eq('id', params.id)
         .single(),
     ]);
@@ -393,6 +393,23 @@ export async function POST(
           count: createdCount,
           projectId: params.id,
         });
+
+        // Set initiated_at if not already set (first time initiating project management)
+        if (!project.initiated_at) {
+          const { error: updateError } = await adminClient
+            .from('projects')
+            .update({
+              initiated_at: new Date().toISOString(),
+              initiated_by: userData.id,
+            })
+            .eq('id', params.id);
+
+          if (updateError) {
+            logger.warn('[Task Inject] Failed to set initiated_at:', updateError);
+          } else {
+            logger.info('[Task Inject] Set initiated_at for project:', params.id);
+          }
+        }
 
         // Create activity log entry for batch creation with enhanced metadata
         try {
