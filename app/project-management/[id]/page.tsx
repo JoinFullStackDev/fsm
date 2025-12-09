@@ -123,127 +123,40 @@ export default function ProjectTaskManagementPage() {
         return;
       }
 
-      // Get user record via API to avoid RLS recursion
-      const userResponse = await fetch('/api/users/me');
-      if (!userResponse.ok) {
-        setError('Failed to load user data');
-        setLoading(false);
-        return;
-      }
-      
-      const userData = await userResponse.json();
-      if (!userData || !userData.id) {
-        setError('User data not found');
-        setLoading(false);
-        return;
-      }
-
-      setCurrentUserId(userData.id);
-      const currentUser = userData; // API returns full user data
-
-      // Load project via API route to avoid RLS recursion issues
-      const projectResponse = await fetch(`/api/projects/${projectId}`);
-      if (!projectResponse.ok) {
-        const errorData = await projectResponse.json();
-        setError(errorData.error || 'Project not found');
-        setLoading(false);
-        return;
-      }
-      
-      const projectData = await projectResponse.json();
-      
-      if (!projectData) {
-        setError('Project not found');
-        setLoading(false);
-        return;
-      }
-
-      setProject(projectData as Project);
-
-      // Load tasks directly to avoid dependency issues
+      // OPTIMIZATION: Use combined endpoint to fetch all data in ONE request
+      // This replaces 4 separate API calls (user, project, tasks, phases, members)
       try {
-        const tasksResponse = await fetch(`/api/projects/${projectId}/tasks?t=${Date.now()}`, {
-          cache: 'no-store',
+        const response = await fetch(`/api/projects/${projectId}/management-data`);
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          setError(errorData.error || 'Failed to load project data');
+          setLoading(false);
+          return;
+        }
+        
+        const data = await response.json();
+        
+        // Set all state from combined response
+        setCurrentUserId(data.currentUserId);
+        setProject(data.project as Project);
+        setTasks(data.tasks as (ProjectTask | ProjectTaskExtended)[]);
+        setPhaseNames(data.phaseNames || {});
+        setProjectMembers(data.projectMembers || []);
+        
+        console.log('[Task Management] Loaded all data via combined endpoint:', {
+          taskCount: data.tasks?.length || 0,
+          phaseCount: data.phases?.length || 0,
+          memberCount: data.projectMembers?.length || 0,
+          responseTime: data.meta?.responseTime,
         });
-        if (tasksResponse.ok) {
-          const tasksData = await tasksResponse.json();
-          const taskMap = new Map<string, any>();
-          (tasksData || []).forEach((task: any) => {
-            taskMap.set(task.id, task);
-          });
-          const transformedTasks = (tasksData || []).map((task: any) => {
-            const parentTask = task.parent_task_id ? taskMap.get(task.parent_task_id) : null;
-            return {
-              ...task,
-              parent_task: parentTask ? {
-                id: parentTask.id,
-                title: parentTask.title,
-                assignee_id: parentTask.assignee_id,
-              } : null,
-            };
-          });
-          setTasks(transformedTasks as (ProjectTask | ProjectTaskExtended)[]);
-        }
       } catch (error) {
-        console.error('[Task Management] Error loading tasks in loadData:', error);
-      }
-
-      // Load project phases for phase names via API to avoid RLS issues
-      try {
-        const phasesResponse = await fetch(`/api/projects/${projectId}/phases?t=${Date.now()}`, {
-          cache: 'no-store',
-        });
-        if (phasesResponse.ok) {
-          const phasesResult = await phasesResponse.json();
-          const phasesData = phasesResult.phases || phasesResult; // Handle both { phases: [...] } and [...] formats
-          const phaseNamesMap: Record<number, string> = {};
-          if (Array.isArray(phasesData)) {
-            phasesData.forEach((phase: { phase_number: number; phase_name: string }) => {
-              if (phase.phase_number && phase.phase_name) {
-                phaseNamesMap[phase.phase_number] = phase.phase_name;
-              }
-            });
-          }
-          console.log('[Task Management] Loaded phase names:', phaseNamesMap);
-          setPhaseNames(phaseNamesMap);
-        } else {
-          console.error('[Task Management] Failed to load phases via API');
-        }
-      } catch (error) {
-        console.error('[Task Management] Error loading phases:', error);
-      }
-
-      // Load project members via API route to avoid RLS recursion
-      // Add cache-busting to ensure fresh data
-      const membersResponse = await fetch(`/api/projects/${projectId}/members?t=${Date.now()}`, {
-        cache: 'no-store', // Ensure fresh data
-      });
-      if (membersResponse.ok) {
-        const membersData = await membersResponse.json();
-        if (membersData.members) {
-          const members = membersData.members
-            .map((m: any) => m.user)
-            .filter(Boolean)
-            .map((u: any) => ({
-              id: u.id,
-              name: u.name,
-              email: u.email,
-              avatar_url: u.avatar_url,
-              role: 'pm' as const,
-              auth_id: '',
-              created_at: '',
-            }));
-          setProjectMembers(members);
-        } else {
-          setProjectMembers([]);
-        }
-      } else {
-        // If API call fails, set empty array
-        setProjectMembers([]);
+        console.error('[Task Management] Error loading data:', error);
+        setError(error instanceof Error ? error.message : 'Failed to load project data');
       }
 
       setLoading(false);
-    }, [projectId]); // Removed supabase and loadTasks - create client fresh inside function
+    }, [projectId]);
 
   useEffect(() => {
     if (projectId) {

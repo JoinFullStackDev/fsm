@@ -1067,10 +1067,6 @@ export default function ProjectSettingsPage() {
                   <SOWList
                     sows={sows}
                     loading={loadingSOWs}
-                    onAdd={() => {
-                      setEditingSOW(null);
-                      setSowFormOpen(true);
-                    }}
                     onView={(sow) => setViewingSOW(sow)}
                     onEdit={(sow) => {
                       setEditingSOW(sow);

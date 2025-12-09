@@ -4,6 +4,7 @@ import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { notifyTaskAssigned } from '@/lib/notifications';
 import { sendTaskAssignedEmail, sendTaskUpdatedEmail } from '@/lib/emailNotifications';
 import { unauthorized, notFound, internalError, badRequest, forbidden } from '@/lib/utils/apiErrors';
+import { cacheDel, CACHE_KEYS } from '@/lib/cache/unifiedCache';
 import logger from '@/lib/utils/logger';
 
 // Type for task update data
@@ -205,6 +206,13 @@ export async function PUT(
       return notFound('Task');
     }
 
+    // Invalidate tasks cache after update
+    try {
+      await cacheDel(CACHE_KEYS.projectTasks(params.id));
+    } catch (cacheError) {
+      logger.warn('[Task PUT] Failed to invalidate cache:', cacheError);
+    }
+
     // Get project name from current task for notifications
     const projectName = (currentTask.project as any)?.name;
 
@@ -331,6 +339,13 @@ export async function DELETE(
     if (error) {
       logger.error('Error deleting task:', error);
       return internalError('Failed to delete task', { error: error.message });
+    }
+
+    // Invalidate tasks cache after deletion
+    try {
+      await cacheDel(CACHE_KEYS.projectTasks(params.id));
+    } catch (cacheError) {
+      logger.warn('[Task DELETE] Failed to invalidate cache:', cacheError);
     }
 
     return NextResponse.json({ success: true });

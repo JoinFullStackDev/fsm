@@ -4,6 +4,7 @@ import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import { unauthorized, notFound, internalError, forbidden, badRequest } from '@/lib/utils/apiErrors';
 import { isValidUUID } from '@/lib/utils/inputSanitization';
+import { cacheGetOrSet, CACHE_KEYS, CACHE_TTL } from '@/lib/cache/unifiedCache';
 import logger from '@/lib/utils/logger';
 
 /**
@@ -98,73 +99,93 @@ export async function GET(
       }
     }
 
-    // OPTIMIZATION: Fetch all related data in parallel
-    const [phasesResult, membersResult, exportsResult, templateConfigsResult] = await Promise.all([
-      // Fetch phases
-      adminClient
-        .from('project_phases')
-        .select('*')
-        .eq('project_id', params.id)
-        .eq('is_active', true)
-        .order('display_order', { ascending: true }),
+    // OPTIMIZATION: Fetch all related data in parallel with Redis caching
+    const [phases, members, exportCount, templateConfigs] = await Promise.all([
+      // Fetch phases (cached)
+      cacheGetOrSet(
+        CACHE_KEYS.projectPhases(params.id),
+        async () => {
+          const { data, error } = await adminClient
+            .from('project_phases')
+            .select('*')
+            .eq('project_id', params.id)
+            .eq('is_active', true)
+            .order('display_order', { ascending: true });
+          if (error) {
+            logger.error('[Projects Full API] Error fetching phases:', error);
+            return [];
+          }
+          return data || [];
+        },
+        CACHE_TTL.PROJECT_PHASES
+      ),
       
-      // Fetch members with user details and organization role
-      adminClient
-        .from('project_members')
-        .select(`
-          id,
-          user_id,
-          organization_role_id,
-          created_at,
-          organization_role:organization_roles (
-            id,
-            name,
-            description
-          ),
-          user:users!project_members_user_id_fkey (
-            id,
-            name,
-            email,
-            avatar_url
-          )
-        `)
-        .eq('project_id', params.id)
-        .order('created_at', { ascending: true }),
+      // Fetch members with user details and organization role (cached)
+      cacheGetOrSet(
+        CACHE_KEYS.projectMembers(params.id),
+        async () => {
+          const { data, error } = await adminClient
+            .from('project_members')
+            .select(`
+              id,
+              user_id,
+              organization_role_id,
+              created_at,
+              organization_role:organization_roles (
+                id,
+                name,
+                description
+              ),
+              user:users!project_members_user_id_fkey (
+                id,
+                name,
+                email,
+                avatar_url
+              )
+            `)
+            .eq('project_id', params.id)
+            .order('created_at', { ascending: true });
+          if (error) {
+            logger.error('[Projects Full API] Error fetching members:', error);
+            return [];
+          }
+          return data || [];
+        },
+        CACHE_TTL.PROJECT_MEMBERS
+      ),
       
-      // Fetch export count
-      adminClient
-        .from('project_exports')
-        .select('*', { count: 'exact', head: true })
-        .eq('project_id', params.id),
+      // Fetch export count (not cached - quick query, always fresh)
+      (async () => {
+        const { count, error } = await adminClient
+          .from('project_exports')
+          .select('*', { count: 'exact', head: true })
+          .eq('project_id', params.id);
+        if (error) {
+          logger.error('[Projects Full API] Error fetching exports:', error);
+          return 0;
+        }
+        return count || 0;
+      })(),
       
-      // Fetch template field configs if project has a template
+      // Fetch template field configs if project has a template (cached)
       project.template_id
-        ? adminClient
-            .from('template_field_configs')
-            .select('phase_number, field_key')
-            .eq('template_id', project.template_id)
-        : Promise.resolve({ data: null, error: null }),
+        ? cacheGetOrSet(
+            CACHE_KEYS.projectFieldConfigs(params.id),
+            async () => {
+              const { data, error } = await adminClient
+                .from('template_field_configs')
+                .select('phase_number, field_key')
+                .eq('template_id', project.template_id);
+              if (error) {
+                logger.error('[Projects Full API] Error fetching template configs:', error);
+                return null;
+              }
+              return data;
+            },
+            CACHE_TTL.PROJECT_FIELD_CONFIGS
+          )
+        : Promise.resolve(null),
     ]);
-
-    // Process results
-    const { data: phases, error: phasesError } = phasesResult;
-    const { data: members, error: membersError } = membersResult;
-    const { count: exportCount, error: exportsError } = exportsResult;
-    const { data: templateConfigs, error: templateConfigsError } = templateConfigsResult;
-
-    // Log any errors but don't fail the entire request
-    if (phasesError) {
-      logger.error('[Projects Full API] Error fetching phases:', phasesError);
-    }
-    if (membersError) {
-      logger.error('[Projects Full API] Error fetching members:', membersError);
-    }
-    if (exportsError) {
-      logger.error('[Projects Full API] Error fetching exports:', exportsError);
-    }
-    if (templateConfigsError) {
-      logger.error('[Projects Full API] Error fetching template configs:', templateConfigsError);
-    }
 
     // Group template field configs by phase number for easier consumption
     const fieldConfigsByPhase: Record<number, Array<{ field_key: string }>> = {};

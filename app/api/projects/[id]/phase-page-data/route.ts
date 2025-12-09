@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { unauthorized, notFound, badRequest, internalError } from '@/lib/utils/apiErrors';
+import { cacheGetOrSet, CACHE_KEYS, CACHE_TTL } from '@/lib/cache/unifiedCache';
 import logger from '@/lib/utils/logger';
 
 /**
@@ -39,31 +40,55 @@ export async function GET(
 
     const adminClient = createAdminSupabaseClient();
 
-    // OPTIMIZATION: Run ALL queries in parallel
-    const [userResult, projectResult, phasesResult, currentPhaseResult] = await Promise.all([
-      // 1. Get user record
-      adminClient
-        .from('users')
-        .select('id, name, email, role, organization_id')
-        .eq('auth_id', user.id)
-        .single(),
+    // OPTIMIZATION: Run queries in parallel with Redis caching where appropriate
+    // User data is cached, project not cached (needs fresh for template changes),
+    // phases cached, current phase NOT cached (changes during editing)
+    const [userData, projectResult, phases, currentPhaseResult] = await Promise.all([
+      // 1. Get user record (cached by auth ID)
+      cacheGetOrSet(
+        CACHE_KEYS.userByAuthId(user.id),
+        async () => {
+          const { data, error } = await adminClient
+            .from('users')
+            .select('id, name, email, role, organization_id')
+            .eq('auth_id', user.id)
+            .single();
+          if (error) {
+            logger.error('[PhasePageData] User query error:', error);
+            return null;
+          }
+          return data;
+        },
+        CACHE_TTL.MEDIUM // 5 minutes
+      ),
       
-      // 2. Get project with template info
+      // 2. Get project with template info (not cached - needs to be fresh for template changes)
       adminClient
         .from('projects')
         .select('id, name, description, status, template_id, owner_id, organization_id')
         .eq('id', params.id)
         .single(),
       
-      // 3. Get all phases for this project
-      adminClient
-        .from('project_phases')
-        .select('id, phase_number, phase_name, display_order, completed, is_active')
-        .eq('project_id', params.id)
-        .eq('is_active', true)
-        .order('display_order', { ascending: true }),
+      // 3. Get all phases for this project (cached)
+      cacheGetOrSet(
+        CACHE_KEYS.projectPhases(params.id),
+        async () => {
+          const { data, error } = await adminClient
+            .from('project_phases')
+            .select('id, phase_number, phase_name, display_order, completed, is_active')
+            .eq('project_id', params.id)
+            .eq('is_active', true)
+            .order('display_order', { ascending: true });
+          if (error) {
+            logger.error('[PhasePageData] Phases query error:', error);
+            return [];
+          }
+          return data || [];
+        },
+        CACHE_TTL.PROJECT_PHASES
+      ),
       
-      // 4. Get current phase with data
+      // 4. Get current phase with data (NOT cached - changes during editing)
       adminClient
         .from('project_phases')
         .select('*')
@@ -73,13 +98,11 @@ export async function GET(
         .single(),
     ]);
 
-    const { data: userData, error: userError } = userResult;
     const { data: project, error: projectError } = projectResult;
-    const { data: phases, error: phasesError } = phasesResult;
     const { data: currentPhase, error: currentPhaseError } = currentPhaseResult;
 
-    if (userError || !userData) {
-      logger.error('[PhasePageData] User not found:', userError);
+    if (!userData) {
+      logger.error('[PhasePageData] User not found');
       return notFound('User not found');
     }
 
@@ -93,9 +116,10 @@ export async function GET(
       return notFound('Phase not found');
     }
 
-    // Check access
+    // Check access and membership in one query
     const isOwner = project.owner_id === userData.id;
     const sameOrg = project.organization_id === userData.organization_id;
+    let isProjectMember = isOwner || sameOrg;
     
     if (!isOwner && !sameOrg) {
       // Check if user is a project member
@@ -109,23 +133,33 @@ export async function GET(
       if (!memberData) {
         return unauthorized('You do not have access to this project');
       }
+      isProjectMember = true;
     }
 
-    // Get field configs if project has a template (separate query since it depends on template_id)
+    // Get field configs if project has a template (cached)
     let fieldConfigs: Array<{ id: string; template_id: string; phase_number: number; field_key: string; config: Record<string, unknown> }> = [];
     if (project.template_id) {
-      const { data: configs, error: configsError } = await adminClient
-        .from('template_field_configs')
-        .select('*')
-        .eq('template_id', project.template_id)
-        .eq('phase_number', currentPhase.phase_number)
-        .order('display_order', { ascending: true });
-      
-      if (configsError) {
-        logger.warn('[PhasePageData] Error loading field configs:', configsError);
-      }
-      
-      fieldConfigs = configs || [];
+      // Cache key includes phase number for phase-specific configs
+      const cacheKey = `${CACHE_KEYS.projectFieldConfigs(params.id)}:phase:${currentPhase.phase_number}`;
+      fieldConfigs = await cacheGetOrSet(
+        cacheKey,
+        async () => {
+          const { data: configs, error: configsError } = await adminClient
+            .from('template_field_configs')
+            .select('*')
+            .eq('template_id', project.template_id)
+            .eq('phase_number', currentPhase.phase_number)
+            .order('display_order', { ascending: true });
+          
+          if (configsError) {
+            logger.warn('[PhasePageData] Error loading field configs:', configsError);
+            return [];
+          }
+          
+          return configs || [];
+        },
+        CACHE_TTL.PROJECT_FIELD_CONFIGS
+      );
     }
 
     const responseTime = Date.now() - startTime;
@@ -153,6 +187,7 @@ export async function GET(
         data: currentPhase.data || {},
       },
       fieldConfigs,
+      isProjectMember, // Include membership status to avoid redundant client-side fetch
       meta: {
         responseTime,
         phaseCount: (phases || []).length,
