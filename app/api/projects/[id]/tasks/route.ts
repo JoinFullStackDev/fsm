@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { unauthorized, badRequest, internalError, notFound } from '@/lib/utils/apiErrors';
+import { cacheGetOrSet, cacheDel, CACHE_KEYS, CACHE_TTL } from '@/lib/cache/unifiedCache';
 import logger from '@/lib/utils/logger';
 import { notifyTaskAssigned } from '@/lib/notifications';
 import { sendTaskAssignedEmail } from '@/lib/emailNotifications';
@@ -42,6 +43,9 @@ export async function GET(
 ) {
   const searchParams = request.nextUrl.searchParams;
   const includeSubtasks = searchParams.get('include_subtasks') === 'true';
+  // Allow cache bypass with t= parameter for manual refresh
+  const bypassCache = searchParams.has('t');
+  
   try {
     const supabase = await createServerSupabaseClient();
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -50,27 +54,45 @@ export async function GET(
       return unauthorized('You must be logged in to view tasks');
     }
 
-    // Use admin client to avoid RLS recursion when querying tasks and users
     const adminClient = createAdminSupabaseClient();
-    const { data: tasks, error } = await adminClient
-      .from('project_tasks')
-      .select(`
-        *,
-        assignee:users!project_tasks_assignee_id_fkey(id, name, email, avatar_url)
-      `)
-      .eq('project_id', params.id)
-      .order('created_at', { ascending: false });
+    
+    // Fetch tasks with caching (30 second TTL, tasks change frequently)
+    // Skip cache if t= parameter is present (manual refresh)
+    const fetchTasks = async () => {
+      const { data: tasks, error } = await adminClient
+        .from('project_tasks')
+        .select(`
+          *,
+          assignee:users!project_tasks_assignee_id_fkey(id, name, email, avatar_url)
+        `)
+        .eq('project_id', params.id)
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      logger.error('Error loading tasks:', error);
-      return internalError('Failed to load tasks', { error: error.message });
+      if (error) {
+        logger.error('Error loading tasks:', error);
+        throw new Error(error.message);
+      }
+
+      // Transform the data to flatten assignee
+      return (tasks || []).map((task) => ({
+        ...(task as TaskRow),
+        assignee: task.assignee || null,
+      }));
+    };
+
+    let transformedTasks: TaskRow[];
+    
+    if (bypassCache) {
+      // Manual refresh - skip cache
+      transformedTasks = await fetchTasks();
+    } else {
+      // Use cached data
+      transformedTasks = await cacheGetOrSet(
+        CACHE_KEYS.projectTasks(params.id),
+        fetchTasks,
+        CACHE_TTL.PROJECT_TASKS
+      );
     }
-
-    // Transform the data to flatten assignee
-    const transformedTasks: TaskRow[] = (tasks || []).map((task) => ({
-      ...(task as TaskRow),
-      assignee: task.assignee || null,
-    }));
 
     // If includeSubtasks is true, group tasks by parent and nest subtasks
     if (includeSubtasks) {
@@ -92,10 +114,14 @@ export async function GET(
         subtasks: subtasksByParent.get(task.id) || [],
       }));
 
-      return NextResponse.json(tasksWithSubtasks);
+      const response = NextResponse.json(tasksWithSubtasks);
+      response.headers.set('Cache-Control', 'private, max-age=10');
+      return response;
     }
 
-    return NextResponse.json(transformedTasks);
+    const response = NextResponse.json(transformedTasks);
+    response.headers.set('Cache-Control', 'private, max-age=10');
+    return response;
   } catch (error) {
     logger.error('Error in GET /api/projects/[id]/tasks:', error);
     return internalError('Failed to load tasks', { error: error instanceof Error ? error.message : 'Unknown error' });
@@ -232,6 +258,13 @@ export async function POST(
 
     if (!task) {
       return internalError('Task was not created');
+    }
+
+    // Invalidate tasks cache after creating new task
+    try {
+      await cacheDel(CACHE_KEYS.projectTasks(params.id));
+    } catch (cacheError) {
+      logger.warn('[Task POST] Failed to invalidate cache:', cacheError);
     }
 
     // Send notifications if task is assigned

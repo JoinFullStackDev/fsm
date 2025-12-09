@@ -15,7 +15,10 @@ export const CACHE_KEYS = {
   // Project cache keys
   projectById: (projectId: string) => `project:${projectId}`,
   projectPhases: (projectId: string) => `project:${projectId}:phases`,
+  projectPhase: (projectId: string, phaseNumber: number) => `project:${projectId}:phase:${phaseNumber}`,
   projectMembers: (projectId: string) => `project:${projectId}:members`,
+  projectFieldConfigs: (projectId: string) => `project:${projectId}:fieldConfigs`,
+  projectTasks: (projectId: string) => `project:${projectId}:tasks`,
   userProjects: (userId: string) => `user:${userId}:projects`,
   
   // Role and permission cache keys
@@ -56,7 +59,10 @@ export const CACHE_TTL = {
   ORGANIZATION_CONTEXT: 300, // 5 minutes
   ROLE_PERMISSIONS: 600, // 10 minutes
   PROJECT_PHASES: 120, // 2 minutes
+  PROJECT_PHASE: 60, // 1 minute (single phase data)
   PROJECT_MEMBERS: 60, // 1 minute
+  PROJECT_FIELD_CONFIGS: 300, // 5 minutes (template configs rarely change)
+  PROJECT_TASKS: 30, // 30 seconds (tasks change frequently)
   USER_PROJECTS: 180, // 3 minutes
   SUBSCRIPTION: 300, // 5 minutes
   PACKAGE: 3600, // 1 hour (packages rarely change)

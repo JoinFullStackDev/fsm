@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { unauthorized, badRequest, internalError, forbidden, notFound } from '@/lib/utils/apiErrors';
+import { cacheDel, CACHE_KEYS } from '@/lib/cache/unifiedCache';
 import logger from '@/lib/utils/logger';
 import { isValidUUID } from '@/lib/utils/inputSanitization';
 
@@ -222,6 +223,17 @@ export async function PUT(
       return internalError('Failed to update phase', {
         error: updateError.message,
       });
+    }
+
+    // Invalidate phase-related caches after successful update
+    try {
+      await Promise.all([
+        cacheDel(CACHE_KEYS.projectPhases(projectId)),
+        cacheDel(CACHE_KEYS.projectPhase(projectId, phaseNumber)),
+      ]);
+      logger.debug('[Phase API PUT] Cache invalidated for project:', projectId);
+    } catch (cacheError) {
+      logger.warn('[Phase API PUT] Failed to invalidate cache:', cacheError);
     }
 
     logger.debug('[Phase API PUT] Phase updated successfully');

@@ -194,7 +194,7 @@ export default function PhasePage() {
         return;
       }
 
-      const { user: userData, project: projectData, phases: allPhases, currentPhase: currentPhaseData, fieldConfigs: loadedFieldConfigs, meta } = await response.json();
+      const { user: userData, project: projectData, phases: allPhases, currentPhase: currentPhaseData, fieldConfigs: loadedFieldConfigs, isProjectMember: membershipFromApi, meta } = await response.json();
       
       logger.debug('[PhasePage] Combined data loaded in', meta?.responseTime, 'ms');
 
@@ -473,28 +473,17 @@ export default function PhasePage() {
         setSummary(savedDocument);
       }
 
-      // Check if user is a project member (owner or in project_members table)
-      // CRITICAL: Use userDatabaseId (users.id) not auth.uid() for membership checks
-      // project_members.user_id references users.id, not users.auth_id
+      // OPTIMIZATION: Use isProjectMember from combined API response instead of separate API call
+      // The phase-page-data endpoint already checks membership during access validation
       const isProjectOwner = projectData?.owner_id === userDatabaseId;
+      const isProjectMember = membershipFromApi ?? isProjectOwner;
       
-      // Check if user is in project_members table via API route
-      const membersResponse = await fetch(`/api/projects/${projectId}/members`);
-      let isProjectMember = isProjectOwner;
-      if (membersResponse.ok && userDatabaseId) {
-        const membersData = await membersResponse.json();
-        const members = membersData.members || [];
-        // Compare with userDatabaseId (users.id), not auth.uid()
-        isProjectMember = isProjectOwner || members.some((m: any) => m.user_id === userDatabaseId);
-        logger.debug('[PhasePage] Membership check:', {
-          userDatabaseId,
-          isProjectOwner,
-          members: members.map((m: any) => ({ user_id: m.user_id })),
-          isProjectMember
-        });
-      } else if (!userDatabaseId) {
-        logger.warn('[PhasePage] Cannot check membership: userDatabaseId not available');
-      }
+      logger.debug('[PhasePage] Membership from combined endpoint:', {
+        userDatabaseId,
+        isProjectOwner,
+        isProjectMember,
+        membershipFromApi,
+      });
 
       // Check if user can edit this phase (by role and project membership)
       if (role) {
