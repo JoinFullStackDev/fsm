@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireSuperAdmin } from '@/lib/globalAdmin';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
+import { encryptApiKey } from '@/lib/apiKeys';
 import { internalError, badRequest } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 
@@ -43,14 +44,29 @@ export async function PUT(request: NextRequest) {
     }
 
     // Build config object - only update keys that are provided
+    // Encrypt secret keys before storing (publishable keys are safe to store as-is)
     const currentConfig = existing?.config || {};
-    const updatedConfig = {
-      ...currentConfig,
-      ...(test_secret_key !== undefined && { test_secret_key }),
-      ...(test_publishable_key !== undefined && { test_publishable_key }),
-      ...(live_secret_key !== undefined && { live_secret_key }),
-      ...(live_publishable_key !== undefined && { live_publishable_key }),
+    const updatedConfig: Record<string, string | undefined> = {
+      ...(currentConfig as Record<string, string | undefined>),
     };
+
+    // Encrypt and store secret keys
+    if (test_secret_key !== undefined && test_secret_key) {
+      updatedConfig.test_secret_key = encryptApiKey(test_secret_key);
+      logger.info('Encrypted test secret key for storage');
+    }
+    if (live_secret_key !== undefined && live_secret_key) {
+      updatedConfig.live_secret_key = encryptApiKey(live_secret_key);
+      logger.info('Encrypted live secret key for storage');
+    }
+    
+    // Store publishable keys as-is (they're meant to be public)
+    if (test_publishable_key !== undefined) {
+      updatedConfig.test_publishable_key = test_publishable_key;
+    }
+    if (live_publishable_key !== undefined) {
+      updatedConfig.live_publishable_key = live_publishable_key;
+    }
 
     const updateData: {
       config: Record<string, string | undefined>;

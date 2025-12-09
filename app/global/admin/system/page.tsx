@@ -66,11 +66,14 @@ export default function SystemSettingsPage() {
   const [connections, setConnections] = useState<Record<string, any>>({});
   const [activeTab, setActiveTab] = useState(0);
   
-  // Stripe key states
+  // Stripe key states - secret keys are encrypted in DB and not returned to client
+  // We only store new keys being entered (for update), not existing keys
   const [testSecretKey, setTestSecretKey] = useState('');
   const [testPublishableKey, setTestPublishableKey] = useState('');
   const [liveSecretKey, setLiveSecretKey] = useState('');
   const [livePublishableKey, setLivePublishableKey] = useState('');
+  const [hasTestSecretKey, setHasTestSecretKey] = useState(false);
+  const [hasLiveSecretKey, setHasLiveSecretKey] = useState(false);
   const [showTestSecret, setShowTestSecret] = useState(false);
   const [showTestPublishable, setShowTestPublishable] = useState(false);
   const [showLiveSecret, setShowLiveSecret] = useState(false);
@@ -81,6 +84,14 @@ export default function SystemSettingsPage() {
   const [showSendGridApiKey, setShowSendGridApiKey] = useState(false);
   const [senderEmail, setSenderEmail] = useState('');
   const [senderName, setSenderName] = useState('');
+  
+  // Gemini AI key states - API key is encrypted in DB and not returned to client
+  const [geminiApiKey, setGeminiApiKey] = useState('');
+  const [hasGeminiApiKey, setHasGeminiApiKey] = useState(false);
+  const [geminiEnabled, setGeminiEnabled] = useState(true);
+  const [geminiProjectName, setGeminiProjectName] = useState('');
+  const [showGeminiApiKey, setShowGeminiApiKey] = useState(false);
+  const [geminiTestResult, setGeminiTestResult] = useState<'success' | 'failed' | null>(null);
 
   const loadConnections = useCallback(async () => {
     try {
@@ -92,18 +103,26 @@ export default function SystemSettingsPage() {
       setConnections(data.connections || {});
       
       // Load Stripe keys if connection exists
+      // Note: Secret keys are encrypted in DB and NOT returned to client
+      // We only receive boolean indicators (has_test_secret_key, has_live_secret_key)
       const stripeConnection = data.connections?.stripe;
       if (stripeConnection?.config) {
-        setTestSecretKey(stripeConnection.config.test_secret_key || '');
+        // Secret keys - only track if configured (actual keys are never sent to client)
+        setHasTestSecretKey(!!stripeConnection.config.has_test_secret_key);
+        setHasLiveSecretKey(!!stripeConnection.config.has_live_secret_key);
+        // Publishable keys are safe to display (they're meant to be public)
         setTestPublishableKey(stripeConnection.config.test_publishable_key || '');
-        setLiveSecretKey(stripeConnection.config.live_secret_key || '');
         setLivePublishableKey(stripeConnection.config.live_publishable_key || '');
+        // Clear any entered secret keys on reload
+        setTestSecretKey('');
+        setLiveSecretKey('');
       }
       
-      // Load SendGrid API key if connection exists (note: it's encrypted, so we don't show it)
+      // Load SendGrid API key status if connection exists (note: it's encrypted, so we don't show it)
       // Users will need to re-enter it if they want to change it
       const emailConnection = data.connections?.email;
-      if (emailConnection?.config?.api_key) {
+      // The has_api_key flag tells us if a key is configured without exposing the actual key
+      if (emailConnection?.config?.has_api_key) {
         // Don't set the actual key since it's encrypted - just indicate it's configured
         setSendGridApiKey(''); // Leave empty, user needs to enter new key to update
       }
@@ -118,6 +137,23 @@ export default function SystemSettingsPage() {
         setSenderName(emailConnection.config.sender_name);
       } else {
         setSenderName('');
+      }
+      
+      // Load Gemini AI configuration
+      try {
+        const aiResponse = await fetch('/api/global/admin/system/ai');
+        if (aiResponse.ok) {
+          const aiData = await aiResponse.json();
+          if (aiData.gemini) {
+            setHasGeminiApiKey(aiData.gemini.has_api_key || false);
+            setGeminiEnabled(aiData.gemini.enabled !== false);
+            setGeminiProjectName(aiData.gemini.project_name || '');
+            setGeminiApiKey(''); // Clear any entered key on reload
+          }
+        }
+      } catch (aiErr) {
+        // AI config is optional, don't fail if it doesn't load
+        console.error('Failed to load AI configuration:', aiErr);
       }
     } catch (err) {
       showError('Failed to load system connections');
@@ -262,6 +298,76 @@ export default function SystemSettingsPage() {
     }
   };
 
+  const handleSaveGeminiConfig = async () => {
+    setSaving(true);
+    try {
+      const response = await fetch('/api/global/admin/system/ai', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          gemini_api_key: geminiApiKey.trim() || undefined,
+          gemini_enabled: geminiEnabled,
+          gemini_project_name: geminiProjectName,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save Gemini configuration');
+      }
+
+      showSuccess('Gemini AI configuration saved successfully');
+      setGeminiApiKey(''); // Clear the API key field after saving
+      await loadConnections();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to save Gemini configuration');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTestGeminiConnection = async (useDirectHttp = false) => {
+    if (!geminiApiKey && !hasGeminiApiKey) {
+      showError('Please configure a Gemini API key first');
+      return;
+    }
+
+    const testKey = useDirectHttp ? 'gemini_direct' : 'gemini';
+    setTesting({ ...testing, [testKey]: true });
+    setGeminiTestResult(null);
+
+    try {
+      const endpoint = useDirectHttp ? '/api/admin/test-gemini-direct' : '/api/admin/test-gemini';
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          apiKey: geminiApiKey.trim() || undefined,
+          useSavedKey: !geminiApiKey.trim() && hasGeminiApiKey,
+          projectName: geminiProjectName,
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok && data.success) {
+        showSuccess(`Gemini API connection successful${useDirectHttp ? ' (Direct HTTP)' : ' (SDK)'}!`);
+        setGeminiTestResult('success');
+      } else {
+        showError(data.error || 'Gemini connection test failed');
+        setGeminiTestResult('failed');
+      }
+    } catch (err) {
+      showError('Gemini connection test failed');
+      setGeminiTestResult('failed');
+    } finally {
+      setTesting({ ...testing, [testKey]: false });
+    }
+  };
+
 
   if (loading) {
     return (
@@ -368,6 +474,13 @@ export default function SystemSettingsPage() {
                   Test Mode
                 </Typography>
               </Grid>
+              {hasTestSecretKey && (
+                <Grid item xs={12}>
+                  <Alert severity="success" sx={{ mb: 1 }}>
+                    Test secret key is configured. Enter a new key only if you want to update it.
+                  </Alert>
+                </Grid>
+              )}
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
@@ -375,7 +488,8 @@ export default function SystemSettingsPage() {
                   type={showTestSecret ? 'text' : 'password'}
                   value={testSecretKey}
                   onChange={(e) => setTestSecretKey(e.target.value)}
-                  placeholder="sk_test_..."
+                  placeholder={hasTestSecretKey ? "Enter new key to update..." : "sk_test_..."}
+                  helperText={hasTestSecretKey ? 'Secret key is configured. Enter a new key to update it.' : 'Enter your Stripe test secret key'}
                   InputProps={{
                     endAdornment: testSecretKey && (
                       <InputAdornment position="end">
@@ -421,6 +535,13 @@ export default function SystemSettingsPage() {
                   Live Mode
                 </Typography>
               </Grid>
+              {hasLiveSecretKey && (
+                <Grid item xs={12}>
+                  <Alert severity="success" sx={{ mb: 1 }}>
+                    Live secret key is configured. Enter a new key only if you want to update it.
+                  </Alert>
+                </Grid>
+              )}
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
@@ -428,7 +549,8 @@ export default function SystemSettingsPage() {
                   type={showLiveSecret ? 'text' : 'password'}
                   value={liveSecretKey}
                   onChange={(e) => setLiveSecretKey(e.target.value)}
-                  placeholder="sk_live_..."
+                  placeholder={hasLiveSecretKey ? "Enter new key to update..." : "sk_live_..."}
+                  helperText={hasLiveSecretKey ? 'Secret key is configured. Enter a new key to update it.' : 'Enter your Stripe live secret key'}
                   InputProps={{
                     endAdornment: liveSecretKey && (
                       <InputAdornment position="end">
@@ -551,7 +673,7 @@ export default function SystemSettingsPage() {
             </Box>
 
             <Grid container spacing={2} sx={{ mt: 1 }}>
-              {emailConnection?.config?.api_key && (
+              {emailConnection?.config?.has_api_key && (
                 <Grid item xs={12}>
                   <Alert severity="success" sx={{ mb: 2 }}>
                     SendGrid API key is configured. You can test the connection below. Enter a new key only if you want to update it.
@@ -565,8 +687,8 @@ export default function SystemSettingsPage() {
                   type={showSendGridApiKey ? 'text' : 'password'}
                   value={sendGridApiKey}
                   onChange={(e) => setSendGridApiKey(e.target.value)}
-                  placeholder={emailConnection?.config?.api_key ? "Enter new key to update (or leave empty to test existing)" : "SG.xxxxxxxxxxxxx"}
-                  helperText={emailConnection?.config?.api_key ? 'API key is configured. Enter a new key to update it, or leave empty and click "Test Connection" to test the existing key.' : 'Enter your SendGrid API key'}
+                  placeholder={emailConnection?.config?.has_api_key ? "Enter new key to update (or leave empty to test existing)" : "SG.xxxxxxxxxxxxx"}
+                  helperText={emailConnection?.config?.has_api_key ? 'API key is configured. Enter a new key to update it, or leave empty and click "Test Connection" to test the existing key.' : 'Enter your SendGrid API key'}
                   InputProps={{
                     endAdornment: sendGridApiKey && (
                       <InputAdornment position="end">
@@ -623,7 +745,7 @@ export default function SystemSettingsPage() {
                 <Button
                   variant="outlined"
                   onClick={handleTestEmailConnection}
-                  disabled={testing.email || (!emailConnection?.config?.api_key && !sendGridApiKey?.trim())}
+                  disabled={testing.email || (!emailConnection?.config?.has_api_key && !sendGridApiKey?.trim())}
                   fullWidth={false}
                   sx={{
                     width: { xs: '100%', sm: 'auto' },
@@ -632,7 +754,7 @@ export default function SystemSettingsPage() {
                   {testing.email ? 'Testing...' : 'Test Connection'}
                 </Button>
               </Grid>
-              {!emailConnection?.config?.api_key && (
+              {!emailConnection?.config?.has_api_key && (
                 <Grid item xs={12}>
                   <Alert severity="info" sx={{ mt: 1 }}>
                     Please save an API key first before testing the connection.
@@ -667,12 +789,130 @@ export default function SystemSettingsPage() {
         <Grid container spacing={{ xs: 2, md: 3 }}>
         <Grid item xs={12}>
           <Paper sx={{ p: { xs: 1.5, md: 3 } }}>
-            <Typography variant="h6" gutterBottom>
-              AI Service Configuration
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-              AI service configuration coming soon...
-            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 2, gap: { xs: 1, md: 0 } }}>
+              <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
+                Gemini AI Configuration
+              </Typography>
+              {geminiTestResult && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  {geminiTestResult === 'success' ? (
+                    <CheckCircleIcon sx={{ color: theme.palette.success.main, fontSize: 20 }} />
+                  ) : (
+                    <ErrorIcon sx={{ color: theme.palette.error.main, fontSize: 20 }} />
+                  )}
+                  <Typography variant="body2" color="text.secondary">
+                    {geminiTestResult === 'success' ? 'Last test: Success' : 'Last test: Failed'}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              {hasGeminiApiKey && (
+                <Grid item xs={12}>
+                  <Alert severity="success" sx={{ mb: 1 }}>
+                    Gemini API key is configured. You can test the connection below. Enter a new key only if you want to update it.
+                  </Alert>
+                </Grid>
+              )}
+              
+              <Grid item xs={12}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={geminiEnabled}
+                      onChange={(e) => setGeminiEnabled(e.target.checked)}
+                    />
+                  }
+                  label="Enable Gemini AI Features"
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Gemini API Key"
+                  type={showGeminiApiKey ? 'text' : 'password'}
+                  value={geminiApiKey}
+                  onChange={(e) => setGeminiApiKey(e.target.value)}
+                  placeholder={hasGeminiApiKey ? "Enter new key to update..." : "AIza..."}
+                  helperText={hasGeminiApiKey 
+                    ? 'API key is configured. Enter a new key to update it, or leave empty and click "Test Connection" to test the existing key.'
+                    : 'Enter your Gemini API key from Google AI Studio. Keys typically start with "AIza".'
+                  }
+                  InputProps={{
+                    endAdornment: geminiApiKey && (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() => setShowGeminiApiKey(!showGeminiApiKey)}
+                          edge="end"
+                          size="small"
+                        >
+                          {showGeminiApiKey ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Project Name (Optional)"
+                  value={geminiProjectName}
+                  onChange={(e) => setGeminiProjectName(e.target.value)}
+                  placeholder="My Project"
+                  helperText="Optional project identifier for AI context"
+                />
+              </Grid>
+
+              {/* Action Buttons */}
+              <Grid item xs={12} sx={{ mt: 2, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
+                <Button
+                  variant="contained"
+                  startIcon={<SaveIcon />}
+                  onClick={handleSaveGeminiConfig}
+                  disabled={saving}
+                  fullWidth={false}
+                  sx={{
+                    width: { xs: '100%', sm: 'auto' },
+                  }}
+                >
+                  {saving ? 'Saving...' : 'Save Configuration'}
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => handleTestGeminiConnection(false)}
+                  disabled={testing.gemini || (!geminiApiKey && !hasGeminiApiKey)}
+                  fullWidth={false}
+                  sx={{
+                    width: { xs: '100%', sm: 'auto' },
+                  }}
+                >
+                  {testing.gemini ? 'Testing...' : 'Test Connection (SDK)'}
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => handleTestGeminiConnection(true)}
+                  disabled={testing.gemini_direct || (!geminiApiKey && !hasGeminiApiKey)}
+                  fullWidth={false}
+                  sx={{
+                    width: { xs: '100%', sm: 'auto' },
+                  }}
+                >
+                  {testing.gemini_direct ? 'Testing...' : 'Test Direct HTTP'}
+                </Button>
+              </Grid>
+
+              {!hasGeminiApiKey && !geminiApiKey && (
+                <Grid item xs={12}>
+                  <Alert severity="info" sx={{ mt: 1 }}>
+                    Please save an API key first before testing the connection.
+                  </Alert>
+                </Grid>
+              )}
+            </Grid>
           </Paper>
         </Grid>
         </Grid>

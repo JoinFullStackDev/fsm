@@ -38,10 +38,14 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'manage_project_members',
   ],
   designer: [
+    'view_all_projects',
+    'create_projects',
     'edit_phases',
     'export_blueprint',
   ],
   engineer: [
+    'view_all_projects',
+    'create_projects',
     'edit_phases',
     'export_blueprint',
     'export_cursor',

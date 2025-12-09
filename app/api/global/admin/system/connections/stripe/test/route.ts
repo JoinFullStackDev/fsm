@@ -1,9 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireSuperAdmin } from '@/lib/globalAdmin';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
+import { decryptApiKey } from '@/lib/apiKeys';
 import { internalError, badRequest } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 import Stripe from 'stripe';
+
+/**
+ * Check if a value looks like an encrypted key (format: iv:authTag:data)
+ */
+function isEncrypted(value: string): boolean {
+  const parts = value.split(':');
+  return parts.length === 3 && parts[0].length === 32 && parts[1].length === 32;
+}
+
+/**
+ * Decrypt key if encrypted, otherwise return as-is (for backward compatibility)
+ */
+function decryptIfNeeded(key: string): string {
+  if (isEncrypted(key)) {
+    try {
+      return decryptApiKey(key);
+    } catch (error) {
+      logger.error('[Stripe Test] Failed to decrypt key:', error);
+      throw new Error('Failed to decrypt stored key');
+    }
+  }
+  return key;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -30,11 +54,14 @@ export async function POST(request: NextRequest) {
     }
 
     const config = connection.config || {};
-    const secretKey = mode === 'live' ? config.live_secret_key : config.test_secret_key;
+    const encryptedKey = mode === 'live' ? config.live_secret_key : config.test_secret_key;
 
-    if (!secretKey) {
+    if (!encryptedKey) {
       return badRequest(`${mode === 'live' ? 'Live' : 'Test'} secret key not configured`);
     }
+
+    // Decrypt the key before using
+    const secretKey = decryptIfNeeded(encryptedKey);
 
     // Test connection with the key
     let testResult: { success: boolean; message?: string; error?: string };

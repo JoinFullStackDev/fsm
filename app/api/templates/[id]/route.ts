@@ -148,12 +148,7 @@ export async function PUT(
       return notFound('User not found');
     }
 
-    // Allow admins and PMs to update templates
-    if (userData.role !== 'admin' && userData.role !== 'pm') {
-      return forbidden('Admin or PM access required');
-    }
-
-    // Fetch template to check if it's global
+    // Fetch template to check if it's global and verify ownership
     const { data: template, error: templateError } = await adminClient
       .from('project_templates')
       .select('id, organization_id, is_publicly_available, created_by')
@@ -170,16 +165,22 @@ export async function PUT(
       return forbidden('Cannot edit global templates. Please duplicate the template to create your own copy.');
     }
 
-    // Validate organization access (super admins can edit all non-global templates)
-    if (userData.role !== 'admin' || userData.is_super_admin !== true) {
-      if (template.organization_id !== organizationId) {
-        return forbidden('You do not have access to edit this template');
-      }
+    // Determine access levels
+    const isSuperAdmin = userData.is_super_admin === true;
+    const isOrgAdmin = userData.role === 'admin' && template.organization_id === organizationId;
+    const isTemplateCreator = template.created_by === userData.id;
+
+    // Allow update if:
+    // 1. User is super admin (can edit any non-global template)
+    // 2. User is admin in the same organization (can edit any org template)
+    // 3. User is the template creator (any role can edit their own template)
+    if (!isSuperAdmin && !isOrgAdmin && !isTemplateCreator) {
+      return forbidden('You can only edit templates you created, or you need admin access');
     }
 
-    // PMs can only edit templates they created (within their organization)
-    if (userData.role === 'pm' && template.created_by !== userData.id) {
-      return forbidden('You can only edit templates you created');
+    // Validate organization access for non-super admins
+    if (!isSuperAdmin && template.organization_id !== organizationId) {
+      return forbidden('You do not have access to edit this template');
     }
 
     const body = await request.json();
@@ -277,11 +278,6 @@ export async function DELETE(
       currentUser = regularUserData;
     }
 
-    // Allow admins and PMs to delete templates
-    if (currentUser.role !== 'admin' && currentUser.role !== 'pm') {
-      return forbidden('Admin or PM access required');
-    }
-
     // Verify template exists and get created_by, organization_id, and is_publicly_available
     const adminClient = createAdminSupabaseClient();
     const { data: template, error: templateError } = await adminClient
@@ -300,16 +296,22 @@ export async function DELETE(
       return forbidden('Cannot delete global templates. Please duplicate the template to create your own copy.');
     }
 
-    // Validate organization access (super admins can delete all non-global templates)
-    if (currentUser.role !== 'admin' || currentUser.is_super_admin !== true) {
-      if (template.organization_id !== organizationId) {
-        return forbidden('You do not have access to delete this template');
-      }
+    // Determine access levels
+    const isSuperAdmin = currentUser.is_super_admin === true;
+    const isOrgAdmin = currentUser.role === 'admin' && template.organization_id === organizationId;
+    const isTemplateCreator = template.created_by === currentUser.id;
+
+    // Allow deletion if:
+    // 1. User is super admin (can delete any non-global template)
+    // 2. User is admin in the same organization (can delete any org template)
+    // 3. User is the template creator (any role can delete their own template)
+    if (!isSuperAdmin && !isOrgAdmin && !isTemplateCreator) {
+      return forbidden('You can only delete templates you created, or you need admin access');
     }
 
-    // PMs can only delete templates they created (within their organization)
-    if (currentUser.role === 'pm' && template.created_by !== currentUser.id) {
-      return forbidden('You can only delete templates you created');
+    // Validate organization access for non-super admins
+    if (!isSuperAdmin && template.organization_id !== organizationId) {
+      return forbidden('You do not have access to delete this template');
     }
 
     // Delete related records in the correct order (to avoid FK constraint violations)

@@ -6,6 +6,30 @@
 import Stripe from 'stripe';
 import logger from '@/lib/utils/logger';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
+import { decryptApiKey } from '@/lib/apiKeys';
+
+/**
+ * Check if a value looks like an encrypted key (format: iv:authTag:data)
+ */
+function isEncrypted(value: string): boolean {
+  const parts = value.split(':');
+  return parts.length === 3 && parts[0].length === 32 && parts[1].length === 32;
+}
+
+/**
+ * Decrypt key if encrypted, otherwise return as-is (for backward compatibility)
+ */
+function decryptIfNeeded(key: string): string {
+  if (isEncrypted(key)) {
+    try {
+      return decryptApiKey(key);
+    } catch (error) {
+      logger.error('[Stripe] Failed to decrypt key, returning as-is:', error);
+      return key;
+    }
+  }
+  return key;
+}
 
 let stripeInstance: Stripe | null = null;
 let stripeSecretKey: string | null = null;
@@ -57,7 +81,8 @@ export async function getStripeSecretKey(mode: 'test' | 'live' = 'test'): Promis
       logger.warn('[Stripe] Using Stripe keys from inactive connection. Consider activating the connection in System Settings.');
     }
 
-    return secretKey;
+    // Decrypt the key if it's encrypted (provides backward compatibility for unencrypted keys)
+    return decryptIfNeeded(secretKey);
   } catch (error) {
     logger.error('[Stripe] Error fetching Stripe keys from database:', error);
     return null;

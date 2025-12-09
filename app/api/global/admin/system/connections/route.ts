@@ -37,7 +37,35 @@ export async function GET(request: NextRequest) {
     }
     const grouped: Record<string, SystemConnection> = {};
     ((connections || []) as SystemConnection[]).forEach((conn) => {
-      grouped[conn.connection_type] = conn;
+      // Sanitize sensitive data before returning to client
+      const sanitizedConn = { ...conn };
+      
+      if (conn.connection_type === 'stripe' && conn.config) {
+        // Remove actual secret keys, replace with boolean flags
+        const config = conn.config as Record<string, unknown>;
+        sanitizedConn.config = {
+          // Keep publishable keys (they're meant to be public)
+          test_publishable_key: config.test_publishable_key || null,
+          live_publishable_key: config.live_publishable_key || null,
+          // Replace secret keys with boolean indicators
+          has_test_secret_key: !!config.test_secret_key,
+          has_live_secret_key: !!config.live_secret_key,
+        };
+      }
+      // Note: email/SendGrid keys are already encrypted and not returned for display
+      // The UI checks for existence with has_api_key indicator
+      if (conn.connection_type === 'email' && conn.config) {
+        const config = conn.config as Record<string, unknown>;
+        sanitizedConn.config = {
+          from_email: config.from_email || null,
+          sender_email: config.sender_email || null,
+          sender_name: config.sender_name || null,
+          // Indicate if API key is configured without exposing it
+          has_api_key: !!config.api_key,
+        };
+      }
+      
+      grouped[conn.connection_type] = sanitizedConn;
     });
 
     return NextResponse.json({ connections: grouped });

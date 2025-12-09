@@ -192,12 +192,8 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
 
   // Load templates lazily - only when sidebar is opened or after initial page load
   // This reduces unnecessary API calls on page load
+  // All roles can now view and create templates
   useEffect(() => {
-    if (role !== 'admin' && role !== 'pm') {
-      setTemplates([]);
-      return;
-    }
-
     // Delay loading templates to allow page to load first (lazy load)
     const timer = setTimeout(async () => {
       try {
@@ -215,7 +211,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
     }, open ? 500 : 2000); // Load faster if sidebar is already open
 
     return () => clearTimeout(timer);
-  }, [role, open]);
+  }, [open]);
 
   // Load projects for project management (same as regular projects)
   useEffect(() => {
@@ -804,9 +800,8 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
           </Box>
         </ListItem>
 
-        {/* Templates (Admin and PM only) */}
-        {(role === 'admin' || role === 'pm') && (
-          <ListItem disablePadding>
+        {/* Templates (All roles can view and create templates) */}
+        <ListItem disablePadding>
             <Box sx={{ width: '100%' }}>
               <Tooltip
                 title="Templates"
@@ -917,7 +912,6 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
               )}
             </Box>
           </ListItem>
-        )}
 
         {/* Custom Dashboards Section - Only show if custom_dashboards_enabled is true */}
         {features?.custom_dashboards_enabled === true && (

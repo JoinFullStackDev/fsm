@@ -746,8 +746,8 @@ export default function TemplatesPage() {
                       >
                         <ContentCopyIcon fontSize="small" />
                       </IconButton>
-                      {/* PMs can only delete templates they created, and cannot delete global templates */}
-                      {(role === 'admin' || (role === 'pm' && template.created_by === currentUserId)) && !template.is_publicly_available && (
+                      {/* Any user can delete templates they created (admins can delete any org template), cannot delete global templates */}
+                      {(role === 'admin' || template.created_by === currentUserId) && !template.is_publicly_available && (
                         <IconButton
                           size="small"
                           onClick={(e) => {
