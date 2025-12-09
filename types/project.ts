@@ -48,6 +48,12 @@ export interface UserPreferences {
   sidebar?: {
     defaultOpen?: boolean; // Default sidebar state (true = open, false = collapsed)
   };
+  onboarding?: {
+    completed: boolean;
+    completedSteps: string[]; // ['profile', 'preferences', 'company', 'contact', 'invite']
+    skippedAt?: string; // ISO timestamp if fully skipped
+    completedAt?: string; // ISO timestamp when finished
+  };
 }
 
 export interface AdminSetting {

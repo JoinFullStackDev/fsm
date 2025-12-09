@@ -38,6 +38,8 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get('status'); // 'todo,in_progress' or specific status
     const dueDateFilter = searchParams.get('due_date_filter'); // 'next_2_weeks', 'overdue', etc.
+    const limit = parseInt(searchParams.get('limit') || '500', 10);
+    const includeAllProjects = searchParams.get('include_all_projects') === 'true'; // For dashboard view
 
     // Build query for tasks assigned to this user
     let query = adminClient
@@ -87,8 +89,10 @@ export async function GET(request: NextRequest) {
         .neq('status', 'archived');
     }
 
-    // Order by due date
-    query = query.order('due_date', { ascending: true, nullsFirst: false });
+    // Order by due date and apply limit
+    query = query
+      .order('due_date', { ascending: true, nullsFirst: false })
+      .limit(limit);
 
     const { data: tasks, error: tasksError } = await query;
 
@@ -104,10 +108,14 @@ export async function GET(request: NextRequest) {
       return projectData?.organization_id === userData.organization_id;
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       tasks: filteredTasks,
       count: filteredTasks.length,
     });
+    
+    // Add cache headers for browser caching
+    response.headers.set('Cache-Control', 'private, max-age=10');
+    return response;
   } catch (error) {
     logger.error('[My Tasks API] Unexpected error:', error);
     return internalError('Failed to load tasks', { error: error instanceof Error ? error.message : 'Unknown error' });

@@ -2,7 +2,33 @@ import { generateStructuredAIResponse } from './geminiClient';
 import logger from '@/lib/utils/logger';
 import type { ProjectTask } from '@/types/project';
 import type { PreviewTask, SourceField } from '@/types/taskGenerator';
-import { buildCompactSOWContext, type SOWMember } from './promptTemplates';
+import { buildCompactSOWContext, type SOWMember, type SOWContextResult } from './promptTemplates';
+
+/**
+ * Expand short IDs (M1, M2, etc.) to full UUIDs using the mapping
+ */
+function expandShortIdToUUID(
+  shortId: string | null | undefined,
+  shortIdMap: Map<string, string>
+): string | null {
+  if (!shortId) return null;
+  
+  // Check if it's a short ID (M1, M2, etc.)
+  const shortIdUpper = shortId.toUpperCase();
+  if (shortIdMap.has(shortIdUpper)) {
+    return shortIdMap.get(shortIdUpper) || null;
+  }
+  
+  // Check if it's already a UUID (36 char format)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(shortId)) {
+    return shortId;
+  }
+  
+  // Invalid format - return null
+  logger.warn(`[Task Generator] Invalid assignee_id format: ${shortId}`);
+  return null;
+}
 
 /**
  * Phase data structure for context
@@ -105,8 +131,11 @@ export async function generateTasksFromPrompt(
     ? `\nEXISTING (avoid duplicates):\n${existingTasks.slice(0, 8).map(t => `- ${t.title}`).join('\n')}`
     : '';
 
-  // Build compact SOW context
-  const sowContext = sowMembers?.length ? buildCompactSOWContext(sowMembers, phases) : '';
+  // Build compact SOW context with short ID mapping
+  let sowContextResult: SOWContextResult = { promptText: '', shortIdMap: new Map() };
+  if (sowMembers?.length) {
+    sowContextResult = buildCompactSOWContext(sowMembers, phases);
+  }
 
   // Start date extraction in parallel (with flash-lite)
   const dateExtractionPromise = extractDatesFromText(prompt, apiKey);
@@ -114,9 +143,9 @@ export async function generateTasksFromPrompt(
   // Get today's date
   const today = new Date().toISOString().split('T')[0];
 
-  // OPTIMIZED PROMPT - significantly smaller
+  // OPTIMIZED PROMPT - team context at TOP for better AI consideration
   const fullPrompt = `Generate tasks for "${projectName}" based on user input.
-
+${sowContextResult.promptText}
 USER INPUT:
 ${prompt.substring(0, 2000)}${prompt.length > 2000 ? '...' : ''}
 ${context ? `\nCONTEXT: ${context.substring(0, 500)}` : ''}
@@ -124,7 +153,6 @@ ${context ? `\nCONTEXT: ${context.substring(0, 500)}` : ''}
 PHASES:
 ${phaseContext}
 ${existingTasksContext}
-${sowContext}
 
 Generate tasks with these fields:
 {
@@ -138,7 +166,7 @@ Generate tasks with these fields:
   "requirements": ["req1"],
   "userStories": ["As a user..."] (optional),
   "due_date": "YYYY-MM-DD" or null,
-  "assignee_id": "uuid" or null,
+  "assignee_id": "M1, M2, etc. or null",
   "source_fields": [{"phase": N, "field": "field_key"}]
 }
 
@@ -146,7 +174,7 @@ TODAY: ${today}
 
 RULES:
 1. Each task should link to relevant phase fields via source_fields
-2. Assign tasks when role matches team member (see TEAM section)
+2. Assign tasks using team member short IDs (M1, M2, etc.) when role matches
 3. Extract dates from input; if none found, set due_date to null
 4. Estimated hours: Simple 1-4h, Medium 4-16h, Complex 16-40h
 
@@ -188,7 +216,7 @@ Return JSON: {"tasks": [...], "summary": "Brief summary"}`;
     const taskResult = 'result' in result ? result.result : result;
     const responseTime = Date.now() - startTime;
 
-    // Convert to PreviewTask format
+    // Convert to PreviewTask format with short ID expansion
     const previewTasks: PreviewTask[] = taskResult.tasks.map((task, index) => {
       // Build notes JSONB structure
       const notesData: Record<string, unknown> = {
@@ -201,13 +229,19 @@ Return JSON: {"tasks": [...], "summary": "Brief summary"}`;
         notesData.notes = task.notes;
       }
 
+      // Expand short IDs (M1, M2) to full UUIDs
+      const expandedAssigneeId = expandShortIdToUUID(
+        task.assignee_id,
+        sowContextResult.shortIdMap
+      );
+
       return {
         title: task.title,
         description: task.description || null,
         phase_number: task.phase_number,
         status: task.status,
         priority: task.priority,
-        assignee_id: task.assignee_id || null,
+        assignee_id: expandedAssigneeId,
         parent_task_id: null,
         start_date: null,
         due_date: task.due_date,

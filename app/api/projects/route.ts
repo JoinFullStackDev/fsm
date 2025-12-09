@@ -188,60 +188,9 @@ export async function GET(request: NextRequest) {
       }
       
       // 3. Combine owned and member project IDs (remove duplicates)
+      // OPTIMIZATION: Skip the redundant verification query - organization_id filter on final query is sufficient
+      // The member projects query already filters by organization_id via the project join
       allAccessibleProjectIds = [...new Set([...ownedProjectIds, ...memberProjectIds])];
-      
-      // CRITICAL SECURITY STEP: Verify each project ID actually belongs to user's organization
-      // This prevents any cross-organization access even if there's a data inconsistency
-      // Use admin client to ensure filter is enforced
-      if (allAccessibleProjectIds.length > 0) {
-        const { data: verifiedProjects, error: verifyError } = await adminClient
-          .from('projects')
-          .select('id, organization_id')
-          .in('id', allAccessibleProjectIds)
-          .eq('organization_id', organizationId); // Only get projects from user's organization
-        
-        if (verifyError) {
-          logger.error('[Projects API] Error verifying project organization:', verifyError);
-          return internalError('Failed to verify project access', { error: verifyError.message });
-        }
-        
-        // Type for verified project
-        type VerifiedProject = { id: string; organization_id: string };
-        
-        // Use only verified project IDs
-        const typedVerifiedProjects = (verifiedProjects || [])
-          .filter((p): p is VerifiedProject => 
-            isObject(p) && hasStringProperty(p, 'id') && hasStringProperty(p, 'organization_id')
-          );
-        
-        const verifiedProjectIds = typedVerifiedProjects
-          .map(p => p.id)
-          .filter((id: string) => {
-            const project = typedVerifiedProjects.find(p => p.id === id);
-            if (project && project.organization_id !== organizationId) {
-              logger.error('[Projects API] CRITICAL: Project ID verification failed:', {
-                projectId: id,
-                projectOrgId: project.organization_id,
-                userOrgId: organizationId,
-              });
-              return false;
-            }
-            return true;
-          });
-        
-        allAccessibleProjectIds = verifiedProjectIds;
-        
-        // Log any projects that were filtered out
-        const filteredOut = allAccessibleProjectIds.length < [...new Set([...ownedProjectIds, ...memberProjectIds])].length;
-        if (filteredOut) {
-          logger.warn('[Projects API] Filtered out projects that did not belong to organization:', {
-            originalCount: [...new Set([...ownedProjectIds, ...memberProjectIds])].length,
-            verifiedCount: allAccessibleProjectIds.length,
-            userId: userData.id,
-            organizationId,
-          });
-        }
-      }
       
       if (allAccessibleProjectIds.length === 0) {
         // User has no accessible projects
@@ -335,41 +284,26 @@ export async function GET(request: NextRequest) {
       })),
     });
 
-    // CRITICAL SECURITY CHECK: Filter results by accessible project IDs AND verify organization_id
-    // This is defense-in-depth to ensure no cross-organization access
-    // ALL users (including super admins) are filtered by organization_id in this endpoint
-    const allProjects = typedProjects;
+    // OPTIMIZATION: Simplified security check - database query already filters by organization_id
+    // We just do a single pass to verify (defense-in-depth) and log any issues
     const accessibleProjectIdsSet = new Set(allAccessibleProjectIds);
     
-    const filteredProjects = allProjects.filter((project) => {
-      // CRITICAL: For ALL users (including super admins), verify organization_id matches EXACTLY
-      // Super admins should use /global/admin routes for cross-organization access
-      const projectOrgId = project.organization_id;
-      if (!projectOrgId || projectOrgId !== organizationId) {
-        logger.error('[Projects API] SECURITY ISSUE: Project from wrong organization returned!', {
+    const filteredProjects = typedProjects.filter((project) => {
+      // Verify organization_id matches (should always pass due to database filter)
+      if (project.organization_id !== organizationId) {
+        logger.error('[Projects API] SECURITY: Project from wrong organization:', {
           projectId: project.id,
-          projectName: project.name,
-          projectOrgId,
+          projectOrgId: project.organization_id,
           userOrgId: organizationId,
-          userId: userData.id,
-          userRole: userData.role,
-          isSuperAdmin: userData.is_super_admin,
-          queryOrganizationId: organizationId,
         });
         return false;
       }
       
-      // CRITICAL: Verify project is in accessible list (owned or member)
-      // Only check if we have accessible IDs (non-empty array)
+      // Verify project is in accessible list (owned or member)
       if (allAccessibleProjectIds.length > 0 && !accessibleProjectIdsSet.has(project.id)) {
-        logger.error('[Projects API] SECURITY ISSUE: Project not in accessible list!', {
+        logger.warn('[Projects API] Project not in accessible list:', {
           projectId: project.id,
-          projectName: project.name,
-          projectOrgId: project.organization_id,
-          userOrgId: organizationId,
           userId: userData.id,
-          accessibleIdsCount: allAccessibleProjectIds.length,
-          accessibleIds: Array.from(accessibleProjectIdsSet).slice(0, 10),
         });
         return false;
       }
@@ -377,42 +311,11 @@ export async function GET(request: NextRequest) {
       return true;
     });
 
-    // Log if any projects were filtered out (security incident)
-    if (filteredProjects.length !== allProjects.length) {
-      logger.error('[Projects API] CRITICAL SECURITY ISSUE: Filtered out projects!', {
-        returnedCount: allProjects.length,
-        filteredCount: filteredProjects.length,
-        filteredOut: allProjects.length - filteredProjects.length,
-        userOrgId: organizationId,
-        userId: userData.id,
-        filteredProjectIds: allProjects
-          .filter(p => !filteredProjects.find(fp => fp.id === p.id))
-          .map(p => ({ id: p.id, name: p.name, orgId: p.organization_id })),
-      });
-    }
-
-    // CRITICAL: Final security check - verify NO projects from other organizations
-    // ALL users (including super admins) must be filtered by organization_id
-    const finalSecurityCheck = filteredProjects.filter((project) => {
-      return project.organization_id === organizationId;
-    });
-    
-    if (finalSecurityCheck.length !== filteredProjects.length) {
-      logger.error('[Projects API] CRITICAL SECURITY BREACH: Final check filtered out projects!', {
-        beforeFinalCheck: filteredProjects.length,
-        afterFinalCheck: finalSecurityCheck.length,
-        userOrgId: organizationId,
-        userId: userData.id,
-        isSuperAdmin: userData.is_super_admin,
-      });
-    }
-
-    // Calculate total count based on accessible projects in user's organization
-    // Since we're filtering by organization_id and accessible IDs, use the filtered count
-    const totalCount = finalSecurityCheck.length;
+    // Calculate total count
+    const totalCount = filteredProjects.length;
 
     const response = NextResponse.json({
-      data: finalSecurityCheck,
+      data: filteredProjects,
       total: totalCount,
       limit,
       offset,

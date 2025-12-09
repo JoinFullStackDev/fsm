@@ -78,7 +78,10 @@ export async function GET(
       return internalError('Failed to load project phases', { error: phasesError.message });
     }
 
-    return NextResponse.json({ phases: phases || [] });
+    const response = NextResponse.json({ phases: phases || [] });
+    // Add cache headers for browser caching
+    response.headers.set('Cache-Control', 'private, max-age=10');
+    return response;
   } catch (error) {
     logger.error('Error in GET /api/projects/[id]/phases:', error);
     return internalError('Failed to load project phases', {
