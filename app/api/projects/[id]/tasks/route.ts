@@ -6,6 +6,7 @@ import { cacheGetOrSet, cacheDel, CACHE_KEYS, CACHE_TTL } from '@/lib/cache/unif
 import logger from '@/lib/utils/logger';
 import { notifyTaskAssigned } from '@/lib/notifications';
 import { sendTaskAssignedEmail } from '@/lib/emailNotifications';
+import { emitEntityEvent } from '@/lib/workflows/eventBus';
 import type { ProjectTask } from '@/types/project';
 
 // Types for task data
@@ -317,6 +318,18 @@ export async function POST(
       ...task,
       assignee: task.assignee || null,
     };
+
+    // Emit workflow event for task creation (non-blocking)
+    emitEntityEvent(
+      'task_created',
+      'task',
+      task.id,
+      transformedTask as unknown as Record<string, unknown>,
+      project.organization_id,
+      userData?.id
+    ).catch((err) => {
+      logger.warn('[Task POST] Failed to emit workflow event:', err);
+    });
 
     return NextResponse.json(transformedTask, { status: 201 });
   } catch (error) {

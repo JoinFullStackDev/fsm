@@ -303,7 +303,7 @@ export interface TaskComment {
   } | null;
 }
 
-export type NotificationType = 'task_assigned' | 'comment_created' | 'comment_mention' | 'project_created' | 'project_member_added' | 'kb_article_published' | 'kb_article_updated' | 'kb_category_added' | 'kb_release_notes_published';
+export type NotificationType = 'task_assigned' | 'comment_created' | 'comment_mention' | 'project_created' | 'project_member_added' | 'kb_article_published' | 'kb_article_updated' | 'kb_category_added' | 'kb_release_notes_published' | 'workflow_notification';
 
 export interface NotificationMetadata {
   task_id?: string;

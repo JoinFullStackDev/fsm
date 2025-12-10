@@ -237,11 +237,25 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   // Merge package features with organization module_overrides
   // Organization overrides take precedence over package features
   const features = useMemo(() => {
-    if (!packageData?.features) {
-      return null;
-    }
-
-    const baseFeatures = { ...packageData.features };
+    // Start with package features OR empty object if no package
+    const baseFeatures = packageData?.features 
+      ? { ...packageData.features } 
+      : {
+          max_projects: null,
+          max_users: null,
+          max_templates: null,
+          ai_features_enabled: false,
+          ai_task_generator_enabled: false,
+          export_features_enabled: false,
+          ops_tool_enabled: false,
+          analytics_enabled: false,
+          api_access_enabled: false,
+          custom_dashboards_enabled: false,
+          knowledge_base_enabled: false,
+          workflows_enabled: false,
+          product_workspace_enabled: false,
+          support_level: 'community' as const,
+        };
     
     // Apply organization module_overrides if they exist
     if (organization?.module_overrides) {

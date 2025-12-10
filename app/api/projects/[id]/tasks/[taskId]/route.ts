@@ -5,6 +5,7 @@ import { notifyTaskAssigned } from '@/lib/notifications';
 import { sendTaskAssignedEmail, sendTaskUpdatedEmail } from '@/lib/emailNotifications';
 import { unauthorized, notFound, internalError, badRequest, forbidden } from '@/lib/utils/apiErrors';
 import { cacheDel, CACHE_KEYS } from '@/lib/cache/unifiedCache';
+import { emitEntityEvent } from '@/lib/workflows/eventBus';
 import logger from '@/lib/utils/logger';
 
 // Type for task update data
@@ -277,6 +278,20 @@ export async function PUT(
       ...task,
       assignee: task.assignee || null,
     };
+
+    // Emit workflow event for task update (non-blocking)
+    if (projectOrgId) {
+      emitEntityEvent(
+        'task_updated',
+        'task',
+        params.taskId,
+        { ...transformedTask as unknown as Record<string, unknown>, status_changed_to: status },
+        projectOrgId,
+        userData?.id
+      ).catch((err) => {
+        logger.warn('[Task PUT] Failed to emit workflow event:', err);
+      });
+    }
 
     return NextResponse.json(transformedTask);
   } catch (error) {

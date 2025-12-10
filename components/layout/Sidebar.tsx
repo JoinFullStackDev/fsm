@@ -38,6 +38,7 @@ import {
   ChevronRight as ChevronRightIcon,
   ExpandMore as ExpandMoreIcon,
   Groups as GroupsIcon,
+  AccountTree as AccountTreeIcon,
 } from '@mui/icons-material';
 import { useRole } from '@/lib/hooks/useRole';
 import { useOrganization } from '@/components/providers/OrganizationProvider';
@@ -294,6 +295,9 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
     }
     if (path === '/dashboards') {
       return pathname?.startsWith('/dashboards');
+    }
+    if (path === '/workflows') {
+      return pathname?.startsWith('/workflows');
     }
     return pathname === path;
   };
@@ -966,6 +970,68 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
                     <DashboardCustomizeIcon sx={{ fontSize: 20 }} />
                   </ListItemIcon>
                   {open && <ListItemText primary="Dashboards" primaryTypographyProps={{ fontSize: '0.75rem' }} />}
+                </ListItemButton>
+              </Tooltip>
+            </ListItem>
+          </>
+        )}
+
+        {/* Workflows Section - Only show if workflows_enabled is true */}
+        {features?.workflows_enabled === true && (
+          <>
+            <Divider sx={{ my: 1, borderColor: theme.palette.divider }} />
+            {open && (
+              <Box sx={{ px: 2, py: 1 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: theme.palette.text.secondary,
+                    textTransform: 'uppercase',
+                    letterSpacing: 1,
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  Automation
+                </Typography>
+              </Box>
+            )}
+            <ListItem disablePadding>
+              <Tooltip
+                title="Workflows"
+                placement="right"
+                arrow
+                disableHoverListener={open}
+                disableFocusListener={open}
+                disableTouchListener={open}
+              >
+                <ListItemButton
+                  onClick={() => handleNavigate('/workflows')}
+                  selected={isActive('/workflows')}
+                  sx={{
+                    minHeight: 48,
+                    '&.Mui-selected': {
+                      backgroundColor: theme.palette.action.hover,
+                      borderLeft: `1px solid ${theme.palette.text.primary}`,
+                      '&:hover': {
+                        backgroundColor: theme.palette.action.hover,
+                      },
+                    },
+                    '&:hover': {
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                  }}
+                >
+                  <ListItemIcon
+                    sx={{
+                      minWidth: 40,
+                      justifyContent: 'center',
+                      color: isActive('/workflows') ? theme.palette.text.primary : theme.palette.text.secondary,
+                    }}
+                  >
+                    <AccountTreeIcon sx={{ fontSize: 20 }} />
+                  </ListItemIcon>
+                  {open && <ListItemText primary="Workflows" primaryTypographyProps={{ fontSize: '0.75rem' }} />}
                 </ListItemButton>
               </Tooltip>
             </ListItem>

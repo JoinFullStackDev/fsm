@@ -15,7 +15,7 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import LoadingSkeleton from '@/components/ui/LoadingSkeleton';
-import { NavigateNext as NavigateNextIcon, Refresh as RefreshIcon, AutoAwesome as AutoAwesomeIcon, OpenInNew as OpenInNewIcon } from '@mui/icons-material';
+import { NavigateNext as NavigateNextIcon, Refresh as RefreshIcon, AutoAwesome as AutoAwesomeIcon, OpenInNew as OpenInNewIcon, WorkspacePremium as WorkspacePremiumIcon } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import TaskTable from '@/components/project-management/TaskTable';
 import TaskDetailSheet from '@/components/project-management/TaskDetailSheet';
@@ -44,6 +44,15 @@ export default function ProjectTaskManagementPage() {
   const projectId = params.id as string;
   const supabase = createSupabaseClient();
   const { features } = useOrganization();
+
+  // DEBUG: Log features to console
+  useEffect(() => {
+    console.log('[Product Workspace Debug]', {
+      features,
+      hasWorkspace: features?.product_workspace_enabled,
+      allKeys: features ? Object.keys(features) : [],
+    });
+  }, [features]);
 
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<(ProjectTask | ProjectTaskExtended)[]>([]);
@@ -667,6 +676,29 @@ export default function ProjectTaskManagementPage() {
           {project?.name || 'Project'} - Task Management
         </Typography>
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'center', gap: { xs: 2, md: 1 }, flexWrap: 'wrap', width: { xs: '100%', md: 'auto' } }}>
+          {features?.product_workspace_enabled && (
+            <Button
+              variant="outlined"
+              startIcon={<WorkspacePremiumIcon sx={{ fontSize: { xs: 22, md: 18 } }} />}
+              onClick={() => router.push(`/workspace/${projectId}`)}
+              size="small"
+              fullWidth={false}
+              sx={{
+                height: { xs: '40px', md: '32px' },
+                minHeight: { xs: '40px', md: '32px' },
+                width: { xs: '100%', md: 'auto' },
+                borderColor: theme.palette.primary.main,
+                color: theme.palette.primary.main,
+                fontSize: { xs: '0.875rem', md: '0.75rem' },
+                '&:hover': {
+                  borderColor: theme.palette.primary.dark,
+                  backgroundColor: theme.palette.action.hover,
+                },
+              }}
+            >
+              Product Workspace
+            </Button>
+          )}
           {features?.ai_task_generator_enabled && (
             <Button
               variant="contained"
