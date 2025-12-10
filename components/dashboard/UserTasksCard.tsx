@@ -191,9 +191,9 @@ export default function UserTasksCard({
                   </Typography>
                 }
                 secondary={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                  <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
                     {projectData?.name && (
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography component="span" variant="caption" color="text.secondary">
                         {projectData.name}
                       </Typography>
                     )}
@@ -213,6 +213,7 @@ export default function UserTasksCard({
                     )}
                   </Box>
                 }
+                secondaryTypographyProps={{ component: 'div' }}
               />
               {task.priority && task.priority !== 'low' && (
                 <Chip

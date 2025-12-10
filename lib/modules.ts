@@ -79,6 +79,20 @@ export const AVAILABLE_MODULES: ModuleDefinition[] = [
     icon: 'MenuBook',
     category: 'Content',
   },
+  {
+    key: 'workflows_enabled',
+    name: 'Workflow Automation',
+    description: 'Build automated workflows with event triggers, scheduled tasks, and AI-powered actions',
+    icon: 'AccountTree',
+    category: 'Automation',
+  },
+  {
+    key: 'product_workspace_enabled',
+    name: 'Product Workspace',
+    description: 'AI-powered product thinking workspace with Clarity Canvas, Epic Builder, and Context Library',
+    icon: 'WorkspacePremium',
+    category: 'Product',
+  },
 ];
 
 /**

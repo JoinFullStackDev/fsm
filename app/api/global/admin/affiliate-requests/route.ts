@@ -3,6 +3,8 @@ import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { requireSuperAdmin } from '@/lib/globalAdmin';
 import logger from '@/lib/utils/logger';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     // Verify super admin access

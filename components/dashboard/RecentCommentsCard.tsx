@@ -207,8 +207,9 @@ export default function RecentCommentsCard({ initialComments }: RecentCommentsCa
               </ListItemAvatar>
               <ListItemText
                 primary={
-                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, flexWrap: 'wrap' }}>
+                  <Box component="span" sx={{ display: 'flex', alignItems: 'baseline', gap: 1, flexWrap: 'wrap' }}>
                     <Typography
+                      component="span"
                       variant="body2"
                       sx={{
                         fontWeight: 600,
@@ -217,24 +218,27 @@ export default function RecentCommentsCard({ initialComments }: RecentCommentsCa
                     >
                       {comment.commenter?.name || comment.commenter?.email || 'Unknown'}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography component="span" variant="caption" color="text.secondary">
                       {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
                     </Typography>
                   </Box>
                 }
                 secondary={
-                  <Box sx={{ mt: 0.5 }}>
+                  <Box component="span" sx={{ mt: 0.5, display: 'block' }}>
                     <Typography
+                      component="span"
                       variant="body2"
                       sx={{
                         color: theme.palette.text.secondary,
                         mb: 0.5,
+                        display: 'block',
                       }}
                     >
                       {truncateText(comment.content, 100)}
                     </Typography>
                     {comment.task && (
                       <Typography
+                        component="span"
                         variant="caption"
                         sx={{
                           color: theme.palette.text.disabled,
@@ -247,6 +251,8 @@ export default function RecentCommentsCard({ initialComments }: RecentCommentsCa
                     )}
                   </Box>
                 }
+                primaryTypographyProps={{ component: 'div' }}
+                secondaryTypographyProps={{ component: 'div' }}
               />
             </ListItem>
           ))}

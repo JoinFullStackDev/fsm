@@ -91,6 +91,8 @@ const defaultFeatures: PackageFeatures = {
   api_access_enabled: false,
   custom_dashboards_enabled: false,
   knowledge_base_enabled: false,
+  workflows_enabled: false,
+  product_workspace_enabled: false,
   support_level: 'community',
 };
 

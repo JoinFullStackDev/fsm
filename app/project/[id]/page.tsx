@@ -42,6 +42,7 @@ import {
   TrendingUp as TrendingUpIcon,
   FileDownload as FileDownloadIcon,
   ArrowForward as ArrowForwardIcon,
+  WorkspacePremium as WorkspacePremiumIcon,
 } from '@mui/icons-material';
 import { LinearProgress } from '@mui/material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
@@ -54,6 +55,7 @@ import { generateCursorMasterPrompt } from '@/lib/exportHandlers/cursorBundle';
 import { calculatePhaseProgress } from '@/lib/phases/calculatePhaseProgress';
 import { useRole } from '@/lib/hooks/useRole';
 import BuildingOverlay from '@/components/ai/BuildingOverlay';
+import { useOrganization } from '@/components/providers/OrganizationProvider';
 import type { Project, PhaseSummary } from '@/types/project';
 
 // Helper function to check if a value has content
@@ -116,6 +118,7 @@ export default function ProjectPage() {
   const supabase = createSupabaseClient();
   const { showSuccess, showError } = useNotification();
   const { role, isCompanyAdmin, loading: roleLoading } = useRole();
+  const { features } = useOrganization();
   const [project, setProject] = useState<Project | null>(null);
   const [phases, setPhases] = useState<PhaseSummary[]>([]);
   const [fieldConfigsByPhase, setFieldConfigsByPhase] = useState<Record<number, Array<{ field_key: string }>>>({});
@@ -1285,6 +1288,29 @@ export default function ProjectPage() {
                           ? 'Project Management' 
                           : 'Initiate Project Management'}
                     </Button>
+                    {features?.product_workspace_enabled && (
+                      <>
+                        <Divider sx={{ my: 1 }} />
+                        <Button
+                          variant="outlined"
+                          startIcon={<WorkspacePremiumIcon />}
+                          onClick={() => router.push(`/workspace/${projectId}`)}
+                          fullWidth
+                          sx={{
+                            borderColor: theme.palette.primary.main,
+                            color: theme.palette.primary.main,
+                            fontWeight: 600,
+                            py: 1.5,
+                            '&:hover': {
+                              borderColor: theme.palette.primary.dark,
+                              backgroundColor: theme.palette.action.hover,
+                            },
+                          }}
+                        >
+                          Product Workspace
+                        </Button>
+                      </>
+                    )}
                     <Divider sx={{ my: 1 }} />
                     <Button
                       variant="outlined"

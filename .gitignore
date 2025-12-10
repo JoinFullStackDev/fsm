@@ -39,3 +39,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+scripts/migrations/add_workspace_chat.sql
+scripts/migrations/add_product_workspace.sql

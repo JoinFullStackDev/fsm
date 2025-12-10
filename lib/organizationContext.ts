@@ -35,6 +35,8 @@ export interface PackageFeatures {
   api_access_enabled: boolean;
   custom_dashboards_enabled: boolean;
   knowledge_base_enabled: boolean;
+  workflows_enabled: boolean;
+  product_workspace_enabled: boolean;
   support_level: 'community' | 'email' | 'priority' | 'dedicated';
 }
 

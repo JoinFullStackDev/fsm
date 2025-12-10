@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/dashboard-reports",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/workflows",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

@@ -23,6 +23,7 @@ Internal AI-accelerated project management platform for structured product devel
 - **Role-Based Access Control**: Admin, PM, Designer, and Engineer roles with granular permissions
 - **Real-Time Collaboration**: Team members can collaborate on projects with role-based editing
 - **Analytics & Reporting**: Track project progress, phase completion, and team productivity
+- **Product Workspace**: Upstream product thinking layer with Clarity Canvas, Epic Builder, and Context Library
 
 ## 🏗️ Software Architecture
 
@@ -54,6 +55,12 @@ Internal AI-accelerated project management platform for structured product devel
 - **Exports**: Export history and file tracking
 - **Notifications**: Real-time user notifications
 - **Waitlist**: Early access signups
+- **Product Workspace Tables**: 
+  - `project_workspaces`: 1:1 workspace per project
+  - `clarity_specs`: Versioned problem definitions
+  - `epic_drafts`: Decomposed work with FE/BE issues
+  - `workspace_decisions`: Decision log with rationale
+  - `workspace_debt`: Technical/product/design debt tracking
 
 ### Key Design Patterns
 
@@ -267,6 +274,44 @@ Each phase exists at `/project/[id]/phase/[phaseNumber]`:
 - Screen and flow suggestions
 - User story generation
 - Document generation with custom prompts
+
+### Product Workspace (Pro+ Feature)
+
+**Upstream product thinking layer that sits before project execution:**
+
+#### System 1: Clarity Canvas
+- **Problem Framing**: Structured problem statements, jobs-to-be-done, user pains
+- **Business Intent**: Business goals, success metrics, constraints, assumptions
+- **Desired Outcomes**: Clear outcomes before solutioning
+- **AI Readiness Scoring**: Automated analysis with risk warnings and suggestions
+- **Version Control**: Google Docs-style versioning for iterative refinement
+
+#### System 2: Epic Builder
+- **AI Generation**: Generate epic descriptions and issues from Clarity Specs
+- **Issue Decomposition**: Separate frontend, backend, and design issues
+- **Acceptance Criteria**: Structured, testable criteria for each issue
+- **Task Creation**: Convert epic issues to project tasks in FSM
+- **GitLab Export**: Export epics and issues to GitLab (coming soon)
+- **Definition of Done**: Standard DoD templates
+
+#### System 3: Context Library
+- **Decision Log**: Track decisions with rationale, options considered, and tradeoffs
+- **Debt Tracking**: Technical, product, design, and operational debt management
+- **Age Metrics**: Automatic aging calculation for debt items
+- **Severity Levels**: Prioritize debt by severity (low, medium, high, critical)
+- **Heatmap Visualization**: Aggregate debt data by type, severity, and area
+
+**Setup:**
+1. Enable `product_workspace_enabled` in package features (Pro+ plans)
+2. Access via "Product Workspace" button on project pages
+3. Database migration: `scripts/migrations/add_product_workspace.sql`
+
+**API Endpoints:**
+- `/api/workspaces/[projectId]` - Workspace management
+- `/api/workspaces/[projectId]/clarity` - Clarity specs CRUD
+- `/api/workspaces/[projectId]/epics` - Epic drafts CRUD
+- `/api/workspaces/[projectId]/decisions` - Decision log
+- `/api/workspaces/[projectId]/debt` - Debt tracking
 
 ### Code Quality & Infrastructure
 - **Centralized Logging**: Environment-aware logging utility
