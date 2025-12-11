@@ -84,7 +84,8 @@ export type ActionType =
   | 'ai_summarize'
   // Integrations
   | 'webhook_call'
-  | 'create_activity';
+  | 'create_activity'
+  | 'send_slack';
 
 // ============================================
 // ACTION CONFIGURATION TYPES
@@ -276,6 +277,21 @@ export interface CreateActivityConfig {
   event_type: ActivityEventType;
 }
 
+export interface SendSlackConfig {
+  /** Channel ID or name (e.g., '#general' or 'C1234567890') - supports template variables */
+  channel: string;
+  /** Message text (supports template variables) */
+  message: string;
+  /** Optional: send as blocks for rich formatting */
+  use_blocks?: boolean;
+  /** Optional: mention @channel or @here */
+  notify_channel?: boolean;
+  /** Optional: custom username for the bot */
+  username?: string;
+  /** Optional: custom icon emoji for the bot */
+  icon_emoji?: string;
+}
+
 // ============================================
 // CONTROL FLOW CONFIGURATION TYPES
 // ============================================
@@ -341,6 +357,7 @@ export type StepConfig =
   | AISummarizeConfig
   | WebhookCallConfig
   | CreateActivityConfig
+  | SendSlackConfig
   | ConditionConfig
   | DelayConfig
   | LoopConfig;

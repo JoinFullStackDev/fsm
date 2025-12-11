@@ -52,17 +52,7 @@ async function checkSOWManagementPermissions(
   const isPM = userData.role === 'pm';
 
   if (!isSuperAdmin && !isProjectOwner && !isAdmin && !isPM) {
-    // Check if user is a project member with admin/pm role
-    const { data: projectMember } = await adminClient
-      .from('project_members')
-      .select('role')
-      .eq('project_id', projectId)
-      .eq('user_id', userData.id)
-      .single();
-
-    if (!projectMember || (projectMember.role !== 'admin' && projectMember.role !== 'pm')) {
-      return { allowed: false, error: forbidden('Only project owners, admins, or PMs can manage SOW members') };
-    }
+    return { allowed: false, error: forbidden('Only project owners, admins, or PMs can manage SOW members') };
   }
 
   return { allowed: true };
@@ -89,7 +79,7 @@ async function enrichMembersWithStats(
       ...m,
       task_count: 0,
       task_count_by_status: { todo: 0, in_progress: 0, done: 0 },
-      role_name: m.organization_role?.name || m.project_member?.role || 'Unknown',
+      role_name: m.organization_role?.name || 'No Role Assigned',
       role_description: m.organization_role?.description || null,
     })) as SOWMemberWithStats[];
   }
@@ -180,8 +170,8 @@ async function enrichMembersWithStats(
     // Combine workload-based overwork detection with allocation-based detection
     const isOverworked = workload?.is_over_allocated || isOverAllocatedByHours;
 
-    // Fallback: use organization_role.name or project_member.role
-    const roleName = member.organization_role?.name || member.project_member?.role || 'Unknown';
+    // Get role name from organization_role
+    const roleName = member.organization_role?.name || 'No Role Assigned';
     const roleDescription = member.organization_role?.description || null;
 
     return {
@@ -247,7 +237,6 @@ export async function GET(
         project_member:project_members!sow_project_members_project_member_id_fkey(
           id,
           user_id,
-          role,
           user:users!project_members_user_id_fkey(
             id,
             name,
@@ -385,7 +374,6 @@ export async function POST(
         project_member:project_members!sow_project_members_project_member_id_fkey(
           id,
           user_id,
-          role,
           user:users!project_members_user_id_fkey(
             id,
             name,
@@ -516,7 +504,6 @@ export async function PUT(
         project_member:project_members!sow_project_members_project_member_id_fkey(
           id,
           user_id,
-          role,
           user:users!project_members_user_id_fkey(
             id,
             name,

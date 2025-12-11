@@ -29,6 +29,7 @@ interface NodeConfigDrawerProps {
 const actionTypes = [
   { value: 'send_email', label: 'Send Email' },
   { value: 'send_notification', label: 'Send Notification' },
+  { value: 'send_slack', label: 'Send Slack Message' },
   { value: 'create_task', label: 'Create Task' },
   { value: 'update_task', label: 'Update Task' },
   { value: 'create_project', label: 'Create Project' },
@@ -115,6 +116,12 @@ export default function NodeConfigDrawer({
   const [aiOutputField, setAiOutputField] = useState('');
   const [aiMaxTokens, setAiMaxTokens] = useState(1000);
 
+  // Action-specific state - Slack
+  const [slackChannel, setSlackChannel] = useState('');
+  const [slackMessage, setSlackMessage] = useState('');
+  const [slackNotifyChannel, setSlackNotifyChannel] = useState(false);
+  const [slackUseBlocks, setSlackUseBlocks] = useState(false);
+
   useEffect(() => {
     if (node) {
       setLabel((node.data.label as string) || '');
@@ -156,6 +163,12 @@ export default function NodeConfigDrawer({
       setWebhookMethod(config.method || 'POST');
       setWebhookBody(config.body_template || '');
       setWebhookHeaders(config.headers ? JSON.stringify(config.headers, null, 2) : '');
+
+      // Slack config
+      setSlackChannel(config.channel || '');
+      setSlackMessage(config.message || '');
+      setSlackNotifyChannel(config.notify_channel || false);
+      setSlackUseBlocks(config.use_blocks || false);
 
       // AI config
       setAiPromptTemplate(config.prompt_template || '');
@@ -237,6 +250,14 @@ export default function NodeConfigDrawer({
             prompt_template: aiPromptTemplate,
             output_field: aiOutputField,
             max_tokens: aiMaxTokens,
+          };
+          break;
+        case 'send_slack':
+          actionConfig = {
+            channel: slackChannel,
+            message: slackMessage,
+            notify_channel: slackNotifyChannel || undefined,
+            use_blocks: slackUseBlocks || undefined,
           };
           break;
       }
@@ -682,6 +703,61 @@ export default function NodeConfigDrawer({
                   size="small"
                   fullWidth
                 />
+              </>
+            )}
+
+            {/* Slack Message Config */}
+            {actionType === 'send_slack' && (
+              <>
+                <TextField
+                  label="Channel"
+                  value={slackChannel}
+                  onChange={(e) => setSlackChannel(e.target.value)}
+                  placeholder="#general or {{project.slack_channel}}"
+                  helperText="Slack channel name or ID (use {{variables}} for dynamic values)"
+                  size="small"
+                  fullWidth
+                  sx={{ mb: 2 }}
+                />
+                <TextField
+                  label="Message"
+                  value={slackMessage}
+                  onChange={(e) => setSlackMessage(e.target.value)}
+                  multiline
+                  rows={4}
+                  placeholder="New task created: {{task.title}} in project {{project.name}}"
+                  helperText="Use {{variables}} for dynamic values from the workflow context"
+                  size="small"
+                  fullWidth
+                  sx={{ mb: 2 }}
+                />
+                <Box sx={{ display: 'flex', gap: 2, mb: 1 }}>
+                  <FormControl size="small" sx={{ flex: 1 }}>
+                    <InputLabel>Notify Channel</InputLabel>
+                    <Select
+                      value={slackNotifyChannel ? 'yes' : 'no'}
+                      onChange={(e) => setSlackNotifyChannel(e.target.value === 'yes')}
+                      label="Notify Channel"
+                    >
+                      <MenuItem value="no">No</MenuItem>
+                      <MenuItem value="yes">Yes (@channel)</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <FormControl size="small" sx={{ flex: 1 }}>
+                    <InputLabel>Rich Formatting</InputLabel>
+                    <Select
+                      value={slackUseBlocks ? 'yes' : 'no'}
+                      onChange={(e) => setSlackUseBlocks(e.target.value === 'yes')}
+                      label="Rich Formatting"
+                    >
+                      <MenuItem value="no">Plain Text</MenuItem>
+                      <MenuItem value="yes">Blocks (Rich)</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Box>
+                <Typography variant="caption" color="text.secondary">
+                  Note: Your organization must have Slack connected to use this action.
+                </Typography>
               </>
             )}
           </>

@@ -35,11 +35,11 @@ export default function HelpTooltip({ title, placement = 'top' }: HelpTooltipPro
       <IconButton
         size="small"
         sx={{
-          color: '#00E5FF',
+          color: '#C9354A',
           padding: 0.5,
           '&:hover': {
             backgroundColor: 'rgba(0, 229, 255, 0.1)',
-            color: '#00E5FF',
+            color: '#C9354A',
           },
         }}
       >

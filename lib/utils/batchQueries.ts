@@ -118,7 +118,7 @@ async function executeQuery(
 }
 
 // Member query result type
-interface MemberQueryResult extends Pick<ProjectMemberRow, 'id' | 'user_id' | 'role'> {
+interface MemberQueryResult extends Pick<ProjectMemberRow, 'id' | 'user_id' | 'organization_role_id'> {
   user: Array<{ id: string; name: string | null; email: string; avatar_url: string | null }> | null;
 }
 
@@ -143,7 +143,7 @@ export async function batchProjectData(projectId: string): Promise<{
       .select(`
         id,
         user_id,
-        role,
+        organization_role_id,
         user:users!project_members_user_id_fkey (
           id,
           name,

@@ -32,6 +32,7 @@ import ProjectDashboard from '@/components/project-management/ProjectDashboard';
 import BuildingOverlay from '@/components/ai/BuildingOverlay';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { useOrganization } from '@/components/providers/OrganizationProvider';
+import WorkspaceChat from '@/components/workspace/chat/WorkspaceChat';
 import type { ProjectTask, ProjectTaskExtended, Project } from '@/types/project';
 import type { User } from '@/types/project';
 import type { PreviewTask, TaskMerge } from '@/types/taskGenerator';
@@ -958,6 +959,14 @@ export default function ProjectTaskManagementPage() {
         }}
         projectId={projectId}
       />
+
+      {/* Floating AI Assistant */}
+      {features?.product_workspace_enabled && (
+        <WorkspaceChat
+          projectId={projectId}
+          variant="floating"
+        />
+      )}
     </Container>
     </>
   );

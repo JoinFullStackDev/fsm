@@ -31,6 +31,7 @@ import {
   Assessment as AssessmentIcon,
   SmartToy as SmartToyIcon,
   Storage as StorageIcon,
+  Chat as ChatIcon,
 } from '@mui/icons-material';
 import { useNotification } from '@/lib/hooks/useNotification';
 import CronStatusSection from '@/components/global-admin/CronStatusSection';
@@ -93,6 +94,16 @@ export default function SystemSettingsPage() {
   const [showGeminiApiKey, setShowGeminiApiKey] = useState(false);
   const [geminiTestResult, setGeminiTestResult] = useState<'success' | 'failed' | null>(null);
 
+  // Slack integration states
+  const [slackClientId, setSlackClientId] = useState('');
+  const [slackClientSecret, setSlackClientSecret] = useState('');
+  const [slackSigningSecret, setSlackSigningSecret] = useState('');
+  const [hasSlackClientSecret, setHasSlackClientSecret] = useState(false);
+  const [hasSlackSigningSecret, setHasSlackSigningSecret] = useState(false);
+  const [slackEnabledForOrgs, setSlackEnabledForOrgs] = useState(true);
+  const [showSlackClientSecret, setShowSlackClientSecret] = useState(false);
+  const [showSlackSigningSecret, setShowSlackSigningSecret] = useState(false);
+
   const loadConnections = useCallback(async () => {
     try {
       const response = await fetch('/api/global/admin/system/connections');
@@ -154,6 +165,26 @@ export default function SystemSettingsPage() {
       } catch (aiErr) {
         // AI config is optional, don't fail if it doesn't load
         console.error('Failed to load AI configuration:', aiErr);
+      }
+
+      // Load Slack configuration
+      try {
+        const slackResponse = await fetch('/api/global/admin/system/connections/slack');
+        if (slackResponse.ok) {
+          const slackData = await slackResponse.json();
+          if (slackData.connection?.config) {
+            setSlackClientId(slackData.connection.config.client_id || '');
+            setHasSlackClientSecret(slackData.connection.config.has_client_secret || false);
+            setHasSlackSigningSecret(slackData.connection.config.has_signing_secret || false);
+            setSlackEnabledForOrgs(slackData.connection.config.enabled_for_organizations !== false);
+            // Clear secret fields on reload
+            setSlackClientSecret('');
+            setSlackSigningSecret('');
+          }
+        }
+      } catch (slackErr) {
+        // Slack config is optional, don't fail if it doesn't load
+        console.error('Failed to load Slack configuration:', slackErr);
       }
     } catch (err) {
       showError('Failed to load system connections');
@@ -368,6 +399,52 @@ export default function SystemSettingsPage() {
     }
   };
 
+  const handleSaveSlackConfig = async () => {
+    if (!slackClientId.trim()) {
+      showError('Please enter a Slack Client ID');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const body: Record<string, unknown> = {
+        client_id: slackClientId.trim(),
+        enabled_for_organizations: slackEnabledForOrgs,
+      };
+
+      // Only include secrets if provided (to update)
+      if (slackClientSecret.trim()) {
+        body.client_secret = slackClientSecret.trim();
+      }
+      if (slackSigningSecret.trim()) {
+        body.signing_secret = slackSigningSecret.trim();
+      }
+
+      const response = await fetch('/api/global/admin/system/connections/slack', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save Slack configuration');
+      }
+
+      showSuccess('Slack configuration saved successfully');
+      // Clear secret fields after saving
+      setSlackClientSecret('');
+      setSlackSigningSecret('');
+      await loadConnections();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to save Slack configuration');
+    } finally {
+      setSaving(false);
+    }
+  };
+
 
   if (loading) {
     return (
@@ -438,6 +515,7 @@ export default function SystemSettingsPage() {
           <Tab icon={<EmailIcon />} iconPosition="start" label="Email" />
           <Tab icon={<AssessmentIcon />} iconPosition="start" label="Reports" />
           <Tab icon={<SmartToyIcon />} iconPosition="start" label="AI Services" />
+          <Tab icon={<ChatIcon />} iconPosition="start" label="Slack" />
           <Tab icon={<StorageIcon />} iconPosition="start" label="Storage" />
         </Tabs>
       </Box>
@@ -918,7 +996,137 @@ export default function SystemSettingsPage() {
         </Grid>
       </TabPanel>
 
+      {/* Slack Tab */}
       <TabPanel value={activeTab} index={4}>
+        <Grid container spacing={{ xs: 2, md: 3 }}>
+          <Grid item xs={12}>
+            <Paper sx={{ p: { xs: 1.5, md: 3 } }}>
+              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 2, gap: { xs: 1, md: 0 } }}>
+                <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
+                  Slack Integration
+                </Typography>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={slackEnabledForOrgs}
+                      onChange={(e) => setSlackEnabledForOrgs(e.target.checked)}
+                    />
+                  }
+                  label="Enable for Organizations"
+                />
+              </Box>
+
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                Configure your Slack app credentials to enable organizations to connect their Slack workspaces.
+                Create a Slack app at{' '}
+                <a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>
+                  api.slack.com/apps
+                </a>
+              </Typography>
+
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Client ID"
+                    value={slackClientId}
+                    onChange={(e) => setSlackClientId(e.target.value)}
+                    placeholder="Enter your Slack Client ID"
+                    helperText="Found in Basic Information > App Credentials"
+                  />
+                </Grid>
+
+                {hasSlackClientSecret && (
+                  <Grid item xs={12}>
+                    <Alert severity="success" sx={{ mb: 1 }}>
+                      Client Secret is configured. Enter a new secret only if you want to update it.
+                    </Alert>
+                  </Grid>
+                )}
+
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Client Secret"
+                    type={showSlackClientSecret ? 'text' : 'password'}
+                    value={slackClientSecret}
+                    onChange={(e) => setSlackClientSecret(e.target.value)}
+                    placeholder={hasSlackClientSecret ? "Enter new secret to update..." : "Enter your Slack Client Secret"}
+                    helperText={hasSlackClientSecret ? 'Secret is configured. Enter a new one to update.' : 'Found in Basic Information > App Credentials'}
+                    InputProps={{
+                      endAdornment: slackClientSecret && (
+                        <InputAdornment position="end">
+                          <IconButton
+                            onClick={() => setShowSlackClientSecret(!showSlackClientSecret)}
+                            edge="end"
+                            size="small"
+                          >
+                            {showSlackClientSecret ? <VisibilityOff /> : <Visibility />}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Signing Secret"
+                    type={showSlackSigningSecret ? 'text' : 'password'}
+                    value={slackSigningSecret}
+                    onChange={(e) => setSlackSigningSecret(e.target.value)}
+                    placeholder={hasSlackSigningSecret ? "Enter new secret to update..." : "Enter your Slack Signing Secret"}
+                    helperText={hasSlackSigningSecret ? 'Secret is configured. Enter a new one to update.' : 'Found in Basic Information > App Credentials (for webhook verification)'}
+                    InputProps={{
+                      endAdornment: slackSigningSecret && (
+                        <InputAdornment position="end">
+                          <IconButton
+                            onClick={() => setShowSlackSigningSecret(!showSlackSigningSecret)}
+                            edge="end"
+                            size="small"
+                          >
+                            {showSlackSigningSecret ? <VisibilityOff /> : <Visibility />}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Alert severity="info" sx={{ mt: 1 }}>
+                    <strong>Required OAuth Scopes:</strong> chat:write, chat:write.public, channels:read, users:read, users:read.email
+                    <br />
+                    <strong>Redirect URL:</strong> {typeof window !== 'undefined' ? `${window.location.origin}/api/integrations/slack/callback` : '/api/integrations/slack/callback'}
+                  </Alert>
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Button
+                    variant="contained"
+                    startIcon={<SaveIcon />}
+                    onClick={handleSaveSlackConfig}
+                    disabled={saving || !slackClientId.trim()}
+                    sx={{
+                      mt: 1,
+                      backgroundColor: theme.palette.text.primary,
+                      color: theme.palette.background.paper,
+                      '&:hover': {
+                        backgroundColor: theme.palette.text.secondary,
+                      },
+                    }}
+                  >
+                    {saving ? 'Saving...' : 'Save Slack Configuration'}
+                  </Button>
+                </Grid>
+              </Grid>
+            </Paper>
+          </Grid>
+        </Grid>
+      </TabPanel>
+
+      <TabPanel value={activeTab} index={5}>
         <Grid container spacing={{ xs: 2, md: 3 }}>
         <Grid item xs={12}>
           <Paper sx={{ p: { xs: 1.5, md: 3 } }}>

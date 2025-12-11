@@ -80,7 +80,7 @@ export default function KeyboardShortcutsDialog({
           gap: 1,
           backgroundColor: 'rgba(0, 229, 255, 0.1)',
           borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
-          color: '#00E5FF',
+          color: '#C9354A',
           fontWeight: 600,
         }}
       >
@@ -93,7 +93,7 @@ export default function KeyboardShortcutsDialog({
             <Typography
               variant="subtitle1"
               sx={{
-                color: '#00E5FF',
+                color: '#C9354A',
                 fontWeight: 600,
                 mb: 1.5,
                 textTransform: 'uppercase',
@@ -132,7 +132,7 @@ export default function KeyboardShortcutsDialog({
                       size="small"
                       sx={{
                         backgroundColor: 'rgba(0, 229, 255, 0.2)',
-                        color: '#00E5FF',
+                        color: '#C9354A',
                         border: '1px solid rgba(0, 229, 255, 0.3)',
                         fontWeight: 600,
                         fontSize: '0.75rem',

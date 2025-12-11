@@ -16,7 +16,6 @@ import type { ProjectTask } from '@/types/project';
 interface SOWProjectMemberData {
   project_member?: Array<{
     user_id: string;
-    role: string;
     user?: Array<{
       id: string;
       name: string | null;
@@ -201,7 +200,6 @@ export async function POST(
             organization_role_id,
             project_member:project_members!sow_project_members_project_member_id_fkey(
               user_id,
-              role,
               user:users!project_members_user_id_fkey(
                 id,
                 name,
@@ -235,7 +233,7 @@ export async function POST(
           const userId = projectMember?.user_id;
           if (userId) {
             const orgRole = pm.organization_role?.[0];
-            const roleName = orgRole?.name || projectMember?.role || 'Team Member';
+            const roleName = orgRole?.name || 'Team Member';
             const roleDescription = orgRole?.description || null;
             memberMap.set(userId, { role_name: roleName, role_description: roleDescription });
           }

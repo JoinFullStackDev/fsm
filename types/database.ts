@@ -126,7 +126,7 @@ export interface ProjectMemberRow {
   id: string;
   project_id: string;
   user_id: string;
-  role: string;
+  organization_role_id: string | null;
   created_at: string;
 }
 

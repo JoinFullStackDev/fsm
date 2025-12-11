@@ -29,6 +29,7 @@ export function getActionDescription(actionType: ActionType): string {
     ai_summarize: 'AI Summarize',
     webhook_call: 'Call Webhook',
     create_activity: 'Create Activity Log',
+    send_slack: 'Send Slack Message',
   };
   
   return descriptions[actionType] || actionType;
@@ -58,6 +59,7 @@ export function getActionIcon(actionType: ActionType): string {
     ai_summarize: 'Summarize',
     webhook_call: 'Http',
     create_activity: 'History',
+    send_slack: 'Chat',
   };
   
   return icons[actionType] || 'Settings';
@@ -73,6 +75,7 @@ export function isExternalAction(actionType: ActionType): boolean {
     'ai_generate',
     'ai_categorize',
     'ai_summarize',
+    'send_slack',
   ];
   
   return externalActions.includes(actionType);

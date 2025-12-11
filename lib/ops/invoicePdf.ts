@@ -29,7 +29,7 @@ export async function generateInvoicePDF(config: InvoicePDFConfig): Promise<Buff
   let yPosition = margin;
 
   // Colors matching app theme
-  const primaryColor = [0, 229, 255]; // #00E5FF
+  const primaryColor = [0, 229, 255]; // #C9354A
   const textColor = [51, 51, 51]; // Dark text
   const lightGray = [240, 240, 240];
   const darkGray = [128, 128, 128];

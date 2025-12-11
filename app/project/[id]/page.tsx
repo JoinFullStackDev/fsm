@@ -43,6 +43,7 @@ import {
   FileDownload as FileDownloadIcon,
   ArrowForward as ArrowForwardIcon,
   WorkspacePremium as WorkspacePremiumIcon,
+  Inventory2 as Inventory2Icon,
 } from '@mui/icons-material';
 import { LinearProgress } from '@mui/material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
@@ -56,6 +57,7 @@ import { calculatePhaseProgress } from '@/lib/phases/calculatePhaseProgress';
 import { useRole } from '@/lib/hooks/useRole';
 import BuildingOverlay from '@/components/ai/BuildingOverlay';
 import { useOrganization } from '@/components/providers/OrganizationProvider';
+import WorkspaceChat from '@/components/workspace/chat/WorkspaceChat';
 import type { Project, PhaseSummary } from '@/types/project';
 
 // Helper function to check if a value has content
@@ -582,6 +584,17 @@ export default function ProjectPage() {
                         fontSize: '0.875rem',
                       }}
                     />
+                    <Chip
+                      icon={<TrendingUpIcon sx={{ color: project.initiated_at ? '#4CAF50' : 'inherit' }} />}
+                      label={project.initiated_at ? 'Active' : 'Draft'}
+                      sx={{
+                        backgroundColor: theme.palette.background.paper,
+                        color: project.initiated_at ? '#4CAF50' : theme.palette.text.primary,
+                        border: `1px solid ${project.initiated_at ? '#4CAF50' : theme.palette.divider}`,
+                        fontWeight: 600,
+                        fontSize: '0.875rem',
+                      }}
+                    />
                     {project.primary_tool && (
                       <Chip
                         label={project.primary_tool}
@@ -696,201 +709,86 @@ export default function ProjectPage() {
             </Box>
           </Paper>
 
-          {/* Stats Cards */}
-          <Grid container spacing={{ xs: 2, md: 3 }} sx={{ mb: 4, px: { xs: 2, md: 0 } }}>
-            <Grid item xs={12} sm={6} md={3}>
-              <Paper
-                elevation={0}
-                sx={{
-                  p: { xs: 2, md: 3 },
-                  border: `1px solid ${theme.palette.divider}`,
-                  borderRadius: 2,
-                  backgroundColor: theme.palette.background.paper,
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    transform: { xs: 'none', md: 'translateY(-2px)' },
-                    boxShadow: { xs: 'none', md: `0 4px 12px ${theme.palette.divider}` },
-                  },
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Box>
-                    <Typography
-                      variant="h4"
-                      sx={{
-                        fontWeight: 700,
-                        color: theme.palette.text.primary,
-                        mb: 0.5,
-                        fontSize: { xs: '1.5rem', md: '2.125rem' },
-                      }}
-                    >
-                      {completedPhases}/{totalPhases}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{ 
-                        color: theme.palette.text.secondary,
-                        fontSize: { xs: '0.75rem', md: '0.875rem' },
-                      }}
-                    >
-                      Phases Complete
-                    </Typography>
-                  </Box>
-                  <CheckCircleIcon
-                    sx={{
-                      fontSize: { xs: 32, md: 40 },
-                      color: '#4CAF50',
-                      opacity: 0.8,
-                    }}
-                  />
+          {/* Product Workspace CTA Banner */}
+          {features?.product_workspace_enabled && (
+            <Paper
+              elevation={0}
+              sx={{
+                p: { xs: 2, md: 3 },
+                mb: { xs: 3, md: 4 },
+                mx: { xs: 2, md: 0 },
+                border: `2px solid ${theme.palette.text.primary}`,
+                borderRadius: 3,
+                backgroundColor: theme.palette.background.paper,
+                display: 'flex',
+                flexDirection: { xs: 'column', md: 'row' },
+                alignItems: { xs: 'flex-start', md: 'center' },
+                justifyContent: 'space-between',
+                gap: 2,
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  boxShadow: `0 4px 20px ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+                },
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 2,
+                    backgroundColor: theme.palette.action.hover,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <WorkspacePremiumIcon sx={{ fontSize: 28, color: theme.palette.text.primary }} />
                 </Box>
-              </Paper>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 3,
-                  border: `1px solid ${theme.palette.divider}`,
-                  borderRadius: 2,
-                  backgroundColor: theme.palette.background.paper,
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    transform: 'translateY(-2px)',
-                    boxShadow: `0 4px 12px ${theme.palette.divider}`,
-                  },
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Box>
-                    <Typography
-                      variant="h4"
-                      sx={{
-                        fontWeight: 700,
-                        color: theme.palette.text.primary,
-                        mb: 0.5,
-                        fontSize: { xs: '1.5rem', md: '2.125rem' },
-                      }}
-                    >
-                      {memberCount}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{ 
-                        color: theme.palette.text.secondary,
-                        fontSize: { xs: '0.75rem', md: '0.875rem' },
-                      }}
-                    >
-                      Team Members
-                    </Typography>
-                  </Box>
-                  <PeopleIcon
+                <Box>
+                  <Typography
+                    variant="h6"
                     sx={{
-                      fontSize: { xs: 32, md: 40 },
+                      fontWeight: 700,
+                      fontFamily: 'var(--font-rubik), Rubik, sans-serif',
                       color: theme.palette.text.primary,
-                      opacity: 0.6,
+                      fontSize: { xs: '1rem', md: '1.25rem' },
                     }}
-                  />
+                  >
+                    Product Workspace
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: theme.palette.text.secondary,
+                      fontSize: { xs: '0.8rem', md: '0.875rem' },
+                    }}
+                  >
+                    Collaborate, track progress, and manage your product development in one place.
+                  </Typography>
                 </Box>
-              </Paper>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Paper
-                elevation={0}
+              </Box>
+              <Button
+                variant="contained"
+                endIcon={<ArrowForwardIcon />}
+                onClick={() => router.push(`/workspace/${projectId}`)}
                 sx={{
-                  p: 3,
-                  border: `1px solid ${theme.palette.divider}`,
-                  borderRadius: 2,
-                  backgroundColor: theme.palette.background.paper,
-                  transition: 'all 0.2s ease',
+                  backgroundColor: theme.palette.text.primary,
+                  color: theme.palette.background.default,
+                  fontWeight: 600,
+                  px: 4,
+                  py: 1.5,
+                  whiteSpace: 'nowrap',
+                  minWidth: { xs: '100%', md: 'auto' },
                   '&:hover': {
-                    transform: 'translateY(-2px)',
-                    boxShadow: `0 4px 12px ${theme.palette.divider}`,
+                    backgroundColor: theme.palette.text.secondary,
                   },
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Box>
-                    <Typography
-                      variant="h4"
-                      sx={{
-                        fontWeight: 700,
-                        color: theme.palette.text.primary,
-                        mb: 0.5,
-                        fontSize: { xs: '1.5rem', md: '2.125rem' },
-                      }}
-                    >
-                      {exportCount}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{ 
-                        color: theme.palette.text.secondary,
-                        fontSize: { xs: '0.75rem', md: '0.875rem' },
-                      }}
-                    >
-                      Exports Generated
-                    </Typography>
-                  </Box>
-                  <FileDownloadIcon
-                    sx={{
-                      fontSize: { xs: 32, md: 40 },
-                      color: theme.palette.text.primary,
-                      opacity: 0.6,
-                    }}
-                  />
-                </Box>
-              </Paper>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 3,
-                  border: `1px solid ${theme.palette.divider}`,
-                  borderRadius: 2,
-                  backgroundColor: theme.palette.background.paper,
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    transform: 'translateY(-2px)',
-                    boxShadow: `0 4px 12px ${theme.palette.divider}`,
-                  },
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Box>
-                    <Typography
-                      variant="h4"
-                      sx={{
-                        fontWeight: 700,
-                        color: theme.palette.text.primary,
-                        mb: 0.5,
-                        fontSize: { xs: '1.5rem', md: '2.125rem' },
-                      }}
-                    >
-                      {project.initiated_at ? 'Active' : 'Draft'}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{ 
-                        color: theme.palette.text.secondary,
-                        fontSize: { xs: '0.75rem', md: '0.875rem' },
-                      }}
-                    >
-                      Project Status
-                    </Typography>
-                  </Box>
-                  <TrendingUpIcon
-                    sx={{
-                      fontSize: { xs: 32, md: 40 },
-                      color: project.initiated_at ? '#4CAF50' : theme.palette.text.secondary,
-                      opacity: 0.6,
-                    }}
-                  />
-                </Box>
-              </Paper>
-            </Grid>
-          </Grid>
+                Open Workspace
+              </Button>
+            </Paper>
+          )}
 
           <Grid container spacing={{ xs: 2, md: 3 }} sx={{ px: { xs: 2, md: 0 } }}>
             {/* Phases Section */}
@@ -905,17 +803,29 @@ export default function ProjectPage() {
                 }}
               >
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                  <Typography
-                    variant="h5"
-                    sx={{
-                      color: theme.palette.text.primary,
-                      fontWeight: 700,
-                      fontFamily: 'var(--font-rubik), Rubik, sans-serif',
-                      fontSize: { xs: '1.25rem', md: '1.5rem' },
-                    }}
-                  >
-                    Project Phases
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Typography
+                      variant="h5"
+                      sx={{
+                        color: theme.palette.text.primary,
+                        fontWeight: 700,
+                        fontFamily: 'var(--font-rubik), Rubik, sans-serif',
+                        fontSize: { xs: '1.25rem', md: '1.5rem' },
+                      }}
+                    >
+                      Project Phases
+                    </Typography>
+                    <Chip
+                      label={`${completedPhases}/${totalPhases}`}
+                      size="small"
+                      sx={{
+                        backgroundColor: completedPhases === totalPhases ? '#4CAF50' : theme.palette.action.hover,
+                        color: completedPhases === totalPhases ? '#fff' : theme.palette.text.primary,
+                        fontWeight: 700,
+                        fontSize: '0.75rem',
+                      }}
+                    />
+                  </Box>
                 </Box>
                 
                 {/* Stacked Phase Cards */}
@@ -1087,16 +997,29 @@ export default function ProjectPage() {
                     }}
                   >
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography
-                        variant="h6"
-                        sx={{
-                          color: theme.palette.text.primary,
-                          fontWeight: 600,
-                          fontSize: { xs: '1rem', md: '1.25rem' },
-                        }}
-                      >
-                        Team Members
-                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            color: theme.palette.text.primary,
+                            fontWeight: 600,
+                            fontSize: { xs: '1rem', md: '1.25rem' },
+                          }}
+                        >
+                          Team Members
+                        </Typography>
+                        <Chip
+                          label={memberCount}
+                          size="small"
+                          sx={{
+                            backgroundColor: theme.palette.action.hover,
+                            color: theme.palette.text.primary,
+                            fontWeight: 700,
+                            fontSize: '0.75rem',
+                            minWidth: 28,
+                          }}
+                        />
+                      </Box>
                       <Button
                         size="small"
                         endIcon={<ArrowForwardIcon />}
@@ -1212,55 +1135,29 @@ export default function ProjectPage() {
                     >
                       {exporting ? 'Exporting...' : 'Export Blueprint'}
                     </Button>
-                    {(() => {
-                      const phase1 = phases.find((p) => p.phase_number === 1);
-                      const phase2 = phases.find((p) => p.phase_number === 2);
-                      const phase3 = phases.find((p) => p.phase_number === 3);
-                      const canCreateBundle = phase1?.completed && phase2?.completed && phase3?.completed;
-                      const missingPhases = [];
-                      if (!phase1?.completed) missingPhases.push('Concept Framing');
-                      if (!phase2?.completed) missingPhases.push('Product Strategy');
-                      if (!phase3?.completed) missingPhases.push('Rapid Prototype Definition');
-                      
-                      const button = (
-                        <Button
-                          variant="outlined"
-                          startIcon={<ContentCopyIcon />}
-                          onClick={handleGenerateCursorPrompt}
-                          disabled={exporting || !project || !canCreateBundle}
-                          fullWidth
-                          sx={{
-                            borderColor: theme.palette.text.primary,
-                            color: theme.palette.text.primary,
-                            fontWeight: 600,
-                            py: 1.5,
-                            '&:hover': {
-                              borderColor: theme.palette.text.primary,
-                              backgroundColor: theme.palette.action.hover,
-                            },
-                            '&.Mui-disabled': {
-                              borderColor: theme.palette.divider,
-                              color: theme.palette.text.secondary,
-                            },
-                          }}
-                        >
-                          {exporting ? 'Generating...' : `Create ${project.primary_tool ? project.primary_tool.charAt(0).toUpperCase() + project.primary_tool.slice(1) : 'Tool'} Bundle`}
-                        </Button>
-                      );
-                      
-                      if (!canCreateBundle && missingPhases.length > 0) {
-                        return (
-                          <Tooltip 
-                            title={`Complete these phases first: ${missingPhases.join(', ')}`}
-                            arrow
-                          >
-                            <span>{button}</span>
-                          </Tooltip>
-                        );
-                      }
-                      
-                      return button;
-                    })()}
+                    <Button
+                      variant="outlined"
+                      startIcon={<Inventory2Icon />}
+                      onClick={handleGenerateCursorPrompt}
+                      disabled={exporting}
+                      fullWidth
+                      sx={{
+                        borderColor: theme.palette.text.primary,
+                        color: theme.palette.text.primary,
+                        fontWeight: 600,
+                        py: 1.5,
+                        '&:hover': {
+                          borderColor: theme.palette.text.primary,
+                          backgroundColor: theme.palette.action.hover,
+                        },
+                        '&.Mui-disabled': {
+                          borderColor: theme.palette.divider,
+                          color: theme.palette.text.secondary,
+                        },
+                      }}
+                    >
+                      {exporting ? 'Generating...' : `Create ${project?.primary_tool ? project.primary_tool.charAt(0).toUpperCase() + project.primary_tool.slice(1) : 'Tool'} Bundle`}
+                    </Button>
                     <Button
                       variant="outlined"
                       startIcon={<AssignmentIcon />}
@@ -1288,29 +1185,6 @@ export default function ProjectPage() {
                           ? 'Project Management' 
                           : 'Initiate Project Management'}
                     </Button>
-                    {features?.product_workspace_enabled && (
-                      <>
-                        <Divider sx={{ my: 1 }} />
-                        <Button
-                          variant="outlined"
-                          startIcon={<WorkspacePremiumIcon />}
-                          onClick={() => router.push(`/workspace/${projectId}`)}
-                          fullWidth
-                          sx={{
-                            borderColor: theme.palette.primary.main,
-                            color: theme.palette.primary.main,
-                            fontWeight: 600,
-                            py: 1.5,
-                            '&:hover': {
-                              borderColor: theme.palette.primary.dark,
-                              backgroundColor: theme.palette.action.hover,
-                            },
-                          }}
-                        >
-                          Product Workspace
-                        </Button>
-                      </>
-                    )}
                     <Divider sx={{ my: 1 }} />
                     <Button
                       variant="outlined"
@@ -1328,25 +1202,7 @@ export default function ProjectPage() {
                         },
                       }}
                     >
-                      Export History
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      startIcon={<PeopleIcon />}
-                      onClick={() => router.push(`/project/${projectId}/settings`)}
-                      fullWidth
-                      sx={{
-                        borderColor: theme.palette.divider,
-                        color: theme.palette.text.primary,
-                        fontWeight: 500,
-                        py: 1.5,
-                        '&:hover': {
-                          borderColor: theme.palette.text.primary,
-                          backgroundColor: theme.palette.action.hover,
-                        },
-                      }}
-                    >
-                      Manage Members
+                      Export History ({exportCount})
                     </Button>
                   </Stack>
                 </Paper>
@@ -1542,6 +1398,14 @@ export default function ProjectPage() {
               </Button>
             </DialogActions>
           </Dialog>
+
+          {/* Floating AI Assistant */}
+          {features?.product_workspace_enabled && (
+            <WorkspaceChat
+              projectId={projectId}
+              variant="floating"
+            />
+          )}
         </Container>
       </Box>
     </ErrorBoundary>

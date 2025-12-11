@@ -93,6 +93,13 @@ export const AVAILABLE_MODULES: ModuleDefinition[] = [
     icon: 'WorkspacePremium',
     category: 'Product',
   },
+  {
+    key: 'slack_integration_enabled',
+    name: 'Slack Integration',
+    description: 'Connect Slack workspace to receive notifications and send workflow messages',
+    icon: 'Chat',
+    category: 'Integration',
+  },
 ];
 
 /**

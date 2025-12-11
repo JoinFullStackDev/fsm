@@ -23,7 +23,7 @@ export const getThemeColors = (theme: Theme) => ({
   
   // Common replacements for colorful values
   // Old colorful values -> New monochrome theme values
-  primary: theme.palette.text.primary,        // #00E5FF -> white
+  primary: theme.palette.text.primary,        // #C9354A -> white
   secondary: theme.palette.text.primary,     // #E91E63 -> white
   accent: theme.palette.text.secondary,       // Various -> gray
   error: theme.palette.text.primary,          // #FF1744 -> white (or keep as error)

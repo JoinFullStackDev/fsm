@@ -151,6 +151,12 @@ export async function PATCH(
       updates.last_message_at = newMessage.timestamp;
     }
 
+    // Handle replacing all messages (for action status updates)
+    if (body.update_messages) {
+      updates.messages = body.update_messages;
+      updates.message_count = body.update_messages.length;
+    }
+
     // Handle title update
     if (body.title) {
       updates.title = body.title;

@@ -29,7 +29,7 @@ export function generatePDFReport(config: PDFReportConfig): Blob {
   let yPosition = margin;
 
   // Colors matching app theme
-  const primaryColor = [0, 229, 255]; // #00E5FF
+  const primaryColor = [0, 229, 255]; // #C9354A
   const secondaryColor = [233, 30, 99]; // #E91E63
   const textColor = [224, 224, 224]; // #E0E0E0
   const darkBg = [18, 22, 51]; // #000

@@ -139,17 +139,7 @@ export async function POST(
     const isPM = userData.role === 'pm';
     
     if (!isSuperAdmin && !isProjectOwner && !isAdmin && !isPM) {
-      // Check if user is a project member with admin/pm role
-      const { data: projectMember } = await adminClient
-        .from('project_members')
-        .select('role')
-        .eq('project_id', params.id)
-        .eq('user_id', userData.id)
-        .single();
-      
-      if (!projectMember || (projectMember.role !== 'admin' && projectMember.role !== 'pm')) {
-        return forbidden('Only project owners, admins, or PMs can create scope of work');
-      }
+      return forbidden('Only project owners, admins, or PMs can create scope of work');
     }
 
     const body = await request.json();

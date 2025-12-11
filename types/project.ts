@@ -403,7 +403,6 @@ export interface SOWProjectMember {
   project_member?: {
     id: string;
     user_id: string;
-    role: UserRole; // Legacy role from project_members (fallback)
     user?: {
       id: string;
       name: string | null;
@@ -428,8 +427,8 @@ export interface SOWMemberWithStats extends SOWProjectMember {
   workload_summary?: UserWorkloadSummary;
   is_overworked?: boolean;
   // Computed fields for convenience
-  role_name: string; // organization_role.name or project_member.role (fallback)
-  role_description: string | null; // organization_role.description or null
+  role_name: string; // From organization_role.name
+  role_description: string | null; // From organization_role.description
 }
 
 export interface SOWWithAllocations extends ScopeOfWork {

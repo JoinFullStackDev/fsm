@@ -16,13 +16,12 @@ import { useTheme } from '@mui/material/styles';
 import {
   People as PeopleIcon,
   Palette as PaletteIcon,
-  Settings as SettingsIcon,
-  Api as ApiIcon,
   Analytics as AnalyticsIcon,
   VpnKey as VpnKeyIcon,
   CreditCard as CreditCardIcon,
   Security as SecurityIcon,
   Groups as GroupsIcon,
+  Link as LinkIcon,
 } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useRole } from '@/lib/hooks/useRole';
@@ -30,12 +29,11 @@ import { useOrganization } from '@/components/providers/OrganizationProvider';
 import AdminUsersTab from '@/components/admin/AdminUsersTab';
 import AdminRolesTab from '@/components/admin/AdminRolesTab';
 import AdminThemeTab from '@/components/admin/AdminThemeTab';
-import AdminApiConfigTab from '@/components/admin/AdminApiConfigTab';
-import AdminSystemTab from '@/components/admin/AdminSystemTab';
 import AdminAnalyticsTab from '@/components/admin/AdminAnalyticsTab';
 import AdminApiKeysTab from '@/components/admin/AdminApiKeysTab';
 import AdminSubscriptionTab from '@/components/admin/AdminSubscriptionTab';
 import AdminTeamsTab from '@/components/admin/AdminTeamsTab';
+import IntegrationSettings from '@/components/organization/IntegrationSettings';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -283,12 +281,7 @@ export default function AdminPage() {
             )}
             <Tab icon={<PaletteIcon />} iconPosition="start" label="Theme" />
             <Tab icon={<CreditCardIcon />} iconPosition="start" label="Subscription" />
-            {isSuperAdmin && (
-              <Tab icon={<ApiIcon />} iconPosition="start" label="API Config" />
-            )}
-            {isSuperAdmin && (
-              <Tab icon={<SettingsIcon />} iconPosition="start" label="System" />
-            )}
+            <Tab icon={<LinkIcon />} iconPosition="start" label="Integrations" />
             <Tab icon={<AnalyticsIcon />} iconPosition="start" label="Analytics" />
           </Tabs>
         </Box>
@@ -344,22 +337,13 @@ export default function AdminPage() {
             <AdminSubscriptionTab />
           </TabPanel>
           
-          {/* Tab index calculation: API Config (super admin only) */}
-          {isSuperAdmin && (
-            <TabPanel value={activeTab} index={isCompanyAdmin ? (showApiKeysTab ? 6 : 5) : (showApiKeysTab ? 4 : 3)}>
-              <AdminApiConfigTab />
-            </TabPanel>
-          )}
-          
-          {/* Tab index calculation: System (super admin only) */}
-          {isSuperAdmin && (
-            <TabPanel value={activeTab} index={isCompanyAdmin ? (showApiKeysTab ? 7 : 6) : (showApiKeysTab ? 5 : 4)}>
-              <AdminSystemTab />
-            </TabPanel>
-          )}
+          {/* Tab index calculation: Integrations tab */}
+          <TabPanel value={activeTab} index={isCompanyAdmin ? (showApiKeysTab ? 6 : 5) : (showApiKeysTab ? 4 : 3)}>
+            <IntegrationSettings />
+          </TabPanel>
           
           {/* Tab index calculation: Analytics */}
-          <TabPanel value={activeTab} index={isSuperAdmin ? (isCompanyAdmin ? (showApiKeysTab ? 8 : 7) : (showApiKeysTab ? 6 : 5)) : (isCompanyAdmin ? (showApiKeysTab ? 6 : 5) : (showApiKeysTab ? 4 : 3))}>
+          <TabPanel value={activeTab} index={isCompanyAdmin ? (showApiKeysTab ? 7 : 6) : (showApiKeysTab ? 5 : 4)}>
             <AdminAnalyticsTab />
           </TabPanel>
         </Box>

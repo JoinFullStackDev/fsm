@@ -12,7 +12,6 @@ import {
   Grid,
   Card,
   CardContent,
-  CardActions,
   Chip,
   Dialog,
   DialogTitle,
@@ -20,19 +19,12 @@ import {
   DialogActions,
   TextField,
   MenuItem,
-  List,
-  ListItem,
-  ListItemText,
-  Divider,
-  IconButton,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
   ArrowBack as ArrowBackIcon,
   MenuBook as MenuBookIcon,
   Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import type { WorkspaceDecision, WorkspaceDebt, DebtHeatmapData } from '@/types/workspace';
@@ -229,19 +221,61 @@ export default function ContextLibraryPage() {
                 No decisions logged yet
               </Typography>
             ) : (
-              <List>
-                {decisions.map((decision, idx) => (
-                  <Box key={decision.id}>
-                    {idx > 0 && <Divider sx={{ my: 1 }} />}
-                    <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'flex-start' }}>
-                      <ListItemText
-                        primary={decision.title}
-                        secondary={`${new Date(decision.decision_date).toLocaleDateString()} • ${decision.decision.substring(0, 100)}${decision.decision.length > 100 ? '...' : ''}`}
-                      />
-                    </ListItem>
-                  </Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {decisions.map((decision) => (
+                  <Card key={decision.id} variant="outlined" sx={{ backgroundColor: theme.palette.background.default }}>
+                    <CardContent>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                          {decision.title}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {new Date(decision.decision_date).toLocaleDateString()}
+                        </Typography>
+                      </Box>
+                      
+                      {decision.context && (
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                            Context
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {decision.context}
+                          </Typography>
+                        </Box>
+                      )}
+                      
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                          Decision
+                        </Typography>
+                        <Typography variant="body2">
+                          {decision.decision}
+                        </Typography>
+                      </Box>
+                      
+                      {decision.rationale && (
+                        <Box>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                            Rationale
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {decision.rationale}
+                          </Typography>
+                        </Box>
+                      )}
+                      
+                      {decision.tags && decision.tags.length > 0 && (
+                        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 2 }}>
+                          {(decision.tags as string[]).map((tag, idx) => (
+                            <Chip key={idx} label={tag} size="small" variant="outlined" />
+                          ))}
+                        </Box>
+                      )}
+                    </CardContent>
+                  </Card>
                 ))}
-              </List>
+              </Box>
             )}
           </Paper>
         </Grid>
@@ -265,31 +299,72 @@ export default function ContextLibraryPage() {
                 No debt items logged yet
               </Typography>
             ) : (
-              <List>
-                {debtItems.map((debt, idx) => (
-                  <Box key={debt.id}>
-                    {idx > 0 && <Divider sx={{ my: 1 }} />}
-                    <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'flex-start' }}>
-                      <Box sx={{ display: 'flex', gap: 1, mb: 0.5 }}>
-                        <Chip
-                          label={debt.severity}
-                          size="small"
-                          color={
-                            debt.severity === 'critical' ? 'error' :
-                            debt.severity === 'high' ? 'warning' :
-                            'default'
-                          }
-                        />
-                        <Chip label={debt.debt_type} size="small" variant="outlined" />
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {debtItems.map((debt) => (
+                  <Card 
+                    key={debt.id} 
+                    variant="outlined" 
+                    sx={{ 
+                      backgroundColor: theme.palette.background.default,
+                      borderLeft: `4px solid ${
+                        debt.severity === 'critical' ? theme.palette.error.main :
+                        debt.severity === 'high' ? theme.palette.warning.main :
+                        debt.severity === 'medium' ? theme.palette.info.main :
+                        theme.palette.grey[400]
+                      }`,
+                    }}
+                  >
+                    <CardContent>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                          {debt.title}
+                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <Chip
+                            label={debt.severity}
+                            size="small"
+                            color={
+                              debt.severity === 'critical' ? 'error' :
+                              debt.severity === 'high' ? 'warning' :
+                              'default'
+                            }
+                          />
+                          <Chip label={debt.debt_type} size="small" variant="outlined" />
+                        </Box>
                       </Box>
-                      <ListItemText
-                        primary={debt.title}
-                        secondary={`${debt.description.substring(0, 80)}${debt.description.length > 80 ? '...' : ''}`}
-                      />
-                    </ListItem>
-                  </Box>
+                      
+                      <Typography variant="body2" sx={{ mb: 2 }}>
+                        {debt.description}
+                      </Typography>
+                      
+                      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Status: <strong>{debt.status}</strong>
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Identified: <strong>{new Date(debt.identified_date).toLocaleDateString()}</strong>
+                        </Typography>
+                        {debt.estimated_effort && (
+                          <Typography variant="caption" color="text.secondary">
+                            Effort: <strong>{debt.estimated_effort}</strong>
+                          </Typography>
+                        )}
+                      </Box>
+                      
+                      {debt.resolution_notes && (
+                        <Box sx={{ mt: 2, p: 1.5, backgroundColor: theme.palette.action.hover, borderRadius: 1 }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                            Resolution Notes
+                          </Typography>
+                          <Typography variant="body2">
+                            {debt.resolution_notes}
+                          </Typography>
+                        </Box>
+                      )}
+                    </CardContent>
+                  </Card>
                 ))}
-              </List>
+              </Box>
             )}
           </Paper>
         </Grid>

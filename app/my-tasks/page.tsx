@@ -167,7 +167,7 @@ export default function MyTasksPage() {
       align: 'center' as const,
       render: (val: unknown, _row: ProjectTask) => {
         const value = val as string;
-        const priorityColor = PRIORITY_COLORS[value as keyof typeof PRIORITY_COLORS] || '#00E5FF';
+        const priorityColor = PRIORITY_COLORS[value as keyof typeof PRIORITY_COLORS] || '#C9354A';
         return (
           <Chip
             label={value || 'Medium'}

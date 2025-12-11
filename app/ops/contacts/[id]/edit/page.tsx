@@ -119,9 +119,9 @@ export default function EditContactPage() {
         <IconButton
           onClick={() => companyId ? router.push(`/ops/companies/${companyId}`) : router.push('/ops/contacts')}
           sx={{
-            color: '#00E5FF',
+            color: '#C9354A',
             border: '1px solid',
-            borderColor: '#00E5FF',
+            borderColor: '#C9354A',
           }}
         >
           <ArrowBackIcon />
@@ -131,7 +131,7 @@ export default function EditContactPage() {
           component="h1"
           sx={{
             fontWeight: 700,
-            background: '#00E5FF',
+            background: '#C9354A',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
           }}

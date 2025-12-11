@@ -37,6 +37,7 @@ export interface PackageFeatures {
   knowledge_base_enabled: boolean;
   workflows_enabled: boolean;
   product_workspace_enabled: boolean;
+  slack_integration_enabled: boolean;
   support_level: 'community' | 'email' | 'priority' | 'dedicated';
 }
 

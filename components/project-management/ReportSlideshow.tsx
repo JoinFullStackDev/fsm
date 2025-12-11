@@ -79,10 +79,10 @@ export default function ReportSlideshow({
             startIcon={<DownloadIcon />}
             onClick={handleDownload}
             sx={{
-              borderColor: '#00E5FF',
-              color: '#00E5FF',
+              borderColor: '#C9354A',
+              color: '#C9354A',
               '&:hover': {
-                borderColor: '#00E5FF',
+                borderColor: '#C9354A',
                 backgroundColor: 'rgba(0, 229, 255, 0.1)',
               },
             }}
@@ -92,7 +92,7 @@ export default function ReportSlideshow({
           <IconButton
             onClick={onClose}
             sx={{
-              color: '#00E5FF',
+              color: '#C9354A',
               backgroundColor: 'rgba(0, 229, 255, 0.1)',
               '&:hover': {
                 backgroundColor: 'rgba(0, 229, 255, 0.2)',

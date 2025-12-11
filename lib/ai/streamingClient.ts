@@ -124,31 +124,59 @@ When suggesting task creation, you SHOULD recommend an assignee based on:
 
 ALWAYS include assignee_id in create_task actions when you can identify the right person.
 
-When suggesting an action, use this format:
+When suggesting an action, use one of these formats:
+
+**CREATE_TASK** - Create a new project task:
 \`\`\`action
 {
   "type": "create_task",
   "data": {
-    "title": "Task title",
+    "title": "Task title (required)",
     "description": "Task description",
-    "priority": "high",
+    "priority": "high|medium|low",
     "assignee_id": "user-uuid-here",
-    "estimated_hours": 8
+    "estimated_hours": 8,
+    "tags": ["tag1", "tag2"]
   }
 }
 \`\`\`
 
-Example with assignee:
+**LOG_DECISION** - Document an important decision:
 \`\`\`action
 {
-  "type": "create_task",
+  "type": "log_decision",
   "data": {
-    "title": "Design mobile navigation component",
-    "description": "Create responsive nav with user menu and notifications",
-    "priority": "high",
-    "assignee_id": "abc-123-def",
-    "estimated_hours": 6,
-    "tags": ["frontend", "design"]
+    "title": "Decision title (required)",
+    "decision": "The decision that was made (required)",
+    "context": "Background and circumstances",
+    "rationale": "Why this decision was made"
+  }
+}
+\`\`\`
+
+**LOG_DEBT** - Track technical/product/design debt:
+\`\`\`action
+{
+  "type": "log_debt",
+  "data": {
+    "title": "Debt title (required)",
+    "description": "What the debt is and its impact (required)",
+    "debt_type": "technical|product|design|operational (required)",
+    "severity": "low|medium|high|critical"
+  }
+}
+\`\`\`
+
+**UPDATE_SPEC** - Suggest improvements to a clarity spec (only when spec_id is known):
+\`\`\`action
+{
+  "type": "update_spec",
+  "data": {
+    "spec_id": "the-spec-uuid (required)",
+    "updates": {
+      "problem_statement": "Updated problem statement",
+      "success_criteria": "Updated success criteria"
+    }
   }
 }
 \`\`\`

@@ -47,10 +47,17 @@ import WorkloadIndicator from '@/components/projects/WorkloadIndicator';
 import ResourceAllocationForm from '@/components/projects/ResourceAllocationForm';
 import ResourceAllocationList from '@/components/projects/ResourceAllocationList';
 
+interface OrganizationRole {
+  id: string;
+  name: string;
+  description: string | null;
+}
+
 interface ProjectMember {
   id: string;
   user_id: string;
-  role: UserRole;
+  organization_role_id: string | null;
+  organization_role?: OrganizationRole | null;
   user: {
     id: string;
     name: string;
@@ -80,11 +87,12 @@ export default function ProjectMembersPage() {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState('');
-  const [selectedRole, setSelectedRole] = useState<UserRole>('pm');
+  const [selectedRoleId, setSelectedRoleId] = useState<string>('');
   const [projectName, setProjectName] = useState<string>('');
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
-  const [editingRole, setEditingRole] = useState<UserRole | null>(null);
+  const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
   const [updatingRole, setUpdatingRole] = useState(false);
+  const [organizationRoles, setOrganizationRoles] = useState<OrganizationRole[]>([]);
   // Resource allocation state
   const [allocations, setAllocations] = useState<Array<ProjectMemberAllocation & { user?: any }>>([]);
   const [workloads, setWorkloads] = useState<Map<string, UserWorkloadSummary>>(new Map());
@@ -151,8 +159,12 @@ export default function ProjectMembersPage() {
       setWorkloads(workloadMap);
     }
 
-    // Load available users via API route to avoid RLS recursion
-    const usersResponse = await fetch('/api/users');
+    // Load available users and organization roles
+    const [usersResponse, rolesResponse] = await Promise.all([
+      fetch('/api/users'),
+      fetch('/api/organization/roles'),
+    ]);
+
     if (usersResponse.ok) {
       const allUsers = await usersResponse.json();
       // Filter out users who are already members
@@ -163,8 +175,17 @@ export default function ProjectMembersPage() {
       setAvailableUsers([]);
     }
 
+    if (rolesResponse.ok) {
+      const rolesData = await rolesResponse.json();
+      setOrganizationRoles(rolesData.roles || []);
+      // Set default selected role to first available role
+      if (rolesData.roles?.length > 0 && !selectedRoleId) {
+        setSelectedRoleId(rolesData.roles[0].id);
+      }
+    }
+
     setLoading(false);
-  }, [projectId, router, supabase]);
+  }, [projectId, router, supabase, selectedRoleId]);
 
   useEffect(() => {
     if (projectId) {
@@ -173,7 +194,7 @@ export default function ProjectMembersPage() {
   }, [projectId, loadData]);
 
   const handleAddMember = async () => {
-    if (!selectedUserId) return;
+    if (!selectedUserId || !selectedRoleId) return;
 
     try {
       const response = await fetch(`/api/projects/${projectId}/members`, {
@@ -181,7 +202,7 @@ export default function ProjectMembersPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: selectedUserId,
-          role: selectedRole,
+          organization_role_id: selectedRoleId,
         }),
       });
 
@@ -194,7 +215,10 @@ export default function ProjectMembersPage() {
       showSuccess('Member added successfully');
       setOpenDialog(false);
       setSelectedUserId('');
-      setSelectedRole('pm');
+      // Reset to first role
+      if (organizationRoles.length > 0) {
+        setSelectedRoleId(organizationRoles[0].id);
+      }
       // Reload data
       loadData();
     } catch (error) {
@@ -229,27 +253,27 @@ export default function ProjectMembersPage() {
     loadData();
   };
 
-  const handleRoleChange = (memberId: string, newRole: UserRole) => {
+  const handleRoleChange = (memberId: string, currentRoleId: string | null) => {
     setEditingMemberId(memberId);
-    setEditingRole(newRole);
+    setEditingRoleId(currentRoleId);
   };
 
-  const handleRoleUpdate = async (memberId: string, newRole: UserRole) => {
+  const handleRoleUpdate = async (memberId: string, newRoleId: string) => {
     const member = members.find(m => m.id === memberId);
-    if (!member || newRole === member.role) {
+    if (!member || newRoleId === member.organization_role_id) {
       handleRoleCancel();
       return;
     }
 
     setUpdatingRole(true);
-    setEditingRole(newRole);
+    setEditingRoleId(newRoleId);
     try {
       const response = await fetch(`/api/projects/${projectId}/members`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           member_id: memberId,
-          role: newRole,
+          organization_role_id: newRoleId,
         }),
       });
 
@@ -275,7 +299,7 @@ export default function ProjectMembersPage() {
 
   const handleRoleCancel = () => {
     setEditingMemberId(null);
-    setEditingRole(null);
+    setEditingRoleId(null);
   };
 
   const getRoleColor = (role: UserRole) => {
@@ -485,7 +509,7 @@ export default function ProjectMembersPage() {
                         <EmptyState
                           icon={<PeopleIcon sx={{ fontSize: 48 }} />}
                           title="No members yet"
-                          description="Add team members to collaborate on this project. Each member can be assigned a role (PM, Designer, or Engineer)."
+                          description="Add team members to collaborate on this project. Each member can be assigned an organization role."
                           actionLabel="Add Member"
                           onAction={() => setOpenDialog(true)}
                           variant="minimal"
@@ -507,18 +531,18 @@ export default function ProjectMembersPage() {
                         <TableCell sx={{ color: theme.palette.text.primary, borderBottom: `1px solid ${theme.palette.divider}` }}>{member.user?.email}</TableCell>
                         <TableCell sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
                           {editingMemberId === member.id ? (
-                            <FormControl size="small" sx={{ minWidth: 120 }}>
+                            <FormControl size="small" sx={{ minWidth: 160 }}>
                               <Select
-                                value={editingRole || member.role}
+                                value={editingRoleId || member.organization_role_id || ''}
                                 onChange={(e) => {
-                                  const newRole = e.target.value as UserRole;
+                                  const newRoleId = e.target.value as string;
                                   // Auto-save when selection changes
-                                  handleRoleUpdate(member.id, newRole);
+                                  handleRoleUpdate(member.id, newRoleId);
                                 }}
                                 disabled={updatingRole}
                                 onClose={() => {
                                   // If role wasn't changed, cancel editing
-                                  if (editingRole === member.role) {
+                                  if (editingRoleId === member.organization_role_id) {
                                     handleRoleCancel();
                                   }
                                 }}
@@ -565,17 +589,16 @@ export default function ProjectMembersPage() {
                                   },
                                 }}
                               >
-                                <MenuItem value="pm">Product Manager</MenuItem>
-                                <MenuItem value="designer">Designer</MenuItem>
-                                <MenuItem value="engineer">Engineer</MenuItem>
-                                <MenuItem value="admin">Admin</MenuItem>
+                                {organizationRoles.map((role) => (
+                                  <MenuItem key={role.id} value={role.id}>{role.name}</MenuItem>
+                                ))}
                               </Select>
                             </FormControl>
                           ) : (
                             <Chip
-                              label={member.role.toUpperCase()}
+                              label={member.organization_role?.name || 'No Role'}
                               size="small"
-                              onClick={() => handleRoleChange(member.id, member.role)}
+                              onClick={() => handleRoleChange(member.id, member.organization_role_id)}
                               sx={{ 
                                 fontWeight: 600,
                                 backgroundColor: theme.palette.action.hover,
@@ -694,9 +717,9 @@ export default function ProjectMembersPage() {
             <FormControl fullWidth>
               <InputLabel sx={{ color: theme.palette.text.secondary }}>Role</InputLabel>
               <Select
-                value={selectedRole}
+                value={selectedRoleId}
                 label="Role"
-                onChange={(e) => setSelectedRole(e.target.value as UserRole)}
+                onChange={(e) => setSelectedRoleId(e.target.value as string)}
                 MenuProps={{
                   PaperProps: {
                     sx: {
@@ -734,10 +757,9 @@ export default function ProjectMembersPage() {
                   },
                 }}
               >
-                <MenuItem value="pm">Product Manager</MenuItem>
-                <MenuItem value="designer">Designer</MenuItem>
-                <MenuItem value="engineer">Engineer</MenuItem>
-                <MenuItem value="admin">Admin</MenuItem>
+                {organizationRoles.map((role) => (
+                  <MenuItem key={role.id} value={role.id}>{role.name}</MenuItem>
+                ))}
               </Select>
             </FormControl>
           </DialogContent>

@@ -35,7 +35,7 @@ interface ChartData {
   series?: Array<{ key: string; label: string }>; // For multi-series charts
 }
 
-const COLORS = ['#00E5FF', '#E91E63', '#9C27B0', '#3F51B5', '#00BCD4', '#4CAF50', '#FFC107', '#FF9800'];
+const COLORS = ['#C9354A', '#E91E63', '#9C27B0', '#3F51B5', '#00BCD4', '#4CAF50', '#FFC107', '#FF9800'];
 
 export default function ChartWidget({ widgetId, dashboardId, dataset, settings }: ChartWidgetProps) {
   const theme = useTheme();

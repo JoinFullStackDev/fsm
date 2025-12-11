@@ -93,6 +93,7 @@ const defaultFeatures: PackageFeatures = {
   knowledge_base_enabled: false,
   workflows_enabled: false,
   product_workspace_enabled: false,
+  slack_integration_enabled: false,
   support_level: 'community',
 };
 
