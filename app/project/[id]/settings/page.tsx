@@ -288,11 +288,7 @@ export default function ProjectSettingsPage() {
 
   // Get display name for a member's role
   const getMemberRoleName = (member: ProjectMember): string => {
-    if (member.organization_role?.name) {
-      return member.organization_role.name;
-    }
-    // Fallback to legacy role
-    return member.role?.toUpperCase() || 'No Role';
+    return member.organization_role?.name || 'No Role Assigned';
   };
 
   // Get color for role chip based on role name

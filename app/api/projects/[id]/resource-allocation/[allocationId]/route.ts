@@ -64,16 +64,7 @@ export async function PUT(
     const isPM = userData.role === 'pm';
     
     if (!isSuperAdmin && !isProjectOwner && !isAdmin && !isPM) {
-      const { data: projectMember } = await adminClient
-        .from('project_members')
-        .select('role')
-        .eq('project_id', params.id)
-        .eq('user_id', userData.id)
-        .single();
-      
-      if (!projectMember || (projectMember.role !== 'admin' && projectMember.role !== 'pm')) {
-        return forbidden('Only project owners, admins, or PMs can update resource allocations');
-      }
+      return forbidden('Only project owners, admins, or PMs can update resource allocations');
     }
 
     // Verify allocation exists
@@ -247,16 +238,7 @@ export async function DELETE(
     const isPM = userData.role === 'pm';
     
     if (!isSuperAdmin && !isProjectOwner && !isAdmin && !isPM) {
-      const { data: projectMember } = await adminClient
-        .from('project_members')
-        .select('role')
-        .eq('project_id', params.id)
-        .eq('user_id', userData.id)
-        .single();
-      
-      if (!projectMember || (projectMember.role !== 'admin' && projectMember.role !== 'pm')) {
-        return forbidden('Only project owners, admins, or PMs can delete resource allocations');
-      }
+      return forbidden('Only project owners, admins, or PMs can delete resource allocations');
     }
 
     // Verify allocation exists

@@ -125,7 +125,7 @@ export default function Phase4Form({ data, onChange }: Phase4FormProps) {
     title,
     icon,
     children,
-    borderColor = '#00E5FF',
+    borderColor = '#C9354A',
     fullWidth = false,
   }: {
     title: string;
@@ -168,7 +168,7 @@ export default function Phase4Form({ data, onChange }: Phase4FormProps) {
           <SectionCard
             title="Entities"
             icon={<StorageIcon />}
-            borderColor="#00E5FF"
+            borderColor="#C9354A"
             fullWidth
           >
             <Grid container spacing={2} sx={{ mb: 2 }}>
@@ -183,7 +183,7 @@ export default function Phase4Form({ data, onChange }: Phase4FormProps) {
                   >
                     <CardContent>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                        <Typography variant="subtitle2" sx={{ color: '#00E5FF', fontWeight: 600 }}>
+                        <Typography variant="subtitle2" sx={{ color: '#C9354A', fontWeight: 600 }}>
                           {entity.name || `Entity ${index + 1}`}
                         </Typography>
                         <IconButton
@@ -239,10 +239,10 @@ export default function Phase4Form({ data, onChange }: Phase4FormProps) {
                 onClick={addEntity}
                 variant="outlined"
                 sx={{
-                  borderColor: '#00E5FF',
-                  color: '#00E5FF',
+                  borderColor: '#C9354A',
+                  color: '#C9354A',
                   '&:hover': {
-                    borderColor: '#00E5FF',
+                    borderColor: '#C9354A',
                     backgroundColor: 'rgba(0, 229, 255, 0.1)',
                   },
                 }}
@@ -741,7 +741,7 @@ export default function Phase4Form({ data, onChange }: Phase4FormProps) {
           <SectionCard
             title="Non-Functional Requirements"
             icon={<SpeedIcon />}
-            borderColor="#00E5FF"
+            borderColor="#C9354A"
           >
             <TextField
               fullWidth

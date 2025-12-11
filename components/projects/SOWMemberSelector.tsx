@@ -33,7 +33,12 @@ import type { ProjectTask } from '@/types/project';
 interface ProjectMember {
   id: string;
   user_id: string;
-  role: string;
+  organization_role_id: string | null;
+  organization_role?: {
+    id: string;
+    name: string;
+    description: string | null;
+  } | null;
   user: {
     id: string;
     name: string | null;
@@ -152,9 +157,9 @@ export default function SOWMemberSelector({
   const handleMemberToggle = (memberId: string, checked: boolean) => {
     const newSelections = new Map(localSelections);
     if (checked) {
-      // Get default role (first org role or use project member role)
+      // Use the member's existing organization role, fall back to first available role
       const member = projectMembers.find(m => m.id === memberId);
-      const defaultRoleId = organizationRoles.length > 0 ? organizationRoles[0].id : '';
+      const defaultRoleId = member?.organization_role?.id || (organizationRoles.length > 0 ? organizationRoles[0].id : '');
       newSelections.set(memberId, {
         roleId: defaultRoleId,
         notes: '',
@@ -215,7 +220,7 @@ export default function SOWMemberSelector({
         ) : (
           <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Select project members to add to the SOW team. Assign organization roles to help with AI task assignment.
+              Select project members to add to the SOW team. Their organization roles will be used automatically for task assignment.
             </Typography>
 
             {projectMembers.length === 0 ? (
@@ -243,7 +248,7 @@ export default function SOWMemberSelector({
                           label={
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                               <Typography variant="body1">{userName}</Typography>
-                              <Chip label={member.role} size="small" />
+                              <Chip label={member.organization_role?.name || 'No Role'} size="small" />
                               <Typography variant="caption" color="text.secondary">
                                 {taskCount} tasks
                               </Typography>
@@ -274,21 +279,24 @@ export default function SOWMemberSelector({
 
                       {isSelected && (
                         <Box sx={{ pl: 4, pr: 2, pb: 2 }}>
-                          <FormControl fullWidth size="small" sx={{ mb: 1 }}>
-                            <InputLabel>Organization Role</InputLabel>
-                            <Select
-                              value={selection?.roleId || ''}
-                              onChange={(e) => handleRoleChange(member.id, e.target.value)}
-                              label="Organization Role"
-                            >
-                              {organizationRoles.map((role) => (
-                                <MenuItem key={role.id} value={role.id}>
-                                  {role.name}
-                                  {role.description && ` - ${role.description}`}
-                                </MenuItem>
-                              ))}
-                            </Select>
-                          </FormControl>
+                          {/* Only show role selector if member doesn't already have an organization role */}
+                          {!member.organization_role?.id && organizationRoles.length > 0 && (
+                            <FormControl fullWidth size="small" sx={{ mb: 1 }}>
+                              <InputLabel>Organization Role</InputLabel>
+                              <Select
+                                value={selection?.roleId || ''}
+                                onChange={(e) => handleRoleChange(member.id, e.target.value)}
+                                label="Organization Role"
+                              >
+                                {organizationRoles.map((role) => (
+                                  <MenuItem key={role.id} value={role.id}>
+                                    {role.name}
+                                    {role.description && ` - ${role.description}`}
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                            </FormControl>
+                          )}
                           <TextField
                             fullWidth
                             size="small"
@@ -297,7 +305,7 @@ export default function SOWMemberSelector({
                             rows={2}
                             value={selection?.notes || ''}
                             onChange={(e) => handleNotesChange(member.id, e.target.value)}
-                            placeholder="Optional notes about this member's role"
+                            placeholder="Optional notes about this member's responsibilities in this SOW"
                           />
                         </Box>
                       )}

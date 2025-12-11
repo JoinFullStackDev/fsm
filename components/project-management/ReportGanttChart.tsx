@@ -27,7 +27,7 @@ interface ReportGanttChartProps {
 
 const PRIORITY_COLORS: Record<string, string> = {
   high: '#E91E63',
-  medium: '#00E5FF',
+  medium: '#C9354A',
   low: '#9C27B0',
 };
 

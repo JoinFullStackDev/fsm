@@ -103,7 +103,7 @@ export default function Phase3Form({ data, onChange }: Phase3FormProps) {
     title,
     icon,
     children,
-    borderColor = '#00E5FF',
+    borderColor = '#C9354A',
     fullWidth = false,
   }: {
     title: string;
@@ -146,7 +146,7 @@ export default function Phase3Form({ data, onChange }: Phase3FormProps) {
           <SectionCard
             title="Screens"
             icon={<PhoneAndroidIcon />}
-            borderColor="#00E5FF"
+            borderColor="#C9354A"
             fullWidth
           >
             <Grid container spacing={2} sx={{ mb: 2 }}>
@@ -161,7 +161,7 @@ export default function Phase3Form({ data, onChange }: Phase3FormProps) {
                   >
                     <CardContent>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                        <Typography variant="caption" sx={{ color: '#00E5FF' }}>
+                        <Typography variant="caption" sx={{ color: '#C9354A' }}>
                           {screen.title || `Screen ${index + 1}`}
                         </Typography>
                         <IconButton
@@ -213,9 +213,9 @@ export default function Phase3Form({ data, onChange }: Phase3FormProps) {
                             checked={screen.is_core}
                             onChange={(e) => updateScreen(index, { ...screen, is_core: e.target.checked })}
                             sx={{
-                              color: '#00E5FF',
+                              color: '#C9354A',
                               '&.Mui-checked': {
-                                color: '#00E5FF',
+                                color: '#C9354A',
                               },
                             }}
                           />
@@ -233,10 +233,10 @@ export default function Phase3Form({ data, onChange }: Phase3FormProps) {
                 onClick={addScreen}
                 variant="outlined"
                 sx={{
-                  borderColor: '#00E5FF',
-                  color: '#00E5FF',
+                  borderColor: '#C9354A',
+                  color: '#C9354A',
                   '&:hover': {
-                    borderColor: '#00E5FF',
+                    borderColor: '#C9354A',
                     backgroundColor: 'rgba(0, 229, 255, 0.1)',
                   },
                 }}

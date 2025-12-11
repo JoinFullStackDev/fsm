@@ -96,7 +96,7 @@ export default function ReportGenerationModal({
     >
       <DialogTitle
         sx={{
-          color: '#00E5FF',
+          color: '#C9354A',
           fontWeight: 600,
           borderBottom: '2px solid rgba(0, 229, 255, 0.2)',
           pb: 2,
@@ -116,7 +116,7 @@ export default function ReportGenerationModal({
         <FormControl component="fieldset" sx={{ mb: 4, width: '100%' }}>
           <FormLabel
             component="legend"
-            sx={{ color: '#00E5FF', mb: 2, fontWeight: 500 }}
+            sx={{ color: '#C9354A', mb: 2, fontWeight: 500 }}
           >
             Report Type
           </FormLabel>
@@ -126,7 +126,7 @@ export default function ReportGenerationModal({
           >
             <FormControlLabel
               value="weekly"
-              control={<Radio sx={{ color: '#00E5FF' }} />}
+              control={<Radio sx={{ color: '#C9354A' }} />}
               label={
                 <Box>
                   <Typography sx={{ color: '#E0E0E0', fontWeight: 500 }}>
@@ -141,7 +141,7 @@ export default function ReportGenerationModal({
             />
             <FormControlLabel
               value="monthly"
-              control={<Radio sx={{ color: '#00E5FF' }} />}
+              control={<Radio sx={{ color: '#C9354A' }} />}
               label={
                 <Box>
                   <Typography sx={{ color: '#E0E0E0', fontWeight: 500 }}>
@@ -156,7 +156,7 @@ export default function ReportGenerationModal({
             />
             <FormControlLabel
               value="forecast"
-              control={<Radio sx={{ color: '#00E5FF' }} />}
+              control={<Radio sx={{ color: '#C9354A' }} />}
               label={
                 <Box>
                   <Typography sx={{ color: '#E0E0E0', fontWeight: 500 }}>
@@ -188,7 +188,7 @@ export default function ReportGenerationModal({
                   borderColor: 'rgba(0, 229, 255, 0.5)',
                 },
                 '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#00E5FF',
+                  borderColor: '#C9354A',
                 },
               }}
             >
@@ -206,7 +206,7 @@ export default function ReportGenerationModal({
         <FormControl component="fieldset" sx={{ width: '100%' }}>
           <FormLabel
             component="legend"
-            sx={{ color: '#00E5FF', mb: 2, fontWeight: 500 }}
+            sx={{ color: '#C9354A', mb: 2, fontWeight: 500 }}
           >
             Format
           </FormLabel>
@@ -217,20 +217,20 @@ export default function ReportGenerationModal({
           >
             <FormControlLabel
               value="pdf"
-              control={<Radio sx={{ color: '#00E5FF' }} />}
+              control={<Radio sx={{ color: '#C9354A' }} />}
               label={
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <DescriptionIcon sx={{ color: '#00E5FF', fontSize: 20 }} />
+                  <DescriptionIcon sx={{ color: '#C9354A', fontSize: 20 }} />
                   <Typography sx={{ color: '#E0E0E0' }}>PDF Download</Typography>
                 </Box>
               }
             />
             <FormControlLabel
               value="slideshow"
-              control={<Radio sx={{ color: '#00E5FF' }} />}
+              control={<Radio sx={{ color: '#C9354A' }} />}
               label={
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <SlideshowIcon sx={{ color: '#00E5FF', fontSize: 20 }} />
+                  <SlideshowIcon sx={{ color: '#C9354A', fontSize: 20 }} />
                   <Typography sx={{ color: '#E0E0E0' }}>AI Slideshow</Typography>
                 </Box>
               }
@@ -262,7 +262,7 @@ export default function ReportGenerationModal({
           disabled={generating}
           variant="contained"
           sx={{
-            backgroundColor: '#00E5FF',
+            backgroundColor: '#C9354A',
             color: '#000',
             fontWeight: 600,
             '&:hover': {

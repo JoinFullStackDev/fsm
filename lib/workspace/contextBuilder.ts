@@ -19,8 +19,7 @@ export interface WorkspaceContextData {
       user_id: string;
       name: string | null;
       email: string;
-      role: string;
-      organization_role?: string | null;
+      organization_role: string | null;
     }>;
     total_members: number;
   };
@@ -174,7 +173,6 @@ export async function buildWorkspaceContext(
           project_members:sow_project_members(
             project_member:project_members!sow_project_members_project_member_id_fkey(
               user_id,
-              role,
               user:users!project_members_user_id_fkey(
                 id,
                 name,
@@ -218,7 +216,6 @@ export async function buildWorkspaceContext(
       user_id: string;
       name: string | null;
       email: string;
-      role: string;
       organization_role: string | null;
     }> = [];
 
@@ -245,7 +242,6 @@ export async function buildWorkspaceContext(
             user_id: pm.user_id,
             name: userData?.name || null,
             email: userData?.email || 'Unknown',
-            role: pm.role, // Base role as fallback
             organization_role: orgRoleName, // Custom role (e.g., "Software Engineer", "QA Manager")
           });
         }
@@ -256,7 +252,11 @@ export async function buildWorkspaceContext(
         .from('project_members')
         .select(`
           user_id,
-          role,
+          organization_role_id,
+          organization_role:organization_roles(
+            id,
+            name
+          ),
           user:users!project_members_user_id_fkey(
             id,
             name,
@@ -268,12 +268,14 @@ export async function buildWorkspaceContext(
       if (directMembers && directMembers.length > 0) {
         directMembers.forEach((member: any) => {
           const userData = Array.isArray(member.user) ? member.user[0] : member.user;
+          const orgRole = Array.isArray(member.organization_role) 
+            ? member.organization_role[0] 
+            : member.organization_role;
           members.push({
             user_id: member.user_id,
             name: userData?.name || null,
             email: userData?.email || 'Unknown',
-            role: member.role,
-            organization_role: null, // No custom role without SOW
+            organization_role: orgRole?.name || null,
           });
         });
       }
@@ -418,8 +420,7 @@ ${context.project.primary_tool ? `Primary Tool: ${context.project.primary_tool}`
 **TEAM MEMBERS (${context.team.total_members} total):**
 ${context.team.members.map((m) => {
   const displayName = m.name || m.email;
-  // Prioritize custom organization role over base role
-  const role = m.organization_role || m.role;
+  const role = m.organization_role || 'Team Member';
   return `- ${displayName} (${role}) [ID: ${m.user_id}]`;
 }).join('\n')}
 

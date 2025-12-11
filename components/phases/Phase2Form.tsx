@@ -152,7 +152,7 @@ export default function Phase2Form({ data, onChange }: Phase2FormProps) {
     title,
     icon,
     children,
-    borderColor = '#00E5FF',
+    borderColor = '#C9354A',
     fullWidth = false,
     helpText,
   }: {
@@ -302,7 +302,7 @@ export default function Phase2Form({ data, onChange }: Phase2FormProps) {
           <SectionCard
             title="Jobs To Be Done (JTBD)"
             icon={<WorkIcon />}
-            borderColor="#00E5FF"
+            borderColor="#C9354A"
             helpText="Define the functional, emotional, and social jobs users are trying to accomplish. Each JTBD should link to a persona and describe the desired outcome."
           >
             <Grid container spacing={2} sx={{ mb: 2 }}>
@@ -317,7 +317,7 @@ export default function Phase2Form({ data, onChange }: Phase2FormProps) {
                   >
                     <CardContent>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                        <Typography variant="caption" sx={{ color: '#00E5FF' }}>
+                        <Typography variant="caption" sx={{ color: '#C9354A' }}>
                           JTBD {index + 1}
                         </Typography>
                         <IconButton
@@ -363,10 +363,10 @@ export default function Phase2Form({ data, onChange }: Phase2FormProps) {
                 onClick={addJTBD}
                 variant="outlined"
                 sx={{
-                  borderColor: '#00E5FF',
-                  color: '#00E5FF',
+                  borderColor: '#C9354A',
+                  color: '#C9354A',
                   '&:hover': {
-                    borderColor: '#00E5FF',
+                    borderColor: '#C9354A',
                     backgroundColor: 'rgba(0, 229, 255, 0.1)',
                   },
                 }}
@@ -670,7 +670,7 @@ export default function Phase2Form({ data, onChange }: Phase2FormProps) {
           <SectionCard
             title="Scored Features"
             icon={<AssessmentIcon />}
-            borderColor="#00E5FF"
+            borderColor="#C9354A"
           >
             <Grid container spacing={2} sx={{ mb: 2 }}>
               {data.scored_features.map((feature, index) => (
@@ -684,7 +684,7 @@ export default function Phase2Form({ data, onChange }: Phase2FormProps) {
                   >
                     <CardContent>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                        <Typography variant="subtitle1" sx={{ color: '#00E5FF', fontWeight: 600 }}>
+                        <Typography variant="subtitle1" sx={{ color: '#C9354A', fontWeight: 600 }}>
                           {feature.title || `Scored Feature ${index + 1}`}
                         </Typography>
                         <IconButton
@@ -726,7 +726,7 @@ export default function Phase2Form({ data, onChange }: Phase2FormProps) {
                             step={1}
                             marks
                             sx={{
-                              color: '#00E5FF',
+                              color: '#C9354A',
                               '& .MuiSlider-thumb': {
                                 boxShadow: '0 0 10px rgba(0, 229, 255, 0.5)',
                               },
@@ -777,10 +777,10 @@ export default function Phase2Form({ data, onChange }: Phase2FormProps) {
               onClick={addScoredFeature}
               variant="outlined"
               sx={{
-                borderColor: '#00E5FF',
-                color: '#00E5FF',
+                borderColor: '#C9354A',
+                color: '#C9354A',
                 '&:hover': {
-                  borderColor: '#00E5FF',
+                  borderColor: '#C9354A',
                   backgroundColor: 'rgba(0, 229, 255, 0.1)',
                 },
               }}

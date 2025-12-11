@@ -82,7 +82,7 @@ export type AnalysisType = typeof ANALYSIS_TYPES[keyof typeof ANALYSIS_TYPES];
 // Status Colors
 export const STATUS_COLORS: Record<TaskStatus, string> = {
   [TASK_STATUSES.TODO]: '#B0B0B0',
-  [TASK_STATUSES.IN_PROGRESS]: '#00E5FF',
+  [TASK_STATUSES.IN_PROGRESS]: '#C9354A',
   [TASK_STATUSES.DONE]: '#00FF88',
   [TASK_STATUSES.ARCHIVED]: '#666666',
 };

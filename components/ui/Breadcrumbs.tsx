@@ -37,7 +37,7 @@ export default function Breadcrumbs({ items }: BreadcrumbsProps) {
           display: 'flex',
           alignItems: 'center',
           cursor: 'pointer',
-          color: '#00E5FF',
+          color: '#C9354A',
           '&:hover': {
             textDecoration: 'underline',
           },
@@ -47,7 +47,7 @@ export default function Breadcrumbs({ items }: BreadcrumbsProps) {
         <Typography 
           variant="body2" 
           sx={{ 
-            color: '#00E5FF',
+            color: '#C9354A',
             display: { xs: 'none', md: 'block' },
           }}
         >
@@ -79,7 +79,7 @@ export default function Breadcrumbs({ items }: BreadcrumbsProps) {
             variant="body2"
             onClick={() => item.href && handleClick(item.href)}
             sx={{
-              color: '#00E5FF',
+              color: '#C9354A',
               textDecoration: 'none',
               cursor: 'pointer',
               '&:hover': {

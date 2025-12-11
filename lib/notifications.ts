@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { sendPushNotification } from '@/lib/pushNotifications';
 import { sendEmailWithRetry, isEmailConfigured } from '@/lib/emailService';
+import { sendSlackNotificationIfConfigured } from '@/lib/slackNotifications';
 import logger from '@/lib/utils/logger';
 import type { NotificationType, NotificationMetadata } from '@/types/project';
 
@@ -23,7 +24,7 @@ export async function createNotification(
     // Check user preferences for in-app and email notifications
     const { data: user } = await adminClient
       .from('users')
-      .select('preferences, email, name')
+      .select('preferences, email, name, organization_id')
       .eq('id', userId)
       .single();
 
@@ -93,6 +94,20 @@ export async function createNotification(
       logger.error('[Notifications] Error sending push notification:', error);
       // Don't fail the notification creation if push fails
     });
+
+    // Send Slack notification if organization has Slack configured (non-blocking)
+    if (user?.organization_id) {
+      sendSlackNotificationIfConfigured(
+        user.organization_id,
+        type,
+        title,
+        message,
+        metadata
+      ).catch((error) => {
+        logger.error('[Notifications] Error sending Slack notification:', error);
+        // Don't fail the notification creation if Slack fails
+      });
+    }
 
     return notification;
   } catch (error) {

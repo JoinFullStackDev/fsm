@@ -254,6 +254,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
           knowledge_base_enabled: false,
           workflows_enabled: false,
           product_workspace_enabled: false,
+          slack_integration_enabled: false,
           support_level: 'community' as const,
         };
     

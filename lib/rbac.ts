@@ -12,8 +12,6 @@ export type Permission =
   | 'export_cursor'
   | 'manage_project_members';
 
-export type ProjectMemberRole = 'admin' | 'pm' | 'designer' | 'engineer';
-
 // Role-based permissions mapping
 const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   admin: [
@@ -52,50 +50,11 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ],
 };
 
-// Project member role permissions (for project-specific access)
-// Note: Project members get full access to all phases regardless of role
-const PROJECT_MEMBER_PERMISSIONS: Record<ProjectMemberRole, Permission[]> = {
-  admin: [
-    'edit_project',
-    'delete_project',
-    'edit_phases',
-    'export_blueprint',
-    'export_cursor',
-    'manage_project_members',
-  ],
-  pm: [
-    'edit_project',
-    'edit_phases',
-    'export_blueprint',
-    'export_cursor',
-    'manage_project_members',
-  ],
-  designer: [
-    'edit_phases',
-    'export_blueprint',
-  ],
-  engineer: [
-    'edit_phases',
-    'export_blueprint',
-    'export_cursor',
-  ],
-};
-
 /**
  * Check if a user role has a specific permission
  */
 export function hasPermission(userRole: UserRole, permission: Permission): boolean {
   return ROLE_PERMISSIONS[userRole]?.includes(permission) ?? false;
-}
-
-/**
- * Check if a project member role has a specific permission
- */
-export function hasProjectPermission(
-  memberRole: ProjectMemberRole,
-  permission: Permission
-): boolean {
-  return PROJECT_MEMBER_PERMISSIONS[memberRole]?.includes(permission) ?? false;
 }
 
 /**
@@ -124,29 +83,10 @@ export function canEditPhase(
 }
 
 /**
- * Check if a project member can edit a specific phase
- * Project members can always edit all phases
- */
-export function canProjectMemberEditPhase(
-  memberRole: ProjectMemberRole,
-  phaseNumber: number
-): boolean {
-  // All project members can edit all phases
-  return true;
-}
-
-/**
  * Get all permissions for a user role
  */
 export function getRolePermissions(userRole: UserRole): Permission[] {
   return ROLE_PERMISSIONS[userRole] ?? [];
-}
-
-/**
- * Get all permissions for a project member role
- */
-export function getProjectMemberPermissions(memberRole: ProjectMemberRole): Permission[] {
-  return PROJECT_MEMBER_PERMISSIONS[memberRole] ?? [];
 }
 
 /**

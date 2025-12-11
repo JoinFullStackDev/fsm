@@ -63,7 +63,7 @@ export default function Navbar() {
           sx={{
             flexGrow: 1,
             fontWeight: 700,
-            background: '#00E5FF',
+            background: '#C9354A',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
           }}
@@ -76,7 +76,7 @@ export default function Navbar() {
             color: '#E0E0E0',
             '&:hover': {
               backgroundColor: 'rgba(0, 229, 255, 0.1)',
-              color: '#00E5FF',
+              color: '#C9354A',
             },
           }}
         >
@@ -104,7 +104,7 @@ export default function Navbar() {
                 color: '#E0E0E0',
                 '&:hover': {
                   backgroundColor: 'rgba(0, 229, 255, 0.1)',
-                  color: '#00E5FF',
+                  color: '#C9354A',
                 },
               }}
             >
@@ -118,7 +118,7 @@ export default function Navbar() {
             color: '#E0E0E0',
             '&:hover': {
               backgroundColor: 'rgba(0, 229, 255, 0.1)',
-              color: '#00E5FF',
+              color: '#C9354A',
             },
           }}
         >

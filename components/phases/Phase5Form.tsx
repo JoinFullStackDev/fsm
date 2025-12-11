@@ -33,7 +33,7 @@ export default function Phase5Form({ data, onChange }: Phase5FormProps) {
     title,
     icon,
     children,
-    borderColor = '#00E5FF',
+    borderColor = '#C9354A',
   }: {
     title: string;
     icon: React.ReactNode;
@@ -74,7 +74,7 @@ export default function Phase5Form({ data, onChange }: Phase5FormProps) {
           <SectionCard
             title="Folder Structure"
             icon={<FolderIcon />}
-            borderColor="#00E5FF"
+            borderColor="#C9354A"
           >
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
               <TextField

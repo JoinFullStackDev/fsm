@@ -89,7 +89,7 @@ export default function Phase6Form({ data, onChange }: Phase6FormProps) {
     title,
     icon,
     children,
-    borderColor = '#00E5FF',
+    borderColor = '#C9354A',
     fullWidth = false,
   }: {
     title: string;
@@ -132,7 +132,7 @@ export default function Phase6Form({ data, onChange }: Phase6FormProps) {
           <SectionCard
             title="Test Plan"
             icon={<AssignmentIcon />}
-            borderColor="#00E5FF"
+            borderColor="#C9354A"
           >
             <TextField
               fullWidth

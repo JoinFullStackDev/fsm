@@ -64,7 +64,7 @@ export default function ProjectsTimelineChart({ projects, tasks }: ProjectsTimel
 
   // Get project color
   const getProjectColor = (projectId: string, index: number) => {
-    const colors = ['#00E5FF', '#E91E63', '#00FF88', '#9C27B0', '#FF6B35', '#2196F3'];
+    const colors = ['#C9354A', '#E91E63', '#00FF88', '#9C27B0', '#FF6B35', '#2196F3'];
     return colors[index % colors.length];
   };
 
@@ -80,7 +80,7 @@ export default function ProjectsTimelineChart({ projects, tasks }: ProjectsTimel
       <Typography
         variant="h6"
         sx={{
-          color: '#00E5FF',
+          color: '#C9354A',
           fontWeight: 600,
           mb: 3,
         }}
@@ -131,7 +131,7 @@ export default function ProjectsTimelineChart({ projects, tasks }: ProjectsTimel
                       variant="caption"
                       sx={{
                         fontSize: '0.75rem',
-                        color: '#00E5FF',
+                        color: '#C9354A',
                         fontWeight: 600,
                         whiteSpace: 'nowrap',
                       }}
@@ -267,7 +267,7 @@ export default function ProjectsTimelineChart({ projects, tasks }: ProjectsTimel
                       const priorityColors: Record<string, string> = {
                         critical: '#FF1744',
                         high: '#E91E63',
-                        medium: '#00E5FF',
+                        medium: '#C9354A',
                         low: '#9C27B0',
                       };
 

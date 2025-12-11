@@ -703,7 +703,7 @@ export default function GanttChart({ tasks, onTaskClick, phaseNames = {} }: Gant
                         top: 0,
                         bottom: 0,
                         width: '2px',
-                        backgroundColor: '#00E5FF',
+                        backgroundColor: '#C9354A',
                         zIndex: 3,
                         boxShadow: '0 0 4px rgba(0, 229, 255, 0.6)',
                         pointerEvents: 'none',

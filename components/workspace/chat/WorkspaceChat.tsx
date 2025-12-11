@@ -9,41 +9,50 @@ import {
   Typography,
   CircularProgress,
   IconButton,
-  Drawer,
   Chip,
+  Skeleton,
+  Fade,
+  Slide,
+  Tooltip,
+  Fab,
+  Zoom,
+  Badge,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
   Send as SendIcon,
   ChatBubble as ChatBubbleIcon,
-  Menu as MenuIcon,
-  Fullscreen as FullscreenIcon,
-  FullscreenExit as FullscreenExitIcon,
+  Close as CloseIcon,
+  Add as AddIcon,
+  Delete as DeleteIcon,
+  AutoAwesome as AutoAwesomeIcon,
 } from '@mui/icons-material';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { consumeStream, parseActionBlocks } from '@/lib/utils/streamingClient';
 import { getCsrfHeaders } from '@/lib/utils/csrfClient';
 import MessageBubble from './MessageBubble';
 import SuggestedPrompts from './SuggestedPrompts';
-import ConversationList from './ConversationList';
 import type { ConversationMessage, WorkspaceConversation } from '@/types/workspace';
 
 interface WorkspaceChatProps {
   projectId: string;
-  workspaceId: string;
-  hasSpecs: boolean;
-  hasEpics: boolean;
-  hasTasks: boolean;
+  workspaceId?: string;
+  hasSpecs?: boolean;
+  hasEpics?: boolean;
+  hasTasks?: boolean;
   teamMembers?: Array<{ user_id: string; name: string | null; email: string; role: string }>;
+  /** "embedded" shows CTA card, "floating" shows FAB button */
+  variant?: 'embedded' | 'floating';
 }
 
 export default function WorkspaceChat({
   projectId,
   workspaceId,
-  hasSpecs,
-  hasEpics,
-  hasTasks,
+  hasSpecs = false,
+  hasEpics = false,
+  hasTasks = false,
   teamMembers = [],
+  variant = 'embedded',
 }: WorkspaceChatProps) {
   const theme = useTheme();
   const { showError, showSuccess } = useNotification();
@@ -54,9 +63,9 @@ export default function WorkspaceChat({
   const [streamingText, setStreamingText] = useState('');
   const [conversations, setConversations] = useState<WorkspaceConversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [fullscreen, setFullscreen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
 
   // Auto-scroll to bottom
   const scrollToBottom = () => {
@@ -68,7 +77,6 @@ export default function WorkspaceChat({
   }, [messages, streamingText]);
 
   // Load conversations
-  // Load specific conversation
   const loadConversation = useCallback(async (conversationId: string) => {
     try {
       setLoading(true);
@@ -92,45 +100,38 @@ export default function WorkspaceChat({
       
       const data = await response.json();
       setConversations(data);
-      
-      // Auto-select first conversation
-      if (data.length > 0 && !currentConversationId) {
-        await loadConversation(data[0].id);
-      } else {
-        setLoading(false);
-      }
     } catch (error) {
       console.error('Failed to load conversations:', error);
-      setLoading(false);
     }
-  }, [projectId, currentConversationId, loadConversation]);
+  }, [projectId]);
 
+  // Load conversations when opening
   useEffect(() => {
-    loadConversations();
-  }, [loadConversations]);
+    if (isOpen) {
+      loadConversations();
+    }
+  }, [isOpen, loadConversations]);
 
+  // Handle opening the chat
+  const handleOpen = () => {
+    setIsOpen(true);
+  };
+
+  // Handle closing the chat
+  const handleClose = () => {
+    setIsClosing(true);
+  };
+
+  // Handle animation complete
+  const handleExited = () => {
+    setIsOpen(false);
+    setIsClosing(false);
+  };
 
   // Create new conversation
   const handleNewConversation = async () => {
-    try {
-      const response = await fetch(`/api/workspaces/${projectId}/conversations`, {
-        method: 'POST',
-        headers: getCsrfHeaders(),
-        body: JSON.stringify({ title: 'New Conversation' }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create conversation');
-      }
-
-      const newConv = await response.json();
-      setCurrentConversationId(newConv.id);
-      setMessages([]);
-      await loadConversations();
-      setSidebarOpen(false);
-    } catch (error) {
-      showError('Failed to create conversation');
-    }
+    setCurrentConversationId(null);
+    setMessages([]);
   };
 
   // Send message
@@ -192,6 +193,7 @@ export default function WorkspaceChat({
 
             // Save to conversation
             if (currentConversationId) {
+              // Save user message
               await fetch(`/api/workspaces/${projectId}/conversations/${currentConversationId}`, {
                 method: 'PATCH',
                 headers: getCsrfHeaders(),
@@ -200,6 +202,7 @@ export default function WorkspaceChat({
                 }),
               });
 
+              // Save assistant message
               await fetch(`/api/workspaces/${projectId}/conversations/${currentConversationId}`, {
                 method: 'PATCH',
                 headers: getCsrfHeaders(),
@@ -208,7 +211,7 @@ export default function WorkspaceChat({
                 }),
               });
             } else {
-              // Create new conversation
+              // Create new conversation first
               const response = await fetch(`/api/workspaces/${projectId}/conversations`, {
                 method: 'POST',
                 headers: getCsrfHeaders(),
@@ -220,6 +223,24 @@ export default function WorkspaceChat({
               if (response.ok) {
                 const newConv = await response.json();
                 setCurrentConversationId(newConv.id);
+
+                // Save both messages to the new conversation
+                await fetch(`/api/workspaces/${projectId}/conversations/${newConv.id}`, {
+                  method: 'PATCH',
+                  headers: getCsrfHeaders(),
+                  body: JSON.stringify({
+                    add_message: userMessage,
+                  }),
+                });
+
+                await fetch(`/api/workspaces/${projectId}/conversations/${newConv.id}`, {
+                  method: 'PATCH',
+                  headers: getCsrfHeaders(),
+                  body: JSON.stringify({
+                    add_message: assistantMessage,
+                  }),
+                });
+
                 await loadConversations();
               }
             }
@@ -262,222 +283,162 @@ export default function WorkspaceChat({
       const result = await response.json();
       showSuccess(`Action executed: ${action.type}`);
 
-      // Update action status in messages
-      setMessages((prev) =>
-        prev.map((msg) => ({
-          ...msg,
-          actions: msg.actions?.map((a) =>
-            a === action ? { ...a, status: 'executed' as const, result: result.result } : a
-          ),
-        }))
-      );
+      // Update action status in local messages
+      const updatedMessages = messages.map((msg) => ({
+        ...msg,
+        actions: msg.actions?.map((a) =>
+          a === action ? { ...a, status: 'executed' as const, result: result.result } : a
+        ),
+      }));
+      setMessages(updatedMessages);
+
+      // Persist updated action status to database
+      await fetch(`/api/workspaces/${projectId}/conversations/${currentConversationId}`, {
+        method: 'PATCH',
+        headers: getCsrfHeaders(),
+        body: JSON.stringify({
+          update_messages: updatedMessages,
+        }),
+      });
     } catch (error) {
       showError('Failed to execute action');
     }
   };
 
-  const handleActionReject = (action: any) => {
-    setMessages((prev) =>
-      prev.map((msg) => ({
-        ...msg,
-        actions: msg.actions?.map((a) => (a === action ? { ...a, status: 'rejected' as const } : a)),
-      }))
-    );
+  const handleActionReject = async (action: any) => {
+    // Update action status in local messages
+    const updatedMessages = messages.map((msg) => ({
+      ...msg,
+      actions: msg.actions?.map((a) => (a === action ? { ...a, status: 'rejected' as const } : a)),
+    }));
+    setMessages(updatedMessages);
+
+    // Persist updated action status to database
+    if (currentConversationId) {
+      try {
+        await fetch(`/api/workspaces/${projectId}/conversations/${currentConversationId}`, {
+          method: 'PATCH',
+          headers: getCsrfHeaders(),
+          body: JSON.stringify({
+            update_messages: updatedMessages,
+          }),
+        });
+      } catch (error) {
+        console.error('Failed to persist rejection status:', error);
+      }
+    }
   };
 
-  if (loading) {
+  const handleArchiveConversation = async (id: string) => {
+    try {
+      await fetch(`/api/workspaces/${projectId}/conversations/${id}`, {
+        method: 'DELETE',
+        headers: getCsrfHeaders(),
+      });
+      await loadConversations();
+      if (id === currentConversationId) {
+        setCurrentConversationId(null);
+        setMessages([]);
+      }
+    } catch (error) {
+      showError('Failed to archive conversation');
+    }
+  };
+
+  // Collapsed state - show CTA card or floating button based on variant
+  if (!isOpen) {
+    // Floating variant - show FAB button
+    if (variant === 'floating') {
+      return (
+        <Zoom in={!isOpen || isClosing}>
+          <Tooltip title="AI Assistant" placement="left">
+            <Fab
+              onClick={handleOpen}
+              sx={{
+                position: 'fixed',
+                bottom: 24,
+                right: 24,
+                zIndex: 1200,
+                width: 64,
+                height: 64,
+                background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                boxShadow: theme.shadows[8],
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'scale(1.1)',
+                  boxShadow: theme.shadows[16],
+                },
+              }}
+            >
+              <AutoAwesomeIcon sx={{ fontSize: 28, color: 'white' }} />
+            </Fab>
+          </Tooltip>
+        </Zoom>
+      );
+    }
+
+    // Embedded variant - show CTA card
     return (
-      <Paper sx={{ p: 4, textAlign: 'center' }}>
-        <CircularProgress />
-        <Typography sx={{ mt: 2 }}>Loading chat...</Typography>
+      <Paper
+        elevation={3}
+        onClick={handleOpen}
+        sx={{
+          p: 3,
+          cursor: 'pointer',
+          borderRadius: 3,
+          border: `2px solid ${theme.palette.divider}`,
+          background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.action.hover} 100%)`,
+          transition: 'all 0.3s ease',
+          '&:hover': {
+            transform: 'translateY(-4px)',
+            boxShadow: theme.shadows[12],
+            borderColor: theme.palette.primary.main,
+          },
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <Box
+            sx={{
+              width: 64,
+              height: 64,
+              borderRadius: 3,
+              background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: theme.shadows[4],
+            }}
+          >
+            <AutoAwesomeIcon sx={{ fontSize: 32, color: 'white' }} />
+          </Box>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
+              AI Workspace Assistant
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Ask questions, create tasks, log decisions, and get help with your project
+            </Typography>
+          </Box>
+          <Box
+            sx={{
+              px: 3,
+              py: 1.5,
+              borderRadius: 2,
+              backgroundColor: theme.palette.primary.main,
+              color: 'white',
+              fontWeight: 600,
+            }}
+          >
+            Open Chat
+          </Box>
+        </Box>
       </Paper>
     );
   }
 
-  const chatContent = (
-    <>
-      {/* Header */}
-      <Box
-        sx={{
-          p: 2,
-          borderBottom: `1px solid ${theme.palette.divider}`,
-          backgroundColor: theme.palette.background.default,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <ChatBubbleIcon sx={{ color: theme.palette.primary.main }} />
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>
-            AI Workspace Assistant
-          </Typography>
-          {conversations.length > 0 && (
-            <Chip label={`${conversations.length} threads`} size="small" />
-          )}
-        </Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <IconButton onClick={() => setFullscreen(!fullscreen)} size="small">
-            {fullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
-          </IconButton>
-          <IconButton onClick={() => setSidebarOpen(true)} size="small">
-            <MenuIcon />
-          </IconButton>
-        </Box>
-      </Box>
-
-      {/* Messages Area */}
-      <Box
-        sx={{
-          p: 3,
-          minHeight: fullscreen ? 'calc(100vh - 200px)' : 400,
-          maxHeight: fullscreen ? 'calc(100vh - 200px)' : 600,
-          overflow: 'auto',
-          backgroundColor: theme.palette.background.paper,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
-        <Box
-          sx={{
-            width: '100%',
-            maxWidth: fullscreen ? 1400 : '100%',
-          }}
-        >
-        {messages.length === 0 && !isStreaming && (
-          <SuggestedPrompts
-            onSelectPrompt={(prompt) => {
-              setInputValue(prompt);
-            }}
-            hasSpecs={hasSpecs}
-            hasEpics={hasEpics}
-            hasTasks={hasTasks}
-          />
-        )}
-
-        {messages.map((msg, idx) => (
-          <MessageBubble
-            key={idx}
-            message={msg}
-            teamMembers={teamMembers}
-            onActionConfirm={handleActionConfirm}
-            onActionReject={handleActionReject}
-          />
-        ))}
-
-        {/* Streaming message */}
-        {isStreaming && streamingText && (
-          <MessageBubble
-            message={{
-              role: 'assistant',
-              content: streamingText,
-              timestamp: new Date().toISOString(),
-            }}
-            teamMembers={teamMembers}
-            onActionConfirm={handleActionConfirm}
-            onActionReject={handleActionReject}
-          />
-        )}
-
-        {isStreaming && !streamingText && (
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            <CircularProgress size={16} />
-            <Typography variant="body2" color="text.secondary">
-              AI is thinking...
-            </Typography>
-          </Box>
-        )}
-
-          <div ref={messagesEndRef} />
-        </Box>
-      </Box>
-
-      {/* Input Area */}
-      <Box
-        sx={{
-          p: 2,
-          borderTop: `1px solid ${theme.palette.divider}`,
-          backgroundColor: theme.palette.background.default,
-        }}
-      >
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <TextField
-            fullWidth
-            multiline
-            maxRows={4}
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            placeholder="Ask me anything about your project..."
-            disabled={isStreaming}
-            size="small"
-          />
-          <Button
-            variant="contained"
-            onClick={handleSend}
-            disabled={!inputValue.trim() || isStreaming}
-            endIcon={isStreaming ? <CircularProgress size={16} /> : <SendIcon />}
-            sx={{ minWidth: 100 }}
-          >
-            Send
-          </Button>
-        </Box>
-        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-          Press Enter to send, Shift+Enter for new line
-        </Typography>
-      </Box>
-
-      {/* Conversation Sidebar */}
-      <Drawer
-        anchor="right"
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        PaperProps={{
-          sx: { 
-            width: 320, 
-            p: 3,
-            transform: 'translateY(60px) !important',
-            maxHeight: 'calc(100vh - 60px)',
-          },
-        }}
-      >
-        <ConversationList
-          conversations={conversations}
-          currentConversationId={currentConversationId}
-          onSelectConversation={(id) => {
-            loadConversation(id);
-            setSidebarOpen(false);
-          }}
-          onNewConversation={handleNewConversation}
-          onArchiveConversation={async (id) => {
-            try {
-              await fetch(`/api/workspaces/${projectId}/conversations/${id}`, {
-                method: 'DELETE',
-                headers: getCsrfHeaders(),
-              });
-              await loadConversations();
-              if (id === currentConversationId) {
-                setCurrentConversationId(null);
-                setMessages([]);
-              }
-            } catch (error) {
-              showError('Failed to archive conversation');
-            }
-          }}
-        />
-      </Drawer>
-    </>
-  );
-
   // Fullscreen mode
-  if (fullscreen) {
-    return (
+  return (
+    <Fade in={!isClosing} timeout={300} onExited={handleExited} unmountOnExit>
       <Box
         sx={{
           position: 'fixed',
@@ -486,35 +447,329 @@ export default function WorkspaceChat({
           right: 0,
           bottom: 0,
           zIndex: 1300,
-          backgroundColor: theme.palette.background.paper,
+          backgroundColor: theme.palette.background.default,
+          display: 'flex',
+          animation: 'scaleIn 0.3s ease-out',
+          '@keyframes scaleIn': {
+            '0%': {
+              opacity: 0,
+              transform: 'scale(0.97)',
+            },
+            '100%': {
+              opacity: 1,
+              transform: 'scale(1)',
+            },
+          },
         }}
       >
-        <Paper
-          elevation={0}
+        {/* Sidebar with conversations */}
+        <Box
           sx={{
-            height: '100%',
-            borderRadius: 0,
+            width: 280,
+            borderRight: `1px solid ${theme.palette.divider}`,
+            backgroundColor: theme.palette.background.paper,
             display: 'flex',
             flexDirection: 'column',
+            height: '100%',
           }}
         >
-          {chatContent}
-        </Paper>
-      </Box>
-    );
-  }
+          {/* Sidebar Header */}
+          <Box
+            sx={{
+              p: 2,
+              borderBottom: `1px solid ${theme.palette.divider}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Conversations
+            </Typography>
+            <Tooltip title="New chat">
+              <IconButton onClick={handleNewConversation} size="small">
+                <AddIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
 
-  // Normal mode
-  return (
-    <Paper
-      elevation={2}
-      sx={{
-        borderRadius: 3,
-        overflow: 'hidden',
-        border: `1px solid ${theme.palette.divider}`,
-      }}
-    >
-      {chatContent}
-    </Paper>
+          {/* New Chat Button */}
+          <Box sx={{ p: 2 }}>
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<AddIcon />}
+              onClick={handleNewConversation}
+              sx={{
+                justifyContent: 'flex-start',
+                borderStyle: 'dashed',
+                py: 1.5,
+              }}
+            >
+              New Conversation
+            </Button>
+          </Box>
+
+          {/* Conversation List */}
+          <Box sx={{ flex: 1, overflow: 'auto', px: 1 }}>
+            {conversations.map((conv) => (
+              <Box
+                key={conv.id}
+                onClick={() => loadConversation(conv.id)}
+                sx={{
+                  p: 2,
+                  mb: 1,
+                  borderRadius: 2,
+                  cursor: 'pointer',
+                  backgroundColor:
+                    currentConversationId === conv.id
+                      ? theme.palette.action.selected
+                      : 'transparent',
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 1,
+                }}
+              >
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: currentConversationId === conv.id ? 600 : 400,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {conv.title || 'Untitled'}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {conv.message_count} message{conv.message_count === 1 ? '' : 's'}
+                  </Typography>
+                </Box>
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleArchiveConversation(conv.id);
+                  }}
+                  sx={{
+                    opacity: 0.5,
+                    '&:hover': { opacity: 1 },
+                  }}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            ))}
+
+            {conversations.length === 0 && (
+              <Box sx={{ p: 3, textAlign: 'center' }}>
+                <ChatBubbleIcon sx={{ fontSize: 40, color: theme.palette.text.disabled, mb: 1 }} />
+                <Typography variant="body2" color="text.secondary">
+                  No conversations yet
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </Box>
+
+        {/* Main Chat Area */}
+        <Box
+          sx={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Chat Header */}
+          <Box
+            sx={{
+              p: 2,
+              borderBottom: `1px solid ${theme.palette.divider}`,
+              backgroundColor: theme.palette.background.paper,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <AutoAwesomeIcon sx={{ color: theme.palette.primary.main }} />
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                AI Workspace Assistant
+              </Typography>
+            </Box>
+            <IconButton onClick={handleClose}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+
+          {/* Messages Area */}
+          <Box
+            sx={{
+              flex: 1,
+              overflow: 'auto',
+              p: 3,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+            }}
+          >
+            <Box sx={{ width: '100%', maxWidth: 900 }}>
+              {loading ? (
+                // Loading skeleton
+                <>
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
+                    <Skeleton variant="rounded" width="60%" height={60} sx={{ borderRadius: 2 }} />
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 3 }}>
+                    <Box sx={{ width: '75%' }}>
+                      <Skeleton variant="text" width="100%" height={24} />
+                      <Skeleton variant="text" width="90%" height={24} />
+                      <Skeleton variant="text" width="80%" height={24} />
+                    </Box>
+                  </Box>
+                </>
+              ) : (
+                <>
+                  {messages.length === 0 && !isStreaming && (
+                    <SuggestedPrompts
+                      onSelectPrompt={(prompt) => {
+                        setInputValue(prompt);
+                      }}
+                      hasSpecs={hasSpecs}
+                      hasEpics={hasEpics}
+                      hasTasks={hasTasks}
+                    />
+                  )}
+
+                  {messages.map((msg, idx) => (
+                    <MessageBubble
+                      key={idx}
+                      message={msg}
+                      teamMembers={teamMembers}
+                      onActionConfirm={handleActionConfirm}
+                      onActionReject={handleActionReject}
+                    />
+                  ))}
+
+                  {/* Streaming message */}
+                  {isStreaming && streamingText && (
+                    <MessageBubble
+                      message={{
+                        role: 'assistant',
+                        content: streamingText,
+                        timestamp: new Date().toISOString(),
+                      }}
+                      teamMembers={teamMembers}
+                      onActionConfirm={handleActionConfirm}
+                      onActionReject={handleActionReject}
+                    />
+                  )}
+
+                  {/* Typing indicator */}
+                  {isStreaming && !streamingText && (
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 1.5,
+                        mb: 2,
+                        maxWidth: '80%',
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          backgroundColor: theme.palette.background.paper,
+                          border: `1px solid ${theme.palette.divider}`,
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'center' }}>
+                          {[0, 0.2, 0.4].map((delay, i) => (
+                            <Box
+                              key={i}
+                              sx={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: '50%',
+                                backgroundColor: theme.palette.text.secondary,
+                                animation: 'pulse 1.4s infinite ease-in-out',
+                                animationDelay: `${delay}s`,
+                                '@keyframes pulse': {
+                                  '0%, 80%, 100%': { opacity: 0.3 },
+                                  '40%': { opacity: 1 },
+                                },
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      </Box>
+                    </Box>
+                  )}
+                </>
+              )}
+              <div ref={messagesEndRef} />
+            </Box>
+          </Box>
+
+          {/* Input Area */}
+          <Box
+            sx={{
+              p: 3,
+              borderTop: `1px solid ${theme.palette.divider}`,
+              backgroundColor: theme.palette.background.paper,
+            }}
+          >
+            <Box sx={{ maxWidth: 900, mx: 'auto' }}>
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <TextField
+                  fullWidth
+                  multiline
+                  maxRows={4}
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  placeholder="Ask me anything about your project..."
+                  disabled={isStreaming}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 3,
+                    },
+                  }}
+                />
+                <Button
+                  variant="contained"
+                  onClick={handleSend}
+                  disabled={!inputValue.trim() || isStreaming}
+                  endIcon={isStreaming ? <CircularProgress size={16} /> : <SendIcon />}
+                  sx={{
+                    minWidth: 120,
+                    borderRadius: 3,
+                    px: 3,
+                  }}
+                >
+                  Send
+                </Button>
+              </Box>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                Press Enter to send, Shift+Enter for new line
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+      </Box>
+    </Fade>
   );
 }

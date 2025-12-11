@@ -184,7 +184,7 @@ export function generateSlideshowHTML(config: SlideshowConfig): string {
     .slide-title {
       font-size: 4rem;
       font-weight: 700;
-      background: #00E5FF;
+      background: #C9354A;
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       margin-bottom: 1rem;
@@ -193,7 +193,7 @@ export function generateSlideshowHTML(config: SlideshowConfig): string {
 
     .slide-subtitle {
       font-size: 2.5rem;
-      color: #00E5FF;
+      color: #C9354A;
       margin-bottom: 1rem;
       text-align: center;
       font-weight: 600;
@@ -214,7 +214,7 @@ export function generateSlideshowHTML(config: SlideshowConfig): string {
 
     .slide-heading {
       font-size: 3rem;
-      color: #00E5FF;
+      color: #C9354A;
       margin-bottom: 2rem;
       font-weight: 600;
     }
@@ -245,7 +245,7 @@ export function generateSlideshowHTML(config: SlideshowConfig): string {
       content: '•';
       position: absolute;
       left: 0;
-      color: #00E5FF;
+      color: #C9354A;
       font-size: 2rem;
     }
 
@@ -272,7 +272,7 @@ export function generateSlideshowHTML(config: SlideshowConfig): string {
     .metric-value {
       font-size: 3rem;
       font-weight: 700;
-      color: #00E5FF;
+      color: #C9354A;
       margin-bottom: 0.5rem;
     }
 
@@ -300,7 +300,7 @@ export function generateSlideshowHTML(config: SlideshowConfig): string {
     .nav-button {
       background: rgba(0, 229, 255, 0.2);
       border: 1px solid rgba(0, 229, 255, 0.5);
-      color: #00E5FF;
+      color: #C9354A;
       padding: 12px 24px;
       border-radius: 8px;
       cursor: pointer;
@@ -339,7 +339,7 @@ export function generateSlideshowHTML(config: SlideshowConfig): string {
     }
 
     .indicator.active {
-      background: #00E5FF;
+      background: #C9354A;
       transform: scale(1.2);
     }
 
