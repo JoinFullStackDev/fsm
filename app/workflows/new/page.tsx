@@ -16,7 +16,10 @@ export default function NewWorkflowPage() {
       setLoading(true);
       setError(null);
 
-      console.log('[NewWorkflowPage] Submitting workflow data:', data);
+      console.log('[NewWorkflowPage] ========== SUBMITTING WORKFLOW ==========');
+      console.log('[NewWorkflowPage] Full data object:', JSON.stringify(data, null, 2));
+      console.log('[NewWorkflowPage] Steps count:', (data.steps as any[])?.length || 0);
+      console.log('[NewWorkflowPage] Steps:', data.steps);
 
       const response = await fetch('/api/workflows', {
         method: 'POST',

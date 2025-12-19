@@ -93,6 +93,70 @@ export interface WorkspaceContextData {
       debt_type: string;
     }>;
   };
+  metrics: {
+    total_metrics: number;
+    metrics_on_track: number;
+    metrics_at_risk: number;
+    recent_metrics: Array<{
+      metric_name: string;
+      current_value: number | null;
+      target_value: number | null;
+      health_status: string | null;
+    }>;
+  };
+  discovery: {
+    total_insights: number;
+    total_experiments: number;
+    active_experiments: number;
+    validated_hypotheses: number;
+    top_feedback_themes: string[];
+    recent_insights: Array<{
+      title: string;
+      insight_type: string;
+      pain_points: string[];
+    }>;
+  };
+  strategy: {
+    exists: boolean;
+    north_star_metric?: string;
+    vision_statement?: string;
+    strategic_bets?: string[];
+    product_principles?: string[];
+  };
+  roadmap: {
+    total_items: number;
+    by_bucket: {
+      now: number;
+      next: number;
+      later: number;
+    };
+    upcoming_releases: Array<{
+      release_name: string;
+      planned_date: string | null;
+      included_features: number;
+    }>;
+  };
+  stakeholders: {
+    total_stakeholders: number;
+    by_alignment: {
+      champion: number;
+      supporter: number;
+      neutral: number;
+      skeptical: number;
+      blocker: number;
+    };
+    key_players: Array<{
+      name: string;
+      role: string | null;
+      alignment_status: string;
+      key_concerns: string[];
+    }>;
+    recent_updates: Array<{
+      update_type: string;
+      title: string;
+      sent_date: string | null;
+    }>;
+  };
 }
 
 /**
@@ -106,8 +170,20 @@ export async function buildWorkspaceContext(
   const client = supabase || createAdminSupabaseClient();
 
   try {
-    // Parallel fetch all data
-    const [projectRes, phasesRes, tasksRes, specsRes, epicsRes, decisionsRes, debtRes, membersRes, sowRes] = await Promise.all([
+    // Parallel fetch all data with timeout protection
+    const fetchWithTimeout = async (promise: Promise<any>, timeoutMs = 5000) => {
+      const timeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Query timeout')), timeoutMs)
+      );
+      try {
+        return await Promise.race([promise, timeout]);
+      } catch (error) {
+        logger.warn('[Context Builder] Query failed or timed out:', error);
+        return { data: null, error };
+      }
+    };
+
+    const [projectRes, phasesRes, tasksRes, specsRes, epicsRes, decisionsRes, debtRes, membersRes, sowRes, metricsRes, insightsRes, experimentsRes, feedbackRes, strategyRes, roadmapRes, releasesRes, stakeholdersRes, stakeholderUpdatesRes] = await Promise.all([
       // Project
       client
         .from('projects')
@@ -123,13 +199,13 @@ export async function buildWorkspaceContext(
         .eq('is_active', true)
         .order('phase_number', { ascending: true }),
       
-      // Tasks
+      // Tasks (reduced to 20 for performance)
       client
         .from('project_tasks')
         .select('title, status, priority, assignee_id, created_at')
         .eq('project_id', projectId)
         .order('created_at', { ascending: false })
-        .limit(50),
+        .limit(20),
       
       // Clarity specs
       client
@@ -200,6 +276,84 @@ export async function buildWorkspaceContext(
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle(),
+      
+      // Success Metrics (reduced to 5 for performance)
+      client
+        .from('workspace_success_metrics')
+        .select('metric_name, current_value, target_value, health_status, status')
+        .eq('workspace_id', workspaceId)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(5),
+      
+      // User Insights (reduced to 5 for performance)
+      client
+        .from('workspace_user_insights')
+        .select('title, insight_type, pain_points')
+        .eq('workspace_id', workspaceId)
+        .order('insight_date', { ascending: false })
+        .limit(5),
+      
+      // Experiments (reduced to 5 for performance)
+      client
+        .from('workspace_experiments')
+        .select('title, status, hypothesis_validated')
+        .eq('workspace_id', workspaceId)
+        .order('created_at', { ascending: false })
+        .limit(5),
+      
+      // Feedback (reduced to 10 for performance)
+      client
+        .from('workspace_feedback')
+        .select('title, feedback_type, category')
+        .eq('workspace_id', workspaceId)
+        .in('feedback_type', ['feature_request', 'complaint'])
+        .in('status', ['open', 'under_review', 'planned'])
+        .order('upvote_count', { ascending: false })
+        .limit(10),
+      
+      // Strategy
+      client
+        .from('workspace_strategy')
+        .select('north_star_metric, vision_statement, strategic_bets, design_principles, status')
+        .eq('workspace_id', workspaceId)
+        .eq('status', 'active')
+        .limit(1)
+        .maybeSingle(),
+      
+      // Roadmap Items (reduced to 10 for performance)
+      client
+        .from('workspace_roadmap_items')
+        .select('title, roadmap_bucket, status')
+        .eq('workspace_id', workspaceId)
+        .order('priority_score', { ascending: false })
+        .limit(10),
+      
+      // Releases
+      client
+        .from('workspace_releases')
+        .select('release_name, planned_date, included_roadmap_item_ids, status')
+        .eq('workspace_id', workspaceId)
+        .in('status', ['planning', 'in_progress'])
+        .order('planned_date', { ascending: true })
+        .limit(5),
+      
+      // Stakeholders (reduced to 10 for performance)
+      client
+        .from('workspace_stakeholders')
+        .select('name, role, power_level, interest_level, alignment_status, key_concerns')
+        .eq('workspace_id', workspaceId)
+        .order('created_at', { ascending: false })
+        .limit(10),
+      
+      // Stakeholder Updates
+      client
+        .from('workspace_stakeholder_updates')
+        .select('update_type, title, sent_date')
+        .eq('workspace_id', workspaceId)
+        .not('sent_date', 'is', null)
+        .order('sent_date', { ascending: false })
+        .limit(5),
     ]);
 
     // Extract key fields from phase data (first 3 non-empty fields)
@@ -368,6 +522,107 @@ export async function buildWorkspaceContext(
           exists: false,
         };
 
+    // Build metrics summary
+    const metricsData = metricsRes.data || [];
+    const metricsSummary = {
+      total_metrics: metricsData.length,
+      metrics_on_track: metricsData.filter((m: any) => m.health_status === 'on_track').length,
+      metrics_at_risk: metricsData.filter((m: any) => m.health_status === 'at_risk').length,
+      recent_metrics: metricsData.slice(0, 5).map((m: any) => ({
+        metric_name: m.metric_name,
+        current_value: m.current_value,
+        target_value: m.target_value,
+        health_status: m.health_status,
+      })),
+    };
+
+    // Build discovery summary
+    const insightsData = insightsRes.data || [];
+    const experimentsData = experimentsRes.data || [];
+    const feedbackData = feedbackRes.data || [];
+
+    // Aggregate feedback categories
+    const feedbackCategories = new Map<string, number>();
+    feedbackData.forEach((fb: any) => {
+      const categories = fb.category || [];
+      categories.forEach((cat: string) => {
+        feedbackCategories.set(cat, (feedbackCategories.get(cat) || 0) + 1);
+      });
+    });
+
+    const topFeedbackThemes = Array.from(feedbackCategories.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([category]) => category);
+
+    const discoverySummary = {
+      total_insights: insightsData.length,
+      total_experiments: experimentsData.length,
+      active_experiments: experimentsData.filter((e: any) => e.status === 'running').length,
+      validated_hypotheses: experimentsData.filter((e: any) => e.hypothesis_validated === true).length,
+      top_feedback_themes: topFeedbackThemes,
+      recent_insights: insightsData.slice(0, 5).map((i: any) => ({
+        title: i.title,
+        insight_type: i.insight_type,
+        pain_points: i.pain_points || [],
+      })),
+    };
+
+    // Build strategy summary
+    const strategyData = strategyRes.data;
+    const strategySummary = {
+      exists: !!strategyData,
+      north_star_metric: strategyData?.north_star_metric || undefined,
+      vision_statement: strategyData?.vision_statement || undefined,
+      strategic_bets: strategyData?.strategic_bets?.map((b: any) => b.bet) || undefined,
+      product_principles: strategyData?.design_principles || undefined,
+    };
+
+    // Build roadmap summary
+    const roadmapData = roadmapRes.data || [];
+    const releasesData = releasesRes.data || [];
+    const roadmapSummary = {
+      total_items: roadmapData.length,
+      by_bucket: {
+        now: roadmapData.filter((i: any) => i.roadmap_bucket === 'now').length,
+        next: roadmapData.filter((i: any) => i.roadmap_bucket === 'next').length,
+        later: roadmapData.filter((i: any) => i.roadmap_bucket === 'later').length,
+      },
+      upcoming_releases: releasesData.map((r: any) => ({
+        release_name: r.release_name,
+        planned_date: r.planned_date,
+        included_features: Array.isArray(r.included_roadmap_item_ids) ? r.included_roadmap_item_ids.length : 0,
+      })),
+    };
+
+    // Build stakeholder summary
+    const stakeholdersData = stakeholdersRes.data || [];
+    const stakeholderUpdatesData = stakeholderUpdatesRes.data || [];
+    const stakeholdersSummary = {
+      total_stakeholders: stakeholdersData.length,
+      by_alignment: {
+        champion: stakeholdersData.filter((s: any) => s.alignment_status === 'champion').length,
+        supporter: stakeholdersData.filter((s: any) => s.alignment_status === 'supporter').length,
+        neutral: stakeholdersData.filter((s: any) => s.alignment_status === 'neutral').length,
+        skeptical: stakeholdersData.filter((s: any) => s.alignment_status === 'skeptical').length,
+        blocker: stakeholdersData.filter((s: any) => s.alignment_status === 'blocker').length,
+      },
+      key_players: stakeholdersData
+        .filter((s: any) => s.power_level === 'high' && s.interest_level === 'high')
+        .slice(0, 5)
+        .map((s: any) => ({
+          name: s.name,
+          role: s.role,
+          alignment_status: s.alignment_status,
+          key_concerns: s.key_concerns || [],
+        })),
+      recent_updates: stakeholderUpdatesData.map((u: any) => ({
+        update_type: u.update_type,
+        title: u.title,
+        sent_date: u.sent_date,
+      })),
+    };
+
     const context: WorkspaceContextData = {
       project: {
         name: projectRes.data?.name || 'Unknown Project',
@@ -388,6 +643,11 @@ export async function buildWorkspaceContext(
         decisions,
         debt,
       },
+      metrics: metricsSummary,
+      discovery: discoverySummary,
+      strategy: strategySummary,
+      roadmap: roadmapSummary,
+      stakeholders: stakeholdersSummary,
     };
 
     logger.info('[Context Builder] Context built successfully:', {
@@ -493,6 +753,88 @@ ${context.phases.map((p) => `- Phase ${p.phase_number}: ${p.phase_name} - ${p.co
     context.workspace.debt.forEach((d) => {
       prompt += `- [${d.severity.toUpperCase()}] ${d.title} (${d.debt_type})\n`;
     });
+  }
+
+  // Add metrics summary
+  if (context.metrics.total_metrics > 0) {
+    prompt += `\n**SUCCESS METRICS:**\n`;
+    prompt += `Total: ${context.metrics.total_metrics} | On Track: ${context.metrics.metrics_on_track} | At Risk: ${context.metrics.metrics_at_risk}\n`;
+    if (context.metrics.recent_metrics.length > 0) {
+      prompt += `Recent Metrics:\n`;
+      context.metrics.recent_metrics.forEach((m) => {
+        const statusLabel = m.health_status ? ` (${m.health_status})` : '';
+        const values = m.target_value ? `${m.current_value || 0}/${m.target_value}` : `${m.current_value || '-'}`;
+        prompt += `- ${m.metric_name}: ${values}${statusLabel}\n`;
+      });
+    }
+  }
+
+  // Add discovery summary
+  if (context.discovery.total_insights > 0 || context.discovery.total_experiments > 0) {
+    prompt += `\n**DISCOVERY & VALIDATION:**\n`;
+    prompt += `Insights: ${context.discovery.total_insights} | Experiments: ${context.discovery.total_experiments} (${context.discovery.active_experiments} active)\n`;
+    if (context.discovery.validated_hypotheses > 0) {
+      prompt += `Validated Hypotheses: ${context.discovery.validated_hypotheses}\n`;
+    }
+    if (context.discovery.top_feedback_themes.length > 0) {
+      prompt += `Top Feedback Themes: ${context.discovery.top_feedback_themes.join(', ')}\n`;
+    }
+    if (context.discovery.recent_insights.length > 0) {
+      prompt += `Recent Insights:\n`;
+      context.discovery.recent_insights.slice(0, 3).forEach((i) => {
+        const painPoints = i.pain_points.length > 0 ? ` (${i.pain_points.length} pain points)` : '';
+        prompt += `- [${i.insight_type}] ${i.title}${painPoints}\n`;
+      });
+    }
+  }
+
+  // Add strategy
+  if (context.strategy.exists) {
+    prompt += `\n**PRODUCT STRATEGY:**\n`;
+    if (context.strategy.north_star_metric) {
+      prompt += `North Star: ${context.strategy.north_star_metric}\n`;
+    }
+    if (context.strategy.vision_statement) {
+      prompt += `Vision: ${context.strategy.vision_statement.substring(0, 200)}${context.strategy.vision_statement.length > 200 ? '...' : ''}\n`;
+    }
+    if (context.strategy.strategic_bets && context.strategy.strategic_bets.length > 0) {
+      prompt += `Strategic Bets: ${context.strategy.strategic_bets.slice(0, 3).join(', ')}\n`;
+    }
+  }
+
+  // Add roadmap
+  if (context.roadmap.total_items > 0) {
+    prompt += `\n**ROADMAP:**\n`;
+    prompt += `Total Items: ${context.roadmap.total_items} | Now: ${context.roadmap.by_bucket.now} | Next: ${context.roadmap.by_bucket.next} | Later: ${context.roadmap.by_bucket.later}\n`;
+    if (context.roadmap.upcoming_releases.length > 0) {
+      prompt += `Upcoming Releases:\n`;
+      context.roadmap.upcoming_releases.forEach((r) => {
+        prompt += `- ${r.release_name} (${r.included_features} features) - ${r.planned_date || 'TBD'}\n`;
+      });
+    }
+  }
+
+  // Add stakeholders
+  if (context.stakeholders.total_stakeholders > 0) {
+    prompt += `\n**STAKEHOLDER MANAGEMENT:**\n`;
+    prompt += `Total Stakeholders: ${context.stakeholders.total_stakeholders}\n`;
+    prompt += `Alignment: ${context.stakeholders.by_alignment.champion} champions, ${context.stakeholders.by_alignment.supporter} supporters, ${context.stakeholders.by_alignment.neutral} neutral, ${context.stakeholders.by_alignment.skeptical} skeptical, ${context.stakeholders.by_alignment.blocker} blockers\n`;
+    
+    if (context.stakeholders.key_players.length > 0) {
+      prompt += `Key Players (High Power/High Interest):\n`;
+      context.stakeholders.key_players.forEach((s) => {
+        const concerns = s.key_concerns.length > 0 ? ` - Concerns: ${s.key_concerns.slice(0, 2).join(', ')}` : '';
+        prompt += `- ${s.name}${s.role ? ` (${s.role})` : ''} - ${s.alignment_status}${concerns}\n`;
+      });
+    }
+    
+    if (context.stakeholders.recent_updates.length > 0) {
+      prompt += `Recent Updates:\n`;
+      context.stakeholders.recent_updates.forEach((u) => {
+        const date = u.sent_date ? new Date(u.sent_date).toLocaleDateString() : 'Draft';
+        prompt += `- [${u.update_type}] ${u.title} (${date})\n`;
+      });
+    }
   }
 
   return prompt;

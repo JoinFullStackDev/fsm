@@ -6,8 +6,25 @@ import type { WorkflowStepInput } from '@/types/workflows';
  * Note: Trigger nodes are handled separately and not included in steps
  */
 export function convertToSteps(nodes: Node[], edges: Edge[]): WorkflowStepInput[] {
+  console.log('[convertToSteps] ========== CONVERT DEBUG ==========');
+  console.log('[convertToSteps] Input nodes count:', nodes.length);
+  console.log('[convertToSteps] Input edges count:', edges.length);
+  
+  nodes.forEach((n, i) => {
+    const data = n.data as Record<string, unknown>;
+    console.log(`[convertToSteps] Node ${i}:`, {
+      id: n.id,
+      type: n.type,
+      hasActionType: !!data.actionType,
+      hasStepData: !!data.stepData,
+      stepDataActionType: (data.stepData as any)?.action_type,
+    });
+  });
+  
   // Sort nodes by their visual flow order
   const sortedNodes = topologicalSort(nodes, edges);
+  
+  console.log('[convertToSteps] After topologicalSort:', sortedNodes.length, 'nodes');
 
   const steps: WorkflowStepInput[] = [];
 
@@ -15,10 +32,18 @@ export function convertToSteps(nodes: Node[], edges: Edge[]): WorkflowStepInput[
     const data = node.data as Record<string, unknown>;
     const stepData = data.stepData as Record<string, unknown> | undefined;
 
+    console.log(`[convertToSteps] Processing node ${index}:`, {
+      nodeId: node.id,
+      nodeType: node.type,
+      dataActionType: data.actionType,
+      stepDataActionType: (stepData as any)?.action_type,
+      stepDataStepType: (stepData as any)?.step_type,
+    });
+
     // Skip trigger nodes - they're not workflow steps, they're workflow metadata
     if (node.type === 'trigger') {
       // Store trigger config in a special step that will be extracted later
-      const triggerConfig = stepData?.config as Record<string, unknown> || {};
+      console.log(`[convertToSteps] -> Creating trigger pseudo-step`);
       steps.push({
         step_type: 'action',
         config: {
@@ -45,8 +70,13 @@ export function convertToSteps(nodes: Node[], edges: Edge[]): WorkflowStepInput[
     };
 
     // Add action type for action steps
-    if (stepType === 'action' && data.actionType) {
-      step.action_type = data.actionType as any;
+    // Check data.actionType first (from node config), then fall back to stepData.action_type (from original step)
+    if (stepType === 'action') {
+      const actionType = data.actionType || (stepData as any)?.action_type;
+      if (actionType) {
+        step.action_type = actionType as any;
+      }
+      console.log(`[convertToSteps] -> Action step, actionType:`, actionType);
     }
 
     // Handle condition else_goto_step
@@ -69,6 +99,7 @@ export function convertToSteps(nodes: Node[], edges: Edge[]): WorkflowStepInput[
     steps.push(step);
   });
 
+  console.log('[convertToSteps] Final steps:', JSON.stringify(steps, null, 2));
   return steps;
 }
 

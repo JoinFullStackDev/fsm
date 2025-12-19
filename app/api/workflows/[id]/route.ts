@@ -139,8 +139,22 @@ export async function PUT(
     // Parse and validate body
     const body = await request.json();
     
+    logger.info('[Workflows API] Update request received:', {
+      workflowId: id,
+      hasSteps: body.steps !== undefined,
+      stepsCount: Array.isArray(body.steps) ? body.steps.length : 0,
+      stepsPreview: Array.isArray(body.steps) ? body.steps.slice(0, 3).map((s: any) => ({
+        step_type: s.step_type,
+        action_type: s.action_type,
+      })) : [],
+    });
+    
     const parseResult = updateWorkflowInputSchema.safeParse(body);
     if (!parseResult.success) {
+      logger.error('[Workflows API] Validation failed:', {
+        workflowId: id,
+        errors: parseResult.error.errors,
+      });
       return badRequest('Invalid workflow data', {
         errors: parseResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`),
       });
@@ -177,11 +191,23 @@ export async function PUT(
     
     // Update steps if provided
     if (steps !== undefined && Array.isArray(steps)) {
+      logger.info('[Workflows API] Processing steps update:', {
+        workflowId: id,
+        stepsCount: steps.length,
+      });
+      
       // Delete existing steps
-      await adminClient
+      const { error: deleteError } = await adminClient
         .from('workflow_steps')
         .delete()
         .eq('workflow_id', id);
+      
+      if (deleteError) {
+        logger.error('[Workflows API] Error deleting existing steps:', {
+          error: deleteError.message,
+          workflowId: id,
+        });
+      }
       
       // Insert new steps
       if (steps.length > 0) {
@@ -194,17 +220,32 @@ export async function PUT(
           else_goto_step: step.else_goto_step ?? null,
         }));
         
-        const { error: stepsError } = await adminClient
+        const { data: insertedSteps, error: stepsError } = await adminClient
           .from('workflow_steps')
-          .insert(stepsToInsert);
+          .insert(stepsToInsert)
+          .select();
         
         if (stepsError) {
-          logger.error('[Workflows API] Error updating steps:', {
+          logger.error('[Workflows API] Error inserting steps:', {
             error: stepsError.message,
             workflowId: id,
           });
+        } else {
+          logger.info('[Workflows API] Steps inserted successfully:', {
+            workflowId: id,
+            insertedCount: insertedSteps?.length || 0,
+          });
         }
+      } else {
+        logger.info('[Workflows API] No steps to insert (empty array):', {
+          workflowId: id,
+        });
       }
+    } else {
+      logger.info('[Workflows API] No steps in request:', {
+        workflowId: id,
+        stepsValue: steps,
+      });
     }
     
     logger.info('[Workflows API] Workflow updated:', {
