@@ -30,6 +30,7 @@ export function getActionDescription(actionType: ActionType): string {
     webhook_call: 'Call Webhook',
     create_activity: 'Create Activity Log',
     send_slack: 'Send Slack Message',
+    create_slack_channel: 'Create Slack Channel',
   };
   
   return descriptions[actionType] || actionType;
@@ -60,6 +61,7 @@ export function getActionIcon(actionType: ActionType): string {
     webhook_call: 'Http',
     create_activity: 'History',
     send_slack: 'Chat',
+    create_slack_channel: 'AddComment',
   };
   
   return icons[actionType] || 'Settings';
@@ -76,6 +78,7 @@ export function isExternalAction(actionType: ActionType): boolean {
     'ai_categorize',
     'ai_summarize',
     'send_slack',
+    'create_slack_channel',
   ];
   
   return externalActions.includes(actionType);

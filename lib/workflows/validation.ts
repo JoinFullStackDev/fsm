@@ -10,8 +10,9 @@ import type { TriggerType, StepType, ActionType, ConditionOperator } from '@/typ
 // TRIGGER CONFIG SCHEMAS
 // ============================================
 
+// Note: event_types can be empty for draft workflows, but must have at least one when activating
 const eventTriggerConfigSchema = z.object({
-  event_types: z.array(z.string()).min(1, 'At least one event type is required'),
+  event_types: z.array(z.string()),
   entity_type: z.string().optional(),
   filters: z.record(z.unknown()).optional(),
 });
@@ -134,6 +135,15 @@ const createActivityConfigSchema = z.object({
   event_type: z.string(),
 });
 
+const createSlackChannelConfigSchema = z.object({
+  channel_name: z.string().min(1, 'Channel name is required'),
+  is_private: z.boolean(),
+  description: z.string().optional(),
+  initial_message: z.string().optional(),
+  invite_user_ids: z.array(z.string()).optional(),
+  invite_users_field: z.string().optional(),
+});
+
 // ============================================
 // CONTROL FLOW CONFIG SCHEMAS
 // ============================================
@@ -172,7 +182,7 @@ const actionTypes: ActionType[] = [
   'update_opportunity', 'create_project_from_opportunity',
   'create_project', 'create_project_from_template',
   'ai_generate', 'ai_categorize', 'ai_summarize',
-  'webhook_call', 'create_activity'
+  'webhook_call', 'create_activity', 'send_slack', 'create_slack_channel'
 ];
 
 const stepTypes: StepType[] = ['action', 'condition', 'delay', 'loop'];
@@ -339,6 +349,9 @@ export function validateActionConfig(
         break;
       case 'create_activity':
         createActivityConfigSchema.parse(config);
+        break;
+      case 'create_slack_channel':
+        createSlackChannelConfigSchema.parse(config);
         break;
       default:
         // For action types without specific validation, accept any config

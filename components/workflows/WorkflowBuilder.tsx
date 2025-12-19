@@ -24,6 +24,7 @@ import {
   Close as CloseIcon,
 } from '@mui/icons-material';
 import WorkflowCanvas from './canvas/WorkflowCanvas';
+import WorkflowAIAgent, { type GeneratedWorkflow } from './WorkflowAIAgent';
 import type {
   TriggerType,
   WorkflowStep,
@@ -72,9 +73,72 @@ export default function WorkflowBuilder({
     type: initialData?.trigger_type || 'event',
     config: initialData?.trigger_config || {},
   });
+  // Key to force canvas re-initialization when AI generates a new workflow
+  const [canvasResetKey, setCanvasResetKey] = useState(0);
 
   const handleStepsChange = useCallback((newSteps: WorkflowStep[]) => {
     setSteps(newSteps);
+  }, []);
+
+  // Handle AI-generated workflow application
+  const handleApplyAIWorkflow = useCallback((workflow: GeneratedWorkflow) => {
+    console.log('[handleApplyAIWorkflow] Received workflow:', JSON.stringify(workflow, null, 2));
+    console.log('[handleApplyAIWorkflow] Workflow steps count:', workflow.steps?.length);
+    
+    // Update workflow name and description if provided
+    if (workflow.name) setName(workflow.name);
+    if (workflow.description) setDescription(workflow.description);
+    
+    // Update trigger data
+    setTriggerData({
+      type: workflow.trigger_type,
+      config: workflow.trigger_config,
+    });
+    
+    const timestamp = Date.now();
+    
+    // Create a trigger pseudo-step (index 0 is treated as trigger by convertToNodes)
+    const triggerStep: WorkflowStep = {
+      id: `ai-trigger-${timestamp}`,
+      workflow_id: '',
+      step_order: 0,
+      step_type: 'action', // Will be converted to trigger node due to index 0
+      action_type: null,
+      config: {
+        trigger_type: workflow.trigger_type,
+        trigger_config: workflow.trigger_config,
+      } as unknown as WorkflowStep['config'],
+      else_goto_step: null,
+      created_at: new Date().toISOString(),
+    };
+    
+    console.log('[handleApplyAIWorkflow] Created triggerStep:', JSON.stringify(triggerStep, null, 2));
+    
+    // Convert AI steps to proper WorkflowStep format with required fields
+    // Start at index 1 since trigger is at index 0
+    const actionSteps: WorkflowStep[] = (workflow.steps || []).map((step, index) => ({
+      id: `ai-step-${timestamp}-${index + 1}`,
+      workflow_id: '',
+      step_order: index + 1,
+      step_type: step.step_type,
+      action_type: step.action_type || null,
+      config: step.config,
+      else_goto_step: step.else_goto_step ?? null,
+      created_at: new Date().toISOString(),
+    }));
+    
+    console.log('[handleApplyAIWorkflow] Created actionSteps:', JSON.stringify(actionSteps, null, 2));
+    
+    // Combine trigger + action steps
+    const formattedSteps = [triggerStep, ...actionSteps];
+    
+    console.log('[handleApplyAIWorkflow] Final formattedSteps count:', formattedSteps.length);
+    console.log('[handleApplyAIWorkflow] formattedSteps:', JSON.stringify(formattedSteps, null, 2));
+    
+    setSteps(formattedSteps);
+    
+    // Force canvas re-initialization
+    setCanvasResetKey((prev) => prev + 1);
   }, []);
 
   const validate = (): boolean => {
@@ -99,33 +163,47 @@ export default function WorkflowBuilder({
       // Filter out trigger nodes and extract trigger config
       const workflowSteps: WorkflowStep[] = [];
       
-      console.log('[WorkflowBuilder] Steps before processing:', steps);
+      console.log('[WorkflowBuilder] ========== SUBMIT DEBUG ==========');
+      console.log('[WorkflowBuilder] Total steps in state:', steps.length);
+      console.log('[WorkflowBuilder] Steps:', JSON.stringify(steps, null, 2));
       
-      steps.forEach((step) => {
-        const config = step.config as any;
+      steps.forEach((step, index) => {
+        const config = step.config as unknown as Record<string, unknown>;
+        const hasTriggerConfig = config?.trigger_type !== undefined && config?.trigger_config !== undefined;
+        
+        console.log(`[WorkflowBuilder] Step ${index}:`, {
+          step_type: step.step_type,
+          action_type: step.action_type,
+          hasTriggerConfig,
+          configKeys: config ? Object.keys(config) : [],
+        });
         
         // Check if this step contains trigger configuration
-        if (config?.trigger_type && config?.trigger_config) {
-          console.log('[WorkflowBuilder] Found trigger config:', config);
-          extractedTriggerType = config.trigger_type;
-          extractedTriggerConfig = config.trigger_config;
+        if (hasTriggerConfig) {
+          console.log('[WorkflowBuilder] -> This is a trigger pseudo-step, extracting config');
+          extractedTriggerType = config.trigger_type as TriggerType;
+          extractedTriggerConfig = config.trigger_config as Record<string, unknown>;
         } else {
           // Regular workflow step
+          console.log('[WorkflowBuilder] -> Adding to workflowSteps');
           workflowSteps.push(step);
         }
       });
+      
+      console.log('[WorkflowBuilder] Final workflowSteps count:', workflowSteps.length);
+      console.log('[WorkflowBuilder] workflowSteps:', JSON.stringify(workflowSteps, null, 2));
 
-      // Fallback to initial data if no trigger found in steps
-      if ((!extractedTriggerType || extractedTriggerType === 'event') && initialData) {
+      // Fallback to initial data if no trigger config was extracted from steps
+      if (Object.keys(extractedTriggerConfig).length === 0 && initialData) {
         console.log('[WorkflowBuilder] Using fallback trigger from initialData');
         extractedTriggerType = initialData.trigger_type;
         extractedTriggerConfig = initialData.trigger_config as Record<string, unknown>;
       }
 
-      // Ensure event triggers have event_types
-      if (extractedTriggerType === 'event' && (!extractedTriggerConfig.event_types || (extractedTriggerConfig.event_types as any[]).length === 0)) {
-        console.error('[WorkflowBuilder] Event trigger missing event_types');
-        throw new Error('Please configure the trigger node: Event triggers must have at least one event type selected.');
+      // For event triggers without event_types, set an empty array (workflow will need to be configured before activation)
+      if (extractedTriggerType === 'event' && !extractedTriggerConfig.event_types) {
+        console.warn('[WorkflowBuilder] Event trigger missing event_types - workflow will need configuration before activation');
+        extractedTriggerConfig.event_types = [];
       }
 
       const data = {
@@ -206,7 +284,8 @@ export default function WorkflowBuilder({
       {/* Full-Screen Canvas */}
       <Box sx={{ flex: 1, overflow: 'hidden' }}>
         <WorkflowCanvas
-          initialSteps={initialData?.steps || []}
+          key={`canvas-${canvasResetKey}`}
+          initialSteps={canvasResetKey > 0 ? steps : (initialData?.steps || [])}
           onChange={handleStepsChange}
         />
       </Box>
@@ -294,6 +373,13 @@ export default function WorkflowBuilder({
           </Box>
         </Box>
       </Drawer>
+
+      {/* AI Workflow Builder Agent */}
+      <WorkflowAIAgent
+        currentWorkflowName={name}
+        currentSteps={steps}
+        onApplyWorkflow={handleApplyAIWorkflow}
+      />
     </Box>
   );
 }

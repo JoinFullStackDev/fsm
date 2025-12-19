@@ -17,8 +17,12 @@ import {
   type OnEdgesChange,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Box } from '@mui/material';
+import { Box, IconButton, Tooltip, Collapse } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { 
+  Dashboard as DashboardIcon,
+  ChevronLeft as ChevronLeftIcon,
+} from '@mui/icons-material';
 import { nodeTypes } from './utils/nodeTypes';
 import NodePalette from './NodePalette';
 import NodeConfigDrawer from './NodeConfigDrawer';
@@ -38,12 +42,19 @@ export default function WorkflowCanvas({ initialSteps = [], onChange }: Workflow
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   // Initialize nodes and edges from initial steps (only once)
   useEffect(() => {
+    console.log('[WorkflowCanvas] useEffect - initialized:', initialized, 'initialSteps.length:', initialSteps.length);
+    console.log('[WorkflowCanvas] initialSteps:', JSON.stringify(initialSteps, null, 2));
+    
     if (!initialized) {
       if (initialSteps.length > 0) {
+        console.log('[WorkflowCanvas] Converting initialSteps to nodes...');
         const { nodes: initialNodes, edges: initialEdges } = convertToNodes(initialSteps);
+        console.log('[WorkflowCanvas] Created nodes:', initialNodes.length, 'edges:', initialEdges.length);
+        console.log('[WorkflowCanvas] Nodes:', JSON.stringify(initialNodes, null, 2));
         setNodes(initialNodes);
         setEdges(initialEdges);
       } else {
@@ -74,7 +85,13 @@ export default function WorkflowCanvas({ initialSteps = [], onChange }: Workflow
 
     const timer = setTimeout(() => {
       if (onChange) {
+        console.log('[WorkflowCanvas] Converting nodes to steps:', {
+          nodesCount: nodes.length,
+          edgesCount: edges.length,
+          nodeTypes: nodes.map(n => ({ id: n.id, type: n.type })),
+        });
         const steps = convertToSteps(nodes, edges);
+        console.log('[WorkflowCanvas] Converted steps:', JSON.stringify(steps, null, 2));
         onChange(steps);
       }
     }, 100);
@@ -179,8 +196,46 @@ export default function WorkflowCanvas({ initialSteps = [], onChange }: Workflow
         backgroundColor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
       }}
     >
-      {/* Left sidebar - Node palette */}
-      <NodePalette onAddNode={handleAddNode} />
+      {/* Collapsible Node Palette */}
+      <Box sx={{ display: 'flex', height: '100%' }}>
+        <Collapse in={paletteOpen} orientation="horizontal" timeout={200}>
+          <Box sx={{ display: 'flex', height: '100%' }}>
+            <NodePalette onAddNode={handleAddNode} />
+          </Box>
+        </Collapse>
+        
+        {/* Toggle Button */}
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            py: 1,
+            px: 0.5,
+            borderRight: `1px solid ${theme.palette.divider}`,
+            backgroundColor: theme.palette.background.paper,
+          }}
+        >
+          <Tooltip title={paletteOpen ? 'Hide Node Palette' : 'Show Node Palette'} placement="right">
+            <IconButton
+              size="small"
+              onClick={() => setPaletteOpen(!paletteOpen)}
+              sx={{
+                backgroundColor: paletteOpen ? theme.palette.action.selected : 'transparent',
+                '&:hover': {
+                  backgroundColor: theme.palette.action.hover,
+                },
+              }}
+            >
+              {paletteOpen ? (
+                <ChevronLeftIcon fontSize="small" />
+              ) : (
+                <DashboardIcon fontSize="small" />
+              )}
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </Box>
 
       {/* Main canvas */}
       <Box sx={{ flex: 1, position: 'relative' }}>

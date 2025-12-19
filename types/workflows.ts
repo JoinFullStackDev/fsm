@@ -85,7 +85,8 @@ export type ActionType =
   // Integrations
   | 'webhook_call'
   | 'create_activity'
-  | 'send_slack';
+  | 'send_slack'
+  | 'create_slack_channel';
 
 // ============================================
 // ACTION CONFIGURATION TYPES
@@ -292,6 +293,23 @@ export interface SendSlackConfig {
   icon_emoji?: string;
 }
 
+export interface CreateSlackChannelConfig {
+  /** Channel name (supports template variables, will be slugified) */
+  channel_name: string;
+  /** Whether to create a private channel (default: false = public) */
+  is_private?: boolean;
+  /** Optional channel description/topic */
+  description?: string;
+  /** Field name to store the created channel ID in context */
+  output_field?: string;
+  /** Optional: post an initial message after creating the channel */
+  initial_message?: string;
+  /** Optional: invite user IDs to the channel */
+  invite_user_ids?: string[];
+  /** Optional: field containing array of user IDs to invite */
+  invite_users_field?: string;
+}
+
 // ============================================
 // CONTROL FLOW CONFIGURATION TYPES
 // ============================================
@@ -358,6 +376,7 @@ export type StepConfig =
   | WebhookCallConfig
   | CreateActivityConfig
   | SendSlackConfig
+  | CreateSlackChannelConfig
   | ConditionConfig
   | DelayConfig
   | LoopConfig;

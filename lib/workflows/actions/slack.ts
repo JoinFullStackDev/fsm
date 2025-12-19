@@ -1,11 +1,16 @@
 /**
  * Slack Workflow Actions
- * Send messages to Slack channels via workflow automation
+ * Send messages to Slack channels and create channels via workflow automation
  */
 
-import { getOrganizationSlackIntegration, postMessage } from '@/lib/slackService';
+import {
+  getOrganizationSlackIntegration,
+  postMessage,
+  createChannel,
+  inviteUsersToChannel,
+} from '@/lib/slackService';
 import { interpolateTemplate } from '../templating';
-import type { SendSlackConfig, WorkflowContext } from '@/types/workflows';
+import type { SendSlackConfig, CreateSlackChannelConfig, WorkflowContext } from '@/types/workflows';
 import logger from '@/lib/utils/logger';
 
 /**
@@ -133,6 +138,159 @@ export async function executeSendSlack(
     logger.error('[SendSlack] Error sending message:', {
       organizationId: context.organization_id,
       channel,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    throw error;
+  }
+}
+
+/**
+ * Execute create Slack channel action
+ *
+ * @param config - Slack channel configuration
+ * @param context - Workflow context
+ * @returns Action result with channel details
+ */
+export async function executeCreateSlackChannel(
+  config: CreateSlackChannelConfig | unknown,
+  context: WorkflowContext
+): Promise<{ output: unknown }> {
+  const channelConfig = config as CreateSlackChannelConfig;
+
+  // Get organization's Slack integration
+  const integration = await getOrganizationSlackIntegration(context.organization_id);
+
+  if (!integration) {
+    logger.warn('[CreateSlackChannel] No Slack integration found for organization', {
+      organizationId: context.organization_id,
+    });
+    return {
+      output: {
+        success: false,
+        skipped: true,
+        reason: 'No Slack integration configured for this organization',
+      },
+    };
+  }
+
+  // Interpolate channel name with template variables
+  const channelName = interpolateTemplate(channelConfig.channel_name, context);
+
+  if (!channelName) {
+    logger.warn('[CreateSlackChannel] No channel name specified');
+    return {
+      output: {
+        success: false,
+        error: 'No channel name specified',
+      },
+    };
+  }
+
+  // Interpolate description if provided
+  const description = channelConfig.description
+    ? interpolateTemplate(channelConfig.description, context)
+    : undefined;
+
+  logger.info('[CreateSlackChannel] Creating Slack channel', {
+    organizationId: context.organization_id,
+    channelName,
+    isPrivate: channelConfig.is_private,
+  });
+
+  try {
+    // Create the channel
+    const result = await createChannel(integration.accessToken, channelName, {
+      isPrivate: channelConfig.is_private,
+      description,
+    });
+
+    if (!result) {
+      logger.error('[CreateSlackChannel] Failed to create channel');
+      return {
+        output: {
+          success: false,
+          error: 'Failed to create Slack channel',
+          requested_name: channelName,
+        },
+      };
+    }
+
+    // Invite users if specified
+    let invitedUsers: string[] = [];
+    const userIdsToInvite: string[] = [];
+
+    // Add static user IDs
+    if (channelConfig.invite_user_ids?.length) {
+      userIdsToInvite.push(...channelConfig.invite_user_ids);
+    }
+
+    // Add user IDs from context field
+    if (channelConfig.invite_users_field) {
+      const fieldValue = interpolateTemplate(`{{${channelConfig.invite_users_field}}}`, context);
+      if (fieldValue && fieldValue !== `{{${channelConfig.invite_users_field}}}`) {
+        try {
+          const parsed = JSON.parse(fieldValue);
+          if (Array.isArray(parsed)) {
+            userIdsToInvite.push(...parsed);
+          }
+        } catch {
+          // If not JSON, treat as single ID
+          userIdsToInvite.push(fieldValue);
+        }
+      }
+    }
+
+    if (userIdsToInvite.length > 0) {
+      const uniqueUserIds = [...new Set(userIdsToInvite)];
+      const inviteSuccess = await inviteUsersToChannel(
+        integration.accessToken,
+        result.id,
+        uniqueUserIds
+      );
+      if (inviteSuccess) {
+        invitedUsers = uniqueUserIds;
+      }
+    }
+
+    // Post initial message if provided
+    let initialMessageResult = null;
+    if (channelConfig.initial_message) {
+      const initialMessage = interpolateTemplate(channelConfig.initial_message, context);
+      if (initialMessage) {
+        initialMessageResult = await postMessage(
+          integration.accessToken,
+          result.id,
+          initialMessage
+        );
+      }
+    }
+
+    logger.info('[CreateSlackChannel] Channel created successfully', {
+      organizationId: context.organization_id,
+      channelId: result.id,
+      channelName: result.name,
+      isPrivate: result.is_private,
+      invitedUsers: invitedUsers.length,
+    });
+
+    const output: Record<string, unknown> = {
+      success: true,
+      channel_id: result.id,
+      channel_name: result.name,
+      is_private: result.is_private,
+      created_at: new Date().toISOString(),
+      invited_users: invitedUsers,
+    };
+
+    if (initialMessageResult) {
+      output.initial_message_ts = initialMessageResult.ts;
+    }
+
+    return { output };
+  } catch (error) {
+    logger.error('[CreateSlackChannel] Error creating channel:', {
+      organizationId: context.organization_id,
+      channelName,
       error: error instanceof Error ? error.message : 'Unknown error',
     });
     throw error;

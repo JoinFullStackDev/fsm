@@ -295,6 +295,138 @@ export async function listChannels(
 }
 
 /**
+ * Create a new Slack channel
+ */
+export async function createChannel(
+  accessToken: string,
+  name: string,
+  options?: {
+    isPrivate?: boolean;
+    description?: string;
+  }
+): Promise<{
+  id: string;
+  name: string;
+  is_private: boolean;
+} | null> {
+  try {
+    // Slack channel names must be lowercase, no spaces, max 80 chars
+    const normalizedName = name
+      .toLowerCase()
+      .replace(/[^a-z0-9-_]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .substring(0, 80);
+
+    if (!normalizedName) {
+      logger.error('[SlackService] Invalid channel name after normalization');
+      return null;
+    }
+
+    const body: Record<string, unknown> = {
+      name: normalizedName,
+      is_private: options?.isPrivate || false,
+    };
+
+    const response = await fetch(`${SLACK_API_BASE}/conversations.create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data = await response.json();
+
+    if (!data.ok) {
+      logger.error('[SlackService] Failed to create channel:', data.error);
+      return null;
+    }
+
+    const channel = data.channel;
+
+    // Set the channel topic/description if provided
+    if (options?.description) {
+      await fetch(`${SLACK_API_BASE}/conversations.setTopic`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          channel: channel.id,
+          topic: options.description,
+        }),
+      });
+    }
+
+    logger.info('[SlackService] Created channel:', {
+      id: channel.id,
+      name: channel.name,
+      isPrivate: channel.is_private,
+    });
+
+    return {
+      id: channel.id,
+      name: channel.name,
+      is_private: channel.is_private,
+    };
+  } catch (error) {
+    logger.error('[SlackService] Error creating channel:', error);
+    return null;
+  }
+}
+
+/**
+ * Invite users to a Slack channel
+ */
+export async function inviteUsersToChannel(
+  accessToken: string,
+  channelId: string,
+  userIds: string[]
+): Promise<boolean> {
+  try {
+    if (!userIds.length) {
+      return true;
+    }
+
+    const response = await fetch(`${SLACK_API_BASE}/conversations.invite`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        channel: channelId,
+        users: userIds.join(','),
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!data.ok) {
+      // Don't fail if users are already in the channel
+      if (data.error === 'already_in_channel') {
+        return true;
+      }
+      logger.error('[SlackService] Failed to invite users:', data.error);
+      return false;
+    }
+
+    logger.info('[SlackService] Invited users to channel:', {
+      channelId,
+      userCount: userIds.length,
+    });
+
+    return true;
+  } catch (error) {
+    logger.error('[SlackService] Error inviting users:', error);
+    return false;
+  }
+}
+
+/**
  * Get a Slack user by email
  */
 export async function getUserByEmail(

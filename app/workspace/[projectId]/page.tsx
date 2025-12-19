@@ -23,6 +23,12 @@ import {
   MenuBook as MenuBookIcon,
   ArrowBack as ArrowBackIcon,
   HelpOutline as HelpOutlineIcon,
+  Assignment as AssignmentIcon,
+  ShowChart as ShowChartIcon,
+  Search as SearchIcon,
+  Map as MapIcon,
+  CalendarMonth as CalendarMonthIcon,
+  People as PeopleIcon,
 } from '@mui/icons-material';
 import { useOrganization } from '@/components/providers/OrganizationProvider';
 import WorkspaceChat from '@/components/workspace/chat/WorkspaceChat';
@@ -132,13 +138,22 @@ export default function WorkspacePage() {
           >
             Back to Project
           </Button>
-          <Button
-            variant="outlined"
-            startIcon={<HelpOutlineIcon />}
-            onClick={() => setHelpDrawerOpen(true)}
-          >
-            Help & Tips
-          </Button>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              variant="outlined"
+              startIcon={<AssignmentIcon />}
+              onClick={() => router.push(`/project-management/${projectId}`)}
+            >
+              View Tasks
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<HelpOutlineIcon />}
+              onClick={() => setHelpDrawerOpen(true)}
+            >
+              Help & Tips
+            </Button>
+          </Box>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
           <Box
@@ -289,6 +304,176 @@ export default function WorkspacePage() {
                     {workspace?.debt_count || 0} debt items
                   </Typography>
                 </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Success Metrics Dashboard */}
+        <Grid item xs={12} md={4}>
+          <Card
+            sx={{
+              height: '100%',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: theme.shadows[8],
+              },
+            }}
+            onClick={() => router.push(`/workspace/${projectId}/metrics`)}
+          >
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <ShowChartIcon sx={{ fontSize: 40, color: theme.palette.primary.main, mr: 2 }} />
+                <Typography variant="h5" component="h2">
+                  Success Metrics
+                </Typography>
+              </Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Track KPIs and product health metrics to validate outcomes
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CheckCircleIcon sx={{ fontSize: 18, color: theme.palette.success.main }} />
+                <Typography variant="caption">
+                  Track and measure success
+                </Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Discovery Hub */}
+        <Grid item xs={12} md={4}>
+          <Card
+            sx={{
+              height: '100%',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: theme.shadows[8],
+              },
+            }}
+            onClick={() => router.push(`/workspace/${projectId}/discovery`)}
+          >
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <SearchIcon sx={{ fontSize: 40, color: theme.palette.primary.main, mr: 2 }} />
+                <Typography variant="h5" component="h2">
+                  Discovery Hub
+                </Typography>
+              </Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Centralize user research, experiments, and validation feedback
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CheckCircleIcon sx={{ fontSize: 18, color: theme.palette.success.main }} />
+                <Typography variant="caption">
+                  Insights and validation
+                </Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Strategy Canvas */}
+        <Grid item xs={12} md={4}>
+          <Card
+            sx={{
+              height: '100%',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: theme.shadows[8],
+              },
+            }}
+            onClick={() => router.push(`/workspace/${projectId}/strategy`)}
+          >
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <MapIcon sx={{ fontSize: 40, color: theme.palette.primary.main, mr: 2 }} />
+                <Typography variant="h5" component="h2">
+                  Strategy Canvas
+                </Typography>
+              </Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Define north star, vision, and strategic positioning
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CheckCircleIcon sx={{ fontSize: 18, color: theme.palette.success.main }} />
+                <Typography variant="caption">
+                  Strategic clarity
+                </Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Roadmap Planner */}
+        <Grid item xs={12} md={4}>
+          <Card
+            sx={{
+              height: '100%',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: theme.shadows[8],
+              },
+            }}
+            onClick={() => router.push(`/workspace/${projectId}/roadmap`)}
+          >
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <CalendarMonthIcon sx={{ fontSize: 40, color: theme.palette.primary.main, mr: 2 }} />
+                <Typography variant="h5" component="h2">
+                  Roadmap Planner
+                </Typography>
+              </Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Plan and prioritize features with RICE scoring
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CheckCircleIcon sx={{ fontSize: 18, color: theme.palette.success.main }} />
+                <Typography variant="caption">
+                  Strategic planning
+                </Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Stakeholder Hub */}
+        <Grid item xs={12} md={4}>
+          <Card
+            sx={{
+              height: '100%',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: theme.shadows[8],
+              },
+            }}
+            onClick={() => router.push(`/workspace/${projectId}/stakeholders`)}
+          >
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <PeopleIcon sx={{ fontSize: 40, color: theme.palette.primary.main, mr: 2 }} />
+                <Typography variant="h5" component="h2">
+                  Stakeholder Hub
+                </Typography>
+              </Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Manage stakeholder relationships and communication
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CheckCircleIcon sx={{ fontSize: 18, color: theme.palette.success.main }} />
+                <Typography variant="caption">
+                  Alignment tracking
+                </Typography>
               </Box>
             </CardContent>
           </Card>

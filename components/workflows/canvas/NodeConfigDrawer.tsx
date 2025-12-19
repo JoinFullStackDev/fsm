@@ -30,6 +30,7 @@ const actionTypes = [
   { value: 'send_email', label: 'Send Email' },
   { value: 'send_notification', label: 'Send Notification' },
   { value: 'send_slack', label: 'Send Slack Message' },
+  { value: 'create_slack_channel', label: 'Create Slack Channel' },
   { value: 'create_task', label: 'Create Task' },
   { value: 'update_task', label: 'Update Task' },
   { value: 'create_project', label: 'Create Project' },
@@ -116,11 +117,17 @@ export default function NodeConfigDrawer({
   const [aiOutputField, setAiOutputField] = useState('');
   const [aiMaxTokens, setAiMaxTokens] = useState(1000);
 
-  // Action-specific state - Slack
+  // Action-specific state - Slack (send message)
   const [slackChannel, setSlackChannel] = useState('');
   const [slackMessage, setSlackMessage] = useState('');
   const [slackNotifyChannel, setSlackNotifyChannel] = useState(false);
   const [slackUseBlocks, setSlackUseBlocks] = useState(false);
+
+  // Action-specific state - Slack (create channel)
+  const [slackNewChannelName, setSlackNewChannelName] = useState('');
+  const [slackNewChannelPrivate, setSlackNewChannelPrivate] = useState(false);
+  const [slackNewChannelDescription, setSlackNewChannelDescription] = useState('');
+  const [slackNewChannelInitialMessage, setSlackNewChannelInitialMessage] = useState('');
 
   useEffect(() => {
     if (node) {
@@ -164,11 +171,17 @@ export default function NodeConfigDrawer({
       setWebhookBody(config.body_template || '');
       setWebhookHeaders(config.headers ? JSON.stringify(config.headers, null, 2) : '');
 
-      // Slack config
+      // Slack message config
       setSlackChannel(config.channel || '');
       setSlackMessage(config.message || '');
       setSlackNotifyChannel(config.notify_channel || false);
       setSlackUseBlocks(config.use_blocks || false);
+
+      // Slack create channel config
+      setSlackNewChannelName(config.channel_name || '');
+      setSlackNewChannelPrivate(config.is_private || false);
+      setSlackNewChannelDescription(config.description || '');
+      setSlackNewChannelInitialMessage(config.initial_message || '');
 
       // AI config
       setAiPromptTemplate(config.prompt_template || '');
@@ -258,6 +271,14 @@ export default function NodeConfigDrawer({
             message: slackMessage,
             notify_channel: slackNotifyChannel || undefined,
             use_blocks: slackUseBlocks || undefined,
+          };
+          break;
+        case 'create_slack_channel':
+          actionConfig = {
+            channel_name: slackNewChannelName,
+            is_private: slackNewChannelPrivate || undefined,
+            description: slackNewChannelDescription || undefined,
+            initial_message: slackNewChannelInitialMessage || undefined,
           };
           break;
       }
@@ -757,6 +778,57 @@ export default function NodeConfigDrawer({
                 </Box>
                 <Typography variant="caption" color="text.secondary">
                   Note: Your organization must have Slack connected to use this action.
+                </Typography>
+              </>
+            )}
+
+            {/* Create Slack Channel Config */}
+            {actionType === 'create_slack_channel' && (
+              <>
+                <TextField
+                  label="Channel Name"
+                  value={slackNewChannelName}
+                  onChange={(e) => setSlackNewChannelName(e.target.value)}
+                  placeholder="project-{{project.name}}"
+                  helperText="Channel name (use {{variables}} for dynamic values). Will be auto-formatted to lowercase with dashes."
+                  size="small"
+                  fullWidth
+                  sx={{ mb: 2 }}
+                />
+                <FormControl size="small" fullWidth sx={{ mb: 2 }}>
+                  <InputLabel>Channel Type</InputLabel>
+                  <Select
+                    value={slackNewChannelPrivate ? 'private' : 'public'}
+                    onChange={(e) => setSlackNewChannelPrivate(e.target.value === 'private')}
+                    label="Channel Type"
+                  >
+                    <MenuItem value="public">Public Channel</MenuItem>
+                    <MenuItem value="private">Private Channel</MenuItem>
+                  </Select>
+                </FormControl>
+                <TextField
+                  label="Description (Optional)"
+                  value={slackNewChannelDescription}
+                  onChange={(e) => setSlackNewChannelDescription(e.target.value)}
+                  placeholder="Channel for {{project.name}} team collaboration"
+                  helperText="Channel topic/description"
+                  size="small"
+                  fullWidth
+                  sx={{ mb: 2 }}
+                />
+                <TextField
+                  label="Initial Message (Optional)"
+                  value={slackNewChannelInitialMessage}
+                  onChange={(e) => setSlackNewChannelInitialMessage(e.target.value)}
+                  multiline
+                  rows={3}
+                  placeholder="Welcome to the {{project.name}} channel! 🎉"
+                  helperText="Message to post immediately after channel creation"
+                  size="small"
+                  fullWidth
+                />
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                  Note: Requires Slack to be connected with channel creation permissions.
                 </Typography>
               </>
             )}

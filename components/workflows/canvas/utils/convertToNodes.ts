@@ -32,6 +32,16 @@ export function convertToNodes(steps: WorkflowStep[]): { nodes: Node[]; edges: E
       stepData: step,
     };
 
+    // Extract trigger configuration for trigger nodes (index 0)
+    if (index === 0 && step.config) {
+      const config = step.config as unknown as Record<string, unknown>;
+      if (config.trigger_type) {
+        nodeData.triggerType = config.trigger_type;
+        nodeData.triggerConfig = config.trigger_config || {};
+        nodeData.label = 'Start Workflow';
+      }
+    }
+
     if (step.step_type === 'action' && step.action_type) {
       nodeData.actionType = step.action_type;
     }

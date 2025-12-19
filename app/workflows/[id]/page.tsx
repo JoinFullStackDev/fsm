@@ -70,6 +70,12 @@ export default function EditWorkflowPage() {
       setSaving(true);
       setError(null);
 
+      console.log('[EditWorkflowPage] ========== SUBMITTING WORKFLOW UPDATE ==========');
+      console.log('[EditWorkflowPage] Workflow ID:', workflowId);
+      console.log('[EditWorkflowPage] Full data object:', JSON.stringify(data, null, 2));
+      console.log('[EditWorkflowPage] Steps count:', (data.steps as any[])?.length || 0);
+      console.log('[EditWorkflowPage] Steps:', data.steps);
+
       const response = await fetch(`/api/workflows/${workflowId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
