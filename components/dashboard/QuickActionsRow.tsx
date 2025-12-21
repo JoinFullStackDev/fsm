@@ -5,11 +5,11 @@ import { useTheme } from '@mui/material/styles';
 import { useRouter } from 'next/navigation';
 import {
   Add as AddIcon,
-  Assignment as AssignmentIcon,
   FolderOpen as FolderIcon,
   People as PeopleIcon,
   Assessment as AssessmentIcon,
   MenuBook as MenuBookIcon,
+  Assignment as AssignmentIcon,
 } from '@mui/icons-material';
 
 interface QuickAction {
@@ -33,9 +33,9 @@ export default function QuickActionsRow() {
       onClick: () => router.push('/templates'),
     },
     {
-      label: 'Create Task',
+      label: 'Task Management',
       icon: <AssignmentIcon />,
-      onClick: () => router.push('/my-tasks'),
+      onClick: () => router.push('/project-management'),
     },
     {
       label: 'View Projects',

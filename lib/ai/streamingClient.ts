@@ -6,7 +6,7 @@
 import { GoogleGenAI } from '@google/genai';
 import logger from '@/lib/utils/logger';
 
-export type StreamingModel = 'gemini-2.0-flash-exp' | 'gemini-1.5-flash' | 'gemini-2.5-flash';
+export type StreamingModel = 'gemini-2.0-flash-exp' | 'gemini-2.5-pro' | 'gemini-2.5-flash';
 
 /**
  * Stream response from Gemini API
@@ -15,7 +15,7 @@ export type StreamingModel = 'gemini-2.0-flash-exp' | 'gemini-1.5-flash' | 'gemi
 export async function streamGeminiResponse(
   prompt: string,
   apiKey: string,
-  model: StreamingModel = 'gemini-2.0-flash-exp'
+  model: StreamingModel = 'gemini-2.5-pro'
 ): Promise<ReadableStream> {
   // Validate API key
   if (!apiKey) {
@@ -108,6 +108,21 @@ ${conversationHistory ? `**CONVERSATION HISTORY:**\n${conversationHistory}\n` : 
 - Use markdown for formatting (headers, lists, code blocks, bold)
 - When code is relevant, use proper syntax highlighting
 
+**CONVERSATIONAL DRILLING:**
+- When a topic is complex, ask 1-2 clarifying questions before suggesting solutions
+- Reference specific tasks by title when discussing work items
+- Build on previous messages in the conversation - you have access to the full thread (up to 20 messages)
+- If the user wants to explore a problem deeper, help them break it down step by step
+- Suggest follow-up questions they might want to ask
+- When discussing blockers or issues, dig into root causes before proposing solutions
+- Remember context from earlier in the conversation and reference it when relevant
+
+**COMPREHENSIVE CONTEXT:**
+- You have access to ALL tasks in the project (up to 200), not just recent ones
+- Full phase data with detailed field values is available
+- Complete clarity specs, epics, decisions, and stakeholder information is provided
+- Use this comprehensive context to give more informed, specific recommendations
+
 **ACTION CAPABILITIES:**
 You can suggest actions that users can confirm:
 - CREATE_TASK: Suggest creating a new project task (with assignee recommendation)
@@ -124,6 +139,20 @@ When suggesting task creation, you SHOULD recommend an assignee based on:
 
 ALWAYS include assignee_id in create_task actions when you can identify the right person.
 
+**TASK TYPE GUIDELINES - CRITICAL:**
+- Prioritize IMPLEMENTATION tasks: coding, testing, infrastructure, deployment
+- Engineering tasks should use verbs like: "Implement X", "Build Y", "Integrate Z", "Develop W"
+- QA tasks should use verbs like: "Write tests for X", "Test Y integration", "Validate Z behavior"
+- AVOID vague discovery tasks like "Review X" or "Discuss Y" unless the user specifically asks for them
+- Each task MUST have a clear deliverable and acceptance criteria in the description
+- When phases have defined timelines, assign tasks to the appropriate phase with matching dates
+
+**PHASE & DATE ASSIGNMENT:**
+- Always assign tasks to the appropriate phase_number based on the task type and phase focus
+- Use the phase timeline information to set appropriate start_date and due_date
+- Tasks should fit within their assigned phase's date range
+- Space tasks logically - don't cluster all tasks on the same dates
+
 When suggesting an action, use one of these formats:
 
 **CREATE_TASK** - Create a new project task:
@@ -131,12 +160,15 @@ When suggesting an action, use one of these formats:
 {
   "type": "create_task",
   "data": {
-    "title": "Task title (required)",
-    "description": "Task description",
+    "title": "Task title - use action verb (required)",
+    "description": "What to build/implement with acceptance criteria (required)",
     "priority": "high|medium|low",
+    "phase_number": 1-6,
+    "start_date": "YYYY-MM-DD",
+    "due_date": "YYYY-MM-DD",
     "assignee_id": "user-uuid-here",
     "estimated_hours": 8,
-    "tags": ["tag1", "tag2"]
+    "tags": ["engineering", "frontend", "backend", "qa", "infrastructure"]
   }
 }
 \`\`\`

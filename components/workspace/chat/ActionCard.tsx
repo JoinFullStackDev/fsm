@@ -35,12 +35,29 @@ export default function ActionCard({ action, onConfirm, onReject, teamMembers = 
       const assigneeName = action.data.assignee_id ? getAssigneeName(String(action.data.assignee_id)) : null;
       const chips = [];
       
+      // Phase chip
+      if (action.data.phase_number) {
+        chips.push(
+          <Chip 
+            key="phase" 
+            label={`Phase ${action.data.phase_number}`} 
+            size="small" 
+            color="secondary"
+          />
+        );
+      }
+      
+      // Priority chip
       if (action.data.priority) {
         chips.push(<Chip key="priority" label={`Priority: ${action.data.priority}`} size="small" />);
       }
+      
+      // Estimated hours chip
       if (action.data.estimated_hours) {
         chips.push(<Chip key="hours" label={`${action.data.estimated_hours}h`} size="small" />);
       }
+      
+      // Assignee chip
       if (assigneeName) {
         chips.push(
           <Chip
@@ -49,6 +66,24 @@ export default function ActionCard({ action, onConfirm, onReject, teamMembers = 
             size="small"
             color="primary"
             variant="outlined"
+          />
+        );
+      }
+      
+      // Date range chip
+      if (action.data.start_date || action.data.due_date) {
+        const dateLabel = action.data.start_date && action.data.due_date 
+          ? `${action.data.start_date} → ${action.data.due_date}`
+          : action.data.due_date 
+            ? `Due: ${action.data.due_date}` 
+            : `Start: ${action.data.start_date}`;
+        chips.push(
+          <Chip 
+            key="dates" 
+            label={dateLabel} 
+            size="small" 
+            variant="outlined"
+            sx={{ borderColor: theme.palette.info.main, color: theme.palette.info.main }}
           />
         );
       }

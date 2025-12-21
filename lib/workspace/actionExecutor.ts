@@ -15,7 +15,18 @@ export async function executeCreateTask(
   supabase: SupabaseClient
 ): Promise<Record<string, unknown>> {
   try {
-    const { title, description, priority, status, estimated_hours, tags, assignee_id } = data;
+    const { 
+      title, 
+      description, 
+      priority, 
+      status, 
+      estimated_hours, 
+      tags, 
+      assignee_id,
+      phase_number,
+      start_date,
+      due_date,
+    } = data;
 
     if (!title) {
       throw new Error('Task title is required');
@@ -28,8 +39,11 @@ export async function executeCreateTask(
       status: status || 'todo',
       priority: priority || 'medium',
       assignee_id: assignee_id ? String(assignee_id) : null,
-      estimated_hours: estimated_hours || null,
+      estimated_hours: estimated_hours ? Number(estimated_hours) : null,
       tags: Array.isArray(tags) ? tags : [],
+      phase_number: phase_number ? Number(phase_number) : null,
+      start_date: start_date ? String(start_date) : null,
+      due_date: due_date ? String(due_date) : null,
       ai_generated: true,
       notes: 'Created by AI Workspace Assistant',
     };
@@ -37,7 +51,7 @@ export async function executeCreateTask(
     const { data: task, error } = await supabase
       .from('project_tasks')
       .insert(taskData)
-      .select('id, title, assignee_id')
+      .select('id, title, assignee_id, phase_number, start_date, due_date')
       .single();
 
     if (error || !task) {
@@ -47,13 +61,19 @@ export async function executeCreateTask(
 
     logger.info('[Action Executor] Task created:', { 
       taskId: task.id, 
-      assigneeId: task.assignee_id 
+      assigneeId: task.assignee_id,
+      phaseNumber: task.phase_number,
+      startDate: task.start_date,
+      dueDate: task.due_date,
     });
 
     return {
       task_id: task.id,
       task_title: task.title,
       assignee_id: task.assignee_id,
+      phase_number: task.phase_number,
+      start_date: task.start_date,
+      due_date: task.due_date,
     };
   } catch (error) {
     logger.error('[Action Executor] Create task failed:', error);

@@ -111,8 +111,8 @@ export async function POST(
       if (conv) {
         conversationRecord = conv;
         const messages = (conv.messages as any[]) || [];
-        // Include last 5 messages for context
-        const recentMessages = messages.slice(-5);
+        // Include last 20 messages for extended conversational context
+        const recentMessages = messages.slice(-20);
         conversationHistory = recentMessages
           .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
           .join('\n\n');

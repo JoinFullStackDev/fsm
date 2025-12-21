@@ -285,7 +285,6 @@ export async function middleware(request: NextRequest) {
     '/admin',
     '/dashboards',
     '/ops',
-    '/my-tasks',
     '/profile',
     '/projects',
     '/affiliate', // Affiliate dashboard (not /affiliates which is public)
@@ -324,7 +323,6 @@ export const config = {
     '/organization/:path*',
     '/dashboards/:path*',
     '/ops/:path*',
-    '/my-tasks/:path*',
     '/profile/:path*',
     '/projects/:path*',
     '/affiliate/:path*', // Affiliate dashboard (not /affiliates which is public)

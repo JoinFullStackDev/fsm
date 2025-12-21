@@ -22,6 +22,7 @@ import UserProjectsCard from '@/components/dashboard/UserProjectsCard';
 import KBArticlesSlider from '@/components/dashboard/KBArticlesSlider';
 import TeamPreviewCard from '@/components/dashboard/TeamPreviewCard';
 import RecentCommentsCard from '@/components/dashboard/RecentCommentsCard';
+import PlatformUpdatesSection from '@/components/dashboard/PlatformUpdatesSection';
 
 function DashboardPageContent() {
   const theme = useTheme();
@@ -176,6 +177,9 @@ function DashboardPageContent() {
 
         {/* Greeting Header */}
         <GreetingHeader />
+
+        {/* Platform Updates Section */}
+        <PlatformUpdatesSection />
 
         {/* Quick Actions */}
         <QuickActionsRow />
