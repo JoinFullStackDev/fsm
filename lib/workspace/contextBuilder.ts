@@ -42,7 +42,9 @@ export interface WorkspaceContextData {
     phase_name: string;
     completed: boolean;
     progress: number;
-    key_fields: string[];
+    key_fields: Array<{ key: string; preview: string }>;
+    suggested_start_date?: string;
+    suggested_end_date?: string;
   }>;
   tasks: {
     total: number;
@@ -60,10 +62,18 @@ export interface WorkspaceContextData {
     };
     recent: Array<{
       title: string;
+      description: string | null;
       status: string;
       priority: string;
       assignee: string | null;
       assignee_id: string | null;
+      phase_number: number | null;
+      start_date: string | null;
+      due_date: string | null;
+      estimated_hours: number | null;
+      tags: string[];
+      notes: string | null;
+      dependencies: string[];
     }>;
   };
   workspace: {
@@ -199,13 +209,13 @@ export async function buildWorkspaceContext(
         .eq('is_active', true)
         .order('phase_number', { ascending: true }),
       
-      // Tasks (reduced to 20 for performance)
+      // Tasks (expanded fields for better AI context - includes notes for full scope)
       client
         .from('project_tasks')
-        .select('title, status, priority, assignee_id, created_at')
+        .select('title, description, status, priority, assignee_id, phase_number, start_date, due_date, estimated_hours, tags, notes, dependencies, created_at')
         .eq('project_id', projectId)
         .order('created_at', { ascending: false })
-        .limit(20),
+        .limit(200),
       
       // Clarity specs
       client
@@ -213,7 +223,7 @@ export async function buildWorkspaceContext(
         .select('version, status, problem_statement, business_goals, success_metrics, ai_readiness_score')
         .eq('workspace_id', workspaceId)
         .order('version', { ascending: false })
-        .limit(5),
+        .limit(20),
       
       // Epic drafts
       client
@@ -222,15 +232,15 @@ export async function buildWorkspaceContext(
         .eq('workspace_id', workspaceId)
         .eq('status', 'draft')
         .order('created_at', { ascending: false })
-        .limit(10),
+        .limit(30),
       
-      // Decisions (last 5)
+      // Decisions (last 15)
       client
         .from('workspace_decisions')
         .select('title, decision, decision_date')
         .eq('workspace_id', workspaceId)
         .order('decision_date', { ascending: false })
-        .limit(5),
+        .limit(15),
       
       // Debt (critical and high only)
       client
@@ -277,30 +287,30 @@ export async function buildWorkspaceContext(
         .limit(1)
         .maybeSingle(),
       
-      // Success Metrics (reduced to 5 for performance)
+      // Success Metrics (expanded for comprehensive AI context)
       client
         .from('workspace_success_metrics')
         .select('metric_name, current_value, target_value, health_status, status')
         .eq('workspace_id', workspaceId)
         .eq('status', 'active')
         .order('created_at', { ascending: false })
-        .limit(5),
+        .limit(15),
       
-      // User Insights (reduced to 5 for performance)
+      // User Insights (expanded for comprehensive AI context)
       client
         .from('workspace_user_insights')
         .select('title, insight_type, pain_points')
         .eq('workspace_id', workspaceId)
         .order('insight_date', { ascending: false })
-        .limit(5),
+        .limit(15),
       
-      // Experiments (reduced to 5 for performance)
+      // Experiments (expanded for comprehensive AI context)
       client
         .from('workspace_experiments')
         .select('title, status, hypothesis_validated')
         .eq('workspace_id', workspaceId)
         .order('created_at', { ascending: false })
-        .limit(5),
+        .limit(15),
       
       // Feedback (reduced to 10 for performance)
       client
@@ -338,13 +348,13 @@ export async function buildWorkspaceContext(
         .order('planned_date', { ascending: true })
         .limit(5),
       
-      // Stakeholders (reduced to 10 for performance)
+      // Stakeholders (expanded for comprehensive AI context)
       client
         .from('workspace_stakeholders')
         .select('name, role, power_level, interest_level, alignment_status, key_concerns')
         .eq('workspace_id', workspaceId)
         .order('created_at', { ascending: false })
-        .limit(10),
+        .limit(25),
       
       // Stakeholder Updates
       client
@@ -356,12 +366,65 @@ export async function buildWorkspaceContext(
         .limit(5),
     ]);
 
-    // Extract key fields from phase data (first 3 non-empty fields)
-    const extractKeyFields = (data: any): string[] => {
+    // Extract key fields from phase data with value previews (expanded for comprehensive AI context)
+    const extractKeyFieldsWithValues = (data: any): Array<{ key: string; preview: string }> => {
       if (!data) return [];
-      return Object.keys(data)
-        .filter(key => !key.startsWith('_') && data[key])
-        .slice(0, 3);
+      return Object.entries(data)
+        .filter(([key, value]) => 
+          !key.startsWith('_') && 
+          value && 
+          !['master_prompt', 'generated_document', 'document_generated_at'].includes(key)
+        )
+        .slice(0, 15)
+        .map(([key, value]) => ({
+          key,
+          preview: typeof value === 'string'
+            ? value.substring(0, 500).replace(/\n/g, ' ')
+            : Array.isArray(value)
+              ? (value as unknown[]).slice(0, 5).map(v => 
+                  typeof v === 'string' ? v : JSON.stringify(v).substring(0, 100)
+                ).join(', ')
+              : JSON.stringify(value).substring(0, 200),
+        }));
+    };
+
+    /**
+     * Calculate suggested phase date ranges by distributing SOW timeline across phases
+     */
+    const calculatePhaseDates = (
+      phaseCount: number,
+      sowTimeline?: { start_date: string; end_date: string }
+    ): Map<number, { start: string; end: string }> => {
+      const phaseDates = new Map<number, { start: string; end: string }>();
+      
+      if (!sowTimeline?.start_date || !sowTimeline?.end_date || phaseCount === 0) {
+        return phaseDates;
+      }
+
+      const startDate = new Date(sowTimeline.start_date);
+      const endDate = new Date(sowTimeline.end_date);
+      const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      const daysPerPhase = Math.ceil(totalDays / phaseCount);
+
+      for (let i = 1; i <= phaseCount; i++) {
+        const phaseStart = new Date(startDate);
+        phaseStart.setDate(phaseStart.getDate() + (i - 1) * daysPerPhase);
+        
+        const phaseEnd = new Date(phaseStart);
+        phaseEnd.setDate(phaseEnd.getDate() + daysPerPhase - 1);
+        
+        // Don't exceed the SOW end date
+        if (phaseEnd > endDate) {
+          phaseEnd.setTime(endDate.getTime());
+        }
+
+        phaseDates.set(i, {
+          start: phaseStart.toISOString().split('T')[0],
+          end: phaseEnd.toISOString().split('T')[0],
+        });
+      }
+
+      return phaseDates;
     };
 
     // Build team summary with custom organization roles from SOW
@@ -443,16 +506,27 @@ export async function buildWorkspaceContext(
       }
     });
 
-    // Build phases summary
-    const phases = (phasesRes.data || []).map((phase) => ({
-      phase_number: phase.phase_number,
-      phase_name: phase.phase_name,
-      completed: phase.completed,
-      progress: 0, // Could calculate if needed
-      key_fields: extractKeyFields(phase.data),
-    }));
+    // Get SOW data for phase date calculations
+    const sowData = sowRes.data;
+    const sowTimeline = sowData?.timeline as { start_date: string; end_date: string } | undefined;
+    const phaseCount = (phasesRes.data || []).length;
+    const phaseDateRanges = calculatePhaseDates(phaseCount, sowTimeline);
 
-    // Build tasks summary with assignee names resolved
+    // Build phases summary with field values and calculated dates
+    const phases = (phasesRes.data || []).map((phase) => {
+      const dateRange = phaseDateRanges.get(phase.phase_number);
+      return {
+        phase_number: phase.phase_number,
+        phase_name: phase.phase_name,
+        completed: phase.completed,
+        progress: 0, // Could calculate if needed
+        key_fields: extractKeyFieldsWithValues(phase.data),
+        suggested_start_date: dateRange?.start,
+        suggested_end_date: dateRange?.end,
+      };
+    });
+
+    // Build tasks summary with assignee names resolved and full details
     const tasks = tasksRes.data || [];
     const tasksSummary = {
       total: tasks.length,
@@ -468,12 +542,20 @@ export async function buildWorkspaceContext(
         high: tasks.filter((t) => t.priority === 'high').length,
         critical: tasks.filter((t) => t.priority === 'critical').length,
       },
-      recent: tasks.slice(0, 10).map((t) => ({
+      recent: tasks.slice(0, 100).map((t) => ({
         title: t.title,
+        description: t.description || null,
         status: t.status,
         priority: t.priority,
         assignee: t.assignee_id ? (userIdToName[t.assignee_id] || 'Unknown') : null,
         assignee_id: t.assignee_id,
+        phase_number: t.phase_number || null,
+        start_date: t.start_date || null,
+        due_date: t.due_date || null,
+        estimated_hours: t.estimated_hours || null,
+        tags: t.tags || [],
+        notes: t.notes || null,
+        dependencies: t.dependencies || [],
       })),
     };
 
@@ -507,8 +589,7 @@ export async function buildWorkspaceContext(
       debt_type: d.debt_type,
     }));
 
-    // Build SOW summary
-    const sowData = sowRes.data;
+    // Build SOW summary (sowData already declared above for phase date calculations)
     const sow = sowData
       ? {
           exists: true,
@@ -692,8 +773,17 @@ ${context.sow.timeline ? `Timeline: ${context.sow.timeline.start_date} to ${cont
 ${context.sow.budget?.estimated_hours ? `Estimated Hours: ${context.sow.budget.estimated_hours}h` : ''}
 ${context.sow.budget?.total_budget ? `Budget: $${context.sow.budget.total_budget}` : ''}
 
-` : ''}**PHASES PROGRESS:**
-${context.phases.map((p) => `- Phase ${p.phase_number}: ${p.phase_name} - ${p.completed ? 'COMPLETED ✓' : 'In Progress'}`).join('\n')}
+` : ''}**PHASES WITH TIMELINE & CONTENT:**
+${context.phases.map((p) => {
+  const dateRange = p.suggested_start_date && p.suggested_end_date 
+    ? ` (${p.suggested_start_date} to ${p.suggested_end_date})`
+    : '';
+  const status = p.completed ? 'COMPLETED ✓' : 'In Progress';
+  const fieldPreviews = p.key_fields.length > 0 
+    ? '\n' + p.key_fields.map(f => `  - ${f.key}: ${f.preview}${f.preview.length >= 500 ? '...' : ''}`).join('\n')
+    : '';
+  return `- Phase ${p.phase_number}: ${p.phase_name}${dateRange} - ${status}${fieldPreviews}`;
+}).join('\n')}
 
 **TASKS SUMMARY:**
 - Total Tasks: ${context.tasks.total}
@@ -701,13 +791,57 @@ ${context.phases.map((p) => `- Phase ${p.phase_number}: ${p.phase_name} - ${p.co
 - Priority: ${context.tasks.by_priority.critical} critical, ${context.tasks.by_priority.high} high, ${context.tasks.by_priority.medium} medium, ${context.tasks.by_priority.low} low
 `;
 
-  // Add recent tasks if available (with assignees)
+  // Add all tasks with full details for AI context
   if (context.tasks.recent.length > 0) {
-    prompt += `\n**RECENT TASKS:**\n`;
-    prompt += context.tasks.recent.slice(0, 5).map((t) => {
-      const assigneeInfo = t.assignee ? ` - Assigned to: ${t.assignee}` : ' - Unassigned';
-      return `- [${t.priority.toUpperCase()}] ${t.title} (${t.status})${assigneeInfo}`;
-    }).join('\n');
+    prompt += `\n**PROJECT TASKS (${context.tasks.recent.length} shown):**\n`;
+    prompt += context.tasks.recent.map((t) => {
+      const assigneeInfo = t.assignee ? `Assigned: ${t.assignee}` : 'Unassigned';
+      const phaseInfo = t.phase_number ? `Phase ${t.phase_number}` : 'No phase';
+      const dateInfo = t.start_date || t.due_date 
+        ? `${t.start_date || '?'} → ${t.due_date || '?'}`
+        : 'No dates';
+      const hoursInfo = t.estimated_hours ? `${t.estimated_hours}h` : '';
+      const tagsInfo = t.tags.length > 0 ? `[${t.tags.join(', ')}]` : '';
+      
+      // Build full task details
+      let taskDetails = `- [${t.priority.toUpperCase()}] ${t.title} (${t.status}) | ${phaseInfo} | ${dateInfo} | ${assigneeInfo} ${hoursInfo} ${tagsInfo}`;
+      
+      // Add description (expanded)
+      if (t.description) {
+        taskDetails += `\n  Description: ${t.description.substring(0, 300)}${t.description.length > 300 ? '...' : ''}`;
+      }
+      
+      // Parse and add notes (contains requirements, user stories, acceptance criteria)
+      if (t.notes) {
+        try {
+          const notesData = JSON.parse(t.notes);
+          if (notesData.requirements && Array.isArray(notesData.requirements) && notesData.requirements.length > 0) {
+            taskDetails += `\n  Requirements: ${notesData.requirements.slice(0, 5).join('; ')}`;
+          }
+          if (notesData.userStories && Array.isArray(notesData.userStories) && notesData.userStories.length > 0) {
+            taskDetails += `\n  User Stories: ${notesData.userStories.slice(0, 3).join('; ')}`;
+          }
+          if (notesData.acceptanceCriteria && Array.isArray(notesData.acceptanceCriteria) && notesData.acceptanceCriteria.length > 0) {
+            taskDetails += `\n  Acceptance Criteria: ${notesData.acceptanceCriteria.slice(0, 3).join('; ')}`;
+          }
+          if (notesData.notes && typeof notesData.notes === 'string') {
+            taskDetails += `\n  Notes: ${notesData.notes.substring(0, 200)}`;
+          }
+        } catch {
+          // Notes is plain text, not JSON
+          if (typeof t.notes === 'string' && t.notes.length > 0) {
+            taskDetails += `\n  Notes: ${t.notes.substring(0, 200)}${t.notes.length > 200 ? '...' : ''}`;
+          }
+        }
+      }
+      
+      // Add dependencies
+      if (t.dependencies && t.dependencies.length > 0) {
+        taskDetails += `\n  Dependencies: ${t.dependencies.length} task(s)`;
+      }
+      
+      return taskDetails;
+    }).join('\n\n');
   }
 
   // Add clarity specs if available

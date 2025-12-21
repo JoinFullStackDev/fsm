@@ -30,7 +30,6 @@ import {
   Description as DescriptionIcon,
   Article as ArticleIcon,
   Assignment as AssignmentIcon,
-  Schedule as ScheduleIcon,
   Business as BusinessIcon,
   Contacts as ContactsIcon,
   TrendingUp as TrendingUpIcon,
@@ -84,7 +83,6 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [projectManagementProjects, setProjectManagementProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [myTasksCount, setMyTasksCount] = useState(0);
   const [projectTaskProgress, setProjectTaskProgress] = useState<Record<string, { completed: number; total: number }>>({});
   const [projectsExpanded, setProjectsExpanded] = useState(false);
   const [templatesExpanded, setTemplatesExpanded] = useState(false);
@@ -217,54 +215,6 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
     setProjectManagementProjects(projects);
   }, [projects]);
 
-  // Load task count for "My Tasks" badge
-  useEffect(() => {
-    const loadMyTasksCount = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          setMyTasksCount(0);
-          return;
-        }
-
-        // Use API route to get projects (avoids RLS recursion)
-        const projectsResponse = await fetch('/api/projects?limit=1000');
-        if (!projectsResponse.ok) {
-          setMyTasksCount(0);
-          return;
-        }
-
-        const projectsData = await projectsResponse.json();
-        // API returns { data: [...] } not { projects: [...] }
-        const projectsList = projectsData.data || projectsData.projects || [];
-        
-        if (projectsList.length === 0) {
-          setMyTasksCount(0);
-          return;
-        }
-
-        // Use dedicated my-tasks API for efficient task count
-        // Filters: status=todo,in_progress, due_date_filter=next_2_weeks
-        const tasksResponse = await fetch('/api/my-tasks?status=todo,in_progress&due_date_filter=next_2_weeks');
-        if (tasksResponse.ok) {
-          const tasksData = await tasksResponse.json();
-          setMyTasksCount(tasksData.count || 0);
-        } else {
-          setMyTasksCount(0);
-        }
-      } catch (error) {
-        console.error('Error loading my tasks count:', error);
-        setMyTasksCount(0);
-      }
-    };
-
-    loadMyTasksCount();
-    // Refresh count every minute
-    const interval = setInterval(loadMyTasksCount, 60000);
-    return () => clearInterval(interval);
-  }, [supabase]);
-
-
   const isActive = (path: string) => {
     if (path === '/dashboard') {
       return pathname === '/dashboard';
@@ -277,9 +227,6 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
     }
     if (path === '/templates') {
       return pathname === '/templates';
-    }
-    if (path === '/my-tasks') {
-      return pathname === '/my-tasks';
     }
     if (path === '/teams') {
       return pathname?.startsWith('/teams');
@@ -1470,73 +1417,9 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
         </Paper>
       </Popover>
 
-      {/* My Tasks - Bottom Navigation Item */}
+      {/* Bottom Navigation Items */}
       <Box sx={{ borderTop: `1px solid ${theme.palette.divider}`, flexShrink: 0 }}>
         <List>
-          <ListItem disablePadding>
-            <Tooltip
-              title="My Tasks"
-              placement="right"
-              arrow
-              disableHoverListener={open}
-              disableFocusListener={open}
-              disableTouchListener={open}
-            >
-              <ListItemButton
-                onClick={() => handleNavigate('/my-tasks')}
-                selected={isActive('/my-tasks')}
-                sx={{
-                  minHeight: 48,
-                  position: 'relative',
-                  '&.Mui-selected': {
-                    backgroundColor: theme.palette.action.hover,
-                    borderLeft: `1px solid ${theme.palette.text.primary}`,
-                    '&:hover': {
-                      backgroundColor: theme.palette.action.hover,
-                    },
-                  },
-                  '&:hover': {
-                    backgroundColor: theme.palette.action.hover,
-                  },
-                }}
-              >
-                <ListItemIcon
-                  sx={{
-                    minWidth: open ? 40 : 40,
-                    justifyContent: 'center',
-                    color: isActive('/my-tasks') ? theme.palette.text.primary : theme.palette.text.secondary,
-                  }}
-                >
-                  <ScheduleIcon sx={{ fontSize: 20 }} />
-                </ListItemIcon>
-                {open && (
-                  <>
-                    <ListItemText primary="My Tasks" primaryTypographyProps={{ fontSize: '0.75rem' }} />
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        ml: 'auto',
-                        mr: 1,
-                        minWidth: 20,
-                        height: 20,
-                        borderRadius: '10px',
-                        backgroundColor: theme.palette.text.primary,
-                        color: theme.palette.background.default,
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        px: 0.75,
-                      }}
-                    >
-                      {myTasksCount}
-                    </Box>
-                  </>
-                )}
-              </ListItemButton>
-            </Tooltip>
-          </ListItem>
-
           {/* Teams */}
           <ListItem disablePadding>
             <Tooltip

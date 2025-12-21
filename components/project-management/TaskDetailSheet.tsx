@@ -53,6 +53,45 @@ const DEFAULT_PHASE_NAMES: Record<number, string> = {
   6: 'QA & Hardening',
 };
 
+// Helper function to format date for datetime-local input (uses local timezone)
+const formatDateForInput = (isoString: string | null): string => {
+  if (!isoString) return '';
+  try {
+    // Handle date-only strings (YYYY-MM-DD) by treating them as local dates
+    // JavaScript's Date parses "YYYY-MM-DD" as UTC, causing timezone shift issues
+    let date: Date;
+    if (isoString.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(isoString)) {
+      // Date-only string: parse as local date by adding time component
+      const [year, month, day] = isoString.split('-').map(Number);
+      date = new Date(year, month - 1, day, 12, 0, 0); // Use noon to avoid edge cases
+    } else {
+      date = new Date(isoString);
+    }
+    
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  } catch {
+    return '';
+  }
+};
+
+// Helper function to parse datetime-local input value and convert to ISO string
+const parseDateFromInput = (localDateTimeString: string): string | null => {
+  if (!localDateTimeString) return null;
+  try {
+    // datetime-local gives us "YYYY-MM-DDTHH:mm" in local time
+    // We need to convert this to an ISO string (UTC)
+    const date = new Date(localDateTimeString);
+    return date.toISOString();
+  } catch {
+    return null;
+  }
+};
+
 export default function TaskDetailSheet({
   open,
   task,
@@ -254,7 +293,7 @@ export default function TaskDetailSheet({
               <TextField
                 label="Start Date"
                 type="datetime-local"
-                value={formData.start_date ? new Date(formData.start_date).toISOString().slice(0, 16) : ''}
+                value={formatDateForInput(formData.start_date ?? null)}
                 onChange={(e) => {
                   const newStartDate = e.target.value ? new Date(e.target.value).toISOString() : null;
                   // Ensure start_date is not after due_date
@@ -305,7 +344,7 @@ export default function TaskDetailSheet({
               <TextField
                 label="Due Date"
                 type="datetime-local"
-                value={formData.due_date ? new Date(formData.due_date).toISOString().slice(0, 16) : ''}
+                value={formatDateForInput(formData.due_date ?? null)}
                 onChange={(e) => {
                   const newDueDate = e.target.value ? new Date(e.target.value).toISOString() : null;
                   // Ensure due_date is not before start_date

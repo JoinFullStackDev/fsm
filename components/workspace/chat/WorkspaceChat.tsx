@@ -32,7 +32,14 @@ import { consumeStream, parseActionBlocks } from '@/lib/utils/streamingClient';
 import { getCsrfHeaders } from '@/lib/utils/csrfClient';
 import MessageBubble from './MessageBubble';
 import SuggestedPrompts from './SuggestedPrompts';
-import type { ConversationMessage, WorkspaceConversation } from '@/types/workspace';
+import type { ConversationMessage, WorkspaceConversation, ConversationAction } from '@/types/workspace';
+
+/**
+ * Compare actions by type + data content instead of reference equality.
+ * This fixes the bug where accepting the second action fails after state updates.
+ */
+const isSameAction = (a: ConversationAction, b: ConversationAction): boolean =>
+  a.type === b.type && JSON.stringify(a.data) === JSON.stringify(b.data);
 
 interface WorkspaceChatProps {
   projectId: string;
@@ -283,11 +290,11 @@ export default function WorkspaceChat({
       const result = await response.json();
       showSuccess(`Action executed: ${action.type}`);
 
-      // Update action status in local messages
+      // Update action status in local messages (use content comparison, not reference equality)
       const updatedMessages = messages.map((msg) => ({
         ...msg,
         actions: msg.actions?.map((a) =>
-          a === action ? { ...a, status: 'executed' as const, result: result.result } : a
+          isSameAction(a, action) ? { ...a, status: 'executed' as const, result: result.result } : a
         ),
       }));
       setMessages(updatedMessages);
@@ -306,10 +313,10 @@ export default function WorkspaceChat({
   };
 
   const handleActionReject = async (action: any) => {
-    // Update action status in local messages
+    // Update action status in local messages (use content comparison, not reference equality)
     const updatedMessages = messages.map((msg) => ({
       ...msg,
-      actions: msg.actions?.map((a) => (a === action ? { ...a, status: 'rejected' as const } : a)),
+      actions: msg.actions?.map((a) => (isSameAction(a, action) ? { ...a, status: 'rejected' as const } : a)),
     }));
     setMessages(updatedMessages);
 
