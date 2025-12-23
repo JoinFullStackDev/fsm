@@ -12,7 +12,6 @@ import {
   Box,
   Typography,
   Divider,
-  useMediaQuery,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -49,7 +48,6 @@ interface TopBarProps {
 export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
   const router = useRouter();
   const theme = useTheme();
-  const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
   const supabase = createSupabaseClient();
   const { role, isSuperAdmin, loading: roleLoading } = useRole();
   const { features, loading: orgLoading } = useOrganization();
@@ -266,30 +264,37 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
           PaperProps={{
             sx: {
               mt: 1,
-              minWidth: 200,
+              minWidth: 180,
               backgroundColor: theme.palette.background.paper,
               border: `1px solid ${theme.palette.divider}`,
               '& .MuiMenuItem-root': {
                 color: theme.palette.text.primary,
+                minHeight: 36,
+                py: 0.75,
+                px: 1.5,
+                fontSize: '0.8125rem',
                 '&:hover': {
                   backgroundColor: theme.palette.action.hover,
                   color: theme.palette.text.primary,
+                },
+                '&:active': {
+                  backgroundColor: theme.palette.action.selected,
                 },
               },
             },
           }}
         >
           {user && (
-            <Box sx={{ px: 2, py: 1.5 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+            <Box sx={{ px: 1.5, py: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.8125rem', color: theme.palette.text.primary }}>
                 {user.name || 'User'}
               </Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              <Typography variant="caption" sx={{ fontSize: '0.7rem', color: theme.palette.text.secondary }}>
                 {user.email}
               </Typography>
             </Box>
           )}
-          <Divider sx={{ borderColor: theme.palette.divider }} />
+          <Divider sx={{ borderColor: theme.palette.divider, my: 0.5 }} />
           <MenuItem
             onClick={() => handleNavigate('/dashboard')}
             sx={{
@@ -304,8 +309,8 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
               },
             }}
           >
-            <DashboardIcon fontSize="small" sx={{ mr: isDesktop ? 1.5 : 0, color: theme.palette.text.primary }} />
-            {isDesktop && <Box component="span" sx={{ color: theme.palette.text.primary, fontSize: '0.875rem' }}>Dashboard</Box>}
+            <DashboardIcon sx={{ fontSize: 18, mr: 1, color: theme.palette.text.primary }} />
+            <Typography sx={{ fontSize: '0.8125rem', color: theme.palette.text.primary }}>Dashboard</Typography>
           </MenuItem>
           {!roleLoading && isSuperAdmin && (
             <MenuItem
@@ -317,8 +322,8 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
                 },
               }}
             >
-              <SecurityIcon fontSize="small" sx={{ mr: 1.5, color: theme.palette.text.primary }} />
-              <Typography sx={{ color: theme.palette.text.primary }}>Super Admin</Typography>
+              <SecurityIcon sx={{ fontSize: 18, mr: 1, color: theme.palette.text.primary }} />
+              <Typography sx={{ fontSize: '0.8125rem', color: theme.palette.text.primary }}>Super Admin</Typography>
             </MenuItem>
           )}
           {!roleLoading && role === 'admin' && (
@@ -331,8 +336,8 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
                 },
               }}
             >
-              <AdminIcon fontSize="small" sx={{ mr: 1.5, color: theme.palette.text.primary }} />
-              <Typography sx={{ color: theme.palette.text.primary }}>Admin</Typography>
+              <AdminIcon sx={{ fontSize: 18, mr: 1, color: theme.palette.text.primary }} />
+              <Typography sx={{ fontSize: '0.8125rem', color: theme.palette.text.primary }}>Admin</Typography>
             </MenuItem>
           )}
           <MenuItem
@@ -344,8 +349,8 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
               },
             }}
           >
-            <PersonIcon fontSize="small" sx={{ mr: 1.5, color: theme.palette.text.primary }} />
-            <Typography sx={{ color: theme.palette.text.primary }}>Profile</Typography>
+            <PersonIcon sx={{ fontSize: 18, mr: 1, color: theme.palette.text.primary }} />
+            <Typography sx={{ fontSize: '0.8125rem', color: theme.palette.text.primary }}>Profile</Typography>
           </MenuItem>
           <MenuItem
             onClick={() => handleNavigate('/my-requests')}
@@ -356,8 +361,8 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
               },
             }}
           >
-            <TrackChangesIcon fontSize="small" sx={{ mr: 1.5, color: theme.palette.text.primary }} />
-            <Typography sx={{ color: theme.palette.text.primary }}>My Requests</Typography>
+            <TrackChangesIcon sx={{ fontSize: 18, mr: 1, color: theme.palette.text.primary }} />
+            <Typography sx={{ fontSize: '0.8125rem', color: theme.palette.text.primary }}>My Requests</Typography>
           </MenuItem>
           {user?.is_affiliate && (
             <MenuItem
@@ -369,11 +374,11 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
                 },
               }}
             >
-              <LinkIcon fontSize="small" sx={{ mr: 1.5, color: theme.palette.text.primary }} />
-              <Typography sx={{ color: theme.palette.text.primary }}>Affiliate Dashboard</Typography>
+              <LinkIcon sx={{ fontSize: 18, mr: 1, color: theme.palette.text.primary }} />
+              <Typography sx={{ fontSize: '0.8125rem', color: theme.palette.text.primary }}>Affiliate Dashboard</Typography>
             </MenuItem>
           )}
-          <Divider sx={{ borderColor: theme.palette.divider }} />
+          <Divider sx={{ borderColor: theme.palette.divider, my: 0.5 }} />
           <MenuItem
             onClick={handleSignOut}
             sx={{
@@ -383,8 +388,8 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
               },
             }}
           >
-            <LogoutIcon fontSize="small" sx={{ mr: 1.5, color: theme.palette.text.primary }} />
-            <Typography sx={{ color: theme.palette.text.primary }}>Sign Out</Typography>
+            <LogoutIcon sx={{ fontSize: 18, mr: 1, color: theme.palette.text.primary }} />
+            <Typography sx={{ fontSize: '0.8125rem', color: theme.palette.text.primary }}>Sign Out</Typography>
           </MenuItem>
         </Menu>
       </Toolbar>

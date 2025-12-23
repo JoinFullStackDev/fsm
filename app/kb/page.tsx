@@ -14,10 +14,14 @@ import {
   Pagination,
   Chip,
   IconButton,
+  Drawer,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import {
   SmartToy as AIIcon,
   Search as SearchIcon,
+  Menu as MenuIcon,
 } from '@mui/icons-material';
 import { useOrganization } from '@/components/providers/OrganizationProvider';
 import CategorySidebar from '@/components/kb/CategorySidebar';
@@ -28,6 +32,8 @@ import type { KnowledgeBaseArticleWithCategory, KnowledgeBaseCategoryWithChildre
 function KnowledgeBaseContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { features, organization, loading: orgLoading } = useOrganization();
   const [articles, setArticles] = useState<KnowledgeBaseArticleWithCategory[]>([]);
   const [categories, setCategories] = useState<KnowledgeBaseCategoryWithChildren[]>([]);
@@ -39,6 +45,7 @@ function KnowledgeBaseContent() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [chatOpen, setChatOpen] = useState(false);
+  const [categorySidebarOpen, setCategorySidebarOpen] = useState(false);
   const selectedCategoryId = searchParams.get('category');
   
   // Memoize selectedCategoryId to prevent unnecessary re-renders
@@ -338,18 +345,50 @@ function KnowledgeBaseContent() {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-      <CategorySidebar
-        categories={categories}
-        selectedCategoryId={selectedCategoryId}
-        onCategorySelect={(id) => {
-          router.push(id ? `/kb?category=${id}` : '/kb');
-        }}
-      />
+      {/* Mobile: Category Sidebar as Drawer */}
+      {isMobile ? (
+        <Drawer
+          open={categorySidebarOpen}
+          onClose={() => setCategorySidebarOpen(false)}
+          sx={{
+            '& .MuiDrawer-paper': {
+              width: 280,
+            },
+          }}
+        >
+          <CategorySidebar
+            categories={categories}
+            selectedCategoryId={selectedCategoryId}
+            onCategorySelect={(id) => {
+              router.push(id ? `/kb?category=${id}` : '/kb');
+              setCategorySidebarOpen(false);
+            }}
+          />
+        </Drawer>
+      ) : (
+        /* Desktop: Category Sidebar always visible */
+        <CategorySidebar
+          categories={categories}
+          selectedCategoryId={selectedCategoryId}
+          onCategorySelect={(id) => {
+            router.push(id ? `/kb?category=${id}` : '/kb');
+          }}
+        />
+      )}
 
       <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
         <Box sx={{ p: 3, borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+            {/* Mobile: Categories toggle button */}
+            {isMobile && (
+              <IconButton
+                onClick={() => setCategorySidebarOpen(true)}
+                sx={{ border: 1, borderColor: 'divider' }}
+              >
+                <MenuIcon />
+              </IconButton>
+            )}
             <Typography variant="h4" sx={{ flexGrow: 1 }}>
               Knowledge Base
             </Typography>

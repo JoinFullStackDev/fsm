@@ -107,7 +107,13 @@ export default function AIChatDrawer({ open, onClose, organizationId }: AIChatDr
       open={open}
       onClose={onClose}
       PaperProps={{
-        sx: { width: { xs: '100%', sm: 400, md: 500 }, display: 'flex', flexDirection: 'column' },
+        sx: { 
+          width: { xs: '100%', sm: 400, md: 500 }, 
+          display: 'flex', 
+          flexDirection: 'column',
+          transform: 'translateY(60px) !important',
+          maxHeight: 'calc(100vh - 60px)',
+        },
       }}
     >
       <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>

@@ -44,11 +44,18 @@ export default function ArticleViewer({ article, onExportPDF }: ArticleViewerPro
 
       {/* Header */}
       <Box sx={{ mb: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-          <Typography variant="h3" component="h1" sx={{ fontWeight: 600 }}>
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: { xs: 'column', sm: 'row' },
+          justifyContent: 'space-between', 
+          alignItems: { xs: 'flex-start', sm: 'flex-start' }, 
+          gap: { xs: 1, sm: 2 },
+          mb: 2 
+        }}>
+          <Typography variant="h3" component="h1" sx={{ fontWeight: 600, fontSize: { xs: '1.75rem', sm: '2.5rem' } }}>
             {article.title}
           </Typography>
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
             <Tooltip title="Print">
               <IconButton onClick={handlePrint} size="small">
                 <PrintIcon />
@@ -85,7 +92,13 @@ export default function ArticleViewer({ article, onExportPDF }: ArticleViewerPro
         )}
 
         {/* Metadata */}
-        <Box sx={{ display: 'flex', gap: 2, color: 'text.secondary', fontSize: '0.875rem' }}>
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: { xs: 0.5, sm: 2 }, 
+          color: 'text.secondary', 
+          fontSize: '0.875rem' 
+        }}>
           {article.metadata?.reading_time && (
             <Typography variant="body2">
               {article.metadata.reading_time} min read

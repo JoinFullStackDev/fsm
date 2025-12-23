@@ -11,6 +11,7 @@ import {
   Alert,
   Paper,
   useTheme,
+  useMediaQuery,
   alpha,
   List,
   ListItem,
@@ -83,6 +84,7 @@ const quotes = [
 
 export default function AISummarySheet({ open, projectId, projectName, onClose }: AISummarySheetProps) {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [savedSummaries, setSavedSummaries] = useState<SavedSummary[]>([]);
   const [selectedSummary, setSelectedSummary] = useState<SavedSummary | null>(null);
   const [loading, setLoading] = useState(false);
@@ -92,6 +94,13 @@ export default function AISummarySheet({ open, projectId, projectName, onClose }
   const [copied, setCopied] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+
+  // Auto-collapse history sidebar on mobile when drawer opens
+  useEffect(() => {
+    if (open && isMobile) {
+      setShowHistory(false);
+    }
+  }, [open, isMobile]);
 
   // Building blocks configuration
   const blocks = [

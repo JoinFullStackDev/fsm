@@ -12,6 +12,7 @@ import {
   Divider,
   Button,
   CircularProgress,
+  useMediaQuery,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -29,6 +30,7 @@ interface NotificationBellProps {
 export default function NotificationBell({ onOpenDrawer }: NotificationBellProps) {
   const router = useRouter();
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { notifications, unreadCount, loading, markAsRead } = useNotification();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
@@ -109,21 +111,26 @@ export default function NotificationBell({ onOpenDrawer }: NotificationBellProps
         onClose={handleMenuClose}
         anchorOrigin={{
           vertical: 'bottom',
-          horizontal: 'right',
+          horizontal: isMobile ? 'center' : 'right',
         }}
         transformOrigin={{
           vertical: 'top',
-          horizontal: 'right',
+          horizontal: isMobile ? 'center' : 'right',
         }}
         PaperProps={{
           sx: {
             mt: 1,
-            minWidth: 320,
-            maxWidth: 400,
+            width: isMobile ? 'calc(100vw - 32px)' : 'auto',
+            minWidth: isMobile ? 'unset' : 320,
+            maxWidth: isMobile ? 'calc(100vw - 32px)' : 400,
             maxHeight: 500,
             backgroundColor: theme.palette.background.paper,
             border: `1px solid ${theme.palette.divider}`,
             overflow: 'auto',
+            ...(isMobile && {
+              left: '16px !important',
+              right: '16px !important',
+            }),
           },
         }}
       >
