@@ -630,7 +630,7 @@ export default function AISummarySheet({ open, projectId, projectName, onClose }
                   onClick={generateSummary}
                   sx={{
                     backgroundColor: theme.palette.primary.main,
-                    color: '#1a1a1a',
+                    color: theme.palette.primary.contrastText,
                     '&:hover': {
                       backgroundColor: theme.palette.primary.light,
                     },

@@ -31,6 +31,7 @@ import {
   Notes as NotesIcon,
   Work as WorkIcon,
   Receipt as ReceiptIcon,
+  Handshake as HandshakeIcon,
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useNotification } from '@/components/providers/NotificationProvider';
@@ -41,6 +42,7 @@ import CompanyOpportunitiesTab from '@/components/ops/CompanyOpportunitiesTab';
 import CompanyContactsTab from '@/components/ops/CompanyContactsTab';
 import CompanyTasksTab from '@/components/ops/CompanyTasksTab';
 import CompanyInvoicesTab from '@/components/ops/CompanyInvoicesTab';
+import CompanyPartnerTab from '@/components/ops/CompanyPartnerTab';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -293,8 +295,8 @@ export default function CompanyDetailPage() {
     );
   }
 
-  // Determine which tabs to show
-  const tabs = [
+  // Determine which tabs to show - include Partner tab if company is a partner
+  const baseTabs = [
     { label: 'Activity', icon: <HistoryIcon />, index: 0 },
     { label: 'Projects', icon: <FolderIcon />, index: 1 },
     { label: 'Opportunities', icon: <TrendingUpIcon />, index: 2 },
@@ -303,6 +305,11 @@ export default function CompanyDetailPage() {
     { label: 'Invoices', icon: <ReceiptIcon />, index: 5 },
     { label: 'Notes', icon: <NotesIcon />, index: 6 },
   ];
+  
+  // Add Partner tab if company is a partner
+  const tabs = company.is_partner 
+    ? [...baseTabs, { label: 'Partner Stats', icon: <HandshakeIcon />, index: 7 }]
+    : baseTabs;
 
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
@@ -502,11 +509,21 @@ export default function CompanyDetailPage() {
               <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mb: 0.5 }}>
                 Status
               </Typography>
-              <Chip
-                label={company.status.charAt(0).toUpperCase() + company.status.slice(1)}
-                size="small"
-                color={company.status === 'active' ? 'success' : 'default'}
-              />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Chip
+                  label={company.status.charAt(0).toUpperCase() + company.status.slice(1)}
+                  size="small"
+                  color={company.status === 'active' ? 'success' : 'default'}
+                />
+                {company.is_partner && (
+                  <Chip
+                    icon={<HandshakeIcon sx={{ fontSize: 16 }} />}
+                    label="Partner"
+                    size="small"
+                    sx={{ backgroundColor: '#9C27B0', color: '#fff' }}
+                  />
+                )}
+              </Box>
             </Box>
           </Grid>
           {company.company_size && (
@@ -805,6 +822,13 @@ export default function CompanyDetailPage() {
           )}
         </Paper>
       </TabPanel>
+
+      {/* Partner Stats Tab (only shown if company is a partner) */}
+      {company.is_partner && (
+        <TabPanel value={activeTab} index={7}>
+          <CompanyPartnerTab companyId={companyId} />
+        </TabPanel>
+      )}
 
       {/* Delete Confirmation Dialog */}
       {deleteDialogOpen && (

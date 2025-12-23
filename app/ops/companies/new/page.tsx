@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Container,
@@ -15,11 +15,15 @@ import {
   Select,
   Alert,
   IconButton,
+  FormControlLabel,
+  Switch,
+  Divider,
+  InputAdornment,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
+import { ArrowBack as ArrowBackIcon, Handshake as HandshakeIcon } from '@mui/icons-material';
 import { useNotification } from '@/components/providers/NotificationProvider';
-import type { CompanyStatus, CompanySize, RevenueBand } from '@/types/ops';
+import type { CompanyStatus, CompanySize, RevenueBand, PartnerCompanyOption } from '@/types/ops';
 
 export default function NewCompanyPage() {
   const theme = useTheme();
@@ -39,9 +43,36 @@ export default function NewCompanyPage() {
   const [address_zip, setAddressZip] = useState('');
   const [address_country, setAddressCountry] = useState('');
   const [account_notes, setAccountNotes] = useState('');
+  // Partner tracking fields
+  const [is_partner, setIsPartner] = useState(false);
+  const [partner_commission_rate, setPartnerCommissionRate] = useState('');
+  const [partner_contact_email, setPartnerContactEmail] = useState('');
+  const [partner_notes, setPartnerNotes] = useState('');
+  const [referred_by_company_id, setReferredByCompanyId] = useState('');
+  const [partnerOptions, setPartnerOptions] = useState<PartnerCompanyOption[]>([]);
+  const [loadingPartners, setLoadingPartners] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
+  // Load partner options for dropdown
+  useEffect(() => {
+    const loadPartners = async () => {
+      setLoadingPartners(true);
+      try {
+        const response = await fetch('/api/ops/partners?simple=true');
+        if (response.ok) {
+          const data = await response.json();
+          setPartnerOptions(data);
+        }
+      } catch (err) {
+        console.error('Error loading partners:', err);
+      } finally {
+        setLoadingPartners(false);
+      }
+    };
+    loadPartners();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,6 +107,12 @@ export default function NewCompanyPage() {
           address_zip: address_zip.trim() || null,
           address_country: address_country.trim() || null,
           account_notes: account_notes.trim() || null,
+          // Partner tracking fields
+          is_partner,
+          partner_commission_rate: is_partner && partner_commission_rate ? parseFloat(partner_commission_rate) : null,
+          partner_contact_email: is_partner && partner_contact_email.trim() ? partner_contact_email.trim() : null,
+          partner_notes: is_partner && partner_notes.trim() ? partner_notes.trim() : null,
+          referred_by_company_id: referred_by_company_id || null,
         }),
       });
 
@@ -546,6 +583,130 @@ export default function NewCompanyPage() {
               },
             }}
           />
+
+          {/* Partner Section */}
+          <Divider sx={{ my: 3 }} />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <HandshakeIcon sx={{ color: theme.palette.text.secondary }} />
+            <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+              Partnership Settings
+            </Typography>
+          </Box>
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={is_partner}
+                onChange={(e) => setIsPartner(e.target.checked)}
+                disabled={loading}
+              />
+            }
+            label="This company is a partner (refers clients to us)"
+            sx={{ mb: 2, color: theme.palette.text.primary }}
+          />
+
+          {is_partner && (
+            <Box sx={{ pl: 2, borderLeft: `3px solid ${theme.palette.primary.main}` }}>
+              <TextField
+                fullWidth
+                label="Commission Rate (%)"
+                type="number"
+                value={partner_commission_rate}
+                onChange={(e) => setPartnerCommissionRate(e.target.value)}
+                margin="normal"
+                disabled={loading}
+                InputProps={{
+                  endAdornment: <InputAdornment position="end">%</InputAdornment>,
+                }}
+                inputProps={{ min: 0, max: 100, step: 0.5 }}
+                helperText="Default commission rate for referrals from this partner"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: theme.palette.action.hover,
+                    color: theme.palette.text.primary,
+                    '& fieldset': { borderColor: theme.palette.divider },
+                    '&:hover fieldset': { borderColor: theme.palette.text.secondary },
+                    '&.Mui-focused fieldset': { borderColor: theme.palette.text.primary },
+                  },
+                  '& .MuiInputLabel-root': { color: theme.palette.text.secondary },
+                  '& .MuiInputLabel-root.Mui-focused': { color: theme.palette.text.primary },
+                }}
+              />
+              <TextField
+                fullWidth
+                label="Partner Contact Email"
+                type="email"
+                value={partner_contact_email}
+                onChange={(e) => setPartnerContactEmail(e.target.value)}
+                margin="normal"
+                disabled={loading}
+                helperText="Primary contact for partnership-related communication"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: theme.palette.action.hover,
+                    color: theme.palette.text.primary,
+                    '& fieldset': { borderColor: theme.palette.divider },
+                    '&:hover fieldset': { borderColor: theme.palette.text.secondary },
+                    '&.Mui-focused fieldset': { borderColor: theme.palette.text.primary },
+                  },
+                  '& .MuiInputLabel-root': { color: theme.palette.text.secondary },
+                  '& .MuiInputLabel-root.Mui-focused': { color: theme.palette.text.primary },
+                }}
+              />
+              <TextField
+                fullWidth
+                label="Partner Notes"
+                value={partner_notes}
+                onChange={(e) => setPartnerNotes(e.target.value)}
+                multiline
+                rows={2}
+                margin="normal"
+                disabled={loading}
+                helperText="Internal notes about this partnership"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: theme.palette.action.hover,
+                    color: theme.palette.text.primary,
+                    '& fieldset': { borderColor: theme.palette.divider },
+                    '&:hover fieldset': { borderColor: theme.palette.text.secondary },
+                    '&.Mui-focused fieldset': { borderColor: theme.palette.text.primary },
+                  },
+                  '& .MuiInputLabel-root': { color: theme.palette.text.secondary },
+                  '& .MuiInputLabel-root.Mui-focused': { color: theme.palette.text.primary },
+                }}
+              />
+            </Box>
+          )}
+
+          {/* Referred By Partner (for non-partner companies) */}
+          {!is_partner && partnerOptions.length > 0 && (
+            <FormControl fullWidth margin="normal">
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Referred By Partner</InputLabel>
+              <Select
+                value={referred_by_company_id}
+                label="Referred By Partner"
+                onChange={(e) => setReferredByCompanyId(e.target.value)}
+                disabled={loading || loadingPartners}
+                sx={{
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.action.hover,
+                  '& .MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.divider },
+                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.text.secondary },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.text.primary },
+                  '& .MuiSvgIcon-root': { color: theme.palette.text.primary },
+                }}
+              >
+                <MenuItem value="">None</MenuItem>
+                {partnerOptions.map((partner) => (
+                  <MenuItem key={partner.id} value={partner.id}>
+                    {partner.name}
+                    {partner.partner_commission_rate && ` (${partner.partner_commission_rate}%)`}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+
           <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
             <Button
               variant="outlined"

@@ -33,6 +33,7 @@ import {
 import { useOrganization } from '@/components/providers/OrganizationProvider';
 import WorkspaceChat from '@/components/workspace/chat/WorkspaceChat';
 import HelpDrawer from '@/components/workspace/HelpDrawer';
+import ProjectContextNav from '@/components/project/ProjectContextNav';
 import type { ProjectWorkspaceWithCounts } from '@/types/workspace';
 
 export default function WorkspacePage() {
@@ -47,6 +48,8 @@ export default function WorkspacePage() {
   const [workspace, setWorkspace] = useState<ProjectWorkspaceWithCounts | null>(null);
   const [helpDrawerOpen, setHelpDrawerOpen] = useState(false);
   const [teamMembers, setTeamMembers] = useState<Array<{ user_id: string; name: string | null; email: string; role: string }>>([]);
+  const [taskCount, setTaskCount] = useState(0);
+  const [projectName, setProjectName] = useState('Project');
 
   useEffect(() => {
     if (!features?.product_workspace_enabled) {
@@ -57,9 +60,11 @@ export default function WorkspacePage() {
 
     const loadWorkspace = async () => {
       try {
-        const [workspaceRes, membersRes] = await Promise.all([
+        const [workspaceRes, membersRes, tasksRes, projectRes] = await Promise.all([
           fetch(`/api/workspaces/${projectId}`),
           fetch(`/api/projects/${projectId}/members`),
+          fetch(`/api/projects/${projectId}/tasks`),
+          fetch(`/api/projects/${projectId}`),
         ]);
 
         if (!workspaceRes.ok) {
@@ -81,6 +86,20 @@ export default function WorkspacePage() {
               role: m.role,
             }))
           );
+        }
+
+        // Load task count (non-blocking if fails)
+        if (tasksRes.ok) {
+          const tasksData = await tasksRes.json();
+          setTaskCount(Array.isArray(tasksData) ? tasksData.length : 0);
+        }
+
+        // Load project name (non-blocking if fails)
+        if (projectRes.ok) {
+          const projectData = await projectRes.json();
+          if (projectData?.name) {
+            setProjectName(projectData.name);
+          }
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load workspace');
@@ -128,52 +147,52 @@ export default function WorkspacePage() {
 
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
+      {/* Project Context Navigation */}
+      <ProjectContextNav
+        projectId={projectId}
+        projectName={projectName}
+        activeView="workspace"
+        taskCount={taskCount}
+      />
+
       {/* Header */}
       <Box sx={{ mb: 6 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-          <Button
-            startIcon={<ArrowBackIcon />}
-            onClick={() => router.push(`/project/${projectId}`)}
-            sx={{ fontWeight: 600 }}
-          >
-            Back to Project
-          </Button>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button
-              variant="outlined"
-              startIcon={<AssignmentIcon />}
-              onClick={() => router.push(`/project-management/${projectId}`)}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+            <Box
+              sx={{
+                background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                borderRadius: 3,
+                p: 2.5,
+                boxShadow: theme.shadows[8],
+              }}
             >
-              View Tasks
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<HelpOutlineIcon />}
-              onClick={() => setHelpDrawerOpen(true)}
-            >
-              Help & Tips
-            </Button>
+              <WorkspacePremiumIcon sx={{ fontSize: 48, color: 'white' }} />
+            </Box>
+            <Box>
+              <Typography variant="h2" component="h1" sx={{ fontWeight: 700, mb: 0.5, fontSize: { xs: '2rem', md: '3rem' } }}>
+                Product Workspace
+              </Typography>
+              <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 400 }}>
+                Clarity before code • Upstream product thinking
+              </Typography>
+            </Box>
           </Box>
-        </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          <Box
+          <Button
+            variant="outlined"
+            startIcon={<HelpOutlineIcon />}
+            onClick={() => setHelpDrawerOpen(true)}
             sx={{
-              background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
-              borderRadius: 3,
-              p: 2.5,
-              boxShadow: theme.shadows[8],
+              borderColor: theme.palette.divider,
+              color: theme.palette.text.primary,
+              '&:hover': {
+                borderColor: theme.palette.text.primary,
+                backgroundColor: theme.palette.action.hover,
+              },
             }}
           >
-            <WorkspacePremiumIcon sx={{ fontSize: 48, color: 'white' }} />
-          </Box>
-          <Box>
-            <Typography variant="h2" component="h1" sx={{ fontWeight: 700, mb: 0.5, fontSize: { xs: '2rem', md: '3rem' } }}>
-              Product Workspace
-            </Typography>
-            <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 400 }}>
-              Clarity before code • Upstream product thinking
-            </Typography>
-          </Box>
+            Help & Tips
+          </Button>
         </Box>
 
         {/* Quick Stats */}

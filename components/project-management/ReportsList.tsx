@@ -26,9 +26,12 @@ import { useTheme } from '@mui/material/styles';
 import {
   Visibility as VisibilityIcon,
   Delete as DeleteIcon,
+  Add as AddIcon,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import ReportDetailModal from './ReportDetailModal';
+import GenerateReportForm, { type ReportType, type ReportFormat } from './GenerateReportForm';
+import { useNotification } from '@/components/providers/NotificationProvider';
 
 interface Report {
   id: string;
@@ -47,11 +50,13 @@ interface Report {
 
 interface ReportsListProps {
   projectId: string;
+  projectName: string;
   refreshTrigger?: number;
 }
 
-export default function ReportsList({ projectId, refreshTrigger }: ReportsListProps) {
+export default function ReportsList({ projectId, projectName, refreshTrigger }: ReportsListProps) {
   const theme = useTheme();
+  const { showSuccess, showError } = useNotification();
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +65,7 @@ export default function ReportsList({ projectId, refreshTrigger }: ReportsListPr
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [reportToDelete, setReportToDelete] = useState<Report | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [generateModalOpen, setGenerateModalOpen] = useState(false);
 
   const loadReports = useCallback(async () => {
     setLoading(true);
@@ -136,6 +142,55 @@ export default function ReportsList({ projectId, refreshTrigger }: ReportsListPr
     return type.charAt(0).toUpperCase() + type.slice(1);
   };
 
+  const handleGenerate = async (config: {
+    reportType: ReportType;
+    format: ReportFormat;
+    forecastDays?: number;
+  }) => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/reports`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate report');
+      }
+
+      if (config.format === 'pdf') {
+        // Download PDF
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${projectName}_${config.reportType}_${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        showSuccess('Report generated and downloaded successfully!');
+      } else {
+        // Handle slideshow - redirect to report page
+        const data = await response.json();
+        if (data.reportId && data.url) {
+          showSuccess('Report generated successfully!');
+          // Open in new tab for client sharing
+          window.open(data.url, '_blank');
+        } else {
+          throw new Error('Failed to generate report URL');
+        }
+      }
+
+      // Close the modal and refresh the list
+      setGenerateModalOpen(false);
+      await loadReports();
+    } catch (err) {
+      throw err; // Let form handle the error display
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
@@ -154,22 +209,39 @@ export default function ReportsList({ projectId, refreshTrigger }: ReportsListPr
 
   return (
     <Box sx={{ px: { xs: 0, md: 0 } }}>
-      <Typography
-        variant="h5"
-        sx={{
-          color: theme.palette.text.primary,
-          fontWeight: 600,
-          mb: 3,
-          fontSize: { xs: '1.25rem', md: '1.5rem' },
-        }}
-      >
-        Generated Reports
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography
+          variant="h5"
+          sx={{
+            color: theme.palette.text.primary,
+            fontWeight: 600,
+            fontSize: { xs: '1.25rem', md: '1.5rem' },
+          }}
+        >
+          Reports
+        </Typography>
+        <Button
+          variant="outlined"
+          startIcon={<AddIcon />}
+          onClick={() => setGenerateModalOpen(true)}
+          sx={{
+            borderColor: theme.palette.text.primary,
+            color: theme.palette.text.primary,
+            fontWeight: 600,
+            '&:hover': {
+              borderColor: theme.palette.text.primary,
+              backgroundColor: theme.palette.action.hover,
+            },
+          }}
+        >
+          Generate Report
+        </Button>
+      </Box>
 
       {/* Reports Table */}
       {reports.length === 0 ? (
         <Alert severity="info">
-          No reports have been generated yet. Generate your first report using the Generate Report tab.
+          No reports have been generated yet. Click &quot;Generate Report&quot; to create your first report.
         </Alert>
       ) : (
         <TableContainer
@@ -407,6 +479,30 @@ export default function ReportsList({ projectId, refreshTrigger }: ReportsListPr
             {deleting ? 'Deleting...' : 'Delete'}
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* Generate Report Modal */}
+      <Dialog
+        open={generateModalOpen}
+        onClose={() => setGenerateModalOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            backgroundColor: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: theme.palette.text.primary, borderBottom: `1px solid ${theme.palette.divider}` }}>
+          Generate Report
+        </DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
+          <GenerateReportForm
+            projectName={projectName}
+            onGenerate={handleGenerate}
+          />
+        </DialogContent>
       </Dialog>
     </Box>
   );

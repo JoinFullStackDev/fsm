@@ -28,6 +28,7 @@ import {
   LightMode as LightModeIcon,
   DarkMode as DarkModeIcon,
   Link as LinkIcon,
+  TrackChanges as TrackChangesIcon,
 } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import { useRole } from '@/lib/hooks/useRole';
@@ -345,6 +346,18 @@ export default function TopBar({ onSidebarToggle, sidebarOpen }: TopBarProps) {
           >
             <PersonIcon fontSize="small" sx={{ mr: 1.5, color: theme.palette.text.primary }} />
             <Typography sx={{ color: theme.palette.text.primary }}>Profile</Typography>
+          </MenuItem>
+          <MenuItem
+            onClick={() => handleNavigate('/my-requests')}
+            sx={{
+              color: theme.palette.text.primary,
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+              },
+            }}
+          >
+            <TrackChangesIcon fontSize="small" sx={{ mr: 1.5, color: theme.palette.text.primary }} />
+            <Typography sx={{ color: theme.palette.text.primary }}>My Requests</Typography>
           </MenuItem>
           {user?.is_affiliate && (
             <MenuItem

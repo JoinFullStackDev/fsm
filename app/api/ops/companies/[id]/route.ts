@@ -172,7 +172,10 @@ export async function PUT(
       name, status, notes,
       company_size, industry, revenue_band, website,
       address_street, address_city, address_state, address_zip, address_country,
-      account_notes
+      account_notes,
+      // Partner tracking fields
+      is_partner, partner_commission_rate, partner_contact_email, partner_notes,
+      referred_by_company_id
     } = body;
 
     // Use admin client to bypass RLS and avoid stack depth recursion issues
@@ -203,6 +206,28 @@ export async function PUT(
       return badRequest('Company name cannot be empty');
     }
 
+    // Validate referred_by_company_id if provided
+    if (referred_by_company_id !== undefined && referred_by_company_id !== null) {
+      // Cannot refer to itself
+      if (referred_by_company_id === id) {
+        return badRequest('Company cannot refer itself');
+      }
+
+      const { data: referrer, error: referrerError } = await adminClient
+        .from('companies')
+        .select('id, is_partner')
+        .eq('id', referred_by_company_id)
+        .eq('organization_id', organizationId)
+        .single();
+
+      if (referrerError || !referrer) {
+        return badRequest('Invalid referring partner company');
+      }
+      if (!referrer.is_partner) {
+        return badRequest('Referring company must be marked as a partner');
+      }
+    }
+
     // Build update object with all fields
     const updateData: Partial<Company> = {};
     if (name !== undefined) updateData.name = name.trim();
@@ -218,6 +243,12 @@ export async function PUT(
     if (address_zip !== undefined) updateData.address_zip = address_zip?.trim() || null;
     if (address_country !== undefined) updateData.address_country = address_country?.trim() || null;
     if (account_notes !== undefined) updateData.account_notes = account_notes || null;
+    // Partner tracking fields
+    if (is_partner !== undefined) updateData.is_partner = is_partner;
+    if (partner_commission_rate !== undefined) updateData.partner_commission_rate = partner_commission_rate || null;
+    if (partner_contact_email !== undefined) updateData.partner_contact_email = partner_contact_email?.trim() || null;
+    if (partner_notes !== undefined) updateData.partner_notes = partner_notes || null;
+    if (referred_by_company_id !== undefined) updateData.referred_by_company_id = referred_by_company_id || null;
 
     // Update company using admin client
     const { data: company, error: companyError } = await adminClient

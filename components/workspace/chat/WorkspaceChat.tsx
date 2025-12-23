@@ -377,7 +377,7 @@ export default function WorkspaceChat({
                 },
               }}
             >
-              <AutoAwesomeIcon sx={{ fontSize: 28, color: 'white' }} />
+              <AutoAwesomeIcon sx={{ fontSize: 28, color: theme.palette.primary.contrastText }} />
             </Fab>
           </Tooltip>
         </Zoom>
@@ -416,7 +416,7 @@ export default function WorkspaceChat({
               boxShadow: theme.shadows[4],
             }}
           >
-            <AutoAwesomeIcon sx={{ fontSize: 32, color: 'white' }} />
+            <AutoAwesomeIcon sx={{ fontSize: 32, color: theme.palette.primary.contrastText }} />
           </Box>
           <Box sx={{ flex: 1 }}>
             <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
@@ -432,7 +432,7 @@ export default function WorkspaceChat({
               py: 1.5,
               borderRadius: 2,
               backgroundColor: theme.palette.primary.main,
-              color: 'white',
+              color: theme.palette.primary.contrastText,
               fontWeight: 600,
             }}
           >

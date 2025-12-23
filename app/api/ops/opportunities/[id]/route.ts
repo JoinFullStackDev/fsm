@@ -68,7 +68,8 @@ export async function GET(
       .from('opportunities')
       .select(`
         *,
-        company:companies(id, name)
+        company:companies!opportunities_company_id_fkey(id, name),
+        referred_by_company:companies!opportunities_referred_by_company_id_fkey(id, name)
       `)
       .eq('id', id)
       .single();
@@ -146,7 +147,7 @@ export async function PUT(
 
     const { id } = params;
     const body = await request.json();
-    const { name, value, status, source } = body;
+    const { name, value, status, source, referred_by_company_id } = body;
 
     // Use admin client to bypass RLS for opportunity operations
     const adminClient = createAdminSupabaseClient();
@@ -178,12 +179,30 @@ export async function PUT(
       return badRequest('Opportunity name cannot be empty');
     }
 
+    // Validate referred_by_company_id if provided
+    if (referred_by_company_id !== undefined && referred_by_company_id !== null) {
+      const { data: referrer, error: referrerError } = await adminClient
+        .from('companies')
+        .select('id, is_partner')
+        .eq('id', referred_by_company_id)
+        .eq('organization_id', organizationId)
+        .single();
+
+      if (referrerError || !referrer) {
+        return badRequest('Invalid referring partner company');
+      }
+      if (!referrer.is_partner) {
+        return badRequest('Referring company must be marked as a partner');
+      }
+    }
+
     // Build update object
     const updateData: Partial<Opportunity> = {};
     if (name !== undefined) updateData.name = name.trim();
     if (value !== undefined) updateData.value = value ? parseFloat(value) : null;
     if (status !== undefined) updateData.status = status;
     if (source !== undefined) updateData.source = source;
+    if (referred_by_company_id !== undefined) updateData.referred_by_company_id = referred_by_company_id || null;
 
     // Update opportunity using admin client
     const { data: opportunity, error: opportunityError } = await adminClient

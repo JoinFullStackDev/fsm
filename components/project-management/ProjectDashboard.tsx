@@ -201,7 +201,7 @@ export default function ProjectDashboard({ projectId, projectName }: ProjectDash
           onClick={() => setSummarySheetOpen(true)}
           sx={{
             backgroundColor: theme.palette.primary.main,
-            color: '#1a1a1a',
+            color: theme.palette.primary.contrastText,
             fontWeight: 600,
             '&:hover': {
               backgroundColor: theme.palette.primary.light,

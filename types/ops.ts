@@ -51,6 +51,12 @@ export interface Company {
   address_zip?: string | null;
   address_country?: string | null;
   account_notes?: string | null;
+  // Partner tracking fields
+  is_partner?: boolean;
+  partner_commission_rate?: number | null;
+  partner_contact_email?: string | null;
+  partner_notes?: string | null;
+  referred_by_company_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -59,6 +65,31 @@ export interface CompanyWithCounts extends Company {
   contacts_count?: number;
   opportunities_count?: number;
   projects_count?: number;
+}
+
+// Extended interface for partner companies with referral statistics
+export interface PartnerCompanyWithStats extends Company {
+  referred_companies_count?: number;
+  referred_opportunities_count?: number;
+  referred_projects_count?: number;
+  total_referred_revenue?: number;
+  total_commission_due?: number;
+  total_commission_paid?: number;
+}
+
+// Partner company for dropdown selections
+export interface PartnerCompanyOption {
+  id: string;
+  name: string;
+  partner_commission_rate?: number | null;
+}
+
+// Company with referring partner info
+export interface CompanyWithReferrer extends Company {
+  referred_by_company?: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 export interface CompanyContact {
@@ -143,6 +174,7 @@ export interface Opportunity {
   value: number | null;
   status: OpportunityStatus;
   source: OpportunitySource;
+  referred_by_company_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -152,6 +184,10 @@ export interface OpportunityWithCompany extends Opportunity {
     id: string;
     name: string;
   };
+  referred_by_company?: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 export interface OpsTask {
@@ -398,5 +434,77 @@ export interface InvoiceWithRelations extends Invoice {
     name: string | null;
     email: string;
   } | null;
+}
+
+// ============================================
+// Partner Commission Types
+// ============================================
+
+export type PartnerCommissionStatus = 'pending' | 'approved' | 'paid' | 'cancelled';
+
+export interface PartnerCommission {
+  id: string;
+  organization_id: string;
+  partner_company_id: string;
+  opportunity_id: string | null;
+  invoice_id: string | null;
+  commission_rate: number;
+  base_amount: number;
+  commission_amount: number;
+  status: PartnerCommissionStatus;
+  approved_at: string | null;
+  approved_by: string | null;
+  paid_at: string | null;
+  paid_by: string | null;
+  payment_reference: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PartnerCommissionWithRelations extends PartnerCommission {
+  partner_company?: {
+    id: string;
+    name: string;
+  } | null;
+  opportunity?: {
+    id: string;
+    name: string;
+    value: number | null;
+    company?: {
+      id: string;
+      name: string;
+    } | null;
+  } | null;
+  invoice?: {
+    id: string;
+    invoice_number: string;
+    total_amount: number;
+  } | null;
+  approved_user?: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+  paid_user?: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+}
+
+export interface CreatePartnerCommissionInput {
+  partner_company_id: string;
+  opportunity_id?: string | null;
+  invoice_id?: string | null;
+  commission_rate: number;
+  base_amount: number;
+  notes?: string | null;
+}
+
+export interface UpdatePartnerCommissionInput {
+  status?: PartnerCommissionStatus;
+  payment_reference?: string | null;
+  notes?: string | null;
 }
 

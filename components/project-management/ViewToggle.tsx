@@ -7,12 +7,11 @@ import {
   Timeline as TimelineIcon,
   ViewKanban as ViewKanbanIcon,
   Description as DescriptionIcon,
-  Assessment as AssessmentIcon,
   People as PeopleIcon,
   Dashboard as DashboardIcon,
 } from '@mui/icons-material';
 
-export type ViewType = 'table' | 'gantt' | 'kanban' | 'assignee-kanban' | 'dashboard' | 'reports' | 'generate-report';
+export type ViewType = 'table' | 'gantt' | 'kanban' | 'assignee-kanban' | 'dashboard' | 'reports';
 
 interface ViewToggleProps {
   view: ViewType;
@@ -120,14 +119,9 @@ export default function ViewToggle({ view, onChange }: ViewToggleProps) {
             <DashboardIcon sx={{ fontSize: { xs: 22, md: 18 } }} />
           </Tooltip>
         </ToggleButton>
-        <ToggleButton value="reports" sx={{ borderRight: 'none' }}>
-          <Tooltip title="View Reports">
+        <ToggleButton value="reports" sx={{ borderRight: `1px solid ${theme.palette.divider}` }}>
+          <Tooltip title="Reports">
             <DescriptionIcon sx={{ fontSize: { xs: 22, md: 18 } }} />
-          </Tooltip>
-        </ToggleButton>
-        <ToggleButton value="generate-report" sx={{ borderRight: `1px solid ${theme.palette.divider}` }}>
-          <Tooltip title="Generate Report">
-            <AssessmentIcon sx={{ fontSize: { xs: 22, md: 18 } }} />
           </Tooltip>
         </ToggleButton>
       </ToggleButtonGroup>

@@ -35,7 +35,7 @@ export default function QuickActionsRow() {
     {
       label: 'Task Management',
       icon: <AssignmentIcon />,
-      onClick: () => router.push('/project-management'),
+      onClick: () => router.push('/projects'),
     },
     {
       label: 'View Projects',

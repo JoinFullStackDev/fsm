@@ -24,7 +24,6 @@ import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import GanttChart from '@/components/project-management/GanttChart';
 import KanbanBoard from '@/components/project-management/KanbanBoard';
 import AssigneeKanbanBoard from '@/components/project-management/AssigneeKanbanBoard';
-import GenerateReportForm, { type ReportType, type ReportFormat } from '@/components/project-management/GenerateReportForm';
 import ReportsList from '@/components/project-management/ReportsList';
 import TaskGeneratorModal from '@/components/project-management/TaskGeneratorModal';
 import TaskPreviewTable from '@/components/project-management/TaskPreviewTable';
@@ -33,6 +32,7 @@ import BuildingOverlay from '@/components/ai/BuildingOverlay';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { useOrganization } from '@/components/providers/OrganizationProvider';
 import WorkspaceChat from '@/components/workspace/chat/WorkspaceChat';
+import ProjectContextNav from '@/components/project/ProjectContextNav';
 import type { ProjectTask, ProjectTaskExtended, Project } from '@/types/project';
 import type { User } from '@/types/project';
 import type { PreviewTask, TaskMerge } from '@/types/taskGenerator';
@@ -66,7 +66,6 @@ export default function ProjectTaskManagementPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [view, setView] = useState<ViewType>('table');
   const [currentUserId, setCurrentUserId] = useState<string>('');
-  const [reportsRefreshTrigger, setReportsRefreshTrigger] = useState(0);
   const taskIdProcessedRef = useRef<string | null>(null);
   const { showSuccess, showError } = useNotification();
   const [taskGeneratorOpen, setTaskGeneratorOpen] = useState(false);
@@ -635,33 +634,33 @@ export default function ProjectTaskManagementPage() {
       {/* Breadcrumbs */}
       <Breadcrumbs
         separator={<NavigateNextIcon fontSize="small" sx={{ color: theme.palette.text.secondary }} />}
-        sx={{ mb: 3, px: { xs: 2, md: 0 } }}
+        sx={{ mb: 2, px: { xs: 2, md: 0 } }}
       >
         <Link
           component="button"
           variant="body1"
-          onClick={() => router.push('/project-management')}
+          onClick={() => router.push('/projects')}
           sx={{ color: theme.palette.text.primary, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
         >
-          Task Management
+          Projects
         </Link>
-        <Link
-          component="button"
+        <Typography
           variant="body1"
-          onClick={() => router.push(`/project/${projectId}`)}
-          sx={{ 
-            color: theme.palette.text.secondary, 
-            textDecoration: 'none', 
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.5,
-            '&:hover': { textDecoration: 'underline', color: theme.palette.text.primary } 
-          }}
+          sx={{ color: theme.palette.text.secondary }}
         >
           {project?.name || 'Project'}
-          <OpenInNewIcon sx={{ fontSize: 14 }} />
-        </Link>
+        </Typography>
       </Breadcrumbs>
+
+      {/* Project Context Navigation */}
+      <Box sx={{ px: { xs: 2, md: 0 }, mb: 3 }}>
+        <ProjectContextNav
+          projectId={projectId}
+          projectName={project?.name || 'Project'}
+          activeView="tasks"
+          taskCount={tasks.length}
+        />
+      </Box>
 
       {/* Header */}
       <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 4, gap: { xs: 2, md: 0 }, px: { xs: 2, md: 0 } }}>
@@ -677,29 +676,6 @@ export default function ProjectTaskManagementPage() {
           {project?.name || 'Project'} - Task Management
         </Typography>
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'center', gap: { xs: 2, md: 1 }, flexWrap: 'wrap', width: { xs: '100%', md: 'auto' } }}>
-          {features?.product_workspace_enabled && (
-            <Button
-              variant="outlined"
-              startIcon={<WorkspacePremiumIcon sx={{ fontSize: { xs: 22, md: 18 } }} />}
-              onClick={() => router.push(`/workspace/${projectId}`)}
-              size="small"
-              fullWidth={false}
-              sx={{
-                height: { xs: '40px', md: '32px' },
-                minHeight: { xs: '40px', md: '32px' },
-                width: { xs: '100%', md: 'auto' },
-                borderColor: theme.palette.primary.main,
-                color: theme.palette.primary.main,
-                fontSize: { xs: '0.875rem', md: '0.75rem' },
-                '&:hover': {
-                  borderColor: theme.palette.primary.dark,
-                  backgroundColor: theme.palette.action.hover,
-                },
-              }}
-            >
-              Product Workspace
-            </Button>
-          )}
           {features?.ai_task_generator_enabled && (
             <Button
               variant="contained"
@@ -879,55 +855,7 @@ export default function ProjectTaskManagementPage() {
         <ProjectDashboard projectId={projectId} projectName={project?.name || 'Project'} />
       )}
       {view === 'reports' && (
-        <ReportsList projectId={projectId} refreshTrigger={reportsRefreshTrigger} />
-      )}
-      {view === 'generate-report' && (
-        <GenerateReportForm
-          projectName={project?.name || 'Project'}
-          onGenerate={async (config) => {
-            try {
-              const response = await fetch(`/api/projects/${projectId}/reports`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(config),
-              });
-
-              if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to generate report');
-              }
-
-              if (config.format === 'pdf') {
-                // Download PDF
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${project?.name || 'Project'}_${config.reportType}_${new Date().toISOString().split('T')[0]}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-                showSuccess('Report generated and downloaded successfully!');
-              } else {
-                // Handle slideshow - redirect to report page
-                const data = await response.json();
-                if (data.reportId && data.url) {
-                  showSuccess('Report generated successfully!');
-                  // Open in new tab for client sharing
-                  window.open(data.url, '_blank');
-                  // Refresh reports list and switch to reports view
-                  setReportsRefreshTrigger(prev => prev + 1);
-                  setView('reports');
-                } else {
-                  throw new Error('Failed to generate report URL');
-                }
-              }
-            } catch (err) {
-              throw err; // Let form handle the error display
-            }
-          }}
-        />
+        <ReportsList projectId={projectId} projectName={project?.name || 'Project'} />
       )}
 
       {/* Task Detail Sheet */}

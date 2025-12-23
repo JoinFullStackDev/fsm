@@ -99,8 +99,13 @@ export async function GET(
       }
     }
 
+    // Calculate date for upcoming tasks (7 days from now)
+    const sevenDaysFromNow = new Date();
+    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+    const sevenDaysFromNowISO = sevenDaysFromNow.toISOString();
+
     // OPTIMIZATION: Fetch all related data in parallel with Redis caching
-    const [phases, members, exportCount, templateConfigs] = await Promise.all([
+    const [phases, members, exportCount, templateConfigs, upcomingTasks, taskCounts] = await Promise.all([
       // Fetch phases (cached)
       cacheGetOrSet(
         CACHE_KEYS.projectPhases(params.id),
@@ -185,6 +190,63 @@ export async function GET(
             CACHE_TTL.PROJECT_FIELD_CONFIGS
           )
         : Promise.resolve(null),
+      
+      // Fetch upcoming tasks (next 7 days, limit 5, todo/in_progress only)
+      cacheGetOrSet(
+        CACHE_KEYS.projectUpcomingTasks(params.id),
+        async () => {
+          const { data, error } = await adminClient
+            .from('project_tasks')
+            .select(`
+              id,
+              title,
+              status,
+              priority,
+              due_date,
+              assignee:users!project_tasks_assignee_id_fkey(id, name, avatar_url)
+            `)
+            .eq('project_id', params.id)
+            .in('status', ['todo', 'in_progress'])
+            .not('due_date', 'is', null)
+            .lte('due_date', sevenDaysFromNowISO)
+            .order('due_date', { ascending: true })
+            .limit(5);
+          if (error) {
+            logger.error('[Projects Full API] Error fetching upcoming tasks:', error);
+            return [];
+          }
+          return data || [];
+        },
+        CACHE_TTL.PROJECT_UPCOMING_TASKS
+      ),
+      
+      // Fetch task counts (total, completed, upcoming)
+      cacheGetOrSet(
+        CACHE_KEYS.projectTaskCounts(params.id),
+        async () => {
+          const { data: allTasks, error } = await adminClient
+            .from('project_tasks')
+            .select('id, status, due_date')
+            .eq('project_id', params.id);
+          
+          if (error) {
+            logger.error('[Projects Full API] Error fetching task counts:', error);
+            return { total: 0, completed: 0, upcoming: 0 };
+          }
+          
+          const tasks = allTasks || [];
+          const total = tasks.length;
+          const completed = tasks.filter(t => t.status === 'done').length;
+          const upcoming = tasks.filter(t => 
+            t.due_date && 
+            t.status !== 'done' && 
+            new Date(t.due_date) <= sevenDaysFromNow
+          ).length;
+          
+          return { total, completed, upcoming };
+        },
+        CACHE_TTL.PROJECT_TASK_COUNTS
+      ),
     ]);
 
     // Group template field configs by phase number for easier consumption
@@ -208,6 +270,8 @@ export async function GET(
       exportCount: exportCount || 0,
       fieldConfigsByPhase,
       company: project.company || null,
+      upcomingTasks: upcomingTasks || [],
+      taskCounts: taskCounts || { total: 0, completed: 0, upcoming: 0 },
     });
     
     // Add cache headers for browser caching

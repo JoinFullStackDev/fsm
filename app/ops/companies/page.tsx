@@ -25,7 +25,7 @@ import {
   DialogActions,
   Pagination,
 } from '@mui/material';
-import { Add as AddIcon, Search as SearchIcon, Delete as DeleteIcon, Edit as EditIcon } from '@mui/icons-material';
+import { Add as AddIcon, Search as SearchIcon, Delete as DeleteIcon, Edit as EditIcon, Handshake as HandshakeIcon } from '@mui/icons-material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
 import LoadingSkeleton from '@/components/ui/LoadingSkeleton';
 import EmptyState from '@/components/ui/EmptyState';
@@ -153,6 +153,30 @@ export default function CompaniesPage() {
       key: 'name',
       label: 'Company Name',
       sortable: true,
+      render: (val: unknown, row: CompanyWithCounts) => {
+        const name = val as string;
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography sx={{ color: theme.palette.text.primary }}>
+              {name}
+            </Typography>
+            {row.is_partner && (
+              <Chip
+                icon={<HandshakeIcon sx={{ fontSize: 14 }} />}
+                label="Partner"
+                size="small"
+                sx={{
+                  backgroundColor: '#9C27B0',
+                  color: '#fff',
+                  height: 22,
+                  '& .MuiChip-icon': { color: '#fff' },
+                  '& .MuiChip-label': { px: 0.75, fontSize: '0.7rem' },
+                }}
+              />
+            )}
+          </Box>
+        );
+      },
     },
     {
       key: 'status',

@@ -219,6 +219,12 @@ export interface CompanyRow {
   website: string | null;
   industry: string | null;
   organization_id: string;
+  // Partner tracking fields
+  is_partner: boolean;
+  partner_commission_rate: number | null;
+  partner_contact_email: string | null;
+  partner_notes: string | null;
+  referred_by_company_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -244,6 +250,7 @@ export interface OpportunityRow {
   source: string | null;
   company_id: string | null;
   organization_id: string;
+  referred_by_company_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -442,6 +449,30 @@ export interface AffiliateReferralRow {
   commission_amount: number | null;
   paid_at: string | null;
   created_at: string;
+}
+
+// ============================================================================
+// Partner Commission Table (Ops)
+// ============================================================================
+
+export interface PartnerCommissionRow {
+  id: string;
+  organization_id: string;
+  partner_company_id: string;
+  opportunity_id: string | null;
+  invoice_id: string | null;
+  commission_rate: number;
+  base_amount: number;
+  commission_amount: number;
+  status: string;
+  approved_at: string | null;
+  approved_by: string | null;
+  paid_at: string | null;
+  paid_by: string | null;
+  payment_reference: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // ============================================================================
