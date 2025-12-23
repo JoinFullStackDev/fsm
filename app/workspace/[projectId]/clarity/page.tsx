@@ -29,6 +29,7 @@ import {
   CheckCircle as CheckCircleIcon,
   Warning as WarningIcon,
   Lightbulb as LightbulbIcon,
+  History as HistoryIcon,
 } from '@mui/icons-material';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import type { ClaritySpec } from '@/types/workspace';
@@ -73,20 +74,22 @@ export default function ClarityCanvasPage() {
       const data = await response.json();
       setSpecs(data);
       
-      // Set current spec to latest version if available
+      // Set current spec: prefer the active version (status 'ready'), otherwise latest
       if (data.length > 0) {
-        setCurrentSpec(data[0]);
+        // Find the active spec (status 'ready') or fall back to latest version
+        const activeSpec = data.find((spec: ClaritySpec) => spec.status === 'ready') || data[0];
+        setCurrentSpec(activeSpec);
         setFormData({
-          problem_statement: data[0].problem_statement || '',
-          jobs_to_be_done: data[0].jobs_to_be_done || [],
-          user_pains: data[0].user_pains || [],
-          business_goals: data[0].business_goals || [],
-          success_metrics: data[0].success_metrics || [],
-          constraints: data[0].constraints || [],
-          assumptions: data[0].assumptions || [],
-          desired_outcomes: data[0].desired_outcomes || [],
-          mental_model_notes: data[0].mental_model_notes || '',
-          stakeholder_notes: data[0].stakeholder_notes || '',
+          problem_statement: activeSpec.problem_statement || '',
+          jobs_to_be_done: activeSpec.jobs_to_be_done || [],
+          user_pains: activeSpec.user_pains || [],
+          business_goals: activeSpec.business_goals || [],
+          success_metrics: activeSpec.success_metrics || [],
+          constraints: activeSpec.constraints || [],
+          assumptions: activeSpec.assumptions || [],
+          desired_outcomes: activeSpec.desired_outcomes || [],
+          mental_model_notes: activeSpec.mental_model_notes || '',
+          stakeholder_notes: activeSpec.stakeholder_notes || '',
         });
       }
     } catch (err) {
@@ -188,6 +191,44 @@ export default function ClarityCanvasPage() {
     });
   };
 
+  // Handle version selection - switch to a different version
+  const handleVersionSelect = (spec: ClaritySpec) => {
+    setCurrentSpec(spec);
+    setFormData({
+      problem_statement: spec.problem_statement || '',
+      jobs_to_be_done: spec.jobs_to_be_done || [],
+      user_pains: spec.user_pains || [],
+      business_goals: spec.business_goals || [],
+      success_metrics: spec.success_metrics || [],
+      constraints: spec.constraints || [],
+      assumptions: spec.assumptions || [],
+      desired_outcomes: spec.desired_outcomes || [],
+      mental_model_notes: spec.mental_model_notes || '',
+      stakeholder_notes: spec.stakeholder_notes || '',
+    });
+    setVersionMenuAnchor(null);
+  };
+
+  // Set a version as the active version
+  const handleSetAsActive = async (specId: string) => {
+    try {
+      const response = await fetch(`/api/workspaces/${projectId}/clarity/${specId}/promote`, {
+        method: 'POST',
+        headers: getCsrfHeaders(),
+        body: JSON.stringify({ status: 'ready' }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to set as active');
+      }
+
+      showSuccess('Version set as active');
+      await loadSpecs();
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to set as active');
+    }
+  };
+
   if (loading) {
     return (
       <Container maxWidth="lg" sx={{ py: 8, textAlign: 'center' }}>
@@ -215,15 +256,109 @@ export default function ClarityCanvasPage() {
               <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
                 Clarity Canvas
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {saving ? 'Saving...' : specs.length > 0 ? `Version ${currentSpec?.version || 1}` : 'No versions yet'}
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {saving ? (
+                  <Typography variant="body2" color="text.secondary">Saving...</Typography>
+                ) : specs.length > 0 ? (
+                  <>
+                    {/* Version selector button */}
+                    <Button
+                      size="small"
+                      onClick={(e) => setVersionMenuAnchor(e.currentTarget)}
+                      endIcon={<HistoryIcon />}
+                      sx={{ textTransform: 'none' }}
+                    >
+                      Version {currentSpec?.version || 1}
+                    </Button>
+                    {currentSpec?.status === 'ready' && (
+                      <Chip size="small" label="Active" color="success" sx={{ height: 20 }} />
+                    )}
+                    {currentSpec?.status === 'draft' && (
+                      <Chip size="small" label="Draft" sx={{ height: 20 }} />
+                    )}
+                    {currentSpec?.status === 'in_review' && (
+                      <Chip size="small" label="In Review" color="warning" sx={{ height: 20 }} />
+                    )}
+                    {currentSpec?.status === 'archived' && (
+                      <Chip size="small" label="Archived" color="error" sx={{ height: 20 }} />
+                    )}
+                    
+                    {/* Version dropdown menu */}
+                    <Menu
+                      anchorEl={versionMenuAnchor}
+                      open={Boolean(versionMenuAnchor)}
+                      onClose={() => setVersionMenuAnchor(null)}
+                      PaperProps={{ sx: { minWidth: 300 } }}
+                    >
+                      <Box sx={{ px: 2, py: 1 }}>
+                        <Typography variant="subtitle2" color="text.secondary">
+                          Version History ({specs.length} {specs.length === 1 ? 'version' : 'versions'})
+                        </Typography>
+                      </Box>
+                      <Divider />
+                      {specs.map((spec) => (
+                        <MenuItem
+                          key={spec.id}
+                          selected={spec.id === currentSpec?.id}
+                          onClick={() => handleVersionSelect(spec)}
+                          sx={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between',
+                            py: 1.5,
+                          }}
+                        >
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: spec.id === currentSpec?.id ? 600 : 400 }}>
+                              Version {spec.version}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {new Date(spec.created_at).toLocaleDateString()} at{' '}
+                              {new Date(spec.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            {spec.status === 'ready' && (
+                              <Chip size="small" label="Active" color="success" sx={{ height: 20 }} />
+                            )}
+                            {spec.status === 'draft' && (
+                              <Chip size="small" label="Draft" sx={{ height: 20 }} />
+                            )}
+                            {spec.status === 'in_review' && (
+                              <Chip size="small" label="Review" color="warning" sx={{ height: 20 }} />
+                            )}
+                            {spec.status === 'archived' && (
+                              <Chip size="small" label="Archived" color="error" sx={{ height: 20 }} />
+                            )}
+                          </Box>
+                        </MenuItem>
+                      ))}
+                      <Divider />
+                      <MenuItem onClick={() => { setVersionMenuAnchor(null); handleCreateNewVersion(); }}>
+                        <AddCircleIcon sx={{ mr: 1, fontSize: 18 }} />
+                        Create New Version
+                      </MenuItem>
+                    </Menu>
+                  </>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">No versions yet</Typography>
+                )}
+              </Box>
             </Box>
           </Box>
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
           {specs.length > 0 && (
             <>
+              {/* Show "Set as Active" button if viewing non-active version */}
+              {currentSpec && currentSpec.status !== 'ready' && currentSpec.status !== 'archived' && (
+                <Button
+                  variant="outlined"
+                  color="success"
+                  onClick={() => handleSetAsActive(currentSpec.id)}
+                >
+                  Set as Active
+                </Button>
+              )}
               <Button
                 variant="outlined"
                 onClick={handleAnalyze}

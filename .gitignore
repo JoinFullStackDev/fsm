@@ -41,3 +41,4 @@ next-env.d.ts
 
 scripts/migrations/add_workspace_chat.sql
 scripts/migrations/add_product_workspace.sql
+scripts/migrations/add_partner_tracking.sql

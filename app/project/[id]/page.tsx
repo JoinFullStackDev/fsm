@@ -58,7 +58,28 @@ import { useRole } from '@/lib/hooks/useRole';
 import BuildingOverlay from '@/components/ai/BuildingOverlay';
 import { useOrganization } from '@/components/providers/OrganizationProvider';
 import WorkspaceChat from '@/components/workspace/chat/WorkspaceChat';
+import ProjectContextNav from '@/components/project/ProjectContextNav';
+import UpcomingTasksCard from '@/components/project/UpcomingTasksCard';
 import type { Project, PhaseSummary } from '@/types/project';
+
+interface UpcomingTask {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  due_date: string | null;
+  assignee?: {
+    id: string;
+    name: string | null;
+    avatar_url: string | null;
+  } | null;
+}
+
+interface TaskCounts {
+  total: number;
+  completed: number;
+  upcoming: number;
+}
 
 // Helper function to check if a value has content
 const checkValue = (value: any): boolean => {
@@ -141,6 +162,8 @@ export default function ProjectPage() {
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [creator, setCreator] = useState<{ name: string | null; email: string; avatar_url?: string | null } | null>(null);
+  const [upcomingTasks, setUpcomingTasks] = useState<UpcomingTask[]>([]);
+  const [taskCounts, setTaskCounts] = useState<TaskCounts>({ total: 0, completed: 0, upcoming: 0 });
 
   useEffect(() => {
     const loadProject = async () => {
@@ -219,6 +242,10 @@ export default function ProjectPage() {
 
       // Set export count from combined response
       setExportCount(fullData.exportCount || 0);
+
+      // Set upcoming tasks and task counts from combined response
+      setUpcomingTasks(fullData.upcomingTasks || []);
+      setTaskCounts(fullData.taskCounts || { total: 0, completed: 0, upcoming: 0 });
 
       setLoading(false);
     };
@@ -494,6 +521,16 @@ export default function ProjectPage() {
         <Container maxWidth="xl" sx={{ pt: { xs: 2, md: 4 }, pb: 4, px: { xs: 0, md: 3 } }}>
           <Box sx={{ px: { xs: 2, md: 0 }, mb: { xs: 2, md: 0 } }}>
             <Breadcrumbs items={[{ label: project.name }]} />
+          </Box>
+
+          {/* Project Context Navigation */}
+          <Box sx={{ px: { xs: 2, md: 0 } }}>
+            <ProjectContextNav
+              projectId={projectId}
+              projectName={project.name}
+              activeView="blueprint"
+              taskCount={taskCounts.total}
+            />
           </Box>
           
           {/* Hero Section */}
@@ -1090,6 +1127,12 @@ export default function ProjectPage() {
                   </Paper>
                 )}
 
+                {/* Upcoming Tasks */}
+                <UpcomingTasksCard
+                  tasks={upcomingTasks}
+                  projectId={projectId}
+                />
+
                 {/* Quick Actions */}
                 <Paper
                   elevation={0}
@@ -1157,33 +1200,6 @@ export default function ProjectPage() {
                       }}
                     >
                       {exporting ? 'Generating...' : `Create ${project?.primary_tool ? project.primary_tool.charAt(0).toUpperCase() + project.primary_tool.slice(1) : 'Tool'} Bundle`}
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      startIcon={<AssignmentIcon />}
-                      onClick={handleProjectManagement}
-                      disabled={initiating}
-                      fullWidth
-                      sx={{
-                        borderColor: theme.palette.text.primary,
-                        color: theme.palette.text.primary,
-                        fontWeight: 600,
-                        py: 1.5,
-                        '&:hover': {
-                          borderColor: theme.palette.text.primary,
-                          backgroundColor: theme.palette.action.hover,
-                        },
-                        '&.Mui-disabled': {
-                          borderColor: theme.palette.divider,
-                          color: theme.palette.text.secondary,
-                        },
-                      }}
-                    >
-                      {initiating 
-                        ? 'Initiating...' 
-                        : project?.initiated_at 
-                          ? 'Project Management' 
-                          : 'Initiate Project Management'}
                     </Button>
                     <Divider sx={{ my: 1 }} />
                     <Button

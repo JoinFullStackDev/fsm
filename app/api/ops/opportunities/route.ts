@@ -49,7 +49,8 @@ export async function GET(request: NextRequest) {
       .from('opportunities')
       .select(`
         *,
-        company:companies(id, name)
+        company:companies!opportunities_company_id_fkey(id, name),
+        referred_by_company:companies!opportunities_referred_by_company_id_fkey(id, name)
       `, { count: 'exact' })
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false });
@@ -80,9 +81,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform to match OpportunityWithCompany type
-    const opportunitiesWithCompany: OpportunityWithCompany[] = (opportunities as Array<Opportunity & { company?: { id: string; name: string } | null }> || []).map((opp) => ({
+    const opportunitiesWithCompany: OpportunityWithCompany[] = (opportunities as Array<Opportunity & { company?: { id: string; name: string } | null; referred_by_company?: { id: string; name: string } | null }> || []).map((opp) => ({
       ...opp,
       company: opp.company || undefined,
+      referred_by_company: opp.referred_by_company || undefined,
     }));
 
     return NextResponse.json({
@@ -119,7 +121,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { company_id, name, value, status, source } = body;
+    const { company_id, name, value, status, source, referred_by_company_id } = body;
 
     // Validate
     if (!company_id || typeof company_id !== 'string') {
@@ -152,6 +154,23 @@ export async function POST(request: NextRequest) {
       return forbidden('Company does not belong to your organization');
     }
 
+    // Validate referred_by_company_id if provided
+    if (referred_by_company_id) {
+      const { data: referrer, error: referrerError } = await adminClient
+        .from('companies')
+        .select('id, is_partner')
+        .eq('id', referred_by_company_id)
+        .eq('organization_id', organizationId)
+        .single();
+
+      if (referrerError || !referrer) {
+        return badRequest('Invalid referring partner company');
+      }
+      if (!referrer.is_partner) {
+        return badRequest('Referring company must be marked as a partner');
+      }
+    }
+
     // Create opportunity with organization_id using admin client
     const { data: opportunity, error: opportunityError } = await adminClient
       .from('opportunities')
@@ -162,6 +181,7 @@ export async function POST(request: NextRequest) {
         value: value ? parseFloat(value) : null,
         status: status || 'new',
         source: source || 'Manual',
+        referred_by_company_id: referred_by_company_id || null,
       })
       .select()
       .single();

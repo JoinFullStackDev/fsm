@@ -151,16 +151,37 @@ export async function POST(request: NextRequest) {
       name, status, notes,
       company_size, industry, revenue_band, website,
       address_street, address_city, address_state, address_zip, address_country,
-      account_notes
+      account_notes,
+      // Partner tracking fields
+      is_partner, partner_commission_rate, partner_contact_email, partner_notes,
+      referred_by_company_id
     } = body;
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return badRequest('Company name is required');
     }
 
-    // Create company with all fields and organization_id
     // Use admin client to bypass RLS and avoid stack depth recursion issues
     const adminClient = createAdminSupabaseClient();
+
+    // If referred_by_company_id is provided, verify it's a valid partner in the org
+    if (referred_by_company_id) {
+      const { data: referrer, error: referrerError } = await adminClient
+        .from('companies')
+        .select('id, is_partner')
+        .eq('id', referred_by_company_id)
+        .eq('organization_id', organizationId)
+        .single();
+
+      if (referrerError || !referrer) {
+        return badRequest('Invalid referring partner company');
+      }
+      if (!referrer.is_partner) {
+        return badRequest('Referring company must be marked as a partner');
+      }
+    }
+
+    // Create company with all fields and organization_id
     const { data: company, error: companyError } = await adminClient
       .from('companies')
       .insert({
@@ -178,6 +199,12 @@ export async function POST(request: NextRequest) {
         address_zip: address_zip?.trim() || null,
         address_country: address_country?.trim() || null,
         account_notes: account_notes || null,
+        // Partner tracking fields
+        is_partner: is_partner || false,
+        partner_commission_rate: is_partner && partner_commission_rate ? partner_commission_rate : null,
+        partner_contact_email: is_partner && partner_contact_email ? partner_contact_email.trim() : null,
+        partner_notes: is_partner && partner_notes ? partner_notes : null,
+        referred_by_company_id: referred_by_company_id || null,
       })
       .select()
       .single();

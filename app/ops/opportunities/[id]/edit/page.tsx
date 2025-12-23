@@ -22,7 +22,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 import { useNotification } from '@/components/providers/NotificationProvider';
-import type { OpportunityStatus, OpportunitySource } from '@/types/ops';
+import type { OpportunityStatus, OpportunitySource, PartnerCompanyOption } from '@/types/ops';
 
 export default function EditOpportunityPage() {
   const theme = useTheme();
@@ -37,6 +37,9 @@ export default function EditOpportunityPage() {
   const [value, setValue] = useState<string>('');
   const [status, setStatus] = useState<OpportunityStatus>('new');
   const [source, setSource] = useState<OpportunitySource>('Manual');
+  const [referred_by_company_id, setReferredByCompanyId] = useState('');
+  const [partnerOptions, setPartnerOptions] = useState<PartnerCompanyOption[]>([]);
+  const [loadingPartners, setLoadingPartners] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -59,6 +62,7 @@ export default function EditOpportunityPage() {
       setSource(opportunity.source || 'Manual');
       setCompanyId(opportunity.company_id);
       setCompanyName(opportunity.company?.name || null);
+      setReferredByCompanyId(opportunity.referred_by_company_id || '');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load opportunity';
       setError(errorMessage);
@@ -70,7 +74,23 @@ export default function EditOpportunityPage() {
 
   useEffect(() => {
     loadOpportunity();
+    loadPartners();
   }, [loadOpportunity]);
+
+  const loadPartners = async () => {
+    try {
+      setLoadingPartners(true);
+      const response = await fetch('/api/ops/partners?simple=true');
+      if (response.ok) {
+        const data = await response.json();
+        setPartnerOptions(data);
+      }
+    } catch (err) {
+      console.error('Error loading partners:', err);
+    } finally {
+      setLoadingPartners(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,6 +120,7 @@ export default function EditOpportunityPage() {
           value: value ? parseFloat(value) : null,
           status,
           source,
+          referred_by_company_id: referred_by_company_id || null,
         }),
       });
 
@@ -385,6 +406,49 @@ export default function EditOpportunityPage() {
                 <MenuItem value="Converted">Converted</MenuItem>
               </Select>
             </FormControl>
+            {partnerOptions.length > 0 && (
+              <FormControl fullWidth margin="normal">
+                <InputLabel sx={{ color: theme.palette.text.secondary }}>Referred By Partner</InputLabel>
+                <Select
+                  value={referred_by_company_id}
+                  label="Referred By Partner"
+                  onChange={(e) => setReferredByCompanyId(e.target.value)}
+                  disabled={loading || loadingPartners}
+                  MenuProps={{
+                    PaperProps: {
+                      sx: {
+                        backgroundColor: theme.palette.background.paper,
+                        border: `1px solid ${theme.palette.divider}`,
+                        '& .MuiMenuItem-root': {
+                          color: theme.palette.text.primary,
+                          '&:hover': { backgroundColor: theme.palette.action.hover },
+                          '&.Mui-selected': {
+                            backgroundColor: theme.palette.action.hover,
+                            '&:hover': { backgroundColor: theme.palette.action.hover },
+                          },
+                        },
+                      },
+                    },
+                  }}
+                  sx={{
+                    color: theme.palette.text.primary,
+                    backgroundColor: theme.palette.background.default,
+                    '& .MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.divider },
+                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.text.secondary },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.text.primary },
+                    '& .MuiSvgIcon-root': { color: theme.palette.text.primary },
+                  }}
+                >
+                  <MenuItem value="">None</MenuItem>
+                  {partnerOptions.map((partner) => (
+                    <MenuItem key={partner.id} value={partner.id}>
+                      {partner.name}
+                      {partner.partner_commission_rate && ` (${partner.partner_commission_rate}% commission)`}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
             <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
               <Button
                 variant="outlined"
