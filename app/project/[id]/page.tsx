@@ -7,11 +7,8 @@ import {
   Box,
   Typography,
   Button,
-  Card,
-  CardContent,
   Grid,
   Chip,
-  CircularProgress,
   Alert,
   Divider,
   Dialog,
@@ -23,27 +20,18 @@ import {
   Tooltip,
   Paper,
   Avatar,
-  IconButton,
   Stack,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
   Download as DownloadIcon,
-  Settings as SettingsIcon,
   CheckCircle as CheckCircleIcon,
   ContentCopy as ContentCopyIcon,
   Check as CheckIcon,
   History as HistoryIcon,
-  Assignment as AssignmentIcon,
-  Delete as DeleteIcon,
-  People as PeopleIcon,
-  Business as BusinessIcon,
-  CalendarToday as CalendarIcon,
-  TrendingUp as TrendingUpIcon,
-  FileDownload as FileDownloadIcon,
   ArrowForward as ArrowForwardIcon,
-  WorkspacePremium as WorkspacePremiumIcon,
   Inventory2 as Inventory2Icon,
+  CloudUpload as CloudUploadIcon,
 } from '@mui/icons-material';
 import { LinearProgress } from '@mui/material';
 import { createSupabaseClient } from '@/lib/supabaseClient';
@@ -530,302 +518,54 @@ export default function ProjectPage() {
               projectName={project.name}
               activeView="blueprint"
               taskCount={taskCounts.total}
+              creator={creator}
+              isActive={!!project.initiated_at}
+              isCompanyAdmin={isCompanyAdmin}
+              onDeleteClick={handleDeleteClick}
             />
           </Box>
           
-          {/* Hero Section */}
+          {/* Progress Section */}
           <Paper
             elevation={0}
             sx={{
-              background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.action.hover} 100%)`,
               border: `1px solid ${theme.palette.divider}`,
-              borderRadius: 3,
-              p: { xs: 2, md: 4 },
-              mb: { xs: 3, md: 4 },
+              borderRadius: 2,
+              p: { xs: 1.5, md: 2 },
+              mb: { xs: 2, md: 3 },
               mx: { xs: 2, md: 0 },
-              position: 'relative',
-              overflow: 'hidden',
+              backgroundColor: theme.palette.background.paper,
             }}
           >
-            <Box sx={{ position: 'relative', zIndex: 1 }}>
-              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'flex-start' }, mb: 3, gap: { xs: 2, md: 0 } }}>
-                <Box sx={{ flex: 1, width: { xs: '100%', md: 'auto' } }}>
-                  <Typography
-                    variant="h3"
-                    component="h1"
-                    sx={{
-                      fontWeight: 700,
-                      color: theme.palette.text.primary,
-                      fontSize: { xs: '1.75rem', md: '2.5rem' },
-                      mb: 1,
-                      fontFamily: 'var(--font-rubik), Rubik, sans-serif',
-                    }}
-                  >
-                    {project.name}
-                  </Typography>
-                  {creator && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          color: theme.palette.text.secondary,
-                          fontSize: '0.875rem',
-                        }}
-                      >
-                        Created by
-                      </Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Avatar
-                          src={creator.avatar_url || undefined}
-                          sx={{
-                            width: 24,
-                            height: 24,
-                            bgcolor: theme.palette.primary.main,
-                            fontSize: '0.75rem',
-                          }}
-                        >
-                          {creator.name?.[0]?.toUpperCase() || creator.email[0]?.toUpperCase() || 'U'}
-                        </Avatar>
-                        <Typography 
-                          variant="body2" 
-                          sx={{ 
-                            color: theme.palette.text.primary,
-                            fontSize: '0.875rem',
-                            fontWeight: 500,
-                          }}
-                        >
-                          {creator.name || creator.email}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  )}
-                  <Typography 
-                    variant="body1" 
-                    sx={{ 
-                      color: theme.palette.text.secondary, 
-                      fontSize: { xs: '1rem', md: '1.1rem' },
-                      mb: 2,
-                      maxWidth: { xs: '100%', md: '80%' },
-                    }}
-                  >
-                    {project.description || 'No description provided'}
-                  </Typography>
-                  <Stack direction="row" spacing={2} flexWrap="wrap" gap={1}>
-                    <Chip
-                      label={project.status.replace('_', ' ')}
-                      sx={{
-                        backgroundColor: theme.palette.background.paper,
-                        color: theme.palette.text.primary,
-                        border: `1px solid ${theme.palette.divider}`,
-                        fontWeight: 600,
-                        fontSize: '0.875rem',
-                      }}
-                    />
-                    <Chip
-                      icon={<TrendingUpIcon sx={{ color: project.initiated_at ? '#4CAF50' : 'inherit' }} />}
-                      label={project.initiated_at ? 'Active' : 'Draft'}
-                      sx={{
-                        backgroundColor: theme.palette.background.paper,
-                        color: project.initiated_at ? '#4CAF50' : theme.palette.text.primary,
-                        border: `1px solid ${project.initiated_at ? '#4CAF50' : theme.palette.divider}`,
-                        fontWeight: 600,
-                        fontSize: '0.875rem',
-                      }}
-                    />
-                    {project.primary_tool && (
-                      <Chip
-                        label={project.primary_tool}
-                        sx={{
-                          backgroundColor: theme.palette.background.paper,
-                          color: theme.palette.text.primary,
-                          border: `1px solid ${theme.palette.divider}`,
-                          fontWeight: 600,
-                          fontSize: '0.875rem',
-                        }}
-                      />
-                    )}
-                    {companyName && (
-                      <Chip
-                        icon={<BusinessIcon />}
-                        label={companyName}
-                        sx={{
-                          backgroundColor: theme.palette.background.paper,
-                          color: theme.palette.text.primary,
-                          border: `1px solid ${theme.palette.divider}`,
-                          fontWeight: 600,
-                          fontSize: '0.875rem',
-                        }}
-                      />
-                    )}
-                  </Stack>
-                </Box>
-                <Box sx={{ display: 'flex', gap: 1, alignSelf: { xs: 'flex-start', md: 'flex-start' } }}>
-                  <Tooltip title="Settings">
-                    <IconButton
-                      onClick={() => router.push(`/project/${projectId}/settings`)}
-                      sx={{
-                        backgroundColor: theme.palette.background.paper,
-                        border: `1px solid ${theme.palette.divider}`,
-                        '&:hover': {
-                          backgroundColor: theme.palette.action.hover,
-                        },
-                      }}
-                    >
-                      <SettingsIcon />
-                    </IconButton>
-                  </Tooltip>
-                  {isCompanyAdmin && (
-                    <Tooltip title="Delete Project">
-                      <IconButton
-                        onClick={handleDeleteClick}
-                        sx={{
-                          backgroundColor: theme.palette.background.paper,
-                          border: `1px solid ${theme.palette.divider}`,
-                          color: theme.palette.error.main,
-                          '&:hover': {
-                            backgroundColor: theme.palette.error.main,
-                            color: theme.palette.background.paper,
-                          },
-                        }}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                </Box>
-              </Box>
-
-              {/* Progress Bar */}
-              <Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
-                  <Typography
-                    variant="h6"
-                    sx={{ 
-                      color: theme.palette.text.primary, 
-                      fontWeight: 600,
-                      fontSize: { xs: '1rem', md: '1.1rem' },
-                    }}
-                  >
-                    Overall Progress
-                  </Typography>
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      color: theme.palette.text.primary,
-                      fontWeight: 700,
-                      fontSize: { xs: '1.25rem', md: '1.5rem' },
-                    }}
-                  >
-                    {Math.round(progressPercentage)}%
-                  </Typography>
-                </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box sx={{ flex: 1 }}>
                 <LinearProgress
                   variant="determinate"
                   value={progressPercentage}
                   sx={{
-                    height: 12,
-                    borderRadius: 6,
-                    backgroundColor: theme.palette.background.paper,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: theme.palette.action.hover,
                     '& .MuiLinearProgress-bar': {
-                      borderRadius: 6,
+                      borderRadius: 4,
                       background: `linear-gradient(90deg, #4CAF50 0%, #66BB6A 100%)`,
                     },
                   }}
                 />
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: theme.palette.text.secondary,
-                    mt: 1,
-                    textAlign: 'right',
-                  }}
-                >
-                  {completedPhases} of {totalPhases} phases complete
-                </Typography>
               </Box>
-            </Box>
-          </Paper>
-
-          {/* Product Workspace CTA Banner */}
-          {features?.product_workspace_enabled && (
-            <Paper
-              elevation={0}
-              sx={{
-                p: { xs: 2, md: 3 },
-                mb: { xs: 3, md: 4 },
-                mx: { xs: 2, md: 0 },
-                border: `2px solid ${theme.palette.text.primary}`,
-                borderRadius: 3,
-                backgroundColor: theme.palette.background.paper,
-                display: 'flex',
-                flexDirection: { xs: 'column', md: 'row' },
-                alignItems: { xs: 'flex-start', md: 'center' },
-                justifyContent: 'space-between',
-                gap: 2,
-                transition: 'all 0.2s ease',
-                '&:hover': {
-                  boxShadow: `0 4px 20px ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
-                },
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box
-                  sx={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 2,
-                    backgroundColor: theme.palette.action.hover,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <WorkspacePremiumIcon sx={{ fontSize: 28, color: theme.palette.text.primary }} />
-                </Box>
-                <Box>
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      fontWeight: 700,
-                      fontFamily: 'var(--font-rubik), Rubik, sans-serif',
-                      color: theme.palette.text.primary,
-                      fontSize: { xs: '1rem', md: '1.25rem' },
-                    }}
-                  >
-                    Product Workspace
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      color: theme.palette.text.secondary,
-                      fontSize: { xs: '0.8rem', md: '0.875rem' },
-                    }}
-                  >
-                    Collaborate, track progress, and manage your product development in one place.
-                  </Typography>
-                </Box>
-              </Box>
-              <Button
-                variant="contained"
-                endIcon={<ArrowForwardIcon />}
-                onClick={() => router.push(`/workspace/${projectId}`)}
+              <Typography
+                variant="body2"
                 sx={{
-                  backgroundColor: theme.palette.text.primary,
-                  color: theme.palette.background.default,
+                  color: theme.palette.text.primary,
                   fontWeight: 600,
-                  px: 4,
-                  py: 1.5,
+                  fontSize: '0.875rem',
                   whiteSpace: 'nowrap',
-                  minWidth: { xs: '100%', md: 'auto' },
-                  '&:hover': {
-                    backgroundColor: theme.palette.text.secondary,
-                  },
                 }}
               >
-                Open Workspace
-              </Button>
-            </Paper>
-          )}
+                {Math.round(progressPercentage)}% · {completedPhases}/{totalPhases} phases
+              </Typography>
+            </Box>
+          </Paper>
 
           <Grid container spacing={{ xs: 2, md: 3 }} sx={{ px: { xs: 2, md: 0 } }}>
             {/* Phases Section */}
@@ -1219,6 +959,24 @@ export default function ProjectPage() {
                       }}
                     >
                       Export History ({exportCount})
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      startIcon={<CloudUploadIcon />}
+                      onClick={() => router.push(`/project/${projectId}/uploads`)}
+                      fullWidth
+                      sx={{
+                        borderColor: theme.palette.divider,
+                        color: theme.palette.text.primary,
+                        fontWeight: 500,
+                        py: 1.5,
+                        '&:hover': {
+                          borderColor: theme.palette.text.primary,
+                          backgroundColor: theme.palette.action.hover,
+                        },
+                      }}
+                    >
+                      Media Library
                     </Button>
                   </Stack>
                 </Paper>

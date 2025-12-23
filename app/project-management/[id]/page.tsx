@@ -662,20 +662,9 @@ export default function ProjectTaskManagementPage() {
         />
       </Box>
 
-      {/* Header */}
-      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, mb: 4, gap: { xs: 2, md: 0 }, px: { xs: 2, md: 0 } }}>
-        <Typography
-          variant="h3"
-          component="h1"
-          sx={{
-            fontWeight: 600,
-            fontSize: { xs: '1.25rem', md: '1.5rem' },
-            color: theme.palette.text.primary,
-          }}
-        >
-          {project?.name || 'Project'} - Task Management
-        </Typography>
-        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'center', gap: { xs: 2, md: 1 }, flexWrap: 'wrap', width: { xs: '100%', md: 'auto' } }}>
+      {/* Action Buttons */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, px: { xs: 2, md: 0 } }}>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
           {features?.ai_task_generator_enabled && (
             <Button
               variant="contained"
@@ -720,11 +709,11 @@ export default function ProjectTaskManagementPage() {
           >
             Re-analyze
           </Button>
-          <ViewToggle
-            view={view}
-            onChange={setView}
-          />
         </Box>
+        <ViewToggle
+          view={view}
+          onChange={setView}
+        />
       </Box>
 
       {error && (

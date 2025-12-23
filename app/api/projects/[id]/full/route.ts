@@ -99,10 +99,10 @@ export async function GET(
       }
     }
 
-    // Calculate date for upcoming tasks (7 days from now)
-    const sevenDaysFromNow = new Date();
-    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
-    const sevenDaysFromNowISO = sevenDaysFromNow.toISOString();
+    // Calculate date for upcoming tasks (30 days from now to catch more tasks)
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+    const thirtyDaysFromNowISO = thirtyDaysFromNow.toISOString();
 
     // OPTIMIZATION: Fetch all related data in parallel with Redis caching
     const [phases, members, exportCount, templateConfigs, upcomingTasks, taskCounts] = await Promise.all([
@@ -191,7 +191,7 @@ export async function GET(
           )
         : Promise.resolve(null),
       
-      // Fetch upcoming tasks (next 7 days, limit 5, todo/in_progress only)
+      // Fetch upcoming tasks (overdue + next 30 days, limit 5, todo/in_progress only)
       cacheGetOrSet(
         CACHE_KEYS.projectUpcomingTasks(params.id),
         async () => {
@@ -208,7 +208,7 @@ export async function GET(
             .eq('project_id', params.id)
             .in('status', ['todo', 'in_progress'])
             .not('due_date', 'is', null)
-            .lte('due_date', sevenDaysFromNowISO)
+            .lte('due_date', thirtyDaysFromNowISO)
             .order('due_date', { ascending: true })
             .limit(5);
           if (error) {
@@ -240,7 +240,7 @@ export async function GET(
           const upcoming = tasks.filter(t => 
             t.due_date && 
             t.status !== 'done' && 
-            new Date(t.due_date) <= sevenDaysFromNow
+            new Date(t.due_date) <= thirtyDaysFromNow
           ).length;
           
           return { total, completed, upcoming };

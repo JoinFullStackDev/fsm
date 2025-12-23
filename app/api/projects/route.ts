@@ -9,6 +9,7 @@ import { canCreateProject } from '@/lib/packageLimits';
 import { isValidUUID } from '@/lib/utils/inputSanitization';
 import logger from '@/lib/utils/logger';
 import { isObject, hasStringProperty, isNonNullable } from '@/lib/utils/typeGuards';
+import { getAppUrl } from '@/lib/utils/appUrl';
 
 export const dynamic = 'force-dynamic';
 
@@ -611,7 +612,7 @@ export async function POST(request: NextRequest) {
         .single();
 
       const creatorName = creator?.name || null;
-      const projectLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/project/${projectId}`;
+      const projectLink = `${getAppUrl()}/project/${projectId}`;
 
       // Send in-app notification
       notifyProjectCreated(

@@ -1,6 +1,7 @@
 import { sendEmail, sendEmailWithRetry } from '@/lib/emailService';
 import { getOrganizationContextById } from '@/lib/organizationContext';
 import logger from '@/lib/utils/logger';
+import { getAppUrl } from '@/lib/utils/appUrl';
 import type { Invoice, InvoiceWithRelations } from '@/types/ops';
 import { generateEmailWrapper, EMAIL_BRAND_COLORS } from '@/lib/emailTemplateBase';
 
@@ -15,7 +16,7 @@ export async function generateInvoiceEmailTemplate(
   const logoUrl = organizationBranding?.logo_url || organizationBranding?.icon_url;
   const orgName = organizationBranding?.name || 'Your Organization';
 
-  const invoiceUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/ops/invoices/${invoice.id}`;
+  const invoiceUrl = `${getAppUrl()}/ops/invoices/${invoice.id}`;
   const formattedDate = new Date(invoice.issue_date).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',

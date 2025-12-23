@@ -7,6 +7,7 @@ import { isEmailConfigured } from '@/lib/emailService';
 import { getUserOrganizationId } from '@/lib/organizationContext';
 import logger from '@/lib/utils/logger';
 import { unauthorized, forbidden, notFound, badRequest, internalError } from '@/lib/utils/apiErrors';
+import { getAppUrl } from '@/lib/utils/appUrl';
 
 // POST - Resend invitation email for a user
 export async function POST(
@@ -82,8 +83,7 @@ export async function POST(
     }
 
     // Generate invitation link using Supabase admin API
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
-                   (request.headers.get('origin') || 'http://localhost:3000');
+    const baseUrl = getAppUrl();
     
     // If email is already confirmed, use recovery type instead of invite
     const linkType = targetAuthUser?.email_confirmed_at ? 'recovery' : 'invite';

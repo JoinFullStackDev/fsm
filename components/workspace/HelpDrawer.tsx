@@ -9,6 +9,7 @@ import {
   ListItemIcon,
   ListItemText,
   Paper,
+  Chip,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
@@ -18,6 +19,12 @@ import {
   MenuBook as MenuBookIcon,
   Lightbulb as LightbulbIcon,
   Keyboard as KeyboardIcon,
+  ShowChart as ShowChartIcon,
+  Explore as ExploreIcon,
+  Flag as FlagIcon,
+  Map as MapIcon,
+  Groups as GroupsIcon,
+  AutoAwesome as AutoAwesomeIcon,
 } from '@mui/icons-material';
 
 interface HelpDrawerProps {
@@ -37,14 +44,17 @@ export default function HelpDrawer({ open, onClose }: HelpDrawerProps) {
         sx: {
           width: 480,
           maxWidth: '90vw',
+          backgroundColor: theme.palette.background.paper,
+          borderLeft: `1px solid ${theme.palette.divider}`,
+          transform: 'translateY(60px) !important',
         },
       }}
     >
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: 3, maxHeight: 'calc(100vh - 60px)', overflowY: 'auto' }}>
         {/* Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h5" sx={{ fontWeight: 600 }}>
-            About Product Workspace
+            Product Workspace
           </Typography>
           <IconButton onClick={onClose} size="small">
             <CloseIcon />
@@ -53,73 +63,153 @@ export default function HelpDrawer({ open, onClose }: HelpDrawerProps) {
 
         {/* Overview */}
         <Paper elevation={0} sx={{ p: 3, mb: 3, backgroundColor: theme.palette.background.default }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <AutoAwesomeIcon sx={{ color: theme.palette.primary.main }} />
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+              AI-Powered Product Development
+            </Typography>
+          </Box>
           <Typography variant="body1" sx={{ lineHeight: 1.8, mb: 2 }}>
-            Product Workspace is an upstream product thinking layer that helps teams define
-            problems clearly before building solutions.
+            A comprehensive suite of 8 integrated systems designed to support the entire product development lifecycle—from initial strategy through stakeholder communication.
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-            It enforces clarity before execution through three integrated systems that work together
-            to reduce ambiguity and improve handoffs.
+            Each system feeds context to the AI assistant, enabling intelligent, context-aware guidance throughout your product journey.
           </Typography>
         </Paper>
 
-        {/* The Three Systems */}
+        {/* The Eight Systems */}
         <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-          The Three Systems
+          Core Systems
         </Typography>
 
-        <List sx={{ mb: 3 }}>
+        <List sx={{ mb: 2 }} dense>
           <ListItem>
             <ListItemIcon>
-              <PsychologyIcon sx={{ color: theme.palette.primary.main }} />
+              <FlagIcon sx={{ color: '#6366F1' }} />
+            </ListItemIcon>
+            <ListItemText
+              primary="Strategy Canvas"
+              secondary="Define your product vision, North Star metric, strategic bets, and design principles."
+              secondaryTypographyProps={{ sx: { lineHeight: 1.5 } }}
+            />
+          </ListItem>
+
+          <ListItem>
+            <ListItemIcon>
+              <ExploreIcon sx={{ color: '#8B5CF6' }} />
+            </ListItemIcon>
+            <ListItemText
+              primary="Discovery Hub"
+              secondary="Capture user insights, run experiments, and aggregate feedback to validate assumptions."
+              secondaryTypographyProps={{ sx: { lineHeight: 1.5 } }}
+            />
+          </ListItem>
+
+          <ListItem>
+            <ListItemIcon>
+              <PsychologyIcon sx={{ color: '#EC4899' }} />
             </ListItemIcon>
             <ListItemText
               primary="Clarity Canvas"
-              secondary="Define problems, capture business intent, identify outcomes. AI analyzes for completeness and suggests improvements."
-              secondaryTypographyProps={{ sx: { lineHeight: 1.6 } }}
+              secondary="Define problems clearly with solution hypotheses. AI scores readiness for implementation."
+              secondaryTypographyProps={{ sx: { lineHeight: 1.5 } }}
             />
           </ListItem>
 
           <ListItem>
             <ListItemIcon>
-              <AccountTreeIcon sx={{ color: theme.palette.success.main }} />
+              <ShowChartIcon sx={{ color: '#10B981' }} />
+            </ListItemIcon>
+            <ListItemText
+              primary="Success Metrics"
+              secondary="Track KPIs with targets, monitor health status, and validate product outcomes."
+              secondaryTypographyProps={{ sx: { lineHeight: 1.5 } }}
+            />
+          </ListItem>
+
+          <ListItem>
+            <ListItemIcon>
+              <AccountTreeIcon sx={{ color: '#F59E0B' }} />
             </ListItemIcon>
             <ListItemText
               primary="Epic Builder"
-              secondary="Decompose clarity specs into actionable FE/BE issues with AI. Generate tasks in FSM or export to GitLab."
-              secondaryTypographyProps={{ sx: { lineHeight: 1.6 } }}
+              secondary="Break down features into FE/BE issues with AI assistance. Generate tasks automatically."
+              secondaryTypographyProps={{ sx: { lineHeight: 1.5 } }}
             />
           </ListItem>
 
           <ListItem>
             <ListItemIcon>
-              <MenuBookIcon sx={{ color: theme.palette.warning.main }} />
+              <MapIcon sx={{ color: '#3B82F6' }} />
+            </ListItemIcon>
+            <ListItemText
+              primary="Roadmap Planner"
+              secondary="Prioritize features with RICE scoring, plan releases, and track dependencies."
+              secondaryTypographyProps={{ sx: { lineHeight: 1.5 } }}
+            />
+          </ListItem>
+
+          <ListItem>
+            <ListItemIcon>
+              <GroupsIcon sx={{ color: '#14B8A6' }} />
+            </ListItemIcon>
+            <ListItemText
+              primary="Stakeholder Hub"
+              secondary="Manage relationships with power/interest matrix. AI drafts stakeholder updates."
+              secondaryTypographyProps={{ sx: { lineHeight: 1.5 } }}
+            />
+          </ListItem>
+
+          <ListItem>
+            <ListItemIcon>
+              <MenuBookIcon sx={{ color: '#EF4444' }} />
             </ListItemIcon>
             <ListItemText
               primary="Context Library"
-              secondary="Track decisions with rationale and log technical/product debt. Preserves institutional knowledge."
-              secondaryTypographyProps={{ sx: { lineHeight: 1.6 } }}
+              secondary="Document decisions with rationale and track technical/product debt."
+              secondaryTypographyProps={{ sx: { lineHeight: 1.5 } }}
             />
           </ListItem>
         </List>
 
         <Divider sx={{ my: 3 }} />
 
+        {/* AI Assistant */}
+        <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+          AI Assistant Capabilities
+        </Typography>
+
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 3 }}>
+          <Chip label="Strategic Q&A" size="small" variant="outlined" />
+          <Chip label="Insight Analysis" size="small" variant="outlined" />
+          <Chip label="Progress Tracking" size="small" variant="outlined" />
+          <Chip label="Priority Suggestions" size="small" variant="outlined" />
+          <Chip label="Stakeholder Updates" size="small" variant="outlined" />
+          <Chip label="Risk Identification" size="small" variant="outlined" />
+        </Box>
+
+        <Paper elevation={0} sx={{ p: 2, mb: 3, backgroundColor: theme.palette.background.default }}>
+          <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+            The AI assistant has access to all your workspace data. Ask questions like &quot;What are our users&apos; top pain points?&quot;, &quot;Are we on track for our metrics?&quot;, or &quot;Help me draft a stakeholder update.&quot;
+          </Typography>
+        </Paper>
+
+        <Divider sx={{ my: 3 }} />
+
         {/* Quick Tips */}
         <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-          Quick Tips
+          Workflow Tips
         </Typography>
 
         <Paper elevation={0} sx={{ p: 2, mb: 2, backgroundColor: theme.palette.background.default }}>
           <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
             <LightbulbIcon sx={{ fontSize: 20, color: theme.palette.warning.main }} />
             <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-              Start with Problems, Not Solutions
+              Start with Strategy
             </Typography>
           </Box>
           <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-            Use Clarity Canvas to force clear problem definition before jumping to solutions.
-            The AI readiness score helps identify gaps in your thinking.
+            Define your North Star metric and strategic bets before diving into features. This provides context for all downstream decisions.
           </Typography>
         </Paper>
 
@@ -127,12 +217,11 @@ export default function HelpDrawer({ open, onClose }: HelpDrawerProps) {
           <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
             <LightbulbIcon sx={{ fontSize: 20, color: theme.palette.warning.main }} />
             <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-              Let AI Do the Decomposition
+              Validate Before Building
             </Typography>
           </Box>
           <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-            Once your clarity spec is solid (7+/10 readiness), use Epic Builder to generate
-            comprehensive FE/BE issues automatically. Review and refine as needed.
+            Use Discovery Hub to capture insights and run experiments. Feed validated learnings into your Clarity specs.
           </Typography>
         </Paper>
 
@@ -140,12 +229,11 @@ export default function HelpDrawer({ open, onClose }: HelpDrawerProps) {
           <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
             <LightbulbIcon sx={{ fontSize: 20, color: theme.palette.warning.main }} />
             <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-              Document Decisions as You Go
+              Keep Stakeholders Aligned
             </Typography>
           </Box>
           <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-            Use Context Library to capture why decisions were made. Future you (and your team)
-            will thank you when revisiting similar problems.
+            Use the Stakeholder Hub to track alignment and let AI draft updates based on your actual progress and metrics.
           </Typography>
         </Paper>
 

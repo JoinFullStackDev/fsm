@@ -7,6 +7,7 @@ import logger from '@/lib/utils/logger';
 import { notifyTaskAssigned } from '@/lib/notifications';
 import { sendTaskAssignedEmail } from '@/lib/emailNotifications';
 import { emitEntityEvent } from '@/lib/workflows/eventBus';
+import { getAppUrl } from '@/lib/utils/appUrl';
 import type { ProjectTask } from '@/types/project';
 
 // Types for task data
@@ -285,7 +286,7 @@ export async function POST(
         .single();
 
       if (project && assigner) {
-        const taskLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/project/${params.id}?task=${task.id}`;
+        const taskLink = `${getAppUrl()}/project/${params.id}?task=${task.id}`;
 
         // Send in-app notification
         notifyTaskAssigned(

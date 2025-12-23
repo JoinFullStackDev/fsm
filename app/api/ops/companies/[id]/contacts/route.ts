@@ -7,6 +7,7 @@ import { unauthorized, notFound, internalError, badRequest, forbidden } from '@/
 import logger from '@/lib/utils/logger';
 import { sanitizeSearchInput } from '@/lib/utils/inputSanitization';
 import { createActivityFeedItem } from '@/lib/ops/activityFeed';
+import { getAppUrl } from '@/lib/utils/appUrl';
 import type { CompanyContact } from '@/types/ops';
 
 export const dynamic = 'force-dynamic';
@@ -279,7 +280,7 @@ export async function POST(
           .eq('id', companyId)
           .single();
 
-        const contactLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/ops/companies/${companyId}/contacts/${contact.id}`;
+        const contactLink = `${getAppUrl()}/ops/companies/${companyId}/contacts/${contact.id}`;
         
         for (const admin of orgAdmins) {
           if (admin.id !== userData.id) {

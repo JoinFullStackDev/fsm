@@ -8,6 +8,7 @@ import { isEmailConfigured } from '@/lib/emailService';
 import { checkRateLimit, RATE_LIMIT_CONFIGS } from '@/lib/utils/rateLimit';
 import crypto from 'crypto';
 import logger from '@/lib/utils/logger';
+import { getAppUrl } from '@/lib/utils/appUrl';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,8 +94,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate reset link
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
-                   (request.headers.get('origin') || 'http://localhost:3000');
+    const baseUrl = getAppUrl();
     const resetLink = `${baseUrl}/auth/reset-password?token=${token}`;
 
     // Get email template

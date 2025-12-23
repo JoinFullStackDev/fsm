@@ -5,6 +5,7 @@ import { sendTaskAssignedEmail } from '@/lib/emailNotifications';
 import { unauthorized, notFound, internalError, badRequest } from '@/lib/utils/apiErrors';
 import logger from '@/lib/utils/logger';
 import { createActivityFeedItem } from '@/lib/ops/activityFeed';
+import { getAppUrl } from '@/lib/utils/appUrl';
 import type { OpsTask, OpsTaskWithRelations } from '@/types/ops';
 
 export const dynamic = 'force-dynamic';
@@ -191,7 +192,7 @@ export async function POST(
         .single();
 
       if (company && assigner) {
-        const taskLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/ops/companies/${companyId}?task=${task.id}`;
+        const taskLink = `${getAppUrl()}/ops/companies/${companyId}?task=${task.id}`;
         
         sendTaskAssignedEmail(
           task.assigned_to,

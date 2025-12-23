@@ -4,6 +4,7 @@
  */
 
 import { getEmailBranding, EMAIL_BRAND_COLORS } from './emailBranding';
+import { getAppUrl } from './utils/appUrl';
 
 // Re-export EMAIL_BRAND_COLORS for convenience
 export { EMAIL_BRAND_COLORS };
@@ -82,7 +83,7 @@ export async function generateEmailWrapper(options: EmailWrapperOptions): Promis
                       This email was sent by ${branding.organizationName ? `${branding.organizationName} via ` : ''}${branding.appName}
                     </p>
                     <p style="margin: 0;">
-                      ${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}
+                      ${getAppUrl()}
                     </p>
                   </td>
                 </tr>

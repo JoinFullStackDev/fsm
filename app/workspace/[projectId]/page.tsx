@@ -155,49 +155,11 @@ export default function WorkspacePage() {
         taskCount={taskCount}
       />
 
-      {/* Header */}
-      <Box sx={{ mb: 6 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-            <Box
-              sx={{
-                background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
-                borderRadius: 3,
-                p: 2.5,
-                boxShadow: theme.shadows[8],
-              }}
-            >
-              <WorkspacePremiumIcon sx={{ fontSize: 48, color: 'white' }} />
-            </Box>
-            <Box>
-              <Typography variant="h2" component="h1" sx={{ fontWeight: 700, mb: 0.5, fontSize: { xs: '2rem', md: '3rem' } }}>
-                Product Workspace
-              </Typography>
-              <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 400 }}>
-                Clarity before code • Upstream product thinking
-              </Typography>
-            </Box>
-          </Box>
-          <Button
-            variant="outlined"
-            startIcon={<HelpOutlineIcon />}
-            onClick={() => setHelpDrawerOpen(true)}
-            sx={{
-              borderColor: theme.palette.divider,
-              color: theme.palette.text.primary,
-              '&:hover': {
-                borderColor: theme.palette.text.primary,
-                backgroundColor: theme.palette.action.hover,
-              },
-            }}
-          >
-            Help & Tips
-          </Button>
-        </Box>
-
+      {/* Quick Stats & Actions */}
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
         {/* Quick Stats */}
-        {workspace && (workspace.clarity_spec_count > 0 || workspace.epic_draft_count > 0 || workspace.decision_count > 0) && (
-          <Box sx={{ mt: 4, display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+        {workspace && (workspace.clarity_spec_count > 0 || workspace.epic_draft_count > 0 || workspace.decision_count > 0) ? (
+          <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography variant="h4" sx={{ fontWeight: 700 }}>{workspace.clarity_spec_count + workspace.epic_draft_count}</Typography>
               <Typography variant="body2" color="text.secondary">work items</Typography>
@@ -213,7 +175,24 @@ export default function WorkspacePage() {
               </Box>
             )}
           </Box>
+        ) : (
+          <Box />
         )}
+        <Button
+          variant="outlined"
+          startIcon={<HelpOutlineIcon />}
+          onClick={() => setHelpDrawerOpen(true)}
+          sx={{
+            borderColor: theme.palette.divider,
+            color: theme.palette.text.primary,
+            '&:hover': {
+              borderColor: theme.palette.text.primary,
+              backgroundColor: theme.palette.action.hover,
+            },
+          }}
+        >
+          Help & Tips
+        </Button>
       </Box>
 
       {/* Overview Cards */}
@@ -499,19 +478,11 @@ export default function WorkspacePage() {
         </Grid>
       </Grid>
 
-      {/* AI Chat Assistant */}
-      {workspace && (
-        <Box sx={{ mt: 6 }}>
-          <WorkspaceChat
-            projectId={projectId}
-            workspaceId={workspace.id}
-            hasSpecs={(workspace.clarity_spec_count || 0) > 0}
-            hasEpics={(workspace.epic_draft_count || 0) > 0}
-            hasTasks={true}
-            teamMembers={teamMembers}
-          />
-        </Box>
-      )}
+      {/* Floating AI Assistant */}
+      <WorkspaceChat
+        projectId={projectId}
+        variant="floating"
+      />
 
       {/* Help Drawer */}
       <HelpDrawer open={helpDrawerOpen} onClose={() => setHelpDrawerOpen(false)} />

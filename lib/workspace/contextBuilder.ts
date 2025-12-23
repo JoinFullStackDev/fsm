@@ -167,6 +167,16 @@ export interface WorkspaceContextData {
       sent_date: string | null;
     }>;
   };
+  uploads: {
+    total_files: number;
+    processed_files: number;
+    files: Array<{
+      file_name: string;
+      file_type: string | null;
+      ai_summary: string | null;
+      extracted_text_preview: string; // First 500 chars
+    }>;
+  };
 }
 
 /**
@@ -193,7 +203,7 @@ export async function buildWorkspaceContext(
       }
     };
 
-    const [projectRes, phasesRes, tasksRes, specsRes, epicsRes, decisionsRes, debtRes, membersRes, sowRes, metricsRes, insightsRes, experimentsRes, feedbackRes, strategyRes, roadmapRes, releasesRes, stakeholdersRes, stakeholderUpdatesRes] = await Promise.all([
+    const [projectRes, phasesRes, tasksRes, specsRes, epicsRes, decisionsRes, debtRes, membersRes, sowRes, metricsRes, insightsRes, experimentsRes, feedbackRes, strategyRes, roadmapRes, releasesRes, stakeholdersRes, stakeholderUpdatesRes, uploadsRes] = await Promise.all([
       // Project
       client
         .from('projects')
@@ -364,6 +374,15 @@ export async function buildWorkspaceContext(
         .not('sent_date', 'is', null)
         .order('sent_date', { ascending: false })
         .limit(5),
+      
+      // Project Uploads (for AI context)
+      client
+        .from('project_uploads')
+        .select('file_name, file_type, ai_summary, extracted_text, is_processed, processing_error')
+        .eq('project_id', projectId)
+        .eq('is_processed', true)
+        .order('created_at', { ascending: false })
+        .limit(20),
     ]);
 
     // Extract key fields from phase data with value previews (expanded for comprehensive AI context)
@@ -704,6 +723,24 @@ export async function buildWorkspaceContext(
       })),
     };
 
+    // Build uploads summary for AI context
+    const uploadsData = uploadsRes.data || [];
+    const uploadsSummary = {
+      total_files: uploadsData.length,
+      processed_files: uploadsData.filter((u: any) => u.is_processed && !u.processing_error).length,
+      files: uploadsData
+        .filter((u: any) => u.is_processed && !u.processing_error && (u.ai_summary || u.extracted_text))
+        .slice(0, 15)
+        .map((u: any) => ({
+          file_name: u.file_name,
+          file_type: u.file_type,
+          ai_summary: u.ai_summary || null,
+          extracted_text_preview: u.extracted_text 
+            ? u.extracted_text.substring(0, 500) + (u.extracted_text.length > 500 ? '...' : '')
+            : '',
+        })),
+    };
+
     const context: WorkspaceContextData = {
       project: {
         name: projectRes.data?.name || 'Unknown Project',
@@ -729,6 +766,7 @@ export async function buildWorkspaceContext(
       strategy: strategySummary,
       roadmap: roadmapSummary,
       stakeholders: stakeholdersSummary,
+      uploads: uploadsSummary,
     };
 
     logger.info('[Context Builder] Context built successfully:', {
@@ -739,6 +777,7 @@ export async function buildWorkspaceContext(
       epicsCount: epics.length,
       teamMembersCount: members.length,
       hasSow: sow.exists,
+      uploadsCount: uploadsSummary.total_files,
     });
 
     return context;
@@ -968,6 +1007,28 @@ ${context.phases.map((p) => {
         const date = u.sent_date ? new Date(u.sent_date).toLocaleDateString() : 'Draft';
         prompt += `- [${u.update_type}] ${u.title} (${date})\n`;
       });
+    }
+  }
+
+  // Add uploaded documents context
+  if (context.uploads && context.uploads.total_files > 0) {
+    prompt += `\n**UPLOADED DOCUMENTS (${context.uploads.processed_files} processed of ${context.uploads.total_files} total):**\n`;
+    
+    if (context.uploads.files.length > 0) {
+      context.uploads.files.forEach((file) => {
+        const fileType = file.file_type ? `[${file.file_type.toUpperCase()}]` : '[FILE]';
+        prompt += `\n${fileType} ${file.file_name}:\n`;
+        
+        if (file.ai_summary) {
+          prompt += `Summary: ${file.ai_summary}\n`;
+        }
+        
+        if (file.extracted_text_preview && !file.ai_summary) {
+          prompt += `Content Preview: ${file.extracted_text_preview}\n`;
+        }
+      });
+    } else {
+      prompt += `Files are being processed...\n`;
     }
   }
 

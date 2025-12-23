@@ -6,6 +6,7 @@ import { sendTaskAssignedEmail, sendTaskUpdatedEmail } from '@/lib/emailNotifica
 import { unauthorized, notFound, internalError, badRequest, forbidden } from '@/lib/utils/apiErrors';
 import { cacheDel, CACHE_KEYS } from '@/lib/cache/unifiedCache';
 import { emitEntityEvent } from '@/lib/workflows/eventBus';
+import { getAppUrl } from '@/lib/utils/appUrl';
 import logger from '@/lib/utils/logger';
 
 // Type for task update data
@@ -225,7 +226,7 @@ export async function PUT(
       assignee_id !== null
     ) {
       if (projectName && userData) {
-        const taskLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/project/${params.id}?task=${params.taskId}`;
+        const taskLink = `${getAppUrl()}/project/${params.id}?task=${params.taskId}`;
 
         // Create notification asynchronously (don't wait for it)
         notifyTaskAssigned(
@@ -255,7 +256,7 @@ export async function PUT(
 
     // Send email notification for other updates (status, priority changes) if assignee exists
     if (task.assignee_id && (status !== undefined || priority !== undefined) && projectName) {
-      const taskLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/project/${params.id}?task=${params.taskId}`;
+      const taskLink = `${getAppUrl()}/project/${params.id}?task=${params.taskId}`;
       const updateDetails: string[] = [];
       if (status !== undefined) updateDetails.push(`Status changed to ${status}`);
       if (priority !== undefined) updateDetails.push(`Priority changed to ${priority}`);

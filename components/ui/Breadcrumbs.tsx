@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { Breadcrumbs as MuiBreadcrumbs, Link, Typography, Box } from '@mui/material';
 import { Home as HomeIcon, ChevronRight as ChevronRightIcon } from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
 
 interface BreadcrumbItem {
   label: string;
@@ -15,6 +16,7 @@ interface BreadcrumbsProps {
 
 export default function Breadcrumbs({ items }: BreadcrumbsProps) {
   const router = useRouter();
+  const theme = useTheme();
 
   const handleClick = (href: string) => {
     router.push(href);
@@ -22,7 +24,7 @@ export default function Breadcrumbs({ items }: BreadcrumbsProps) {
 
   return (
     <MuiBreadcrumbs
-      separator={<ChevronRightIcon sx={{ fontSize: 16, color: '#B0B0B0' }} />}
+      separator={<ChevronRightIcon sx={{ fontSize: 16, color: theme.palette.text.disabled }} />}
       sx={{
         mb: 2,
         '& .MuiBreadcrumbs-ol': {
@@ -37,7 +39,7 @@ export default function Breadcrumbs({ items }: BreadcrumbsProps) {
           display: 'flex',
           alignItems: 'center',
           cursor: 'pointer',
-          color: '#C9354A',
+          color: theme.palette.primary.main,
           '&:hover': {
             textDecoration: 'underline',
           },
@@ -47,7 +49,7 @@ export default function Breadcrumbs({ items }: BreadcrumbsProps) {
         <Typography 
           variant="body2" 
           sx={{ 
-            color: '#C9354A',
+            color: theme.palette.primary.main,
             display: { xs: 'none', md: 'block' },
           }}
         >
@@ -63,7 +65,7 @@ export default function Breadcrumbs({ items }: BreadcrumbsProps) {
               key={index}
               variant="body2"
               sx={{
-                color: isLast ? '#E0E0E0' : '#B0B0B0',
+                color: isLast ? theme.palette.text.primary : theme.palette.text.secondary,
                 fontWeight: isLast ? 600 : 400,
               }}
             >
@@ -79,7 +81,7 @@ export default function Breadcrumbs({ items }: BreadcrumbsProps) {
             variant="body2"
             onClick={() => item.href && handleClick(item.href)}
             sx={{
-              color: '#C9354A',
+              color: theme.palette.primary.main,
               textDecoration: 'none',
               cursor: 'pointer',
               '&:hover': {
@@ -94,4 +96,3 @@ export default function Breadcrumbs({ items }: BreadcrumbsProps) {
     </MuiBreadcrumbs>
   );
 }
-
