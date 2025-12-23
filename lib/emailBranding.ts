@@ -6,6 +6,7 @@
 import { createAdminSupabaseClient } from './supabaseAdmin';
 import { getOrganizationContextById } from './organizationContext';
 import logger from './utils/logger';
+import { getAppUrl } from './utils/appUrl';
 
 export interface EmailBranding {
   logoUrl: string | null;
@@ -29,13 +30,13 @@ export async function getAppBranding(): Promise<{ logoUrl: string; appName: stri
 
     const appName = setting?.value ? String(setting.value) : 'FullStack Method™ App';
     // Use PNG for emails as it has better email client support than SVG
-    const appLogoUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/fullstack_logo.png`;
+    const appLogoUrl = `${getAppUrl()}/fullstack_logo.png`;
 
     return { logoUrl: appLogoUrl, appName };
   } catch (error) {
     logger.debug('[EmailBranding] Error loading app branding, using defaults');
     return {
-      logoUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/fullstack_logo.png`,
+      logoUrl: `${getAppUrl()}/fullstack_logo.png`,
       appName: 'FullStack Method™ App',
     };
   }

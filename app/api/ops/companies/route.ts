@@ -7,6 +7,7 @@ import { hasOpsTool } from '@/lib/packageLimits';
 import logger from '@/lib/utils/logger';
 import { sanitizeSearchInput } from '@/lib/utils/inputSanitization';
 import { sendCompanyAddedEmail } from '@/lib/emailNotifications';
+import { getAppUrl } from '@/lib/utils/appUrl';
 import type { Company, CompanyWithCounts } from '@/types/ops';
 
 export const dynamic = 'force-dynamic';
@@ -227,7 +228,7 @@ export async function POST(request: NextRequest) {
         logger.error('[Company] Error fetching organization admins:', orgAdminsError);
         // Don't fail the request if we can't fetch admins for email notifications
       } else if (orgAdmins && orgAdmins.length > 0) {
-        const companyLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/ops/companies/${company.id}`;
+        const companyLink = `${getAppUrl()}/ops/companies/${company.id}`;
         for (const admin of orgAdmins) {
           if (admin.id !== userData.id) {
             sendCompanyAddedEmail(

@@ -10,6 +10,7 @@ import { getUserInvitationTemplate } from '@/lib/emailTemplates';
 import { isEmailConfigured } from '@/lib/emailService';
 import logger from '@/lib/utils/logger';
 import { VALID_USER_ROLES } from '@/lib/constants';
+import { getAppUrl } from '@/lib/utils/appUrl';
 import type { UserRole } from '@/types/project';
 
 // Types for user data
@@ -314,8 +315,7 @@ export async function POST(request: NextRequest) {
       const emailConfigured = await isEmailConfigured();
       if (emailConfigured && authUser.user) {
         // Generate invitation link using Supabase admin API
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
-                       (request.headers.get('origin') || 'http://localhost:3000');
+        const baseUrl = getAppUrl();
         
         // Generate a magic link for email confirmation and password setup
         const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({

@@ -527,3 +527,52 @@ export interface TeamWithMembers extends Team {
   member_count: number;
 }
 
+// ============================================
+// PROJECT UPLOADS / MEDIA LIBRARY TYPES
+// ============================================
+
+export type UploadProcessingStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
+export interface ProjectUpload {
+  id: string;
+  project_id: string;
+  file_name: string;
+  file_path: string;
+  file_size: number | null;
+  file_type: string | null; // Extension (pdf, png, docx, etc.)
+  mime_type: string | null; // MIME type (application/pdf, image/png, etc.)
+  extracted_text: string | null;
+  ai_summary: string | null;
+  is_processed: boolean;
+  processing_error: string | null;
+  description: string | null;
+  tags: string[];
+  uploaded_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectUploadWithUploader extends ProjectUpload {
+  uploader?: {
+    id: string;
+    name: string | null;
+    email: string;
+    avatar_url: string | null;
+  } | null;
+}
+
+export interface ProjectUploadCreateInput {
+  file_name: string;
+  file_path: string;
+  file_size?: number;
+  file_type?: string;
+  mime_type?: string;
+  description?: string;
+  tags?: string[];
+}
+
+export interface ProjectUploadUpdateInput {
+  description?: string;
+  tags?: string[];
+}
+

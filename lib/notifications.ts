@@ -4,6 +4,7 @@ import { sendPushNotification } from '@/lib/pushNotifications';
 import { sendEmailWithRetry, isEmailConfigured } from '@/lib/emailService';
 import { sendSlackNotificationIfConfigured } from '@/lib/slackNotifications';
 import logger from '@/lib/utils/logger';
+import { getAppUrl } from '@/lib/utils/appUrl';
 import type { NotificationType, NotificationMetadata } from '@/types/project';
 
 /**
@@ -144,7 +145,7 @@ export async function notifyArticlePublished(
       return;
     }
 
-    const articleLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/kb/${articleId}`;
+    const articleLink = `${getAppUrl()}/kb/${articleId}`;
     const authorDisplayName = authorName || 'Someone';
 
     // Create notifications for all users
@@ -205,7 +206,7 @@ export async function notifyArticleUpdated(
       return;
     }
 
-    const articleLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/kb/${articleId}`;
+    const articleLink = `${getAppUrl()}/kb/${articleId}`;
     const updaterDisplayName = updaterName || 'Someone';
 
     const notifications = users
@@ -264,7 +265,7 @@ export async function notifyCategoryAdded(
       return;
     }
 
-    const kbLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/kb`;
+    const kbLink = `${getAppUrl()}/kb`;
     const creatorDisplayName = creatorName || 'Someone';
 
     const notifications = users
@@ -323,7 +324,7 @@ export async function notifyReleaseNotesPublished(
       return;
     }
 
-    const articleLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/kb/${articleId}`;
+    const articleLink = `${getAppUrl()}/kb/${articleId}`;
     const publisherDisplayName = publisherName || 'Someone';
 
     const notifications = users.map(user => ({

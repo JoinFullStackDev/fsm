@@ -34,8 +34,10 @@
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.4",
     "jszip": "^3.10.1",
+    "mammoth": "^1.11.0",
     "mermaid": "^11.12.1",
     "next": "^14.2.0",
+    "pdf-parse": "^2.4.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-grid-layout": "^1.5.2",
@@ -46,6 +48,7 @@
     "remark-gfm": "^4.0.1",
     "stripe": "^20.0.0",
     "web-push": "^3.6.7",
+    "xlsx": "^0.18.5",
     "zod": "^3.22.4"
   },
   "devDependencies": {

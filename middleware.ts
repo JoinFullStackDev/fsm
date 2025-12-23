@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 import logger from '@/lib/utils/logger';
 import { setCsrfToken } from '@/lib/utils/csrf';
+import { getAppUrl } from '@/lib/utils/appUrl';
 
 export async function middleware(request: NextRequest) {
   // Let service worker requests pass through - Next.js will serve from public/sw.js
@@ -28,7 +29,7 @@ export async function middleware(request: NextRequest) {
 
   // Add security headers
   const isProduction = process.env.NODE_ENV === 'production';
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const appUrl = getAppUrl();
   
   // Content Security Policy
   // Allow Supabase, Stripe, and other trusted sources

@@ -6,6 +6,7 @@ import { sendProjectInitiatedEmail } from '@/lib/emailNotifications';
 import logger from '@/lib/utils/logger';
 import { unauthorized, notFound, badRequest, internalError } from '@/lib/utils/apiErrors';
 import { ANALYSIS_TYPES, API_CONFIG_KEYS } from '@/lib/constants';
+import { getAppUrl } from '@/lib/utils/appUrl';
 import type { ProjectTask, ProjectAnalysis } from '@/types/project';
 
 // Local types for SOW member queries
@@ -487,7 +488,7 @@ export async function POST(
       ]);
 
       // OPTIMIZATION: Send all email notifications in parallel (non-blocking)
-      const projectLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/project/${params.id}`;
+      const projectLink = `${getAppUrl()}/project/${params.id}`;
       const emailPromises: Promise<void>[] = [];
       
       // Notify project owner

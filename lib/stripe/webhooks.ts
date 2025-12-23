@@ -8,6 +8,7 @@ import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import { isEmailConfigured, sendEmailWithRetry } from '@/lib/emailService';
 import { getPostPaymentWelcomeTemplate } from '@/lib/emailTemplates';
 import logger from '@/lib/utils/logger';
+import { getAppUrl } from '@/lib/utils/appUrl';
 import type Stripe from 'stripe';
 import type { OrganizationRow } from '@/types/database';
 
@@ -611,7 +612,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session):
           }
 
           // Get base URL for login link
-          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+          const baseUrl = getAppUrl();
           const loginLink = `${baseUrl}/auth/signin`;
 
           // Note: Supabase handles email confirmation automatically

@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer';
 import { createAdminSupabaseClient } from '@/lib/supabaseAdmin';
 import logger from '@/lib/utils/logger';
 import { sendTaskAssignedEmail, sendTaskUpdatedEmail } from '@/lib/emailNotifications';
+import { getAppUrl } from '@/lib/utils/appUrl';
 
 function unauthorized(message: string) {
   return NextResponse.json({ error: message }, { status: 401 });
@@ -163,7 +164,7 @@ export async function POST(
         // Send email notifications for reassignment (only if assigning to someone)
         if (assigneeUser && project && assigneeId) {
           const taskTitles = updatedTasks?.map(t => t.title).join(', ') || '';
-          const taskLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/project/${params.id}`;
+          const taskLink = `${getAppUrl()}/project/${params.id}`;
           
           // Send email for each task (or combine titles)
           sendTaskAssignedEmail(
@@ -214,7 +215,7 @@ export async function POST(
             if (assigneeId) {
               const userTasks = updatedTasks.filter(t => t.assignee_id === assigneeId);
               const taskTitles = userTasks.map(t => t.title).join(', ');
-              const taskLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/project/${params.id}`;
+              const taskLink = `${getAppUrl()}/project/${params.id}`;
               
               sendTaskUpdatedEmail(
                 assigneeId,
@@ -266,7 +267,7 @@ export async function POST(
             if (assigneeId) {
               const userTasks = updatedTasks.filter(t => t.assignee_id === assigneeId);
               const taskTitles = userTasks.map(t => t.title).join(', ');
-              const taskLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/project/${params.id}`;
+              const taskLink = `${getAppUrl()}/project/${params.id}`;
               
               sendTaskUpdatedEmail(
                 assigneeId,
