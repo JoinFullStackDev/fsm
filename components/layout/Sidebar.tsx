@@ -279,6 +279,9 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
 
   const handleNavigate = (path: string) => {
     router.push(path);
+    if (isMobile) {
+      onToggle();
+    }
   };
 
   return (
@@ -300,7 +303,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
           borderRight: `1px solid ${theme.palette.divider}`,
           transition: isMobile ? 'transform 0.3s ease' : 'width 0.3s ease',
           overflowX: 'hidden',
-          pt: '64px', // Account for TopBar height
+          pt: isMobile ? 0 : '64px', // Only account for TopBar height on desktop
           display: 'flex',
           flexDirection: 'column',
         },
@@ -738,8 +741,9 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
           </Box>
         </ListItem>
 
-        {/* Templates (All roles can view and create templates) */}
-        <ListItem disablePadding>
+        {/* Templates (All roles can view and create templates) - Hidden on mobile */}
+        {!isMobile && (
+          <ListItem disablePadding>
             <Box sx={{ width: '100%' }}>
               <Tooltip
                 title="Templates"
@@ -850,6 +854,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
               )}
             </Box>
           </ListItem>
+        )}
 
         {/* Custom Dashboards Section - Only show if custom_dashboards_enabled is true */}
         {features?.custom_dashboards_enabled === true && (
@@ -913,8 +918,8 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
           </>
         )}
 
-        {/* Workflows Section - Only show if workflows_enabled is true */}
-        {features?.workflows_enabled === true && (
+        {/* Workflows Section - Only show if workflows_enabled is true and not on mobile */}
+        {features?.workflows_enabled === true && !isMobile && (
           <>
             <Divider sx={{ my: 1, borderColor: theme.palette.divider }} />
             {open && (
